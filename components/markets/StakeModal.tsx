@@ -1,0 +1,315 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import type { Creator } from "@/types";
+import { formatCurrency, cn } from "@/lib/utils";
+import { useAppStore } from "@/store";
+import { Button } from "@/components/ui/button";
+import { X, Check, Loader2, ExternalLink } from "lucide-react";
+
+type StakeModalProps = {
+  creator: Creator;
+  isOpen: boolean;
+  onClose: () => void;
+  livePrice?: number;
+  desoUsername?: string | null;
+  profilePicUrl?: string | null;
+};
+
+export function StakeModal({
+  creator,
+  isOpen,
+  onClose,
+  livePrice,
+  desoUsername,
+  profilePicUrl,
+}: StakeModalProps) {
+  const { isAuthenticated, desoPublicKey, desoBalanceNanos, desoBalanceUSD } =
+    useAppStore();
+  const [tab, setTab] = useState<"buy" | "sell">("buy");
+  const [amountUSD, setAmountUSD] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [desoPrice, setDesoPrice] = useState(0);
+
+  const coinPrice = livePrice ?? creator.creator_coin_price;
+  const coinSymbol = desoUsername || creator.creator_coin_symbol;
+  const amountNum = parseFloat(amountUSD) || 0;
+  const amountDesoNanos = desoPrice > 0 ? Math.floor((amountNum / desoPrice) * 1e9) : 0;
+  const estimatedCoins = coinPrice > 0 ? amountNum / coinPrice : 0;
+
+  const fetchDesoPrice = useCallback(async () => {
+    try {
+      const { getDesoPrice } = await import("@/lib/deso/api");
+      const price = await getDesoPrice();
+      setDesoPrice(price);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDesoPrice();
+      setTxHash(null);
+      setError(null);
+      setAmountUSD("");
+    }
+  }, [isOpen, fetchDesoPrice]);
+
+  const handleConfirm = async () => {
+    if (!desoPublicKey || !creator.deso_public_key) return;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (tab === "buy") {
+        if (amountDesoNanos > desoBalanceNanos) {
+          throw new Error(
+            `Insufficient DESO balance. You have ${(desoBalanceNanos / 1e9).toFixed(4)} DESO ($${desoBalanceUSD.toFixed(2)})`
+          );
+        }
+        const { buyCreatorCoin } = await import("@/lib/deso/api");
+        const result = await buyCreatorCoin(
+          creator.deso_public_key,
+          amountDesoNanos,
+          desoPublicKey
+        );
+        setTxHash(result.txHash);
+      } else {
+        const coinsToSellNanos = Math.floor(estimatedCoins * 1e9);
+        const { sellCreatorCoin } = await import("@/lib/deso/api");
+        const result = await sellCreatorCoin(
+          creator.deso_public_key,
+          coinsToSellNanos,
+          desoPublicKey
+        );
+        setTxHash(result.txHash);
+      }
+
+      // Refresh balance
+      const { getUserDesoBalance } = await import("@/lib/deso/api");
+      const bal = await getUserDesoBalance(desoPublicKey);
+      useAppStore.getState().setDesoBalance(bal.balanceNanos, bal.balanceUSD);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Transaction failed";
+      if (msg.includes("rejected") || msg.includes("cancelled") || msg.includes("denied")) {
+        setError("Transaction cancelled");
+      } else if (msg.includes("slippage") || msg.includes("Price")) {
+        setError("Price moved too much. Please try again.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-border-subtle bg-surface-2 p-6 shadow-2xl">
+        {/* Header */}
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {profilePicUrl ? (
+              <img
+                src={profilePicUrl}
+                alt=""
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-caldera/20 text-sm font-bold text-caldera">
+                {creator.name.charAt(0)}
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-semibold text-text-primary">
+                {creator.name}
+              </p>
+              <p className="text-xs text-text-muted">
+                ${coinSymbol} · {formatCurrency(coinPrice)}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-text-muted hover:bg-surface hover:text-text-primary transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Success state */}
+        {txHash ? (
+          <div className="text-center py-6">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yes/10">
+              <Check className="h-6 w-6 text-yes" />
+            </div>
+            <p className="text-lg font-semibold text-text-primary">
+              Stake confirmed
+            </p>
+            <p className="mt-1 text-sm text-text-muted">
+              {creator.name} stake {tab === "buy" ? "purchased" : "sold"}
+            </p>
+            <p className="mt-3 font-mono text-xs text-text-muted break-all">
+              Tx: {txHash.slice(0, 16)}...
+            </p>
+            <a
+              href={`https://explorer.deso.org/?transaction-id=${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1 text-xs text-caldera hover:text-caldera/80"
+            >
+              View on DeSo Explorer
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <Button
+              onClick={onClose}
+              className="mt-6 w-full bg-caldera text-background font-semibold hover:bg-caldera/90"
+            >
+              Done
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Tabs */}
+            <div className="mb-5 flex rounded-lg bg-background p-1">
+              <button
+                onClick={() => setTab("buy")}
+                className={cn(
+                  "flex-1 rounded-md py-2 text-sm font-semibold transition-colors",
+                  tab === "buy"
+                    ? "bg-caldera/10 text-caldera border-b-2 border-caldera"
+                    : "text-text-muted"
+                )}
+              >
+                Buy Stake
+              </button>
+              <button
+                onClick={() => setTab("sell")}
+                className={cn(
+                  "flex-1 rounded-md py-2 text-sm font-semibold transition-colors",
+                  tab === "sell"
+                    ? "bg-no/10 text-no border-b-2 border-no"
+                    : "text-text-muted"
+                )}
+              >
+                Sell Stake
+              </button>
+            </div>
+
+            {/* Amount */}
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs text-text-muted">
+                Amount (USD)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
+                  $
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={amountUSD}
+                  onChange={(e) => setAmountUSD(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-xl border border-border-subtle bg-background py-3 pl-7 pr-4 font-mono text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:ring-1 focus:ring-caldera"
+                />
+              </div>
+              <div className="mt-2 flex gap-2">
+                {[5, 10, 25, 50].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setAmountUSD(String(v))}
+                    className="rounded-md bg-surface px-3 py-1 text-xs text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    ${v}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview */}
+            {amountNum > 0 && (
+              <div className="mb-4 space-y-1.5 rounded-xl bg-background p-3 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-text-muted">
+                    You&apos;ll receive approx.
+                  </span>
+                  <span className="font-mono text-text-primary">
+                    {estimatedCoins.toFixed(4)} ${coinSymbol}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Current price</span>
+                  <span className="font-mono text-text-primary">
+                    {formatCurrency(coinPrice)} per coin
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">DESO equivalent</span>
+                  <span className="font-mono text-text-primary">
+                    {(amountDesoNanos / 1e9).toFixed(4)} DESO
+                  </span>
+                </div>
+                <div className="border-t border-border-subtle/50 pt-1.5 flex justify-between">
+                  <span className="text-text-muted">Fee</span>
+                  <span className="font-mono text-text-muted">
+                    1.5% platform + 0.75% to stakeholders
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <p className="mb-4 text-[10px] text-text-faint leading-relaxed">
+              Price may vary. DeSo blockchain transactions are irreversible.
+            </p>
+
+            {error && (
+              <p className="mb-3 text-xs text-no">{error}</p>
+            )}
+
+            {/* CTA */}
+            <Button
+              onClick={handleConfirm}
+              disabled={
+                !isAuthenticated ||
+                !desoPublicKey ||
+                amountNum <= 0 ||
+                isLoading
+              }
+              className="w-full bg-caldera text-background font-semibold hover:bg-caldera/90 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {!isAuthenticated
+                ? "Connect DeSo Wallet First"
+                : !desoPublicKey
+                ? "Connect DeSo Wallet First"
+                : amountNum <= 0
+                ? "Enter an amount"
+                : isLoading
+                ? "Confirming..."
+                : `Confirm ${tab === "buy" ? "Stake" : "Sale"}`}
+            </Button>
+
+            {/* Balance */}
+            {isAuthenticated && desoPublicKey && (
+              <p className="mt-3 text-center text-[10px] text-text-muted">
+                Your balance: {(desoBalanceNanos / 1e9).toFixed(4)} DESO (
+                {formatCurrency(desoBalanceUSD)})
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

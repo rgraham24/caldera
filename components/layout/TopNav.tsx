@@ -20,7 +20,7 @@ const AUTH_NAV_ITEMS = [
 
 export function TopNav() {
   const pathname = usePathname();
-  const { user, isAuthenticated } = useAppStore();
+  const { user, isAuthenticated, desoBalanceNanos } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -96,11 +96,18 @@ export function TopNav() {
             </Button>
 
             {isAuthenticated ? (
-              <Link href={`/profile/${user?.username}`}>
-                <Button variant="ghost" size="sm" className="text-text-muted">
-                  {user?.username}
-                </Button>
-              </Link>
+              <div className="flex items-center gap-2">
+                {desoBalanceNanos > 0 && (
+                  <span className="hidden font-mono text-xs text-text-muted sm:inline">
+                    {(desoBalanceNanos / 1e9).toFixed(2)} DESO
+                  </span>
+                )}
+                <Link href={`/profile/${user?.username}`}>
+                  <Button variant="ghost" size="sm" className="text-text-muted">
+                    {user?.username}
+                  </Button>
+                </Link>
+              </div>
             ) : (
               <Link href="/login">
                 <Button

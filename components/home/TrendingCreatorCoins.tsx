@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowUpRight, ArrowDownRight, ExternalLink } from "lucide-react";
+import { StakeModal } from "@/components/markets/StakeModal";
 
 const AVATAR_GRADIENTS = [
   "from-cyan-500/30 to-blue-600/30",
@@ -48,6 +49,7 @@ type TrendingCreatorCoinsProps = {
 
 export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
   const [liveData, setLiveData] = useState<Record<string, LiveCoinData>>({});
+  const [stakeCreator, setStakeCreator] = useState<(Creator & { price_change_24h: number }) | null>(null);
 
   useEffect(() => {
     creators.forEach((c) => {
@@ -103,20 +105,9 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                   </div>
                 )}
                 <div className="min-w-0">
-                  {desoUser ? (
-                    <a
-                      href={`https://diamondapp.com/u/${desoUser}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate text-sm font-semibold text-text-primary hover:text-caldera transition-colors"
-                    >
-                      {creator.name}
-                    </a>
-                  ) : (
-                    <p className="truncate text-sm font-semibold text-text-primary">
-                      {creator.name}
-                    </p>
-                  )}
+                  <p className="truncate text-sm font-semibold text-text-primary">
+                    {creator.name}
+                  </p>
                   <p className="text-[10px] tracking-widest text-text-muted">
                     ${coinSymbol}
                   </p>
@@ -156,34 +147,47 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                       {holders.toLocaleString()} holders
                     </p>
                   </div>
-                  <a
-                    href={`https://diamondapp.com/u/${desoUser}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mb-4 flex items-center gap-1 text-[10px] text-text-muted hover:text-caldera transition-colors"
-                  >
+                  <p className="mb-4 flex items-center gap-1 text-[10px] text-text-muted">
                     Tradeable on DeSo blockchain
                     <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
+                  </p>
                 </>
               )}
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="w-full text-left text-xs font-medium text-caldera transition-colors hover:text-caldera/80">
-                    Earn 0.75% from trades →
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs bg-surface border-border-subtle text-text-primary">
-                    <p className="text-xs">
-                      Hold a stake in ${coinSymbol} to earn 0.75% of every trade on {creator.name}&apos;s markets
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {desoUser ? (
+                <button
+                  onClick={() => setStakeCreator(creator)}
+                  className="w-full text-left text-xs font-medium text-caldera transition-colors hover:text-caldera/80"
+                >
+                  Take a Stake →
+                </button>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="w-full text-left text-xs font-medium text-text-faint">
+                      Take a Stake →
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-surface border-border-subtle text-text-primary">
+                      <p className="text-xs">Stake not yet available on DeSo</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           );
         })}
       </div>
+
+      {stakeCreator && (
+        <StakeModal
+          creator={stakeCreator}
+          isOpen={!!stakeCreator}
+          onClose={() => setStakeCreator(null)}
+          livePrice={liveData[stakeCreator.slug]?.priceUSD}
+          desoUsername={liveData[stakeCreator.slug]?.desoUsername ?? (stakeCreator as { deso_username?: string }).deso_username}
+          profilePicUrl={liveData[stakeCreator.slug]?.profilePicUrl}
+        />
+      )}
     </section>
   );
 }

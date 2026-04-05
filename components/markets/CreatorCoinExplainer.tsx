@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import type { Creator } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { StakeModal } from "@/components/markets/StakeModal";
 
 const AVATAR_GRADIENTS = [
   "from-cyan-500/30 to-blue-600/30",
@@ -38,6 +39,7 @@ export function CreatorCoinExplainer({
   creatorFeePercent,
 }: CreatorCoinExplainerProps) {
   const [open, setOpen] = useState(true);
+  const [showStakeModal, setShowStakeModal] = useState(false);
   const idx = nameHash(creator.name) % AVATAR_GRADIENTS.length;
 
   const [livePrice, setLivePrice] = useState(creator.creator_coin_price);
@@ -62,90 +64,98 @@ export function CreatorCoinExplainer({
   }, [creator.slug]);
 
   return (
-    <div className="rounded-xl border border-caldera/20 bg-caldera/5">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 p-4 text-left"
-      >
-        <span className="shrink-0 rounded-full bg-caldera/15 px-2.5 py-0.5 text-[11px] font-semibold text-caldera">
-          People Market
-        </span>
-        <span className="flex-1 text-sm font-medium text-text-primary">
-          {creator.name}
-        </span>
-        {open ? (
-          <ChevronUp className="h-4 w-4 text-text-muted" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-text-muted" />
-        )}
-      </button>
-      {open && (
-        <div className="border-t border-caldera/10 px-4 pb-4 pt-3">
-          <p className="text-sm text-text-muted leading-relaxed">
-            This is a People Market.{" "}
-            <span className="text-text-primary font-medium">{creator.name}</span>{" "}
-            earns{" "}
-            <span className="text-caldera font-medium">
-              {(creatorFeePercent * 100).toFixed(1)}%
-            </span>{" "}
-            of every trade made here. Take a stake in their trajectory —
-            every market about them that trades on Caldera grows the value
-            of your stake.
-          </p>
+    <>
+      <div className="rounded-xl border border-caldera/20 bg-caldera/5">
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex w-full items-center gap-2 p-4 text-left"
+        >
+          <span className="shrink-0 rounded-full bg-caldera/15 px-2.5 py-0.5 text-[11px] font-semibold text-caldera">
+            People Market
+          </span>
+          <span className="flex-1 text-sm font-medium text-text-primary">
+            {creator.name}
+          </span>
+          {open ? (
+            <ChevronUp className="h-4 w-4 text-text-muted" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-text-muted" />
+          )}
+        </button>
+        {open && (
+          <div className="border-t border-caldera/10 px-4 pb-4 pt-3">
+            <p className="text-sm text-text-muted leading-relaxed">
+              This is a People Market.{" "}
+              <span className="text-text-primary font-medium">{creator.name}</span>{" "}
+              earns{" "}
+              <span className="text-caldera font-medium">
+                {(creatorFeePercent * 100).toFixed(1)}%
+              </span>{" "}
+              of every trade made here. Take a stake in their trajectory —
+              every market about them that trades on Caldera grows the value
+              of your stake.
+            </p>
 
-          <div className="mt-3 flex items-center gap-4 rounded-lg bg-surface p-3">
-            {livePic ? (
-              <img
-                src={livePic}
-                alt=""
-                className="h-10 w-10 rounded-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            ) : (
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[idx]} ${AVATAR_TEXT[idx]} text-sm font-bold`}>
-                {creator.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-text-primary">
-                  {creator.name}
-                </span>
-                <span className="text-[10px] tracking-widest text-text-muted">
-                  ${desoUser || creator.creator_coin_symbol}
-                </span>
-                {isLive && (
-                  <span className="flex items-center gap-1 text-[10px] text-yes">
-                    <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
-                    Live
+            <div className="mt-3 flex items-center gap-4 rounded-lg bg-surface p-3">
+              {livePic ? (
+                <img
+                  src={livePic}
+                  alt=""
+                  className="h-10 w-10 rounded-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[idx]} ${AVATAR_TEXT[idx]} text-sm font-bold`}>
+                  {creator.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-text-primary">
+                    {creator.name}
                   </span>
-                )}
+                  <span className="text-[10px] tracking-widest text-text-muted">
+                    ${desoUser || creator.creator_coin_symbol}
+                  </span>
+                  {isLive && (
+                    <span className="flex items-center gap-1 text-[10px] text-yes">
+                      <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+                      Live
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-sm font-bold tracking-normal text-text-primary">
+                    {desoUser ? formatCurrency(livePrice) : "—"}
+                  </span>
+                  <span className="text-xs text-text-muted">
+                    {liveHolders.toLocaleString()} holders
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-display text-sm font-bold tracking-normal text-text-primary">
-                  {desoUser ? formatCurrency(livePrice) : "—"}
-                </span>
-                <span className="text-xs text-text-muted">
-                  {liveHolders.toLocaleString()} holders
-                </span>
-              </div>
+              {desoUser ? (
+                <button
+                  onClick={() => setShowStakeModal(true)}
+                  className="rounded-lg bg-caldera/10 px-3 py-1.5 text-xs font-medium text-caldera border border-caldera/20 hover:bg-caldera/20 transition-colors"
+                >
+                  Take a Stake →
+                </button>
+              ) : (
+                <span className="text-[10px] text-text-faint">Stake not yet available</span>
+              )}
             </div>
-            {desoUser ? (
-              <a
-                href={`https://diamondapp.com/u/${desoUser}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg bg-caldera/10 px-3 py-1.5 text-xs font-medium text-caldera border border-caldera/20 hover:bg-caldera/20 transition-colors"
-              >
-                Buy on Diamond
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            ) : (
-              <span className="text-[10px] text-text-faint">Stake not yet available</span>
-            )}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      <StakeModal
+        creator={creator}
+        isOpen={showStakeModal}
+        onClose={() => setShowStakeModal(false)}
+        livePrice={livePrice}
+        desoUsername={desoUser}
+        profilePicUrl={livePic}
+      />
+    </>
   );
 }
