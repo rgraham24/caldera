@@ -77,6 +77,8 @@ export type Database = {
           total_creator_earnings: number;
           total_holder_earnings: number;
           markets_count: number;
+          weekly_volume_usd: number;
+          weekly_volume_updated_at: string | null;
           claim_code: string | null;
           claim_code_expires_at: string | null;
           claim_attempted_by: string | null;
@@ -125,6 +127,8 @@ export type Database = {
           total_creator_earnings?: number;
           total_holder_earnings?: number;
           markets_count?: number;
+          weekly_volume_usd?: number;
+          weekly_volume_updated_at?: string | null;
           claim_code?: string | null;
           claim_code_expires_at?: string | null;
           claim_attempted_by?: string | null;
@@ -161,6 +165,8 @@ export type Database = {
           no_pool: number;
           market_subtype: string;
           is_hero: boolean;
+          resolution_criteria: string | null;
+          resolution_source: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -191,6 +197,8 @@ export type Database = {
           no_pool?: number;
           market_subtype?: string;
           is_hero?: boolean;
+          resolution_criteria?: string | null;
+          resolution_source?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -221,6 +229,8 @@ export type Database = {
           no_pool?: number;
           market_subtype?: string;
           is_hero?: boolean;
+          resolution_criteria?: string | null;
+          resolution_source?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -631,6 +641,45 @@ export type Database = {
           deso_price_at_purchase?: number;
           tx_hash?: string | null;
           purchased_at?: string;
+        };
+        Relationships: [];
+      };
+      user_alerts: {
+        Row: {
+          id: string;
+          user_id: string;
+          creator_id: string;
+          deso_username: string;
+          alert_type: string;
+          target_price_usd: number;
+          current_price_at_creation: number;
+          is_triggered: boolean;
+          triggered_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          creator_id: string;
+          deso_username: string;
+          alert_type: string;
+          target_price_usd: number;
+          current_price_at_creation: number;
+          is_triggered?: boolean;
+          triggered_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          creator_id?: string;
+          deso_username?: string;
+          alert_type?: string;
+          target_price_usd?: number;
+          current_price_at_creation?: number;
+          is_triggered?: boolean;
+          triggered_at?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };

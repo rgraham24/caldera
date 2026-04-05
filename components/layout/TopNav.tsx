@@ -7,6 +7,7 @@ import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Search, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { NotificationBell } from "./NotificationBell";
 
 const NAV_ITEMS = [
   { href: "/", label: "Explore" },
@@ -97,6 +98,8 @@ export function TopNav() {
                 className="w-48 rounded-lg border border-border-subtle/50 bg-surface py-1.5 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:w-64 transition-all"
               />
             </div>
+
+            <NotificationBell />
 
             {isAuthenticated ? (
               <div className="flex items-center gap-2">

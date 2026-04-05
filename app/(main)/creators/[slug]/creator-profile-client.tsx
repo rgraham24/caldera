@@ -9,6 +9,7 @@ import { StakeModal } from "@/components/markets/StakeModal";
 import { MarketChart } from "@/components/markets/MarketChart";
 import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { HolderCalculator } from "@/components/shared/HolderCalculator";
 
 type CreatorProfileClientProps = {
   creator: Creator;
@@ -133,6 +134,18 @@ export function CreatorProfileClient({
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
             <h2 className="section-header mb-4">Coin Price</h2>
             <MarketChart yesPrice={livePrice / 200} />
+          </div>
+        )}
+
+        {/* Holder Calculator */}
+        {desoUser && (
+          <div className="mb-8">
+            <HolderCalculator
+              symbol={coinSymbol || creator.name}
+              coinPrice={livePrice}
+              totalCoinsInCirculation={creator.total_coins_in_circulation}
+              weeklyVolume={creator.weekly_volume_usd || 0}
+            />
           </div>
         )}
 

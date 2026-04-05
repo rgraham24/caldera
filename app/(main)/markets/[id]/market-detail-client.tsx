@@ -138,14 +138,14 @@ export function MarketDetailClient({
             </div>
           </div>
 
-          {/* Rules & Resolution */}
-          {market.rules_text && (
+          {/* Resolution Criteria */}
+          {(market.resolution_criteria || market.rules_text) && (
             <div className="mb-6 rounded-xl border border-border-subtle bg-surface">
               <button
                 onClick={() => setRulesOpen(!rulesOpen)}
                 className="flex w-full items-center justify-between p-4 text-sm font-medium text-text-primary"
               >
-                Rules & Resolution
+                Resolution Criteria
                 {rulesOpen ? (
                   <ChevronUp className="h-4 w-4 text-text-muted" />
                 ) : (
@@ -153,18 +153,37 @@ export function MarketDetailClient({
                 )}
               </button>
               {rulesOpen && (
-                <div className="border-t border-border-subtle p-4">
-                  <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
-                    {market.rules_text}
-                  </p>
+                <div className="border-t border-border-subtle p-4 space-y-3">
+                  {market.resolution_criteria && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Resolves YES when</p>
+                      <p className="text-sm text-text-primary leading-relaxed">
+                        {market.resolution_criteria}
+                      </p>
+                    </div>
+                  )}
+                  {market.resolution_source && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Verification Source</p>
+                      <p className="text-sm text-caldera">{market.resolution_source}</p>
+                    </div>
+                  )}
+                  {market.rules_text && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Rules</p>
+                      <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
+                        {market.rules_text}
+                      </p>
+                    </div>
+                  )}
                   {market.resolution_source_url && (
                     <a
                       href={market.resolution_source_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-1 text-xs text-caldera hover:underline"
+                      className="inline-flex items-center gap-1 text-xs text-caldera hover:underline"
                     >
-                      Resolution Source
+                      External Source
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
