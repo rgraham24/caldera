@@ -6,7 +6,7 @@ import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
 import { MarketChart } from "@/components/markets/MarketChart";
 import { TradeTicket } from "@/components/markets/TradeTicket";
-import { MarketComments } from "@/components/markets/MarketComments";
+import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
 import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer";
@@ -188,7 +188,7 @@ export function MarketDetailClient({
           )}
 
           {/* Comments */}
-          <MarketComments marketId={market.id} initialComments={comments} />
+          <MarketTabs marketId={market.id} comments={comments} creator={creator} />
         </div>
 
         {/* Right column (35%) — sticky trading panel */}

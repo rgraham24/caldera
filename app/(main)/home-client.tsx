@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { Market, Creator } from "@/types";
 import { CATEGORIES } from "@/types";
 import { MarketCard } from "@/components/markets/MarketCard";
-import { TierBadge } from "@/components/shared/TierBadge";
 import { StakeModal } from "@/components/markets/StakeModal";
 import {
   formatCurrency,
@@ -15,6 +14,7 @@ import {
   cn,
 } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 
 type RecentTrade = {
   id: string;
@@ -165,17 +165,10 @@ export function HomeClient({
                 {/* Creator bar */}
                 {heroCreator && (
                   <div className="mb-4 flex items-center gap-3">
-                    {heroCreator.profile_pic_url ? (
-                      <img src={heroCreator.profile_pic_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-caldera/10 text-xs font-bold text-caldera">
-                        {heroCreator.name.charAt(0)}
-                      </div>
-                    )}
+                    <CreatorAvatar creator={heroCreator} size="sm" />
                     <Link href={`/creators/${heroCreator.slug}`} className="text-sm font-medium text-text-primary hover:text-caldera">
                       {heroCreator.name}
                     </Link>
-                    <TierBadge tier={heroCreator.tier} />
                     <span className="font-mono text-xs text-text-muted">
                       {formatCurrency(heroCreator.creator_coin_price)}
                     </span>
@@ -258,13 +251,7 @@ export function HomeClient({
                   return (
                     <div key={c.id} className="flex items-center gap-3">
                       <Link href={`/creators/${c.slug}`} className="flex items-center gap-2 flex-1 min-w-0">
-                        {c.profile_pic_url ? (
-                          <img src={c.profile_pic_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-                        ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-caldera/10 text-xs font-bold text-caldera">
-                            {c.name.charAt(0)}
-                          </div>
-                        )}
+                        <CreatorAvatar creator={c} size="sm" />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-text-primary">{c.name}</p>
                           <div className="flex items-center gap-1">
@@ -345,13 +332,7 @@ export function HomeClient({
                   key={c.id}
                   className="flex min-w-[200px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
                 >
-                  {c.profile_pic_url ? (
-                    <img src={c.profile_pic_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-caldera/10 text-sm font-bold text-caldera">
-                      {c.name.charAt(0)}
-                    </div>
-                  )}
+                  <CreatorAvatar creator={c} size="md" />
                   <div className="min-w-0 flex-1">
                     <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
                       {c.name}

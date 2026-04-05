@@ -4,8 +4,8 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { Creator } from "@/types";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
-import { TierBadge } from "@/components/shared/TierBadge";
 import { Search } from "lucide-react";
+import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 
 type CreatorsClientProps = {
   creators: Creator[];
@@ -13,9 +13,7 @@ type CreatorsClientProps = {
 
 const TIERS = [
   { value: "all", label: "All" },
-  { value: "verified_creator", label: "Verified" },
-  { value: "unclaimed", label: "Unclaimed" },
-  { value: "public_figure", label: "Public Figures" },
+  { value: "verified_creator", label: "Claimed" },
 ];
 
 const SORTS = [
@@ -101,20 +99,16 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
           <Link key={c.id} href={`/creators/${c.slug}`}>
             <div className="rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-border-visible/60 hover:-translate-y-0.5">
               <div className="mb-3 flex items-center gap-3">
-                {c.profile_pic_url ? (
-                  <img src={c.profile_pic_url} alt="" className="h-12 w-12 rounded-full object-cover" />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-caldera/10 text-lg font-bold text-caldera">
-                    {c.name.charAt(0)}
-                  </div>
-                )}
+                <CreatorAvatar creator={c} size="lg" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold text-text-primary">{c.name}</p>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] tracking-widest text-text-muted">
                       ${c.deso_username || c.creator_coin_symbol}
                     </span>
-                    <TierBadge tier={c.tier} />
+                    {c.tier === "verified_creator" && (
+                      <span className="text-caldera text-[10px]">✓</span>
+                    )}
                   </div>
                 </div>
               </div>

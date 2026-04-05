@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { Creator, Market } from "@/types";
 import { formatCurrency, formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
-import { TierBadge } from "@/components/shared/TierBadge";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { MarketChart } from "@/components/markets/MarketChart";
 import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
+import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 
 type CreatorProfileClientProps = {
   creator: Creator;
@@ -73,19 +73,15 @@ export function CreatorProfileClient({
         {/* Profile Header */}
         <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start">
           <div className="flex items-start gap-5">
-            {livePic ? (
-              <img src={livePic} alt="" className="h-20 w-20 rounded-full object-cover" />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-caldera/10 text-3xl font-bold text-caldera">
-                {creator.name.charAt(0)}
-              </div>
-            )}
+            <CreatorAvatar creator={creator} size="lg" />
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
                   {creator.name}
                 </h1>
-                <TierBadge tier={creator.tier} size="md" />
+                {creator.tier === "verified_creator" && (
+                  <span className="text-caldera text-sm" title="Verified">✓</span>
+                )}
               </div>
               <p className="mt-1 text-sm text-text-muted">${coinSymbol}</p>
               <div className="mt-3 flex items-center gap-4">

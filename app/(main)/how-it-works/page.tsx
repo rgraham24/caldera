@@ -66,19 +66,16 @@ export default function HowItWorksPage() {
 
         {/* Section 3 */}
         <section>
-          <h2 className="section-header mb-4">Creator Verification</h2>
+          <h2 className="section-header mb-4">Claim Your Profile</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
-              <span className="text-caldera">Verified creators</span> earn 0.75% of all trades
-              about them. They verify by posting a unique code publicly.
+              If markets are being made about you, claim your profile to earn{" "}
+              <span className="text-caldera font-medium">0.75% of every trade</span>.
+              Verify by posting a unique code publicly — on X, Instagram, YouTube, anywhere.
             </p>
             <p>
-              <span className="text-text-muted">Public Figures</span> (athletes, politicians) —
-              their share goes to coin holders instead. Holders earn 1.5% total.
-            </p>
-            <p>
-              <span className="text-amber-400">Unverified</span> profiles do not receive creator
-              earnings. Holders earn 1.5% total until the creator verifies.
+              Unclaimed profiles: the creator&apos;s share goes to coin holders instead.
+              Holders earn 1.5% total until the creator claims.
             </p>
           </div>
         </section>
@@ -114,21 +111,14 @@ export default function HowItWorksPage() {
               </thead>
               <tbody className="text-text-primary">
                 <tr className="border-b border-border-subtle/30">
-                  <td className="py-3">Verified Creator</td>
+                  <td className="py-3">Claimed Creator</td>
                   <td className="py-3 text-right font-mono">1.5%</td>
                   <td className="py-3 text-right font-mono text-caldera">0.75%</td>
                   <td className="py-3 text-right font-mono text-caldera">0.75%</td>
-                  <td className="py-3 text-right font-mono font-bold">3.0%</td>
-                </tr>
-                <tr className="border-b border-border-subtle/30">
-                  <td className="py-3">Public Figure</td>
-                  <td className="py-3 text-right font-mono">1.5%</td>
-                  <td className="py-3 text-right font-mono text-text-muted">0%</td>
-                  <td className="py-3 text-right font-mono text-caldera">1.5%</td>
                   <td className="py-3 text-right font-mono font-bold">3.0%</td>
                 </tr>
                 <tr>
-                  <td className="py-3">Unverified</td>
+                  <td className="py-3">Unclaimed</td>
                   <td className="py-3 text-right font-mono">1.5%</td>
                   <td className="py-3 text-right font-mono text-text-muted">0%</td>
                   <td className="py-3 text-right font-mono text-caldera">1.5%</td>

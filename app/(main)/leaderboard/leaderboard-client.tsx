@@ -1,169 +1,123 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import type { LeaderboardEntry, LeaderboardPeriod } from "@/types";
-import { cn, formatPercentDecimal } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 
-type LeaderboardClientProps = {
-  initialEntries: LeaderboardEntry[];
+type Trader = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  totalPnl: number;
+  totalVolume: number;
+  distinctMarkets: number;
+  winRate: number;
+  bestCallTitle: string | null;
+  bestCallPnl: number;
 };
 
-const PERIODS: { value: LeaderboardPeriod; label: string }[] = [
-  { value: "alltime", label: "All Time" },
-  { value: "monthly", label: "Monthly" },
-  { value: "weekly", label: "Weekly" },
-];
+type BiggestWin = {
+  username: string;
+  marketTitle: string;
+  pnl: number;
+};
 
-const RANK_BADGES = ["🥇", "🥈", "🥉"];
+type LeaderboardClientProps = {
+  traders: Trader[];
+  biggestWins: BiggestWin[];
+};
 
-export function LeaderboardClient({
-  initialEntries,
-}: LeaderboardClientProps) {
-  const [period, setPeriod] = useState<LeaderboardPeriod>("alltime");
-  const [entries, setEntries] = useState(initialEntries);
-  const [loading, setLoading] = useState(false);
-
-  const changePeriod = async (newPeriod: LeaderboardPeriod) => {
-    setPeriod(newPeriod);
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/leaderboard?period=${newPeriod}`);
-      const { data } = await res.json();
-      setEntries(data ?? []);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientProps) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-text-primary">
-          Leaderboard
-        </h1>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Info className="h-4 w-4 text-text-muted" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs bg-surface border-border-subtle text-text-primary">
-              <p className="text-xs leading-relaxed">
-                <strong>Score Formula:</strong>
-                <br />
-                ROI: 35% | Accuracy: 25% | Early Call: 25% | Consistency: 10% | Volume: 5%
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <h1 className="mb-8 font-display text-3xl font-bold tracking-tight text-text-primary">
+        Leaderboard
+      </h1>
 
-      {/* Period tabs */}
-      <div className="mb-6 flex gap-1 rounded-lg bg-surface p-1 w-fit">
-        {PERIODS.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => changePeriod(p.value)}
-            className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-              period === p.value
-                ? "bg-surface-2 text-text-primary"
-                : "text-text-muted hover:text-text-primary"
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Table */}
-      <div className={cn("rounded-xl border border-border-subtle bg-surface overflow-x-auto", loading && "opacity-50")}>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-subtle text-text-muted">
-              <th className="px-4 py-3 text-left font-medium w-16">Rank</th>
-              <th className="px-4 py-3 text-left font-medium">Trader</th>
-              <th className="px-4 py-3 text-right font-medium">ROI</th>
-              <th className="px-4 py-3 text-right font-medium">Accuracy</th>
-              <th className="px-4 py-3 text-right font-medium">Early Call</th>
-              <th className="px-4 py-3 text-right font-medium">Volume</th>
-              <th className="px-4 py-3 text-right font-medium">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry, i) => (
-              <tr
-                key={entry.id}
-                className="border-b border-border-subtle last:border-b-0 hover:bg-surface-2 transition-colors"
-              >
-                <td className="px-4 py-3 text-center">
-                  {i < 3 ? (
-                    <span className="text-lg">{RANK_BADGES[i]}</span>
-                  ) : (
-                    <span className="text-text-muted">#{entry.rank}</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/profile/${entry.user.username}`}
-                    className="flex items-center gap-2 hover:text-caldera"
+      <div className="flex flex-col gap-8 lg:flex-row">
+        {/* Main table */}
+        <div className="flex-1">
+          <div className="rounded-2xl border border-border-subtle/30 bg-surface overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-subtle text-text-muted">
+                  <th className="px-4 py-3 text-left font-medium w-12">#</th>
+                  <th className="px-4 py-3 text-left font-medium">Trader</th>
+                  <th className="px-4 py-3 text-right font-medium">P/L</th>
+                  <th className="px-4 py-3 text-right font-medium">Volume</th>
+                  <th className="px-4 py-3 text-right font-medium">Markets</th>
+                  <th className="px-4 py-3 text-right font-medium">Win %</th>
+                  <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Best Call</th>
+                </tr>
+              </thead>
+              <tbody>
+                {traders.map((t, i) => (
+                  <tr
+                    key={t.id}
+                    className="border-b border-border-subtle/20 hover:bg-surface-2/50 transition-colors"
                   >
-                    {entry.user.avatar_url && (
-                      <img
-                        src={entry.user.avatar_url}
-                        alt=""
-                        className="h-7 w-7 rounded-full"
-                      />
-                    )}
-                    <span className="font-medium text-text-primary">
-                      {entry.user.username}
-                    </span>
-                    {entry.user.is_verified && (
-                      <span className="text-xs text-caldera">✓</span>
-                    )}
-                  </Link>
-                </td>
-                <td
-                  className={cn(
-                    "px-4 py-3 text-right font-mono",
-                    entry.roi_score >= 0 ? "text-yes" : "text-no"
-                  )}
-                >
-                  {formatPercentDecimal(entry.roi_score / 100)}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-text-primary">
-                  {entry.accuracy_score.toFixed(1)}%
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-text-primary">
-                  {entry.early_call_score.toFixed(1)}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-text-primary">
-                  {entry.volume_score.toFixed(1)}
-                </td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-gold">
-                  {entry.composite_score.toFixed(1)}
-                </td>
-              </tr>
-            ))}
-            {entries.length === 0 && (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-8 text-center text-text-muted"
-                >
-                  No leaderboard data
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    <td className="px-4 py-3 font-mono text-text-muted">
+                      {i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-medium text-text-primary">{t.username}</span>
+                    </td>
+                    <td className={cn(
+                      "px-4 py-3 text-right font-mono font-bold",
+                      t.totalPnl >= 0 ? "text-yes" : "text-no"
+                    )}>
+                      {t.totalPnl >= 0 ? "+" : ""}{formatCurrency(t.totalPnl)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-text-muted">
+                      {formatCompactCurrency(t.totalVolume)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-text-muted">
+                      {t.distinctMarkets}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-text-muted">
+                      {t.winRate}%
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {t.bestCallTitle ? (
+                        <span className="text-xs text-text-muted">
+                          {t.bestCallTitle}… <span className="text-yes font-mono">+{formatCurrency(t.bestCallPnl)}</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-text-faint">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {traders.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-text-muted">
+                      No trading activity yet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Sidebar — Biggest Wins */}
+        <div className="w-full lg:w-72">
+          <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-text-muted">
+              Biggest Wins
+            </h3>
+            <div className="space-y-4">
+              {biggestWins.map((w, i) => (
+                <div key={i} className="text-sm">
+                  <p className="font-medium text-text-primary">{w.username}</p>
+                  <p className="mt-0.5 text-xs text-text-muted truncate">{w.marketTitle}</p>
+                  <p className="mt-0.5 font-mono text-xs text-yes">Won +{formatCurrency(w.pnl)}</p>
+                </div>
+              ))}
+              {biggestWins.length === 0 && (
+                <p className="text-xs text-text-muted">No resolved trades yet</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

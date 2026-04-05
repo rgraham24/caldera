@@ -13,31 +13,8 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { AddCreatorModal } from "@/components/shared/AddCreatorModal";
-import { TierBadge } from "@/components/shared/TierBadge";
+import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { Plus } from "lucide-react";
-
-const AVATAR_GRADIENTS = [
-  "from-cyan-500/30 to-blue-600/30",
-  "from-violet-500/30 to-purple-600/30",
-  "from-emerald-500/30 to-teal-600/30",
-  "from-rose-500/30 to-pink-600/30",
-  "from-amber-500/30 to-orange-600/30",
-  "from-blue-500/30 to-indigo-600/30",
-  "from-pink-500/30 to-fuchsia-600/30",
-  "from-teal-500/30 to-cyan-600/30",
-];
-const AVATAR_TEXT = [
-  "text-cyan-300", "text-violet-300", "text-emerald-300", "text-rose-300",
-  "text-amber-300", "text-blue-300", "text-pink-300", "text-teal-300",
-];
-
-function nameHash(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash);
-}
 
 type LiveCoinData = {
   priceUSD: number;
@@ -82,11 +59,9 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
         {creators.map((creator) => {
           const isUp = creator.price_change_24h >= 0;
-          const idx = nameHash(creator.name) % AVATAR_GRADIENTS.length;
           const live = liveData[creator.slug];
           const price = live?.priceUSD ?? creator.creator_coin_price;
           const holders = live?.holders ?? creator.creator_coin_holders;
-          const picUrl = live?.profilePicUrl;
           const desoUser = live?.desoUsername ?? (creator as { deso_username?: string }).deso_username;
           const coinSymbol = desoUser || creator.creator_coin_symbol;
           const isLive = live?.live ?? false;
@@ -97,25 +72,13 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
               className="min-w-[240px] flex-shrink-0 rounded-2xl border border-border-subtle/30 border-t-cyan-500/20 bg-surface p-5 transition-all hover:border-border-visible/50"
             >
               <div className="mb-4 flex items-center gap-3">
-                {picUrl ? (
-                  <img
-                    src={picUrl}
-                    alt=""
-                    className="h-11 w-11 rounded-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                ) : (
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br ${AVATAR_GRADIENTS[idx]} ${AVATAR_TEXT[idx]} text-base font-bold`}>
-                    {creator.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <CreatorAvatar creator={creator} size="md" />
                 <div className="min-w-0">
                   <Link href={`/creators/${creator.slug}`} className="block truncate text-sm font-semibold text-text-primary hover:text-caldera transition-colors">
                     {creator.name}
                   </Link>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] tracking-widest text-text-muted">${coinSymbol}</span>
-                    <TierBadge tier={creator.tier} />
                   </div>
                 </div>
               </div>
