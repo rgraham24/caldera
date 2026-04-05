@@ -71,6 +71,12 @@ export type Database = {
           deso_username: string | null;
           profile_pic_url: string | null;
           coin_data_updated_at: string | null;
+          tier: string;
+          claimed_at: string | null;
+          unclaimed_earnings_escrow: number;
+          total_creator_earnings: number;
+          total_holder_earnings: number;
+          markets_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -110,6 +116,12 @@ export type Database = {
           deso_username?: string | null;
           profile_pic_url?: string | null;
           coin_data_updated_at?: string | null;
+          tier?: string;
+          claimed_at?: string | null;
+          unclaimed_earnings_escrow?: number;
+          total_creator_earnings?: number;
+          total_holder_earnings?: number;
+          markets_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -141,6 +153,7 @@ export type Database = {
           no_price: number;
           yes_pool: number;
           no_pool: number;
+          market_subtype: string;
           created_at: string;
           updated_at: string;
         };
@@ -169,6 +182,7 @@ export type Database = {
           no_price?: number;
           yes_pool?: number;
           no_pool?: number;
+          market_subtype?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -197,6 +211,7 @@ export type Database = {
           no_price?: number;
           yes_pool?: number;
           no_pool?: number;
+          market_subtype?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -544,6 +559,33 @@ export type Database = {
           per_coin_amount?: number;
           snapshot_holder_count?: number;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_achievements: {
+        Row: {
+          id: string;
+          user_id: string;
+          achievement_type: string;
+          market_id: string | null;
+          earned_at: string;
+          metadata: Record<string, unknown> | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          achievement_type: string;
+          market_id?: string | null;
+          earned_at?: string;
+          metadata?: Record<string, unknown> | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          achievement_type?: string;
+          market_id?: string | null;
+          earned_at?: string;
+          metadata?: Record<string, unknown> | null;
         };
         Relationships: [];
       };

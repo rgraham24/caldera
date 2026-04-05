@@ -10,6 +10,7 @@ import { MarketComments } from "@/components/markets/MarketComments";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
 import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer";
+import { ShareCard } from "@/components/shared/ShareCard";
 import {
   formatCompactCurrency,
   formatCurrency,
@@ -67,7 +68,7 @@ export function MarketDetailClient({
               />
               <div className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
                 <span className="text-xs text-caldera font-medium">
-                  {creator.creator_coin_holders.toLocaleString()} stakeholders earning from this market
+                  {creator.creator_coin_holders.toLocaleString()} holders earning from this market
                 </span>
               </div>
             </div>
@@ -197,8 +198,9 @@ export function MarketDetailClient({
               <TradeTicket market={market} feeConfig={feeConfig} />
             )}
 
-            <div className="flex justify-center">
+            <div className="flex items-center justify-center gap-3">
               <WatchlistButton entityType="market" entityId={market.id} />
+              <ShareCard market={market} creatorName={creator?.name} />
             </div>
           </div>
         </div>

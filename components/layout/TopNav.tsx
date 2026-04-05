@@ -11,6 +11,7 @@ import { useState } from "react";
 const NAV_ITEMS = [
   { href: "/", label: "Explore" },
   { href: "/markets", label: "Markets" },
+  { href: "/creators", label: "Creators" },
   { href: "/leaderboard", label: "Leaderboard" },
 ];
 

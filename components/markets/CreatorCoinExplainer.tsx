@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import type { Creator } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
+import { TierBadge } from "@/components/shared/TierBadge";
 
 const AVATAR_GRADIENTS = [
   "from-cyan-500/30 to-blue-600/30",
@@ -93,7 +95,7 @@ export function CreatorCoinExplainer({
               </span>{" "}
               of every trade made here. Take a stake in their trajectory —
               every market about them that trades on Caldera grows the value
-              of your stake.
+              of your position.
             </p>
 
             <div className="mt-3 flex items-center gap-4 rounded-lg bg-surface p-3">
@@ -111,12 +113,13 @@ export function CreatorCoinExplainer({
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">
+                  <Link href={`/creators/${creator.slug}`} className="text-sm font-semibold text-text-primary hover:text-caldera transition-colors">
                     {creator.name}
-                  </span>
+                  </Link>
                   <span className="text-[10px] tracking-widest text-text-muted">
                     ${desoUser || creator.creator_coin_symbol}
                   </span>
+                  <TierBadge tier={creator.tier} />
                   {isLive && (
                     <span className="flex items-center gap-1 text-[10px] text-yes">
                       <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
@@ -138,10 +141,10 @@ export function CreatorCoinExplainer({
                   onClick={() => setShowStakeModal(true)}
                   className="rounded-lg bg-caldera/10 px-3 py-1.5 text-xs font-medium text-caldera border border-caldera/20 hover:bg-caldera/20 transition-colors"
                 >
-                  Take a Stake →
+                  Get Involved →
                 </button>
               ) : (
-                <span className="text-[10px] text-text-faint">Stake not yet available</span>
+                <span className="text-[10px] text-text-faint">Not on DeSo yet</span>
               )}
             </div>
           </div>

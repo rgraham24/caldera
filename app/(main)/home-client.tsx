@@ -84,7 +84,7 @@ export function HomeClient({
               8,200+
             </span>
             <span className="mt-1 text-xs uppercase tracking-widest text-text-muted">
-              Stakeholders Earning
+              Holders Earning
             </span>
           </div>
         </div>

@@ -143,7 +143,7 @@ export function TradeTicket({
         </div>
         {market.creator_id && (
           <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
-            People Market fees: Platform 1.5% · Creator 0.75% · <span className="text-caldera">Stakeholders 0.75%</span>
+            People Market fees: Platform 1.5% · Creator 0.75% · <span className="text-caldera">Holders 0.75%</span>
           </p>
         )}
       </div>
@@ -192,7 +192,7 @@ export function TradeTicket({
             {quote.fees.coinHolderPoolFee > 0 && (
               <div className="flex justify-between">
                 <span className="flex items-center gap-1 text-caldera">
-                  Stakeholders
+                  Coin holders
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
@@ -200,7 +200,7 @@ export function TradeTicket({
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs bg-surface border-border-subtle text-text-primary">
                         <p className="text-xs">
-                          Distributed to all stakeholders proportional to their stake
+                          Distributed to all coin holders proportional to their holdings
                         </p>
                       </TooltipContent>
                     </Tooltip>

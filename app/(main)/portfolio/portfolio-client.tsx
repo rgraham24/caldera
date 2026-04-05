@@ -112,7 +112,7 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
             { key: "open" as Tab, label: `Open (${openPositions.length})` },
             { key: "settled" as Tab, label: `Settled (${settledPositions.length})` },
             { key: "watchlist" as Tab, label: `Watchlist (${watchlist.length})` },
-            { key: "earnings" as Tab, label: "Stake Earnings" },
+            { key: "earnings" as Tab, label: "Creator Earnings" },
           ] as const
         ).map((t) => (
           <button
@@ -318,7 +318,7 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
         <div>
           <div className="mb-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
             <p className="text-sm text-text-primary">
-              You hold stakes in <span className="font-bold text-caldera">{MOCK_EARNINGS.length} people</span>.
+              You hold positions in <span className="font-bold text-caldera">{MOCK_EARNINGS.length} creators</span>.
               Total earned:{" "}
               <span className="font-mono font-bold text-caldera">
                 {formatCurrency(MOCK_EARNINGS.reduce((s, e) => s + e.earnedTotal, 0))}

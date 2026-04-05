@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { Creator } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCompactCurrency } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -10,7 +10,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowUpRight, ArrowDownRight, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
+import { AddCreatorModal } from "@/components/shared/AddCreatorModal";
+import { TierBadge } from "@/components/shared/TierBadge";
+import { Plus } from "lucide-react";
 
 const AVATAR_GRADIENTS = [
   "from-cyan-500/30 to-blue-600/30",
@@ -50,6 +54,7 @@ type TrendingCreatorCoinsProps = {
 export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
   const [liveData, setLiveData] = useState<Record<string, LiveCoinData>>({});
   const [stakeCreator, setStakeCreator] = useState<(Creator & { price_change_24h: number }) | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     creators.forEach((c) => {
@@ -69,7 +74,7 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
   return (
     <section>
       <div className="mb-5 flex items-center gap-3">
-        <h2 className="section-header">Trending Stakes</h2>
+        <h2 className="section-header">Trending Creators</h2>
         <span className="rounded-full border border-caldera/20 bg-caldera/5 px-2.5 py-0.5 text-[10px] font-medium text-caldera">
           Powered by DeSo
         </span>
@@ -105,12 +110,13 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-text-primary">
+                  <Link href={`/creators/${creator.slug}`} className="block truncate text-sm font-semibold text-text-primary hover:text-caldera transition-colors">
                     {creator.name}
-                  </p>
-                  <p className="text-[10px] tracking-widest text-text-muted">
-                    ${coinSymbol}
-                  </p>
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] tracking-widest text-text-muted">${coinSymbol}</span>
+                    <TierBadge tier={creator.tier} />
+                  </div>
                 </div>
               </div>
 
@@ -127,7 +133,7 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
               </div>
 
               {!desoUser ? (
-                <p className="mb-4 text-xs text-text-faint">Stake not yet available</p>
+                <p className="mb-4 text-xs text-text-faint">Not on DeSo yet</p>
               ) : (
                 <>
                   <div className="mb-2 flex items-center justify-between">
@@ -151,6 +157,11 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                     Tradeable on DeSo blockchain
                     <ExternalLink className="h-2.5 w-2.5" />
                   </p>
+                  {creator.total_holder_earnings > 0 && (
+                    <p className="mb-2 text-[10px] font-medium text-yes">
+                      {formatCompactCurrency(creator.total_holder_earnings)} earned by holders
+                    </p>
+                  )}
                 </>
               )}
 
@@ -159,16 +170,16 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                   onClick={() => setStakeCreator(creator)}
                   className="w-full text-left text-xs font-medium text-caldera transition-colors hover:text-caldera/80"
                 >
-                  Take a Stake →
+                  Get Involved →
                 </button>
               ) : (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger className="w-full text-left text-xs font-medium text-text-faint">
-                      Take a Stake →
+                      Get Involved →
                     </TooltipTrigger>
                     <TooltipContent className="bg-surface border-border-subtle text-text-primary">
-                      <p className="text-xs">Stake not yet available on DeSo</p>
+                      <p className="text-xs">Not on DeSo yet on DeSo</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -176,7 +187,18 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
             </div>
           );
         })}
+        {/* Add Creator card */}
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex min-w-[200px] flex-shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border-visible/40 bg-transparent p-5 transition-colors hover:border-caldera/40 hover:bg-caldera/5"
+        >
+          <Plus className="h-6 w-6 text-text-muted" />
+          <p className="text-sm font-medium text-text-muted">Add a Creator</p>
+          <p className="text-[10px] text-text-faint">Know someone who should be here?</p>
+        </button>
       </div>
+
+      <AddCreatorModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
 
       {stakeCreator && (
         <StakeModal
