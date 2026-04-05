@@ -75,6 +75,19 @@ export function StakeModal({
           desoPublicKey
         );
         setTxHash(result.txHash);
+        // Record purchase for cost basis tracking
+        fetch("/api/portfolio/coin-purchases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creatorId: creator.id,
+            desoUsername: desoUsername,
+            coinsPurchased: estimatedCoins,
+            pricePerCoinUsd: coinPrice,
+            desoPriceAtPurchase: desoPrice,
+            txHash: result.txHash,
+          }),
+        }).catch(() => {});
       } else {
         const coinsToSellNanos = Math.floor(estimatedCoins * 1e9);
         const { sellCreatorCoin } = await import("@/lib/deso/api");

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
+import { CreatorHoldingCard } from "@/components/portfolio/CreatorHoldingCard";
 
 type PortfolioClientProps = {
   positions: Array<{
@@ -35,13 +36,28 @@ type PortfolioClientProps = {
   }>;
 };
 
-type Tab = "open" | "settled" | "watchlist" | "earnings";
+type Tab = "open" | "settled" | "watchlist" | "holdings";
 
-const MOCK_EARNINGS = [
-  { creator: "MrBeast", symbol: "MRBEAST", holdings: 420, earnedWeek: 8.45, earnedTotal: 142.80 },
-  { creator: "Kai Cenat", symbol: "KAI", holdings: 1200, earnedWeek: 12.30, earnedTotal: 98.50 },
-  { creator: "IShowSpeed", symbol: "SPEED", holdings: 800, earnedWeek: 5.20, earnedTotal: 67.40 },
-  { creator: "Ice Spice", symbol: "ICE", holdings: 350, earnedWeek: 2.10, earnedTotal: 31.20 },
+const MOCK_HOLDINGS = [
+  {
+    creator: { name: "Tiger Woods", slug: "tiger-woods", deso_username: "tigerwoods", deso_public_key: null, creator_coin_price: 47.47, creator_coin_holders: 24, total_coins_in_circulation: 24 },
+    coinsHeld: 2.5, costBasis: 95, avgPurchasePrice: 38, activeMarkets: [
+      { title: "Will Tiger Woods be convicted of DUI?", slug: "tiger-woods-dui-conviction", yes_price: 0.62 },
+    ],
+    weeklyVolume: 42000,
+  },
+  {
+    creator: { name: "Elon Musk", slug: "elon-musk", deso_username: "elonmusk", deso_public_key: null, creator_coin_price: 188.79, creator_coin_holders: 9702, total_coins_in_circulation: 9702 },
+    coinsHeld: 0.5, costBasis: 85, avgPurchasePrice: 170, activeMarkets: [
+      { title: "Will Elon Musks X platform lose 20%?", slug: "x-platform-ad-revenue-drop", yes_price: 0.58 },
+    ],
+    weeklyVolume: 28000,
+  },
+  {
+    creator: { name: "dharmesh", slug: "dharmesh", deso_username: "dharmesh", deso_public_key: null, creator_coin_price: 665.14, creator_coin_holders: 2311, total_coins_in_circulation: 2311 },
+    coinsHeld: 0.3, costBasis: 180, avgPurchasePrice: 600, activeMarkets: [],
+    weeklyVolume: 0,
+  },
 ];
 
 export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) {
@@ -112,7 +128,7 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
             { key: "open" as Tab, label: `Open (${openPositions.length})` },
             { key: "settled" as Tab, label: `Settled (${settledPositions.length})` },
             { key: "watchlist" as Tab, label: `Watchlist (${watchlist.length})` },
-            { key: "earnings" as Tab, label: "Creator Earnings" },
+            { key: "holdings" as Tab, label: "Creator Holdings" },
           ] as const
         ).map((t) => (
           <button
@@ -314,57 +330,47 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
         </div>
       )}
 
-      {tab === "earnings" && (
+      {tab === "holdings" && (
         <div>
-          <div className="mb-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
-            <p className="text-sm text-text-primary">
-              You hold positions in <span className="font-bold text-caldera">{MOCK_EARNINGS.length} creators</span>.
-              Total earned:{" "}
-              <span className="font-mono font-bold text-caldera">
-                {formatCurrency(MOCK_EARNINGS.reduce((s, e) => s + e.earnedTotal, 0))}
-              </span>
-            </p>
+          {/* Summary */}
+          <div className="mb-4 grid grid-cols-3 gap-4">
+            <div className="rounded-xl border border-border-subtle bg-surface p-4">
+              <p className="text-xs text-text-muted">Holdings Value</p>
+              <p className="mt-1 font-mono text-lg font-semibold text-text-primary">
+                {formatCurrency(MOCK_HOLDINGS.reduce((s, h) => s + h.coinsHeld * h.creator.creator_coin_price, 0))}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border-subtle bg-surface p-4">
+              <p className="text-xs text-text-muted">Creators Held</p>
+              <p className="mt-1 font-mono text-lg font-semibold text-caldera">{MOCK_HOLDINGS.length}</p>
+            </div>
+            <div className="rounded-xl border border-border-subtle bg-surface p-4">
+              <p className="text-xs text-text-muted">Est. Weekly</p>
+              <p className="mt-1 font-mono text-lg font-semibold text-yes">
+                ~{formatCurrency(MOCK_HOLDINGS.reduce((s, h) => {
+                  const pct = h.creator.total_coins_in_circulation > 0 ? h.coinsHeld / h.creator.total_coins_in_circulation : 0;
+                  return s + pct * h.weeklyVolume * 0.0075;
+                }, 0))}
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border border-border-subtle bg-surface overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-subtle text-text-muted">
-                  <th className="px-4 py-3 text-left font-medium">Creator</th>
-                  <th className="px-4 py-3 text-left font-medium">Stake</th>
-                  <th className="px-4 py-3 text-right font-medium">Holdings</th>
-                  <th className="px-4 py-3 text-right font-medium">This Week</th>
-                  <th className="px-4 py-3 text-right font-medium">Total Earned</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_EARNINGS.map((e) => (
-                  <tr
-                    key={e.symbol}
-                    className="border-b border-border-subtle last:border-b-0 hover:bg-surface-2"
-                  >
-                    <td className="px-4 py-3 font-medium text-text-primary">
-                      {e.creator}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-caldera text-xs">
-                      ${e.symbol}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-text-primary">
-                      {e.holdings.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-yes">
-                      +{formatCurrency(e.earnedWeek)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-medium text-text-primary">
-                      {formatCurrency(e.earnedTotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* Creator cards */}
+          <div className="space-y-3">
+            {MOCK_HOLDINGS.map((h) => (
+              <CreatorHoldingCard
+                key={h.creator.slug}
+                holding={{
+                  creator: h.creator,
+                  coinsHeld: h.coinsHeld,
+                  costBasis: h.costBasis,
+                  avgPurchasePrice: h.avgPurchasePrice,
+                }}
+                weeklyVolume={h.weeklyVolume}
+                activeMarkets={h.activeMarkets}
+              />
+            ))}
           </div>
-          <p className="mt-3 text-xs text-text-muted">
-            Earnings distribute weekly. Next distribution: April 11, 2026
-          </p>
         </div>
       )}
     </div>

@@ -598,6 +598,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_coin_purchases: {
+        Row: {
+          id: string;
+          user_id: string;
+          creator_id: string;
+          deso_username: string | null;
+          coins_purchased: number;
+          price_per_coin_usd: number;
+          deso_price_at_purchase: number;
+          tx_hash: string | null;
+          purchased_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          creator_id: string;
+          deso_username?: string | null;
+          coins_purchased: number;
+          price_per_coin_usd: number;
+          deso_price_at_purchase: number;
+          tx_hash?: string | null;
+          purchased_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          creator_id?: string;
+          deso_username?: string | null;
+          coins_purchased?: number;
+          price_per_coin_usd?: number;
+          deso_price_at_purchase?: number;
+          tx_hash?: string | null;
+          purchased_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
