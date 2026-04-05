@@ -1,0 +1,556 @@
+export type Database = {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: string;
+          username: string;
+          display_name: string | null;
+          bio: string | null;
+          avatar_url: string | null;
+          deso_public_key: string | null;
+          wallet_address: string | null;
+          is_verified: boolean;
+          is_admin: boolean;
+          reputation_score: number;
+          follower_count_cached: number;
+          coin_earnings_balance: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          username: string;
+          display_name?: string | null;
+          bio?: string | null;
+          avatar_url?: string | null;
+          deso_public_key?: string | null;
+          wallet_address?: string | null;
+          is_verified?: boolean;
+          is_admin?: boolean;
+          reputation_score?: number;
+          follower_count_cached?: number;
+          coin_earnings_balance?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          username?: string;
+          display_name?: string | null;
+          bio?: string | null;
+          avatar_url?: string | null;
+          deso_public_key?: string | null;
+          wallet_address?: string | null;
+          is_verified?: boolean;
+          is_admin?: boolean;
+          reputation_score?: number;
+          follower_count_cached?: number;
+          coin_earnings_balance?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      creators: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          name: string;
+          slug: string;
+          image_url: string | null;
+          deso_public_key: string | null;
+          is_verified: boolean;
+          creator_coin_symbol: string | null;
+          creator_coin_price: number;
+          creator_coin_market_cap: number;
+          creator_coin_holders: number;
+          category: string | null;
+          total_coins_in_circulation: number;
+          total_fees_distributed: number;
+          deso_username: string | null;
+          profile_pic_url: string | null;
+          coin_data_updated_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          name: string;
+          slug: string;
+          image_url?: string | null;
+          deso_public_key?: string | null;
+          is_verified?: boolean;
+          creator_coin_symbol?: string | null;
+          creator_coin_price?: number;
+          creator_coin_market_cap?: number;
+          creator_coin_holders?: number;
+          category?: string | null;
+          total_coins_in_circulation?: number;
+          total_fees_distributed?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          name?: string;
+          slug?: string;
+          image_url?: string | null;
+          deso_public_key?: string | null;
+          is_verified?: boolean;
+          creator_coin_symbol?: string | null;
+          creator_coin_price?: number;
+          creator_coin_market_cap?: number;
+          creator_coin_holders?: number;
+          category?: string | null;
+          total_coins_in_circulation?: number;
+          total_fees_distributed?: number;
+          deso_username?: string | null;
+          profile_pic_url?: string | null;
+          coin_data_updated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      markets: {
+        Row: {
+          id: string;
+          title: string;
+          slug: string;
+          description: string | null;
+          category: string;
+          subcategory: string | null;
+          creator_id: string | null;
+          created_by_user_id: string | null;
+          market_type: string;
+          status: string;
+          close_at: string | null;
+          resolve_at: string | null;
+          resolved_at: string | null;
+          resolution_outcome: string | null;
+          rules_text: string | null;
+          resolution_source_url: string | null;
+          featured_score: number;
+          trending_score: number;
+          total_volume: number;
+          liquidity: number;
+          yes_price: number;
+          no_price: number;
+          yes_pool: number;
+          no_pool: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          slug: string;
+          description?: string | null;
+          category: string;
+          subcategory?: string | null;
+          creator_id?: string | null;
+          created_by_user_id?: string | null;
+          market_type?: string;
+          status?: string;
+          close_at?: string | null;
+          resolve_at?: string | null;
+          resolved_at?: string | null;
+          resolution_outcome?: string | null;
+          rules_text?: string | null;
+          resolution_source_url?: string | null;
+          featured_score?: number;
+          trending_score?: number;
+          total_volume?: number;
+          liquidity?: number;
+          yes_price?: number;
+          no_price?: number;
+          yes_pool?: number;
+          no_pool?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          slug?: string;
+          description?: string | null;
+          category?: string;
+          subcategory?: string | null;
+          creator_id?: string | null;
+          created_by_user_id?: string | null;
+          market_type?: string;
+          status?: string;
+          close_at?: string | null;
+          resolve_at?: string | null;
+          resolved_at?: string | null;
+          resolution_outcome?: string | null;
+          rules_text?: string | null;
+          resolution_source_url?: string | null;
+          featured_score?: number;
+          trending_score?: number;
+          total_volume?: number;
+          liquidity?: number;
+          yes_price?: number;
+          no_price?: number;
+          yes_pool?: number;
+          no_pool?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      positions: {
+        Row: {
+          id: string;
+          user_id: string;
+          market_id: string;
+          side: string;
+          quantity: number;
+          avg_entry_price: number;
+          total_cost: number;
+          fees_paid: number;
+          realized_pnl: number;
+          unrealized_pnl_cached: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          market_id: string;
+          side: string;
+          quantity?: number;
+          avg_entry_price?: number;
+          total_cost?: number;
+          fees_paid?: number;
+          realized_pnl?: number;
+          unrealized_pnl_cached?: number;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          market_id?: string;
+          side?: string;
+          quantity?: number;
+          avg_entry_price?: number;
+          total_cost?: number;
+          fees_paid?: number;
+          realized_pnl?: number;
+          unrealized_pnl_cached?: number;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      trades: {
+        Row: {
+          id: string;
+          user_id: string;
+          market_id: string;
+          side: string;
+          action_type: string;
+          quantity: number;
+          price: number;
+          gross_amount: number;
+          fee_amount: number;
+          platform_fee_amount: number;
+          creator_fee_amount: number;
+          market_creator_fee_amount: number;
+          coin_holder_pool_amount: number;
+          tx_hash: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          market_id: string;
+          side: string;
+          action_type: string;
+          quantity: number;
+          price: number;
+          gross_amount: number;
+          fee_amount: number;
+          platform_fee_amount: number;
+          creator_fee_amount?: number;
+          market_creator_fee_amount?: number;
+          coin_holder_pool_amount?: number;
+          tx_hash?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          market_id?: string;
+          side?: string;
+          action_type?: string;
+          quantity?: number;
+          price?: number;
+          gross_amount?: number;
+          fee_amount?: number;
+          platform_fee_amount?: number;
+          creator_fee_amount?: number;
+          market_creator_fee_amount?: number;
+          coin_holder_pool_amount?: number;
+          tx_hash?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      market_comments: {
+        Row: {
+          id: string;
+          market_id: string;
+          user_id: string;
+          body: string;
+          parent_comment_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          market_id: string;
+          user_id: string;
+          body: string;
+          parent_comment_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          market_id?: string;
+          user_id?: string;
+          body?: string;
+          parent_comment_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      watchlists: {
+        Row: {
+          id: string;
+          user_id: string;
+          entity_type: string;
+          entity_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          entity_type: string;
+          entity_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          entity_type?: string;
+          entity_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      leaderboard_snapshots: {
+        Row: {
+          id: string;
+          user_id: string;
+          period: string;
+          roi_score: number;
+          accuracy_score: number;
+          early_call_score: number;
+          volume_score: number;
+          composite_score: number;
+          rank: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          period: string;
+          roi_score?: number;
+          accuracy_score?: number;
+          early_call_score?: number;
+          volume_score?: number;
+          composite_score?: number;
+          rank?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          period?: string;
+          roi_score?: number;
+          accuracy_score?: number;
+          early_call_score?: number;
+          volume_score?: number;
+          composite_score?: number;
+          rank?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      fee_earnings: {
+        Row: {
+          id: string;
+          recipient_type: string;
+          recipient_id: string | null;
+          source_type: string;
+          source_id: string;
+          amount: number;
+          currency: string;
+          status: string;
+          created_at: string;
+          paid_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          recipient_type: string;
+          recipient_id?: string | null;
+          source_type: string;
+          source_id: string;
+          amount: number;
+          currency?: string;
+          status?: string;
+          created_at?: string;
+          paid_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          recipient_type?: string;
+          recipient_id?: string | null;
+          source_type?: string;
+          source_id?: string;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          created_at?: string;
+          paid_at?: string | null;
+        };
+        Relationships: [];
+      };
+      market_resolutions: {
+        Row: {
+          id: string;
+          market_id: string;
+          resolved_by_user_id: string | null;
+          outcome: string;
+          source_url: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          market_id: string;
+          resolved_by_user_id?: string | null;
+          outcome: string;
+          source_url?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          market_id?: string;
+          resolved_by_user_id?: string | null;
+          outcome?: string;
+          source_url?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: string;
+          title?: string;
+          body?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      platform_config: {
+        Row: {
+          key: string;
+          value: string;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: string;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      coin_holder_distributions: {
+        Row: {
+          id: string;
+          market_id: string;
+          trade_id: string;
+          creator_id: string;
+          total_pool_amount: number;
+          per_coin_amount: number;
+          snapshot_holder_count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          market_id: string;
+          trade_id: string;
+          creator_id: string;
+          total_pool_amount: number;
+          per_coin_amount: number;
+          snapshot_holder_count?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          market_id?: string;
+          trade_id?: string;
+          creator_id?: string;
+          total_pool_amount?: number;
+          per_coin_amount?: number;
+          snapshot_holder_count?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
