@@ -92,7 +92,7 @@ export function CreatorCoinExplainer({
                 <>${desoUser || creator.creator_coin_symbol} holders earn <span className="text-caldera font-medium">1.5%</span> of all trading fees. {creator.name} does not receive platform earnings.</>
               )}
               {creator.tier === "unclaimed" && (
-                <>{creator.name} hasn&apos;t claimed this profile. Fees accumulate in escrow until claimed.</>
+                <>${desoUser || creator.creator_coin_symbol} holders earn <span className="text-caldera font-medium">1.5%</span> of all trading fees. {creator.name} has not verified — unverified profiles do not receive creator earnings.</>
               )}
             </p>
 

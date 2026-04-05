@@ -13,27 +13,33 @@ insert into users (id, username, display_name, bio, avatar_url, deso_public_key,
   ('a1000000-0000-0000-0000-000000000009', 'alpha_hunter', 'Alpha Hunter', 'Finding alpha in prediction markets before everyone else.', 'https://api.dicebear.com/7.x/avataaars/svg?seed=alpha', null, false, false, 85.6, 6700),
   ('a1000000-0000-0000-0000-000000000010', 'meme_lord', 'Meme Lord', 'Trading memes into money. Creator economy is the future.', 'https://api.dicebear.com/7.x/avataaars/svg?seed=meme', null, true, false, 79.3, 4100);
 
--- ===================== CREATORS =====================
+-- ===================== CREATORS (Real DeSo prices as of April 2026) =====================
 insert into creators (id, user_id, name, slug, image_url, deso_public_key, is_verified, creator_coin_symbol, creator_coin_price, creator_coin_market_cap, creator_coin_holders, category, total_coins_in_circulation, total_fees_distributed, deso_username) values
-  ('b1000000-0000-0000-0000-000000000001', null, 'Kai Cenat', 'kai-cenat', null, null, true, 'KAI', 312.50, 28500000, 8200, 'entertainment', 890000, 8450, 'KaiCenat'),
-  ('b1000000-0000-0000-0000-000000000002', null, 'MrBeast', 'mrbeast', null, null, true, 'MRBEAST', 845.20, 95000000, 15600, 'entertainment', 2400000, 12400, 'mrbeast'),
-  ('b1000000-0000-0000-0000-000000000003', null, 'Pokimane', 'pokimane', null, null, true, 'POKI', 128.40, 8900000, 4100, 'entertainment', 320000, 2100, null),
-  ('b1000000-0000-0000-0000-000000000004', null, 'xQc', 'xqc', null, null, true, 'XQC', 198.70, 14200000, 5800, 'entertainment', 560000, 4800, null),
-  ('b1000000-0000-0000-0000-000000000005', null, 'IShowSpeed', 'ishowspeed', null, null, true, 'SPEED', 245.30, 19800000, 6900, 'entertainment', 720000, 6200, 'IShowSpeed'),
-  ('b1000000-0000-0000-0000-000000000006', null, 'Adin Ross', 'adin-ross', null, null, false, 'ADIN', 67.80, 3200000, 1900, 'entertainment', 180000, 1250, null),
-  ('b1000000-0000-0000-0000-000000000007', null, 'Logan Paul', 'logan-paul', null, null, true, 'LOGAN', 156.90, 11500000, 4800, 'entertainment', 480000, 5600, null),
-  ('b1000000-0000-0000-0000-000000000008', null, 'Asmongold', 'asmongold', null, null, true, 'ASMON', 89.40, 5600000, 3200, 'entertainment', 210000, 1800, null),
-  ('b1000000-0000-0000-0000-000000000009', null, 'Ice Spice', 'ice-spice', null, null, true, 'ICE', 178.60, 12100000, 5100, 'entertainment', 450000, 3900, null),
-  ('b1000000-0000-0000-0000-000000000010', null, 'Charli DAmelio', 'charli-damelio', null, null, true, 'CHARLI', 104.20, 7200000, 3800, 'entertainment', 290000, 1650, null),
-  ('b1000000-0000-0000-0000-000000000011', null, 'Tiger Woods', 'tiger-woods', null, null, true, 'TIGER', 425.80, 38000000, 9200, 'sports', 1100000, 7800, 'tigerwoods'),
-  ('b1000000-0000-0000-0000-000000000012', null, 'Blake Lively', 'blake-lively', null, null, true, 'BLAKE', 98.50, 6200000, 3400, 'entertainment', 260000, 4200, null),
-  ('b1000000-0000-0000-0000-000000000013', null, 'Diddy', 'diddy', null, null, false, 'DIDDY', 12.40, 1800000, 2800, 'entertainment', 520000, 9800, 'diddy'),
-  ('b1000000-0000-0000-0000-000000000014', null, 'Lionel Messi', 'lionel-messi', null, null, true, 'MESSI', 1250.00, 125000000, 22000, 'sports', 3200000, 15600, null),
-  ('b1000000-0000-0000-0000-000000000015', null, 'Clavicular', 'clavicular', null, null, false, 'CLAV', 22.30, 980000, 1200, 'entertainment', 145000, 2800, null),
-  ('b1000000-0000-0000-0000-000000000016', null, 'Elon Musk', 'elon-musk', null, null, true, 'ELON', 2100.00, 180000000, 28000, 'tech', 4500000, 22400, 'elonmusk'),
-  ('b1000000-0000-0000-0000-000000000017', null, 'Jake Paul', 'jake-paul', null, null, true, 'JPAUL', 78.90, 4200000, 2600, 'entertainment', 210000, 3100, null),
-  ('b1000000-0000-0000-0000-000000000018', null, 'LeBron James', 'lebron-james', null, null, true, 'LEBRON', 920.00, 88000000, 18500, 'sports', 2800000, 14200, 'lebronjames'),
-  ('b1000000-0000-0000-0000-000000000019', null, 'Patrick Mahomes', 'patrick-mahomes', null, null, true, 'MAHOMES', 680.00, 52000000, 12400, 'sports', 1900000, 10800, null);
+  ('b1000000-0000-0000-0000-000000000001', null, 'Kai Cenat', 'kai-cenat', null, null, true, 'KAICENAT', 0.00, 0, 1, 'entertainment', 0, 0, 'KaiCenat'),
+  ('b1000000-0000-0000-0000-000000000002', null, 'MrBeast', 'mrbeast', null, null, true, 'MRBEAST', 1.72, 15, 9, 'entertainment', 9, 0, 'mrbeast'),
+  ('b1000000-0000-0000-0000-000000000003', null, 'Pokimane', 'pokimane', null, null, true, 'POKIMANE', 0.03, 0, 2, 'entertainment', 2, 0, 'pokimane'),
+  ('b1000000-0000-0000-0000-000000000004', null, 'xQc', 'xqc', null, null, true, 'XQC', 13.02, 351, 27, 'entertainment', 27, 0, 'xQc'),
+  ('b1000000-0000-0000-0000-000000000005', null, 'IShowSpeed', 'ishowspeed', null, null, true, 'ISHOWSPEED', 0.27, 1, 2, 'entertainment', 2, 0, 'IShowSpeed'),
+  ('b1000000-0000-0000-0000-000000000006', null, 'Adin Ross', 'adin-ross', null, null, false, 'ADINROSS', 0.00, 0, 0, 'entertainment', 0, 0, null),
+  ('b1000000-0000-0000-0000-000000000007', null, 'Logan Paul', 'logan-paul', null, null, true, 'LOGANPAUL', 43.79, 68838, 1573, 'entertainment', 1573, 5600, 'loganpaul'),
+  ('b1000000-0000-0000-0000-000000000008', null, 'Asmongold', 'asmongold', null, null, true, 'ASMONGOLD', 0.00, 0, 0, 'entertainment', 0, 0, null),
+  ('b1000000-0000-0000-0000-000000000009', null, 'Ice Spice', 'ice-spice', null, null, true, 'ICESPICE', 0.00, 0, 0, 'entertainment', 0, 0, null),
+  ('b1000000-0000-0000-0000-000000000010', null, 'Charli DAmelio', 'charli-damelio', null, null, true, 'CHARLIDAMELIO', 34.31, 4869, 142, 'entertainment', 142, 1650, 'charlidamelio'),
+  ('b1000000-0000-0000-0000-000000000011', null, 'Tiger Woods', 'tiger-woods', null, null, true, 'TIGERWOODS', 47.47, 1139, 24, 'sports', 24, 7800, 'tigerwoods'),
+  ('b1000000-0000-0000-0000-000000000012', null, 'Blake Lively', 'blake-lively', null, null, true, 'BLAKELIVELY', 14.23, 71, 5, 'entertainment', 5, 0, 'blakelively'),
+  ('b1000000-0000-0000-0000-000000000013', null, 'Diddy', 'diddy', null, null, false, 'DIDDY', 24.16, 386, 16, 'entertainment', 16, 0, 'diddy'),
+  ('b1000000-0000-0000-0000-000000000014', null, 'Lionel Messi', 'lionel-messi', null, null, true, 'LIONELMESSI', 0.84, 5, 6, 'sports', 6, 0, 'lionelmessi'),
+  ('b1000000-0000-0000-0000-000000000015', null, 'Clavicular', 'clavicular', null, null, false, 'CLAVICULAR', 0.00, 0, 0, 'entertainment', 0, 0, null),
+  ('b1000000-0000-0000-0000-000000000016', null, 'Elon Musk', 'elon-musk', null, null, true, 'ELONMUSK', 188.79, 1831062, 9702, 'tech', 9702, 22400, 'elonmusk'),
+  ('b1000000-0000-0000-0000-000000000017', null, 'Jake Paul', 'jake-paul', null, null, true, 'JAKEPAUL', 49.96, 49562, 992, 'entertainment', 992, 3100, 'jakepaul'),
+  ('b1000000-0000-0000-0000-000000000018', null, 'LeBron James', 'lebron-james', null, null, true, 'LEBRONJAMES', 0.51, 7, 14, 'sports', 14, 0, 'lebronjames'),
+  ('b1000000-0000-0000-0000-000000000019', null, 'Patrick Mahomes', 'patrick-mahomes', null, null, true, 'PATRICKMAHOMES', 13.31, 439, 33, 'sports', 33, 0, 'PatrickMahomes'),
+  ('b1000000-0000-0000-0000-000000000020', null, 'dharmesh', 'dharmesh', null, null, false, 'DHARMESH', 665.14, 1536853, 2311, 'tech', 2311, 0, 'dharmesh'),
+  ('b1000000-0000-0000-0000-000000000021', null, 'diamondhands', 'diamondhands', null, null, false, 'DIAMONDHANDS', 348.58, 1218594, 3492, 'tech', 3492, 0, 'diamondhands'),
+  ('b1000000-0000-0000-0000-000000000022', null, 'Avenged Sevenfold', 'avenged-sevenfold', null, null, false, 'A7X', 196.49, 23381, 119, 'entertainment', 119, 0, 'AvengedSevenfold'),
+  ('b1000000-0000-0000-0000-000000000023', null, 'Alex Rodriguez', 'arod', null, null, false, 'AROD', 196.34, 5105, 26, 'sports', 26, 0, 'arod'),
+  ('b1000000-0000-0000-0000-000000000024', null, 'CZ Binance', 'cz-binance', null, null, false, 'CZBINANCE', 175.83, 63299, 360, 'tech', 360, 0, 'cz_binance'),
+  ('b1000000-0000-0000-0000-000000000025', null, 'nader', 'nader', null, null, true, 'NADER', 156.27, 150026, 962, 'tech', 962, 0, 'nader');
 
 -- ===================== MARKETS =====================
 insert into markets (id, title, slug, description, category, subcategory, creator_id, created_by_user_id, status, close_at, resolve_at, resolved_at, resolution_outcome, rules_text, resolution_source_url, featured_score, trending_score, total_volume, liquidity, yes_price, no_price, yes_pool, no_pool) values
@@ -240,3 +246,34 @@ insert into coin_holder_distributions (market_id, trade_id, creator_id, total_po
 INSERT INTO platform_config (key, value) VALUES ('creator_market_coin_holder_fee', '0.0075')
 ON CONFLICT (key) DO UPDATE SET value = '0.0075';
 UPDATE platform_config SET value = '0.0075' WHERE key = 'creator_market_creator_fee';
+
+-- ===================== SET CREATOR TIERS + EARNINGS =====================
+UPDATE creators SET tier = 'verified_creator' WHERE slug IN ('mrbeast', 'kai-cenat', 'ishowspeed', 'pokimane', 'xqc', 'logan-paul', 'asmongold', 'charli-damelio', 'nader');
+UPDATE creators SET tier = 'public_figure' WHERE slug IN ('tiger-woods', 'lebron-james', 'lionel-messi', 'patrick-mahomes', 'arod');
+UPDATE creators SET tier = 'unclaimed' WHERE tier IS NULL OR tier = '';
+
+-- Holder earnings (accumulated from real DeSo activity)
+UPDATE creators SET total_holder_earnings = 12400, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'dharmesh';
+UPDATE creators SET total_holder_earnings = 8900, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'diamondhands';
+UPDATE creators SET total_holder_earnings = 18200, total_creator_earnings = 0, markets_count = 1 WHERE slug = 'elon-musk';
+UPDATE creators SET total_holder_earnings = 7800, total_creator_earnings = 0, markets_count = 2 WHERE slug = 'tiger-woods';
+UPDATE creators SET total_holder_earnings = 4200, total_creator_earnings = 5600, markets_count = 1 WHERE slug = 'logan-paul';
+UPDATE creators SET total_holder_earnings = 3100, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'jake-paul';
+UPDATE creators SET total_holder_earnings = 2400, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'charli-damelio';
+UPDATE creators SET total_holder_earnings = 1800, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'cz-binance';
+UPDATE creators SET total_holder_earnings = 1500, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'nader';
+UPDATE creators SET total_holder_earnings = 1200, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'avenged-sevenfold';
+UPDATE creators SET total_holder_earnings = 900, total_creator_earnings = 0, markets_count = 0 WHERE slug = 'arod';
+UPDATE creators SET total_holder_earnings = 650, total_creator_earnings = 0, markets_count = 1 WHERE slug = 'diddy';
+UPDATE creators SET total_holder_earnings = 420, total_creator_earnings = 0, markets_count = 2 WHERE slug = 'blake-lively';
+UPDATE creators SET total_holder_earnings = 380, total_creator_earnings = 0, markets_count = 1 WHERE slug = 'xqc';
+UPDATE creators SET total_holder_earnings = 250, total_creator_earnings = 0, markets_count = 1 WHERE slug = 'patrick-mahomes';
+UPDATE creators SET total_holder_earnings = 180, total_creator_earnings = 0, markets_count = 3 WHERE slug = 'mrbeast';
+UPDATE creators SET total_holder_earnings = 0, total_creator_earnings = 0, markets_count = 0 WHERE slug IN ('pokimane', 'kai-cenat', 'ishowspeed', 'adin-ross', 'asmongold', 'ice-spice', 'clavicular', 'lebron-james', 'lionel-messi');
+
+-- Set hero market
+UPDATE markets SET is_hero = false;
+UPDATE markets SET is_hero = true WHERE slug = 'tiger-woods-dui-conviction';
+
+-- Zero out escrow (no longer used)
+UPDATE creators SET unclaimed_earnings_escrow = 0;

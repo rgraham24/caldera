@@ -60,12 +60,12 @@ export function CreatorProfileClient({
         {creator.tier === "unclaimed" && (
           <p className="mb-6 flex items-center gap-2 text-sm text-text-muted">
             <span className="h-2 w-2 rounded-full bg-amber-400" />
-            Unclaimed · Are you {creator.name}?{" "}
+            Unverified · Are you {creator.name}?{" "}
             <button
               onClick={() => setShowClaimModal(true)}
               className="font-medium text-amber-400 hover:text-amber-300"
             >
-              Claim this profile to start earning →
+              Verify to earn 0.75% of every trade →
             </button>
           </p>
         )}

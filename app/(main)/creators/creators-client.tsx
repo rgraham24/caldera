@@ -120,7 +120,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
               </div>
               <div className="mb-3 flex items-baseline gap-3">
                 <span className="font-display text-xl font-bold tracking-normal text-text-primary">
-                  {c.deso_username ? formatCurrency(c.creator_coin_price) : "—"}
+                  {c.deso_username && c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : c.deso_username ? "Not active" : "—"}
                 </span>
                 <span className="text-xs text-text-muted">{c.creator_coin_holders.toLocaleString()} holders</span>
               </div>

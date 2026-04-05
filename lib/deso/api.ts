@@ -24,6 +24,40 @@ export async function getTopProfiles(numToFetch = 100) {
   return data.ProfilesFound || [];
 }
 
+export type TopHolder = {
+  username: string;
+  publicKey: string;
+  balanceNanos: number;
+  balanceCoins: number;
+  percentOwned: number;
+};
+
+export async function getTopHolders(
+  creatorPublicKey: string,
+  totalCoinsInCirculation: number
+): Promise<TopHolder[]> {
+  const res = await fetch(`${DESO_API}/get-hodlers-for-public-key`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      PublicKeyBase58Check: creatorPublicKey,
+      NumToFetch: 20,
+      FetchAll: false,
+    }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const entries = data.Hodlers || [];
+  const totalNanos = totalCoinsInCirculation * 1e9 || 1;
+  return entries.map((h: { HODLerPublicKeyBase58Check: string; BalanceNanos: number; ProfileEntryResponse?: { Username?: string } }) => ({
+    username: h.ProfileEntryResponse?.Username || h.HODLerPublicKeyBase58Check.slice(0, 10),
+    publicKey: h.HODLerPublicKeyBase58Check,
+    balanceNanos: h.BalanceNanos,
+    balanceCoins: h.BalanceNanos / 1e9,
+    percentOwned: (h.BalanceNanos / totalNanos) * 100,
+  }));
+}
+
 export async function getCreatorProfile(username: string) {
   const res = await fetch(`${DESO_API}/get-single-profile`, {
     method: "POST",

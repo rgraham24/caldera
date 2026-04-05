@@ -13,10 +13,10 @@ export type MarketFeeType = "standard" | "user_created" | "official_creator";
 export type CreatorTier = "verified_creator" | "public_figure" | "unclaimed";
 
 /**
- * Fee logic by creator tier:
- * - verified_creator: platform 1.5%, creator 0.75%, holders 0.75% = 3.0%
- * - public_figure: platform 1.5%, creator 0% (→holders), holders 1.5% = 3.0%
- * - unclaimed: platform 1.5%, escrow 0.75%, holders 0.75% = 3.0%
+ * Fee split:
+ * - verified_creator: Platform 1.5% / Creator 0.75% / Holders 0.75% = 3.0%
+ * - public_figure:    Platform 1.5% / Holders 1.5%                  = 3.0%
+ * - unclaimed:        Platform 1.5% / Holders 1.5%                  = 3.0%
  */
 export function calculateFees(
   grossAmount: number,
@@ -27,7 +27,6 @@ export function calculateFees(
   let platformRate = 0;
   let creatorRate = 0;
   let coinHolderPoolRate = 0;
-  let escrowRate = 0;
   let marketCreatorRate = 0;
 
   switch (marketType) {
@@ -39,17 +38,14 @@ export function calculateFees(
       marketCreatorRate = parseFloat(config.user_market_creator_fee || "0.005");
       break;
     case "official_creator": {
-      platformRate = parseFloat(config.creator_market_platform_fee || "0.015");
-      const tier = creatorTier || "verified_creator";
+      platformRate = 0.015;
+      const tier = creatorTier || "unclaimed";
       if (tier === "verified_creator") {
         creatorRate = 0.0075;
         coinHolderPoolRate = 0.0075;
-      } else if (tier === "public_figure") {
-        coinHolderPoolRate = 0.015;
       } else {
-        // unclaimed — escrow the creator share
-        escrowRate = 0.0075;
-        coinHolderPoolRate = 0.0075;
+        // public_figure + unclaimed: all to holders
+        coinHolderPoolRate = 0.015;
       }
       break;
     }
@@ -58,16 +54,15 @@ export function calculateFees(
   const platformFee = round(grossAmount * platformRate);
   const creatorFee = round(grossAmount * creatorRate);
   const coinHolderPoolFee = round(grossAmount * coinHolderPoolRate);
-  const escrowFee = round(grossAmount * escrowRate);
   const marketCreatorFee = round(grossAmount * marketCreatorRate);
-  const totalFee = round(platformFee + creatorFee + coinHolderPoolFee + escrowFee + marketCreatorFee);
+  const totalFee = round(platformFee + creatorFee + coinHolderPoolFee + marketCreatorFee);
 
   return {
     grossAmount,
     platformFee,
     creatorFee,
     coinHolderPoolFee,
-    escrowFee,
+    escrowFee: 0,
     marketCreatorFee,
     totalFee,
     netAmount: round(grossAmount - totalFee),

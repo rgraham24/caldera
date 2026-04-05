@@ -268,7 +268,7 @@ export function HomeClient({
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-text-primary">{c.name}</p>
                           <div className="flex items-center gap-1">
-                            <span className="font-mono text-xs text-caldera">{formatCurrency(c.creator_coin_price)}</span>
+                            <span className="font-mono text-xs text-caldera">{c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}</span>
                             {c.price_change_24h >= 0 ? (
                               <ArrowUpRight className="h-3 w-3 text-yes" />
                             ) : (
@@ -357,7 +357,7 @@ export function HomeClient({
                       {c.name}
                     </Link>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-display text-sm font-bold tracking-normal text-caldera">{formatCurrency(c.creator_coin_price)}</span>
+                      <span className="font-display text-sm font-bold tracking-normal text-caldera">{c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}</span>
                       <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
                         {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
                       </span>

@@ -143,7 +143,7 @@ export function TradeTicket({
         </div>
         {market.creator_id && (
           <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
-            Market Fees: Platform 1.5% · Creator 0.75% · <span className="text-caldera">Holders 0.75%</span>
+            Fees: Platform 1.5% · <span className="text-caldera">Holders + Creator 1.5%</span> · Total 3%
           </p>
         )}
       </div>

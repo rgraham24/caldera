@@ -51,9 +51,10 @@ export default async function HomePage() {
 
   const sortedCreators = (rawCreators ?? [])
     .sort((a, b) => {
-      const aHasDeso = a.deso_username ? 1 : 0;
-      const bHasDeso = b.deso_username ? 1 : 0;
-      if (bHasDeso !== aHasDeso) return bHasDeso - aHasDeso;
+      // Creators with real coin price > $1 first
+      const aActive = a.deso_username && a.creator_coin_price > 1 ? 1 : 0;
+      const bActive = b.deso_username && b.creator_coin_price > 1 ? 1 : 0;
+      if (bActive !== aActive) return bActive - aActive;
       return b.creator_coin_price - a.creator_coin_price;
     })
     .slice(0, 8)
