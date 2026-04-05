@@ -8,7 +8,7 @@ import { TierBadge } from "@/components/shared/TierBadge";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { MarketChart } from "@/components/markets/MarketChart";
-import { ExternalLink } from "lucide-react";
+import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
 
 type CreatorProfileClientProps = {
   creator: Creator;
@@ -29,6 +29,7 @@ export function CreatorProfileClient({
   recentTrades,
 }: CreatorProfileClientProps) {
   const [showStakeModal, setShowStakeModal] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
   const [livePrice, setLivePrice] = useState(creator.creator_coin_price);
   const [livePic, setLivePic] = useState<string | null>(creator.profile_pic_url);
   const [desoUser, setDesoUser] = useState<string | null>(creator.deso_username);
@@ -55,16 +56,18 @@ export function CreatorProfileClient({
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        {/* Unclaimed banner */}
+        {/* Unclaimed line */}
         {creator.tier === "unclaimed" && (
-          <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-            <p className="text-sm text-amber-300">
-              Is this you? Claim your profile to start earning from predictions about you.
-            </p>
-            <button className="mt-2 text-sm font-medium text-amber-400 hover:text-amber-300">
-              Claim Profile →
+          <p className="mb-6 flex items-center gap-2 text-sm text-text-muted">
+            <span className="h-2 w-2 rounded-full bg-amber-400" />
+            Unclaimed · Are you {creator.name}?{" "}
+            <button
+              onClick={() => setShowClaimModal(true)}
+              className="font-medium text-amber-400 hover:text-amber-300"
+            >
+              Claim this profile to start earning →
             </button>
-          </div>
+          </p>
         )}
 
         {/* Profile Header */}
@@ -108,7 +111,7 @@ export function CreatorProfileClient({
                 onClick={() => setShowStakeModal(true)}
                 className="rounded-xl bg-caldera px-5 py-2.5 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
               >
-                Get Involved →
+                Buy ${coinSymbol}
               </button>
             )}
           </div>
@@ -187,19 +190,6 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* Tradeable link */}
-        {desoUser && (
-          <p className="flex items-center gap-1 text-xs text-text-muted">
-            Tradeable on DeSo blockchain
-            <a
-              href={`https://explorer.deso.org/?public-key=${creator.deso_public_key}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="h-2.5 w-2.5" />
-            </a>
-          </p>
-        )}
       </div>
 
       <StakeModal
@@ -210,6 +200,15 @@ export function CreatorProfileClient({
         desoUsername={desoUser}
         profilePicUrl={livePic}
       />
+
+      {creator.tier === "unclaimed" && (
+        <ClaimProfileModal
+          creatorName={creator.name}
+          creatorSlug={creator.slug}
+          isOpen={showClaimModal}
+          onClose={() => setShowClaimModal(false)}
+        />
+      )}
     </>
   );
 }

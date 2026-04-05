@@ -50,11 +50,15 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
           Creators on Caldera
         </h1>
       </div>
+      <p className="mb-6 flex items-center gap-2 text-xs text-text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+        Prices update live from the DeSo blockchain
+      </p>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="relative flex-1 max-w-sm">
@@ -97,9 +101,13 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
           <Link key={c.id} href={`/creators/${c.slug}`}>
             <div className="rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-border-visible/60 hover:-translate-y-0.5">
               <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-caldera/10 text-lg font-bold text-caldera">
-                  {c.name.charAt(0)}
-                </div>
+                {c.profile_pic_url ? (
+                  <img src={c.profile_pic_url} alt="" className="h-12 w-12 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-caldera/10 text-lg font-bold text-caldera">
+                    {c.name.charAt(0)}
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold text-text-primary">{c.name}</p>
                   <div className="flex items-center gap-2">

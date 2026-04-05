@@ -68,7 +68,7 @@ export function MarketDetailClient({
               />
               <div className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
                 <span className="text-xs text-caldera font-medium">
-                  {creator.creator_coin_holders.toLocaleString()} holders earning from this market
+                  Active holders: {creator.creator_coin_holders.toLocaleString()}
                 </span>
               </div>
             </div>

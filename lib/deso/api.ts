@@ -9,6 +9,21 @@ export async function getDesoPrice(): Promise<number> {
   return data.USDCentsPerDeSoExchangeRate / 100;
 }
 
+export async function getTopProfiles(numToFetch = 100) {
+  const res = await fetch(`${DESO_API}/get-profiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      OrderBy: "influencer_coin_price",
+      NumToFetch: numToFetch,
+      NoErrorOnEmpty: true,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to fetch profiles");
+  const data = await res.json();
+  return data.ProfilesFound || [];
+}
+
 export async function getCreatorProfile(username: string) {
   const res = await fetch(`${DESO_API}/get-single-profile`, {
     method: "POST",

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import type { Market } from "@/types";
+import { AdminActions } from "./admin-actions";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export default async function AdminPage() {
         Admin Dashboard
       </h1>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.label}
@@ -49,6 +50,8 @@ export default async function AdminPage() {
           </div>
         ))}
       </div>
+
+      <AdminActions />
     </div>
   );
 }

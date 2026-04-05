@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowUpRight, ArrowDownRight, ExternalLink } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { AddCreatorModal } from "@/components/shared/AddCreatorModal";
@@ -153,10 +153,6 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                       {holders.toLocaleString()} holders
                     </p>
                   </div>
-                  <p className="mb-4 flex items-center gap-1 text-[10px] text-text-muted">
-                    Tradeable on DeSo blockchain
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </p>
                   {creator.total_holder_earnings > 0 && (
                     <p className="mb-2 text-[10px] font-medium text-yes">
                       {formatCompactCurrency(creator.total_holder_earnings)} earned by holders
@@ -170,16 +166,16 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                   onClick={() => setStakeCreator(creator)}
                   className="w-full text-left text-xs font-medium text-caldera transition-colors hover:text-caldera/80"
                 >
-                  Get Involved →
+                  Buy ${coinSymbol}
                 </button>
               ) : (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger className="w-full text-left text-xs font-medium text-text-faint">
-                      Get Involved →
+                      Not on DeSo yet
                     </TooltipTrigger>
                     <TooltipContent className="bg-surface border-border-subtle text-text-primary">
-                      <p className="text-xs">Not on DeSo yet on DeSo</p>
+                      <p className="text-xs">This creator is not yet on the DeSo blockchain</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

@@ -72,12 +72,10 @@ export function CreatorCoinExplainer({
           onClick={() => setOpen(!open)}
           className="flex w-full items-center gap-2 p-4 text-left"
         >
-          <span className="shrink-0 rounded-full bg-caldera/15 px-2.5 py-0.5 text-[11px] font-semibold text-caldera">
-            People Market
-          </span>
-          <span className="flex-1 text-sm font-medium text-text-primary">
+          <TierBadge tier={creator.tier} size="md" />
+          <Link href={`/creators/${creator.slug}`} className="flex-1 text-sm font-medium text-text-primary hover:text-caldera transition-colors">
             {creator.name}
-          </span>
+          </Link>
           {open ? (
             <ChevronUp className="h-4 w-4 text-text-muted" />
           ) : (
@@ -87,15 +85,15 @@ export function CreatorCoinExplainer({
         {open && (
           <div className="border-t border-caldera/10 px-4 pb-4 pt-3">
             <p className="text-sm text-text-muted leading-relaxed">
-              This is a People Market.{" "}
-              <span className="text-text-primary font-medium">{creator.name}</span>{" "}
-              earns{" "}
-              <span className="text-caldera font-medium">
-                {(creatorFeePercent * 100).toFixed(1)}%
-              </span>{" "}
-              of every trade made here. Take a stake in their trajectory —
-              every market about them that trades on Caldera grows the value
-              of your position.
+              {creator.tier === "verified_creator" && (
+                <>{creator.name} earns <span className="text-caldera font-medium">{(creatorFeePercent * 100).toFixed(1)}%</span> of every trade. ${desoUser || creator.creator_coin_symbol} holders earn <span className="text-caldera font-medium">0.75%</span> proportional to their position.</>
+              )}
+              {creator.tier === "public_figure" && (
+                <>${desoUser || creator.creator_coin_symbol} holders earn <span className="text-caldera font-medium">1.5%</span> of all trading fees. {creator.name} does not receive platform earnings.</>
+              )}
+              {creator.tier === "unclaimed" && (
+                <>{creator.name} hasn&apos;t claimed this profile. Fees accumulate in escrow until claimed.</>
+              )}
             </p>
 
             <div className="mt-3 flex items-center gap-4 rounded-lg bg-surface p-3">
@@ -141,7 +139,7 @@ export function CreatorCoinExplainer({
                   onClick={() => setShowStakeModal(true)}
                   className="rounded-lg bg-caldera/10 px-3 py-1.5 text-xs font-medium text-caldera border border-caldera/20 hover:bg-caldera/20 transition-colors"
                 >
-                  Get Involved →
+                  Buy ${desoUser}
                 </button>
               ) : (
                 <span className="text-[10px] text-text-faint">Not on DeSo yet</span>

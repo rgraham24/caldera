@@ -77,6 +77,9 @@ export type Database = {
           total_creator_earnings: number;
           total_holder_earnings: number;
           markets_count: number;
+          claim_code: string | null;
+          claim_code_expires_at: string | null;
+          claim_attempted_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -122,6 +125,9 @@ export type Database = {
           total_creator_earnings?: number;
           total_holder_earnings?: number;
           markets_count?: number;
+          claim_code?: string | null;
+          claim_code_expires_at?: string | null;
+          claim_attempted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
