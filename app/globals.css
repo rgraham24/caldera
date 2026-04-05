@@ -146,3 +146,9 @@
 .section-header {
   @apply font-display text-2xl font-bold tracking-tight text-text-primary border-l-2 border-caldera pl-3;
 }
+
+/* Ticker scroll */
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}

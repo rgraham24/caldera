@@ -1,36 +1,35 @@
 import { createClient } from "@/lib/supabase/server";
 import { HomeClient } from "./home-client";
-import type { LeaderboardEntry, Creator } from "@/types";
+import type { Creator } from "@/types";
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  const { data: featuredMarkets } = await supabase
+  // Hero market — flagged or highest trending
+  const { data: heroRow } = await supabase
     .from("markets")
     .select("*")
-    .gt("featured_score", 0)
+    .eq("is_hero", true)
     .eq("status", "open")
-    .order("featured_score", { ascending: false })
-    .limit(6);
+    .limit(1)
+    .single();
 
-  const { data: trendingMarkets } = await supabase
+  const heroMarket = heroRow ?? (await supabase
     .from("markets")
     .select("*")
     .eq("status", "open")
     .order("trending_score", { ascending: false })
-    .limit(9);
+    .limit(1)
+    .single()).data;
 
-  const { data: resolvingSoon } = await supabase
+  // All open markets
+  const { data: allMarkets } = await supabase
     .from("markets")
     .select("*")
     .eq("status", "open")
-    .lte(
-      "resolve_at",
-      new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
-    )
-    .order("resolve_at", { ascending: true })
-    .limit(5);
+    .order("trending_score", { ascending: false });
 
+  // Resolved markets
   const { data: resolvedMarkets } = await supabase
     .from("markets")
     .select("*")
@@ -38,24 +37,18 @@ export default async function HomePage() {
     .order("resolved_at", { ascending: false })
     .limit(6);
 
-  const { data: rawLeaderboard } = await supabase
-    .from("leaderboard_snapshots")
-    .select(
-      "*, user:users(id, username, avatar_url, is_verified, reputation_score)"
-    )
-    .eq("period", "alltime")
-    .order("rank", { ascending: true })
-    .limit(5);
+  // Recent trades for ticker
+  const { data: recentTrades } = await supabase
+    .from("trades")
+    .select("*, market:markets(title, slug)")
+    .order("created_at", { ascending: false })
+    .limit(20);
 
-  const { data: volumeData } = await supabase
-    .from("markets")
-    .select("*");
-
+  // Top creators
   const { data: rawCreators } = await supabase
     .from("creators")
     .select("*");
 
-  // Sort: DeSo-enabled first, then by coin price descending
   const sortedCreators = (rawCreators ?? [])
     .sort((a, b) => {
       const aHasDeso = a.deso_username ? 1 : 0;
@@ -63,29 +56,40 @@ export default async function HomePage() {
       if (bHasDeso !== aHasDeso) return bHasDeso - aHasDeso;
       return b.creator_coin_price - a.creator_coin_price;
     })
-    .slice(0, 10);
+    .slice(0, 8)
+    .map((c) => ({
+      ...c,
+      price_change_24h: parseFloat(((Math.random() - 0.35) * 20).toFixed(1)),
+    }));
 
-  const creatorsWithChange = sortedCreators.map((c) => ({
-    ...c,
-    price_change_24h: parseFloat(((Math.random() - 0.35) * 20).toFixed(1)),
-  }));
+  // Hero creator
+  let heroCreator: Creator | null = null;
+  if (heroMarket?.creator_id) {
+    const { data } = await supabase
+      .from("creators")
+      .select("*")
+      .eq("id", heroMarket.creator_id)
+      .single();
+    heroCreator = data as Creator | null;
+  }
 
-  const allMarkets = volumeData ?? [];
-  const totalVolume = allMarkets.reduce((sum, m) => sum + (m.total_volume || 0), 0);
-  const activeMarkets = allMarkets.filter((m) => m.status === "open").length;
+  // Stats
+  const open = allMarkets ?? [];
+  const totalVolume = open.reduce((s, m) => s + m.total_volume, 0);
 
   return (
     <HomeClient
-      featuredMarkets={featuredMarkets ?? []}
-      trendingMarkets={trendingMarkets ?? []}
-      resolvingSoon={resolvingSoon ?? []}
+      heroMarket={heroMarket}
+      heroCreator={heroCreator}
+      allMarkets={open}
       resolvedMarkets={resolvedMarkets ?? []}
-      leaderboardEntries={
-        (rawLeaderboard as unknown as LeaderboardEntry[]) ?? []
-      }
-      trendingCreators={creatorsWithChange as (Creator & { price_change_24h: number })[]}
+      recentTrades={(recentTrades as unknown as Array<{
+        id: string; side: string; gross_amount: number; created_at: string;
+        market: { title: string; slug: string };
+      }>) ?? []}
+      creators={sortedCreators as (Creator & { price_change_24h: number })[]}
       totalVolume={totalVolume}
-      activeMarkets={activeMarkets}
+      activeMarketCount={open.length}
     />
   );
 }

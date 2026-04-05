@@ -160,6 +160,7 @@ export type Database = {
           yes_pool: number;
           no_pool: number;
           market_subtype: string;
+          is_hero: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -189,6 +190,7 @@ export type Database = {
           yes_pool?: number;
           no_pool?: number;
           market_subtype?: string;
+          is_hero?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -218,6 +220,7 @@ export type Database = {
           yes_pool?: number;
           no_pool?: number;
           market_subtype?: string;
+          is_hero?: boolean;
           created_at?: string;
           updated_at?: string;
         };

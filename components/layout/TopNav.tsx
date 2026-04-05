@@ -88,13 +88,14 @@ export function TopNav() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-text-muted hover:text-text-primary"
-            >
-              <Search className="h-4 w-4" />
-            </Button>
+            <div className="relative hidden md:block">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-faint" />
+              <input
+                type="text"
+                placeholder="Search markets..."
+                className="w-48 rounded-lg border border-border-subtle/50 bg-surface py-1.5 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:w-64 transition-all"
+              />
+            </div>
 
             {isAuthenticated ? (
               <div className="flex items-center gap-2">

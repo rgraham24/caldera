@@ -1,194 +1,404 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { Market, LeaderboardEntry, Creator } from "@/types";
-import { FeaturedMarkets } from "@/components/home/FeaturedMarkets";
-import { TrendingCreatorCoins } from "@/components/home/TrendingCreatorCoins";
-import { CategoryRow } from "@/components/home/CategoryRow";
-import { TrendingMarkets } from "@/components/home/TrendingMarkets";
-import { LeaderboardSnapshot } from "@/components/home/LeaderboardSnapshot";
+import type { Market, Creator } from "@/types";
+import { CATEGORIES } from "@/types";
 import { MarketCard } from "@/components/markets/MarketCard";
-import { formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
-import { ProbabilityBadge } from "@/components/shared/ProbabilityBadge";
-import { Search } from "lucide-react";
+import { TierBadge } from "@/components/shared/TierBadge";
+import { StakeModal } from "@/components/markets/StakeModal";
+import {
+  formatCurrency,
+  formatCompactCurrency,
+  formatRelativeTime,
+  formatPercent,
+  cn,
+} from "@/lib/utils";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+
+type RecentTrade = {
+  id: string;
+  side: string;
+  gross_amount: number;
+  created_at: string;
+  market: { title: string; slug: string };
+};
 
 type HomeClientProps = {
-  featuredMarkets: Market[];
-  trendingMarkets: Market[];
-  resolvingSoon: Market[];
+  heroMarket: Market | null;
+  heroCreator: Creator | null;
+  allMarkets: Market[];
   resolvedMarkets: Market[];
-  leaderboardEntries: LeaderboardEntry[];
-  trendingCreators: (Creator & { price_change_24h: number })[];
+  recentTrades: RecentTrade[];
+  creators: (Creator & { price_change_24h: number })[];
   totalVolume: number;
-  activeMarkets: number;
+  activeMarketCount: number;
 };
 
 export function HomeClient({
-  featuredMarkets,
-  trendingMarkets,
-  resolvingSoon,
+  heroMarket,
+  heroCreator,
+  allMarkets,
   resolvedMarkets,
-  leaderboardEntries,
-  trendingCreators,
+  recentTrades,
+  creators,
   totalVolume,
-  activeMarkets,
+  activeMarketCount,
 }: HomeClientProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [watching, setWatching] = useState(247);
+  const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
 
-  const filteredTrending = activeCategory
-    ? trendingMarkets.filter((m) => m.category === activeCategory)
-    : trendingMarkets;
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setWatching((w) => w + Math.floor(Math.random() * 5) - 2);
+    }, 15000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const filtered = activeCategory
+    ? allMarkets.filter((m) => m.category === activeCategory)
+    : allMarkets;
+
+  const trendingMarkets = allMarkets
+    .filter((m) => m.id !== heroMarket?.id)
+    .slice(0, 3);
+
+  const yesPercent = heroMarket ? Math.round(heroMarket.yes_price * 100) : 50;
+  const noPercent = 100 - yesPercent;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      {/* Hero */}
-      <section className="hero-glow mb-10 py-20 md:py-28">
-        <h1 className="font-display text-6xl font-bold tracking-tight text-white md:text-8xl">
-          The Market for People.
-        </h1>
-        <p className="mt-4 max-w-xl text-lg text-text-muted">
-          Predict outcomes. Take a stake. Earn from every trade.
-        </p>
+    <div>
+      {/* Stat strip */}
+      <div className="border-b border-border-subtle/30 bg-surface/50">
+        <div className="mx-auto max-w-7xl px-4 py-1.5 md:px-6 lg:px-8">
+          <p className="text-[10px] text-text-muted">
+            <span className="font-mono text-caldera">{formatCompactCurrency(totalVolume)}</span> traded ·{" "}
+            <span className="font-mono text-caldera">{activeMarketCount}</span> markets ·{" "}
+            <span className="font-mono text-caldera">8,200+</span> holders earning ·{" "}
+            <span className="flex items-center gap-1 inline-flex"><span className="h-1 w-1 rounded-full bg-yes animate-pulse" /> Powered by DeSo</span>
+          </p>
+        </div>
+      </div>
 
-        <div className="mt-8 max-w-lg">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-faint" />
-            <input
-              type="text"
-              placeholder="Search markets, creators, or public figures..."
-              className="w-full rounded-xl border border-border-subtle bg-surface py-3 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:ring-1 focus:ring-caldera"
-            />
+      {/* Activity ticker */}
+      <div className="border-b border-border-subtle/20 bg-surface/30 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+          <div className="flex animate-[scroll_30s_linear_infinite] gap-8 whitespace-nowrap py-2">
+            {recentTrades.map((t) => (
+              <span key={t.id} className="text-[11px] text-text-muted">
+                {t.side === "yes" ? "📈" : "📉"}{" "}
+                <span className={t.side === "yes" ? "text-yes" : "text-no"}>
+                  {t.side.toUpperCase()}
+                </span>{" "}
+                on {t.market.title.slice(0, 40)}... · {formatCurrency(t.gross_amount)} · {formatRelativeTime(t.created_at)}
+              </span>
+            ))}
+            {creators.slice(0, 3).map((c) => (
+              <span key={c.id} className="text-[11px] text-text-muted">
+                {c.price_change_24h >= 0 ? "🔥" : "📉"} ${c.deso_username || c.creator_coin_symbol}{" "}
+                <span className={c.price_change_24h >= 0 ? "text-yes" : "text-no"}>
+                  {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
+                </span> today
+              </span>
+            ))}
           </div>
         </div>
-
-        <div className="mt-6 flex flex-wrap gap-4">
-          <div className="inline-flex flex-col rounded-xl border border-border-subtle bg-surface px-5 py-3">
-            <span className="font-mono text-2xl font-bold tracking-normal text-caldera">
-              {formatCompactCurrency(totalVolume)}
-            </span>
-            <span className="mt-1 text-xs uppercase tracking-widest text-text-muted">
-              Total Volume
-            </span>
-          </div>
-          <div className="inline-flex flex-col rounded-xl border border-border-subtle bg-surface px-5 py-3">
-            <span className="font-mono text-2xl font-bold tracking-normal text-caldera">
-              {activeMarkets}
-            </span>
-            <span className="mt-1 text-xs uppercase tracking-widest text-text-muted">
-              Active Markets
-            </span>
-          </div>
-          <div className="inline-flex flex-col rounded-xl border border-border-subtle bg-surface px-5 py-3">
-            <span className="font-mono text-2xl font-bold tracking-normal text-caldera">
-              8,200+
-            </span>
-            <span className="mt-1 text-xs uppercase tracking-widest text-text-muted">
-              Holders Earning
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured */}
-      <div className="mb-10">
-        <FeaturedMarkets markets={featuredMarkets} />
       </div>
 
-      {/* Trending Stakes */}
-      <div className="mb-10">
-        <TrendingCreatorCoins creators={trendingCreators} />
-      </div>
-
-      {/* Category filter */}
-      <div className="mb-6">
-        <CategoryRow
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-        />
-      </div>
-
-      {/* Trending */}
-      <div className="mb-10">
-        <TrendingMarkets markets={filteredTrending} />
-      </div>
-
-      {/* Two-column: Resolving Soon + Leaderboard */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 mb-10">
-        {/* Resolving soon */}
-        <section>
-          <h2 className="section-header mb-5">
-            Resolving Soon
-          </h2>
-          <div className="rounded-xl border border-border-subtle bg-surface divide-y divide-border-subtle">
-            {resolvingSoon.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-text-muted">
-                No markets resolving soon
-              </p>
-            ) : (
-              resolvingSoon.map((market) => (
-                <Link
-                  key={market.id}
-                  href={`/markets/${market.slug}`}
-                  className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-surface-2"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-text-primary">
-                      {market.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-text-muted">
-                      {market.resolve_at && formatRelativeTime(market.resolve_at)}
-                    </p>
-                  </div>
-                  <ProbabilityBadge probability={market.yes_price} size="sm" />
-                </Link>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Leaderboard */}
-        <LeaderboardSnapshot entries={leaderboardEntries} />
-      </div>
-
-      {/* Recently resolved */}
-      {resolvedMarkets.length > 0 && (
-        <section>
-          <h2 className="section-header mb-5">
-            Recently Resolved
-          </h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {resolvedMarkets.map((market) => (
-              <div
-                key={market.id}
-                className="min-w-[280px] max-w-[320px] flex-shrink-0"
+      {/* Category nav */}
+      <div className="border-b border-border-subtle/20 bg-background">
+        <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+          <div className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={cn(
+                "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                !activeCategory ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              🔥 Trending
+            </button>
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setActiveCategory(c.value)}
+                className={cn(
+                  "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  activeCategory === c.value ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
+                )}
               >
-                <Link href={`/markets/${market.slug}`}>
-                  <div className="rounded-xl border border-border-subtle bg-surface p-4 transition-colors hover:border-border-visible">
-                    <p className="mb-2 text-sm font-medium text-text-primary line-clamp-2">
-                      {market.title}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`text-sm font-bold ${
-                          market.resolution_outcome === "yes"
-                            ? "text-yes"
-                            : "text-no"
-                        }`}
-                      >
-                        Resolved{" "}
-                        {market.resolution_outcome?.toUpperCase()}
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        {/* Hero + Sidebar */}
+        <div className="mb-8 flex flex-col gap-6 lg:flex-row">
+          {/* LEFT — Hero Market */}
+          {heroMarket && (
+            <div className="flex-1 lg:max-w-[65%]">
+              <div className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
+                {/* Category + badges */}
+                <div className="mb-3 flex items-center gap-2 text-xs text-text-muted">
+                  <span className="capitalize">{heroMarket.category}</span>
+                  {heroMarket.resolve_at && new Date(heroMarket.resolve_at).getTime() - Date.now() < 72 * 3600000 && (
+                    <span className="rounded-full bg-no/10 px-2 py-0.5 text-[10px] font-semibold text-no">
+                      RESOLVES SOON
+                    </span>
+                  )}
+                  <span className="ml-auto font-mono text-caldera">
+                    {formatCompactCurrency(heroMarket.total_volume)} Vol
+                  </span>
+                </div>
+
+                {/* Title */}
+                <Link href={`/markets/${heroMarket.slug}`}>
+                  <h2 className="mb-4 font-display text-3xl font-bold tracking-tight text-text-primary hover:text-caldera transition-colors">
+                    {heroMarket.title}
+                  </h2>
+                </Link>
+
+                {/* Creator bar */}
+                {heroCreator && (
+                  <div className="mb-4 flex items-center gap-3">
+                    {heroCreator.profile_pic_url ? (
+                      <img src={heroCreator.profile_pic_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-caldera/10 text-xs font-bold text-caldera">
+                        {heroCreator.name.charAt(0)}
+                      </div>
+                    )}
+                    <Link href={`/creators/${heroCreator.slug}`} className="text-sm font-medium text-text-primary hover:text-caldera">
+                      {heroCreator.name}
+                    </Link>
+                    <TierBadge tier={heroCreator.tier} />
+                    <span className="font-mono text-xs text-text-muted">
+                      {formatCurrency(heroCreator.creator_coin_price)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Probability bars */}
+                <div className="mb-4 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="w-10 text-right font-mono text-sm font-bold text-yes">YES</span>
+                    <div className="flex-1 h-8 rounded-full bg-background overflow-hidden">
+                      <div className="h-full rounded-full bg-yes/20 flex items-center pl-3" style={{ width: `${yesPercent}%` }}>
+                        <span className="font-mono text-sm font-bold text-yes">{yesPercent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="w-10 text-right font-mono text-sm font-bold text-no">NO</span>
+                    <div className="flex-1 h-8 rounded-full bg-background overflow-hidden">
+                      <div className="h-full rounded-full bg-no/20 flex items-center pl-3" style={{ width: `${noPercent}%` }}>
+                        <span className="font-mono text-sm font-bold text-no">{noPercent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live stats */}
+                <div className="mb-4 flex items-center gap-4 text-[11px] text-text-muted">
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-no animate-pulse" />
+                    {watching} watching
+                  </span>
+                  <span>{heroMarket.resolve_at && formatRelativeTime(heroMarket.resolve_at)}</span>
+                </div>
+
+                {/* Trade buttons */}
+                <div className="flex gap-3">
+                  <Link href={`/markets/${heroMarket.slug}`} className="flex-1">
+                    <button className="w-full rounded-xl bg-yes/15 py-3 text-sm font-bold text-yes transition-colors hover:bg-yes/25">
+                      Buy YES · {yesPercent}¢
+                    </button>
+                  </Link>
+                  <Link href={`/markets/${heroMarket.slug}`} className="flex-1">
+                    <button className="w-full rounded-xl bg-no/15 py-3 text-sm font-bold text-no transition-colors hover:bg-no/25">
+                      Buy NO · {noPercent}¢
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RIGHT — Sidebar */}
+          <div className="w-full lg:w-[35%] space-y-4">
+            {/* Trending Now */}
+            <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Trending Now</h3>
+              <div className="space-y-3">
+                {trendingMarkets.map((m) => (
+                  <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-3 group">
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium text-text-primary group-hover:text-caldera transition-colors">
+                        {m.title}
+                      </p>
+                    </div>
+                    <span className={cn("font-mono text-sm font-bold shrink-0", m.yes_price >= 0.5 ? "text-yes" : "text-no")}>
+                      {formatPercent(m.yes_price)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Hot Creators */}
+            <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Hot Creators</h3>
+              <div className="space-y-3">
+                {creators.slice(0, 3).map((c) => {
+                  const sym = c.deso_username || c.creator_coin_symbol;
+                  return (
+                    <div key={c.id} className="flex items-center gap-3">
+                      <Link href={`/creators/${c.slug}`} className="flex items-center gap-2 flex-1 min-w-0">
+                        {c.profile_pic_url ? (
+                          <img src={c.profile_pic_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-caldera/10 text-xs font-bold text-caldera">
+                            {c.name.charAt(0)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-text-primary">{c.name}</p>
+                          <div className="flex items-center gap-1">
+                            <span className="font-mono text-xs text-caldera">{formatCurrency(c.creator_coin_price)}</span>
+                            {c.price_change_24h >= 0 ? (
+                              <ArrowUpRight className="h-3 w-3 text-yes" />
+                            ) : (
+                              <ArrowDownRight className="h-3 w-3 text-no" />
+                            )}
+                            <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
+                              {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                      {c.deso_username && (
+                        <button
+                          onClick={() => setStakeCreator(c)}
+                          className="shrink-0 rounded-lg bg-caldera/10 px-2.5 py-1 text-[10px] font-medium text-caldera hover:bg-caldera/20 transition-colors"
+                        >
+                          Buy ${sym}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Recently Resolved */}
+            {resolvedMarkets.length > 0 && (
+              <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Recently Called</h3>
+                <div className="space-y-3">
+                  {resolvedMarkets.slice(0, 3).map((m) => (
+                    <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-3 group">
+                      <p className="flex-1 truncate text-sm text-text-primary group-hover:text-caldera transition-colors">
+                        {m.title}
+                      </p>
+                      <span className={cn("text-xs font-bold", m.resolution_outcome === "yes" ? "text-yes" : "text-no")}>
+                        {m.resolution_outcome?.toUpperCase()}
                       </span>
-                      <span className="font-mono text-xs text-text-muted">
-                        {formatCompactCurrency(market.total_volume)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Unclaimed creator */}
+            {(() => {
+              const unclaimed = creators.find((c) => c.tier === "unclaimed" && c.unclaimed_earnings_escrow > 0);
+              if (!unclaimed) return null;
+              return (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-amber-400">Claim & Earn</h3>
+                  <p className="text-sm text-text-muted">
+                    <Link href={`/creators/${unclaimed.slug}`} className="font-medium text-text-primary hover:text-caldera">
+                      {unclaimed.name}
+                    </Link>{" "}
+                    hasn&apos;t claimed{" "}
+                    <span className="font-mono text-amber-400">{formatCurrency(unclaimed.unclaimed_earnings_escrow)}</span>{" "}
+                    in earnings yet.
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Hot Creators row */}
+        <div className="mb-8">
+          <div className="mb-1 text-[11px] text-text-muted">Holding these earns you from every trade</div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {creators.map((c) => {
+              const sym = c.deso_username || c.creator_coin_symbol;
+              return (
+                <div
+                  key={c.id}
+                  className="flex min-w-[200px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
+                >
+                  {c.profile_pic_url ? (
+                    <img src={c.profile_pic_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-caldera/10 text-sm font-bold text-caldera">
+                      {c.name.charAt(0)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
+                      {c.name}
+                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-display text-sm font-bold tracking-normal text-caldera">{formatCurrency(c.creator_coin_price)}</span>
+                      <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
+                        {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
                       </span>
                     </div>
                   </div>
-                </Link>
-              </div>
+                  {c.deso_username && (
+                    <button
+                      onClick={() => setStakeCreator(c)}
+                      className="shrink-0 rounded-lg bg-caldera/10 px-2 py-1 text-[10px] font-medium text-caldera hover:bg-caldera/20"
+                    >
+                      Buy ${sym}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* All Markets grid */}
+        <div>
+          <h2 className="section-header mb-5">All Markets</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.filter((m) => m.id !== heroMarket?.id).map((m) => (
+              <MarketCard key={m.id} market={m} />
             ))}
           </div>
-        </section>
+          {filtered.length === 0 && (
+            <p className="py-12 text-center text-sm text-text-muted">No markets in this category</p>
+          )}
+        </div>
+      </div>
+
+      {/* StakeModal */}
+      {stakeCreator && (
+        <StakeModal
+          creator={stakeCreator}
+          isOpen={!!stakeCreator}
+          onClose={() => setStakeCreator(null)}
+          desoUsername={stakeCreator.deso_username}
+        />
       )}
     </div>
   );

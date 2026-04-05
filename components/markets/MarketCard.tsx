@@ -9,12 +9,31 @@ type MarketCardProps = {
 };
 
 export function MarketCard({ market }: MarketCardProps) {
+  const hoursLeft = market.resolve_at
+    ? (new Date(market.resolve_at).getTime() - Date.now()) / 3600000
+    : Infinity;
+  const isLive = hoursLeft < 24 && hoursLeft > 0;
+  const resolvingSoon = hoursLeft < 72 && hoursLeft >= 24;
+
   return (
     <Link href={`/markets/${market.slug}`}>
       <div className="group flex h-full flex-col rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-border-visible/60 hover:-translate-y-0.5">
         {/* Header */}
         <div className="mb-3 flex items-start justify-between gap-2">
-          <CategoryPill category={market.category} />
+          <div className="flex items-center gap-2">
+            <CategoryPill category={market.category} />
+            {isLive && (
+              <span className="flex items-center gap-1 rounded-full bg-no/10 px-2 py-0.5 text-[10px] font-semibold text-no">
+                <span className="h-1.5 w-1.5 rounded-full bg-no animate-pulse" />
+                LIVE
+              </span>
+            )}
+            {resolvingSoon && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                RESOLVES SOON
+              </span>
+            )}
+          </div>
           {market.resolve_at && (
             <span className="shrink-0 text-[11px] text-text-muted">
               {formatRelativeTime(market.resolve_at)}
@@ -22,7 +41,7 @@ export function MarketCard({ market }: MarketCardProps) {
           )}
         </div>
 
-        {/* Title — hero of the card */}
+        {/* Title */}
         <h3 className="mb-4 flex-1 font-display text-xl font-bold leading-tight tracking-tight text-text-primary">
           {market.title}
         </h3>
@@ -32,8 +51,16 @@ export function MarketCard({ market }: MarketCardProps) {
           <ProbabilityBadge probability={market.yes_price} />
         </div>
 
-        {/* Footer stats */}
-        <div className="flex items-center justify-between border-t border-border-subtle/20 pt-3">
+        {/* Volume bar */}
+        <div className="mb-3 h-1 w-full rounded-full bg-border-subtle/30">
+          <div
+            className="h-full rounded-full bg-caldera/30"
+            style={{ width: `${Math.min(100, (market.total_volume / 3000000) * 100)}%` }}
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
           <span className="font-mono text-xs text-text-muted">
             {formatCompactCurrency(market.total_volume)} Vol
           </span>
