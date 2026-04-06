@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAppStore } from "@/store";
 import { Info } from "lucide-react";
+import { connectDeSoWallet } from "@/lib/deso/auth";
 
 type TradeTicketProps = {
   market: Market;
@@ -29,9 +30,10 @@ export function TradeTicket({
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { isAuthenticated } = useAppStore();
+  const { isAuthenticated, setConnected } = useAppStore();
 
   const amountNum = parseFloat(amount) || 0;
 
@@ -52,15 +54,26 @@ export function TradeTicket({
   }, [amountNum, side, market, feeConfig]);
 
   const handleTrade = async () => {
+    // Not connected — trigger connect flow
+    if (!isAuthenticated) {
+      setIsConnecting(true);
+      try {
+        const userData = await connectDeSoWallet();
+        setConnected(userData);
+      } catch (err) {
+        console.error("Connect failed:", err);
+      } finally {
+        setIsConnecting(false);
+      }
+      return;
+    }
+
     // First-time trader onboarding
     if (typeof window !== "undefined" && !localStorage.getItem("caldera_onboarded")) {
       setShowOnboarding(true);
       return;
     }
-    if (!isAuthenticated) {
-      window.location.href = "/login";
-      return;
-    }
+
     if (!quote || amountNum <= 0) return;
 
     setIsSubmitting(true);
@@ -252,7 +265,7 @@ export function TradeTicket({
 
       <Button
         onClick={handleTrade}
-        disabled={amountNum <= 0 || isSubmitting || market.status !== "open"}
+        disabled={(isAuthenticated && (amountNum <= 0 || isSubmitting)) || market.status !== "open" || isConnecting}
         className={cn(
           "w-full font-semibold py-3 rounded-lg transition-colors",
           !isAuthenticated || market.status !== "open"
@@ -262,7 +275,9 @@ export function TradeTicket({
             : "bg-no text-white hover:bg-no/90"
         )}
       >
-        {isSubmitting
+        {isConnecting
+          ? "Connecting..."
+          : isSubmitting
           ? "Confirming..."
           : market.status !== "open"
           ? "Market Closed"
