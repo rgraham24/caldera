@@ -23,7 +23,7 @@ export function TierBadge({ tier, size = "sm" }: TierBadgeProps) {
       label: "Public Figure",
       dot: "bg-text-muted",
       text: "text-text-muted",
-      tooltip: "Public Figure — earnings go to coin holders",
+      tooltip: "Public Figure — earnings go to token holders",
     },
     unclaimed: {
       label: "Unclaimed",

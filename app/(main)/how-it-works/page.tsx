@@ -8,7 +8,7 @@ export default function HowItWorksPage() {
         How Caldera Works
       </h1>
       <p className="mt-3 text-lg text-text-muted">
-        Predict outcomes. Hold creator coins. Earn from every trade.
+        Predict outcomes. Hold tokens. Earn from every trade.
       </p>
 
       <div className="mt-12 space-y-16">
@@ -42,7 +42,7 @@ export default function HowItWorksPage() {
         {/* Section 2 */}
         <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 255, 136, 0.03)" }}>
           <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">02</span>
-          <h2 className="section-header mb-4">Creator Coins</h2>
+          <h2 className="section-header mb-4">DeSo Tokens</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
               Every creator on DeSo has a coin tied to their reputation. When you buy{" "}
@@ -69,16 +69,27 @@ export default function HowItWorksPage() {
         {/* Section 3 */}
         <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(255, 170, 0, 0.03)" }}>
           <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">03</span>
-          <h2 className="section-header mb-4">Claim Your Profile</h2>
+          <h2 className="section-header mb-4">Token Earnings & Ethics</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
-              If markets are being made about you, claim your profile to earn{" "}
-              <span className="text-caldera font-medium">0.75% of every trade</span>.
-              Verify by posting a unique code publicly — on X, Instagram, YouTube, anywhere.
+              Not all profiles have active token earning.
+              We follow strict ethical guidelines:
             </p>
             <p>
-              Unclaimed profiles: the creator&apos;s share goes to coin holders instead.
-              Holders earn 1.5% total until the creator claims.
+              <span className="text-caldera">✅ Active token earning:</span> Profiles where the real person
+              created their own DeSo account. Token holders earn from trades.
+            </p>
+            <p>
+              <span className="text-amber-400">⏳ Pending — claim to activate:</span> Profiles where the account
+              was reserved but the person never signed up. Claim on Caldera to activate.
+            </p>
+            <p>
+              <span className="text-text-muted">📊 Prediction market only:</span> All profiles have prediction
+              markets. $CALDRA holders earn 0.5% of every trade regardless.
+            </p>
+            <p className="text-xs text-text-faint border-t border-border-subtle/30 pt-3 mt-3">
+              Caldera never profits from someone&apos;s identity without consent.
+              Prediction markets are information pricing — token earnings require participation.
             </p>
           </div>
         </section>

@@ -57,26 +57,57 @@ export function CreatorProfileClient({
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        {/* Unclaimed or team banner */}
-        {creator.entity_type && creator.entity_type !== "individual" ? (
-          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-            <p className="text-sm text-text-muted">
-              <span className="text-caldera font-medium">${coinSymbol}</span> holders earn{" "}
-              <span className="text-caldera font-medium">1.5%</span> of every trade on {creator.name} prediction markets — automatically.
+        {/* Token status banner */}
+        {(creator.token_status === "shadow" || !creator.token_status) && (
+          <div className="mb-6 rounded-2xl border border-border-subtle/30 bg-surface p-5">
+            <p className="text-sm font-medium text-text-primary mb-2">📊 Prediction Market</p>
+            <p className="text-sm text-text-muted mb-3">
+              {openMarkets.length} active market{openMarkets.length !== 1 ? "s" : ""} ·{" "}
+              Token earnings: <span className="text-amber-400">Not yet active</span>
             </p>
-          </div>
-        ) : creator.tier === "unclaimed" ? (
-          <p className="mb-6 flex items-center gap-2 text-sm text-text-muted">
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
-            Unverified · Are you {creator.name}?{" "}
+            <p className="text-xs text-text-muted mb-3">
+              $CALDRA holders earn 0.5% of every trade here.
+              Community pool receives 1.5% until claimed.
+            </p>
+            <p className="text-xs text-text-muted mb-2">
+              Are you {creator.name}? Claim this profile to:
+            </p>
+            <ul className="text-xs text-text-muted space-y-1 mb-3">
+              <li>→ Earn 0.75% of every future trade automatically</li>
+              <li>→ Activate token holder earnings for your fans</li>
+              <li>→ See real-time prediction stats</li>
+            </ul>
             <button
               onClick={() => setShowClaimModal(true)}
-              className="font-medium text-amber-400 hover:text-amber-300"
+              className="text-sm font-medium text-caldera hover:text-caldera/80"
             >
-              Verify to earn 0.75% of every trade →
+              Claim this profile →
             </button>
-          </p>
-        ) : null}
+          </div>
+        )}
+        {creator.token_status === "active_unverified" && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              🔵 ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every trade.
+              <span className="text-text-faint ml-1 text-xs">Unverified DeSo account</span>
+            </p>
+          </div>
+        )}
+        {creator.token_status === "active_verified" && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              ✅ Verified — ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every trade.
+            </p>
+          </div>
+        )}
+        {creator.token_status === "claimed" && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              ✅ Caldera verified — {creator.name} earns <span className="text-caldera font-medium">0.75%</span>.
+              Token holders earn <span className="text-caldera font-medium">0.75%</span>.
+            </p>
+          </div>
+        )}
 
         {/* Profile Header */}
         <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start">
@@ -139,7 +170,7 @@ export function CreatorProfileClient({
         {/* Coin Chart */}
         {desoUser && (
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-            <h2 className="section-header mb-4">Coin Price</h2>
+            <h2 className="section-header mb-4">Token Price</h2>
             <MarketChart yesPrice={livePrice / 200} />
           </div>
         )}

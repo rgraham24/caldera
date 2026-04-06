@@ -48,6 +48,8 @@ export async function GET() {
             total_coins_in_circulation: coinsInCirculation,
             deso_public_key: publicKey,
             profile_pic_url: picUrl,
+            deso_is_reserved: p.IsReserved || false,
+            deso_is_verified: p.IsVerified || false,
             coin_data_updated_at: now,
           })
           .eq("id", existing.id);
@@ -65,6 +67,9 @@ export async function GET() {
           total_coins_in_circulation: coinsInCirculation,
           category: "viral",
           tier: "unclaimed",
+          deso_is_reserved: p.IsReserved || false,
+          deso_is_verified: p.IsVerified || false,
+          token_status: p.IsReserved ? "shadow" : p.IsVerified ? "active_verified" : "active_unverified",
           coin_data_updated_at: now,
         });
       }

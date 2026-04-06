@@ -192,7 +192,7 @@ export function TradeTicket({
             {quote.fees.coinHolderPoolFee > 0 && (
               <div className="flex justify-between">
                 <span className="flex items-center gap-1 text-caldera">
-                  Coin holders
+                  Token holders
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
@@ -200,7 +200,7 @@ export function TradeTicket({
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs bg-surface border-border-subtle text-text-primary">
                         <p className="text-xs">
-                          Distributed to all coin holders proportional to their holdings
+                          Distributed to all token holders proportional to their holdings
                         </p>
                       </TooltipContent>
                     </Tooltip>

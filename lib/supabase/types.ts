@@ -83,6 +83,9 @@ export type Database = {
           sport: string | null;
           league: string | null;
           conference: string | null;
+          deso_is_reserved: boolean;
+          deso_is_verified: boolean;
+          token_status: string;
           claim_code: string | null;
           claim_code_expires_at: string | null;
           claim_attempted_by: string | null;
@@ -137,6 +140,9 @@ export type Database = {
           sport?: string | null;
           league?: string | null;
           conference?: string | null;
+          deso_is_reserved?: boolean;
+          deso_is_verified?: boolean;
+          token_status?: string;
           claim_code?: string | null;
           claim_code_expires_at?: string | null;
           claim_attempted_by?: string | null;

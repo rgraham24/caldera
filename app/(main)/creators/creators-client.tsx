@@ -21,7 +21,7 @@ const TIERS = [
 ];
 
 const SORTS = [
-  { value: "price", label: "Coin Price" },
+  { value: "price", label: "Token Price" },
   { value: "volume", label: "Market Volume" },
   { value: "holders", label: "Holders" },
   { value: "newest", label: "Newest" },

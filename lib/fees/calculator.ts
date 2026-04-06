@@ -19,6 +19,7 @@ export type CreatorInfo = {
   deso_username?: string | null;
   creator_coin_price?: number;
   entity_type?: string;
+  token_status?: string; // shadow | active_unverified | active_verified | claimed
 };
 
 export type FeeBreakdown = {
@@ -66,14 +67,15 @@ export function calculateMarketFees(
 
   const remainingPool = round(total - platform - caldra - creatorEarning);
 
-  // Determine which DeSo token tiers have active coins
-  const hasPersonal =
-    creator?.deso_public_key && (creator?.creator_coin_price ?? 0) > 0;
-  const hasTeam =
-    teamCreator?.deso_public_key && (teamCreator?.creator_coin_price ?? 0) > 0;
-  const hasLeague =
-    leagueCreator?.deso_public_key &&
-    (leagueCreator?.creator_coin_price ?? 0) > 0;
+  // Only active tokens earn — shadow profiles go to community pool
+  const isActive = (c?: CreatorInfo | null) =>
+    c?.token_status === "active_unverified" ||
+    c?.token_status === "active_verified" ||
+    c?.token_status === "claimed";
+
+  const hasPersonal = isActive(creator) && (creator?.creator_coin_price ?? 0) > 0;
+  const hasTeam = isActive(teamCreator) && (teamCreator?.creator_coin_price ?? 0) > 0;
+  const hasLeague = isActive(leagueCreator) && (leagueCreator?.creator_coin_price ?? 0) > 0;
 
   const tierCount = [hasPersonal, hasTeam, hasLeague].filter(Boolean).length;
   const perTier = tierCount > 0 ? round(remainingPool / tierCount) : 0;
