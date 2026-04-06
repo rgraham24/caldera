@@ -32,7 +32,7 @@ export function TradeTicket({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { isAuthenticated } = useAppStore();
+  const { isConnected, desoBalanceUSD, openDepositModal } = useAppStore();
 
   const amountNum = parseFloat(amount) || 0;
 
@@ -54,8 +54,14 @@ export function TradeTicket({
 
   const handleTrade = async () => {
     // Not connected — redirect to DeSo identity
-    if (!isAuthenticated) {
+    if (!isConnected) {
       connectDeSoWallet();
+      return;
+    }
+
+    // Empty wallet — show deposit modal instead of failing
+    if (desoBalanceUSD < 1) {
+      openDepositModal();
       return;
     }
 
@@ -96,6 +102,7 @@ export function TradeTicket({
   };
 
   return (
+    <>
     <div className="relative trade-panel-glow rounded-2xl border border-cyan-500/20 bg-surface p-5">
       {/* Side toggle */}
       <div className="mb-5 flex rounded-lg bg-background p-1">
@@ -256,10 +263,10 @@ export function TradeTicket({
 
       <Button
         onClick={handleTrade}
-        disabled={(isAuthenticated && (amountNum <= 0 || isSubmitting)) || market.status !== "open"}
+        disabled={(isConnected && (amountNum <= 0 || isSubmitting)) || market.status !== "open"}
         className={cn(
           "w-full font-semibold py-3 rounded-lg transition-colors",
-          !isAuthenticated || market.status !== "open"
+          !isConnected || market.status !== "open"
             ? "bg-white text-black hover:bg-gray-100"
             : side === "yes"
             ? "bg-yes text-white hover:bg-yes/90"
@@ -270,7 +277,7 @@ export function TradeTicket({
           ? "Confirming..."
           : market.status !== "open"
           ? "Market Closed"
-          : !isAuthenticated
+          : !isConnected
           ? "Connect to Trade"
           : `Buy ${side.toUpperCase()}`}
       </Button>
@@ -323,6 +330,28 @@ export function TradeTicket({
           </Button>
         </div>
       )}
+
+      {/* Empty wallet intercept overlay */}
+      {isConnected && desoBalanceUSD < 1 && amountNum > 0 && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-surface/95 p-6 text-center backdrop-blur-sm">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[var(--accent)]">
+            Funds needed
+          </p>
+          <p className="mb-2 font-display text-lg font-bold text-text-primary">
+            Add funds to trade
+          </p>
+          <p className="mb-5 text-sm text-text-muted">
+            You need funds to place predictions. Add USDC to your wallet.
+          </p>
+          <Button
+            onClick={openDepositModal}
+            className="bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 font-semibold"
+          >
+            Add Funds →
+          </Button>
+        </div>
+      )}
     </div>
+    </>
   );
 }

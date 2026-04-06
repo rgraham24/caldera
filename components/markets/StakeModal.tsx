@@ -24,7 +24,7 @@ export function StakeModal({
   desoUsername,
   profilePicUrl,
 }: StakeModalProps) {
-  const { isAuthenticated, desoPublicKey, desoBalanceNanos, desoBalanceUSD } =
+  const { isConnected, desoPublicKey, desoBalanceNanos, desoBalanceUSD } =
     useAppStore();
   const [tab, setTab] = useState<"buy" | "sell">("buy");
   const [amountUSD, setAmountUSD] = useState("");
@@ -292,7 +292,7 @@ export function StakeModal({
             <Button
               onClick={handleConfirm}
               disabled={
-                !isAuthenticated ||
+                !isConnected ||
                 !desoPublicKey ||
                 amountNum <= 0 ||
                 isLoading
@@ -302,7 +302,7 @@ export function StakeModal({
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              {!isAuthenticated
+              {!isConnected
                 ? "Connect DeSo Wallet First"
                 : !desoPublicKey
                 ? "Connect DeSo Wallet First"
@@ -314,7 +314,7 @@ export function StakeModal({
             </Button>
 
             {/* Balance */}
-            {isAuthenticated && desoPublicKey && (
+            {isConnected && desoPublicKey && (
               <p className="mt-3 text-center text-[10px] text-text-muted">
                 Your balance: {(desoBalanceNanos / 1e9).toFixed(4)} DESO (
                 {formatCurrency(desoBalanceUSD)})

@@ -3,6 +3,6 @@
 import { useAppStore } from "@/store";
 
 export function useUser() {
-  const { user, isAuthenticated, isLoading } = useAppStore();
-  return { user, isAuthenticated, isLoading };
+  const { user, isConnected, isLoading } = useAppStore();
+  return { user, isConnected, isLoading };
 }

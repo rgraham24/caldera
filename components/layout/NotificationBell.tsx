@@ -15,7 +15,7 @@ type Notification = {
 };
 
 export function NotificationBell() {
-  const { isAuthenticated } = useAppStore();
+  const { isConnected } = useAppStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -23,7 +23,7 @@ export function NotificationBell() {
   const unread = notifications.filter((n) => !n.read_at).length;
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isConnected) return;
 
     const fetchNotifications = () => {
       fetch("/api/alerts/check").catch(() => {});
@@ -34,7 +34,7 @@ export function NotificationBell() {
     fetchNotifications();
     const iv = setInterval(fetchNotifications, 60000);
     return () => clearInterval(iv);
-  }, [isAuthenticated]);
+  }, [isConnected]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -44,7 +44,7 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (!isAuthenticated) return null;
+  if (!isConnected) return null;
 
   return (
     <div ref={ref} className="relative">

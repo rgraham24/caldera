@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { CreatorHoldingCard } from "@/components/portfolio/CreatorHoldingCard";
+import { useAppStore } from "@/store";
 
 type PortfolioClientProps = {
   positions: Array<{
@@ -62,6 +63,7 @@ const MOCK_HOLDINGS = [
 
 export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) {
   const [tab, setTab] = useState<Tab>("open");
+  const { desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
 
   const openPositions = positions.filter((p) => p.status === "open");
   const settledPositions = positions.filter((p) => p.status === "settled");
@@ -83,10 +85,41 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
   const totalFeesPaid = positions.reduce((sum, p) => sum + p.fees_paid, 0);
 
   return (
+    <>
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
       <h1 className="mb-6 font-display text-2xl font-bold text-text-primary">
         Portfolio
       </h1>
+
+      {/* Wallet section */}
+      <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-text-primary">Your Wallet</h2>
+          <button
+            onClick={openDepositModal}
+            className="rounded-lg bg-[var(--accent)] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent)]/90"
+          >
+            Add Funds
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          <div>
+            <p className="text-xs text-text-muted">DESO Balance</p>
+            <p className="mt-1 font-mono text-base font-semibold text-text-primary">
+              {desoBalanceDeso.toFixed(4)} DESO
+            </p>
+            <p className="font-mono text-xs text-text-muted">
+              ≈ ${desoBalanceUSD.toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-text-muted">USD Value</p>
+            <p className="mt-1 font-mono text-base font-semibold text-yes">
+              ${desoBalanceUSD.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Summary bar */}
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -374,5 +407,6 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
         </div>
       )}
     </div>
+    </>
   );
 }

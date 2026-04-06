@@ -5,7 +5,7 @@ import type { ConnectedUser } from "@/lib/deso/auth";
 
 type AppState = {
   user: User | null;
-  isAuthenticated: boolean;
+  isConnected: boolean;
   isLoading: boolean;
 
   // DeSo wallet
@@ -15,6 +15,11 @@ type AppState = {
   desoBalanceNanos: number;
   desoBalanceUSD: number;
   desoBalanceDeso: number;
+
+  // Deposit modal
+  isDepositModalOpen: boolean;
+  openDepositModal: () => void;
+  closeDepositModal: () => void;
 
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
@@ -29,7 +34,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       user: null,
-      isAuthenticated: false,
+      isConnected: false,
       isLoading: false,
       desoPublicKey: null,
       desoUsername: null,
@@ -37,9 +42,12 @@ export const useAppStore = create<AppState>()(
       desoBalanceNanos: 0,
       desoBalanceUSD: 0,
       desoBalanceDeso: 0,
+      isDepositModalOpen: false,
+      openDepositModal: () => set({ isDepositModalOpen: true }),
+      closeDepositModal: () => set({ isDepositModalOpen: false }),
 
       setUser: (user) =>
-        set({ user, isAuthenticated: !!user, isLoading: false }),
+        set({ user, isConnected: !!user, isLoading: false }),
 
       setLoading: (isLoading) => set({ isLoading }),
 
@@ -50,7 +58,7 @@ export const useAppStore = create<AppState>()(
 
       setConnected: (userData: ConnectedUser) =>
         set({
-          isAuthenticated: true,
+          isConnected: true,
           desoPublicKey: userData.publicKey,
           desoUsername: userData.username,
           desoProfilePicUrl: userData.profilePicUrl,
@@ -60,7 +68,7 @@ export const useAppStore = create<AppState>()(
 
       setDisconnected: () =>
         set({
-          isAuthenticated: false,
+          isConnected: false,
           user: null,
           desoPublicKey: null,
           desoUsername: null,
@@ -73,7 +81,7 @@ export const useAppStore = create<AppState>()(
       logout: () =>
         set({
           user: null,
-          isAuthenticated: false,
+          isConnected: false,
           isLoading: false,
           desoPublicKey: null,
           desoUsername: null,
@@ -89,7 +97,7 @@ export const useAppStore = create<AppState>()(
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),
       partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
+        isConnected: state.isConnected,
         desoPublicKey: state.desoPublicKey,
         desoUsername: state.desoUsername,
         desoProfilePicUrl: state.desoProfilePicUrl,

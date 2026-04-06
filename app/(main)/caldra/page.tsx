@@ -31,7 +31,7 @@ export default function CaldraPage() {
   const [buying, setBuying] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [sliderUsd, setSliderUsd] = useState(25);
-  const { isAuthenticated } = useAppStore();
+  const { isConnected } = useAppStore();
 
   useEffect(() => {
     fetch("/api/caldra/stats")
@@ -149,11 +149,11 @@ export default function CaldraPage() {
         {success && <p className="mb-3 text-xs text-yes">{success}</p>}
         <Button
           onClick={handleBuy}
-          disabled={!isAuthenticated || amountNum <= 0 || buying}
+          disabled={!isConnected || amountNum <= 0 || buying}
           className="w-full bg-caldera text-background font-semibold hover:bg-caldera/90"
         >
           {buying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {!isAuthenticated ? "Connect to buy" : buying ? "Processing..." : "Buy $CALDRA"}
+          {!isConnected ? "Connect to buy" : buying ? "Processing..." : "Buy $CALDRA"}
         </Button>
       </div>
 

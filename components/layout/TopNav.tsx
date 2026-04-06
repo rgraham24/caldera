@@ -25,16 +25,20 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const {
-    isAuthenticated,
+    isConnected,
     desoUsername,
     desoProfilePicUrl,
     desoBalanceDeso,
+    desoBalanceUSD,
     setDisconnected,
+    openDepositModal,
   } = useAppStore();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+
+  const isLowBalance = desoBalanceUSD < 1;
   const searchRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +79,7 @@ export function TopNav() {
   };
 
   return (
+    <>
     <nav
       className="sticky top-0 z-50"
       style={{
@@ -110,7 +115,7 @@ export function TopNav() {
                   {item.label}
                 </Link>
               ))}
-              {isAuthenticated && (
+              {isConnected && (
                 <>
                   {AUTH_NAV_ITEMS.map((item) => (
                     <Link
@@ -151,9 +156,27 @@ export function TopNav() {
 
             <NotificationBell />
 
-            {isAuthenticated ? (
+            {isConnected ? (
               /* Connected state — avatar + username + balance + dropdown */
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative flex items-center gap-2" ref={dropdownRef}>
+                {/* Add Funds / balance chip */}
+                <button
+                  onClick={() => openDepositModal()}
+                  className={cn(
+                    "hidden items-center gap-1 rounded-lg px-2.5 py-1 text-xs transition-colors sm:flex",
+                    isLowBalance
+                      ? "bg-[var(--accent)]/15 text-[var(--accent)] hover:bg-[var(--accent)]/25"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  )}
+                >
+                  <span className="font-mono">
+                    ${desoBalanceUSD.toFixed(2)}
+                  </span>
+                  {isLowBalance && (
+                    <span className="text-[var(--accent)]">· Add funds →</span>
+                  )}
+                </button>
+
                 <button
                   onClick={() => setDropdownOpen((o) => !o)}
                   className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--bg-elevated)]"
@@ -173,9 +196,6 @@ export function TopNav() {
                   <span className="hidden text-sm font-medium text-[var(--text-primary)] sm:inline">
                     @{desoUsername}
                   </span>
-                  <span className="hidden font-mono text-xs text-[var(--text-secondary)] sm:inline">
-                    {desoBalanceDeso.toFixed(2)} DESO
-                  </span>
                   <ChevronDown className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
                 </button>
 
@@ -187,6 +207,19 @@ export function TopNav() {
                       border: "1px solid var(--border-default)",
                     }}
                   >
+                    <button
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        openDepositModal();
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm font-medium text-[var(--accent)] hover:bg-[var(--bg-hover)]"
+                    >
+                      Add Funds
+                    </button>
+                    <div
+                      className="my-1 mx-3 h-px"
+                      style={{ background: "var(--border-subtle)" }}
+                    />
                     <Link
                       href="/portfolio"
                       onClick={() => setDropdownOpen(false)}
@@ -258,7 +291,7 @@ export function TopNav() {
                   {item.label}
                 </Link>
               ))}
-              {isAuthenticated ? (
+              {isConnected ? (
                 <>
                   {AUTH_NAV_ITEMS.map((item) => (
                     <Link
@@ -321,5 +354,7 @@ export function TopNav() {
         )}
       </div>
     </nav>
+
+    </>
   );
 }

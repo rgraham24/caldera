@@ -21,34 +21,48 @@ function AuthCallbackInner() {
         return;
       }
 
+      // Reset welcome banner if this is a different public key
+      const prevKey = localStorage.getItem("caldera_auth_prev_key");
+      if (prevKey !== publicKey) {
+        localStorage.removeItem("caldera_welcomed");
+        localStorage.setItem("caldera_auth_prev_key", publicKey);
+      }
+
       try {
-        const [profileRes, balanceRes] = await Promise.all([
-          fetch("https://api.deso.org/api/v0/get-single-profile", {
+        const profileRes = await fetch(
+          "https://api.deso.org/api/v0/get-single-profile",
+          {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ PublicKeyBase58Check: publicKey }),
-          }).then((r) => r.json()),
-          fetch("https://api.deso.org/api/v0/get-users-stateless", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ PublicKeysBase58Check: [publicKey] }),
-          }).then((r) => r.json()),
-        ]);
+          }
+        ).then((r) => r.json());
 
         const balanceNanos: number =
-          balanceRes.UserList?.[0]?.BalanceNanos || 0;
+          profileRes.Profile?.DESOBalanceNanos || 0;
         const desoPrice = 5.25;
+        const balanceUSD = (balanceNanos / 1e9) * desoPrice;
+        const balanceDeso = balanceNanos / 1e9;
 
+        localStorage.removeItem("caldera_welcomed");
         setConnected({
           publicKey,
           username:
             profileRes.Profile?.Username || publicKey.substring(0, 8),
           profilePicUrl: `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`,
-          balanceUSD: (balanceNanos / 1e9) * desoPrice,
-          balanceDeso: balanceNanos / 1e9,
+          balanceUSD,
+          balanceDeso,
         });
       } catch (e) {
-        console.error("Auth callback error:", e);
+        // Proceed with minimal data on error
+        localStorage.removeItem("caldera_welcomed");
+        setConnected({
+          publicKey,
+          username: publicKey.substring(0, 8),
+          profilePicUrl: "",
+          balanceUSD: 0,
+          balanceDeso: 0,
+        });
       }
 
       const returnTo = localStorage.getItem("caldera_auth_return") || "/";

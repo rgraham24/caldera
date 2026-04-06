@@ -21,10 +21,10 @@ export function WatchlistButton({
   const [isWatched, setIsWatched] = useState(initialWatched);
   const [watchlistId, setWatchlistId] = useState(initialWatchlistId);
   const [isLoading, setIsLoading] = useState(false);
-  const { isAuthenticated } = useAppStore();
+  const { isConnected } = useAppStore();
 
   const toggle = async () => {
-    if (!isAuthenticated) {
+    if (!isConnected) {
       window.location.href = "/login";
       return;
     }

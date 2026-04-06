@@ -18,10 +18,10 @@ export function MarketComments({
   const [comments, setComments] = useState(initialComments);
   const [body, setBody] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { isAuthenticated, user } = useAppStore();
+  const { isConnected, user } = useAppStore();
 
   const handleSubmit = async () => {
-    if (!body.trim() || !isAuthenticated) return;
+    if (!body.trim() || !isConnected) return;
     setIsSubmitting(true);
 
     try {
@@ -58,7 +58,7 @@ export function MarketComments({
         Comments ({comments.length})
       </h3>
 
-      {isAuthenticated && (
+      {isConnected && (
         <div className="mb-6">
           <textarea
             value={body}

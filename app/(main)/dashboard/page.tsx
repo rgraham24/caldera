@@ -20,7 +20,7 @@ type DashboardData = {
 };
 
 export default function DashboardPage() {
-  const { isAuthenticated } = useAppStore();
+  const { isConnected } = useAppStore();
   const [data] = useState<DashboardData>({
     creator: { name: "Creator", total_creator_earnings: 4847.20, total_holder_earnings: 3200 },
     markets: [],
@@ -28,7 +28,7 @@ export default function DashboardPage() {
     monthlyEarnings: 892.10,
   });
 
-  if (!isAuthenticated) {
+  if (!isConnected) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">
         <h1 className="font-display text-2xl font-bold text-text-primary">Creator Dashboard</h1>
