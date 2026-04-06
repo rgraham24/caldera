@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Market, CommentWithUser, Creator } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
@@ -221,6 +222,9 @@ export function MarketDetailClient({
               <WatchlistButton entityType="market" entityId={market.id} />
               <ShareCard market={market} creatorName={creator?.name} />
             </div>
+            <Link href="/caldra" className="mt-3 block text-center text-[10px] text-caldera hover:text-caldera/80">
+              Hold $CALDRA to earn from this and every other market →
+            </Link>
           </div>
         </div>
       </div>

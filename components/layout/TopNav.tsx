@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/creators", label: "Tokens" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/how-it-works", label: "How it works" },
+  { href: "/caldra", label: "🔥 $CALDRA" },
 ];
 
 const AUTH_NAV_ITEMS = [

@@ -1,4 +1,41 @@
+/**
+ * Caldera Fee Calculator — Single Source of Truth
+ *
+ * LAYER 1: Prediction Markets (always applies)
+ * - Platform treasury: 1.0%
+ * - $CALDRA holders: 0.5%
+ *
+ * LAYER 2: Token Holder Earnings (varies by market)
+ * - Creator (if claimed): 0.75%
+ * - DeSo token holders: split among personal/team/league tokens that exist
+ * - Community pool: remainder if no DeSo tokens
+ *
+ * Total: always 3.0%
+ */
+
+export type CreatorInfo = {
+  tier?: string;
+  deso_public_key?: string | null;
+  deso_username?: string | null;
+  creator_coin_price?: number;
+  entity_type?: string;
+};
+
 export type FeeBreakdown = {
+  total: number;
+  platform: number;
+  caldra: number;
+  creatorEarning: number;
+  personalToken: number;
+  teamToken: number;
+  leagueToken: number;
+  communityPool: number;
+  labels: {
+    personal: string | null;
+    team: string | null;
+    league: string | null;
+  };
+  // Legacy compat fields
   grossAmount: number;
   platformFee: number;
   creatorFee: number;
@@ -9,66 +46,91 @@ export type FeeBreakdown = {
   netAmount: number;
 };
 
+export function calculateMarketFees(
+  tradeAmountUsd: number,
+  creator?: CreatorInfo | null,
+  teamCreator?: CreatorInfo | null,
+  leagueCreator?: CreatorInfo | null
+): FeeBreakdown {
+  const total = round(tradeAmountUsd * 0.03);
+  const platform = round(tradeAmountUsd * 0.01);
+  const caldra = round(tradeAmountUsd * 0.005);
+
+  const isClaimedIndividual =
+    creator?.entity_type === "individual" &&
+    creator?.tier === "verified_creator";
+
+  const creatorEarning = isClaimedIndividual
+    ? round(tradeAmountUsd * 0.0075)
+    : 0;
+
+  const remainingPool = round(total - platform - caldra - creatorEarning);
+
+  // Determine which DeSo token tiers have active coins
+  const hasPersonal =
+    creator?.deso_public_key && (creator?.creator_coin_price ?? 0) > 0;
+  const hasTeam =
+    teamCreator?.deso_public_key && (teamCreator?.creator_coin_price ?? 0) > 0;
+  const hasLeague =
+    leagueCreator?.deso_public_key &&
+    (leagueCreator?.creator_coin_price ?? 0) > 0;
+
+  const tierCount = [hasPersonal, hasTeam, hasLeague].filter(Boolean).length;
+  const perTier = tierCount > 0 ? round(remainingPool / tierCount) : 0;
+  const communityPool = tierCount === 0 ? remainingPool : 0;
+
+  const personalToken = hasPersonal ? perTier : 0;
+  const teamToken = hasTeam ? perTier : 0;
+  const leagueToken = hasLeague ? perTier : 0;
+
+  return {
+    total,
+    platform,
+    caldra,
+    creatorEarning,
+    personalToken,
+    teamToken,
+    leagueToken,
+    communityPool,
+    labels: {
+      personal: creator?.deso_username ? `$${creator.deso_username}` : null,
+      team: teamCreator?.deso_username
+        ? `$${teamCreator.deso_username}`
+        : null,
+      league: leagueCreator?.deso_username
+        ? `$${leagueCreator.deso_username}`
+        : null,
+    },
+    // Legacy compat
+    grossAmount: tradeAmountUsd,
+    platformFee: platform,
+    creatorFee: creatorEarning,
+    coinHolderPoolFee: round(personalToken + teamToken + leagueToken + caldra),
+    escrowFee: 0,
+    marketCreatorFee: 0,
+    totalFee: total,
+    netAmount: round(tradeAmountUsd - total),
+  };
+}
+
+// Legacy wrapper for existing code that calls calculateFees
 export type MarketFeeType = "standard" | "user_created" | "official_creator";
 export type CreatorTier = "verified_creator" | "public_figure" | "unclaimed";
-export type EntityType = "individual" | "sports_team" | "college_team" | "brand" | "music_act" | "movie_show" | "esports_team" | "political_party";
+export type EntityType = string;
 
-/**
- * Fee split:
- * Individual (claimed): Platform 1.5% / Creator 0.75% / Holders 0.75% = 3.0%
- * Individual (unclaimed): Platform 1.5% / Holders 1.5% = 3.0%
- * Non-individual (team/brand): Platform 1.5% / Holders 1.5% = 3.0%
- */
 export function calculateFees(
   grossAmount: number,
-  marketType: MarketFeeType,
-  config: Record<string, string>,
+  _marketType: MarketFeeType,
+  _config: Record<string, string>,
   creatorTier?: CreatorTier,
   entityType?: EntityType
 ): FeeBreakdown {
-  let platformRate = 0;
-  let creatorRate = 0;
-  let coinHolderPoolRate = 0;
-  let marketCreatorRate = 0;
-
-  switch (marketType) {
-    case "standard":
-      platformRate = parseFloat(config.standard_platform_fee || "0.02");
-      break;
-    case "user_created":
-      platformRate = parseFloat(config.user_market_platform_fee || "0.015");
-      marketCreatorRate = parseFloat(config.user_market_creator_fee || "0.005");
-      break;
-    case "official_creator": {
-      platformRate = 0.015;
-      const isIndividualClaimed = entityType === "individual" && creatorTier === "verified_creator";
-      if (isIndividualClaimed) {
-        creatorRate = 0.0075;
-        coinHolderPoolRate = 0.0075;
-      } else {
-        // Non-individual entities + unclaimed individuals: all to holders
-        coinHolderPoolRate = 0.015;
-      }
-      break;
-    }
-  }
-
-  const platformFee = round(grossAmount * platformRate);
-  const creatorFee = round(grossAmount * creatorRate);
-  const coinHolderPoolFee = round(grossAmount * coinHolderPoolRate);
-  const marketCreatorFee = round(grossAmount * marketCreatorRate);
-  const totalFee = round(platformFee + creatorFee + coinHolderPoolFee + marketCreatorFee);
-
-  return {
-    grossAmount,
-    platformFee,
-    creatorFee,
-    coinHolderPoolFee,
-    escrowFee: 0,
-    marketCreatorFee,
-    totalFee,
-    netAmount: round(grossAmount - totalFee),
-  };
+  return calculateMarketFees(grossAmount, {
+    tier: creatorTier || "unclaimed",
+    entity_type: entityType || "individual",
+    deso_public_key: null,
+    creator_coin_price: 0,
+  });
 }
 
 export function getMarketFeeType(market: {

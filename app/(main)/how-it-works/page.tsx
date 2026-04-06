@@ -99,35 +99,72 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
-        {/* Section 5 — Fee table */}
-        <section className="relative rounded-2xl border border-border-subtle/30 bg-surface p-6 -mx-6">
+        {/* Section 5 — $CALDRA */}
+        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 194, 255, 0.05)" }}>
           <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">05</span>
+          <h2 className="section-header mb-4">Two Ways to Earn</h2>
+          <div className="space-y-3 text-sm text-text-muted leading-relaxed">
+            <p>
+              <span className="text-yes font-medium">Way 1: Predict correctly.</span>{" "}
+              Buy YES or NO. Correct predictions pay $1 per share.
+            </p>
+            <p>
+              <span className="text-caldera font-medium">Way 2: Hold tokens and earn passively.</span>{" "}
+              Hold <span className="text-caldera">$CALDRA</span> to earn 0.5% of every trade on Caldera.
+              Hold DeSo tokens ($tigerwoods, $lakers, $nba) to earn from predictions about those entities.
+            </p>
+            <div className="mt-4 rounded-xl bg-background p-4">
+              <p className="text-xs font-semibold text-text-muted mb-2">Fee flow per trade</p>
+              <p className="text-sm text-text-primary font-mono">
+                Trade → 1.0% Platform · 0.5% $CALDRA · 1.5% Entity tokens
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 6 — Fee table */}
+        <section className="relative rounded-2xl border border-border-subtle/30 bg-surface p-6 -mx-6">
+          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">06</span>
           <h2 className="section-header mb-4">Fee Structure</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border-subtle text-text-muted">
-                  <th className="py-3 text-left font-medium">Market Type</th>
-                  <th className="py-3 text-right font-medium">Platform</th>
-                  <th className="py-3 text-right font-medium">Creator</th>
-                  <th className="py-3 text-right font-medium">Holders</th>
-                  <th className="py-3 text-right font-medium">Total</th>
+                  <th className="py-3 text-left font-medium">Recipient</th>
+                  <th className="py-3 text-right font-medium">%</th>
+                  <th className="py-3 text-left font-medium pl-4">When</th>
                 </tr>
               </thead>
               <tbody className="text-text-primary">
                 <tr className="border-b border-border-subtle/30">
-                  <td className="py-3">Claimed Creator</td>
-                  <td className="py-3 text-right font-mono">1.5%</td>
-                  <td className="py-3 text-right font-mono text-caldera">0.75%</td>
-                  <td className="py-3 text-right font-mono text-caldera">0.75%</td>
-                  <td className="py-3 text-right font-mono font-bold">3.0%</td>
+                  <td className="py-3">Platform</td>
+                  <td className="py-3 text-right font-mono">1.0%</td>
+                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Every trade</td>
+                </tr>
+                <tr className="border-b border-border-subtle/30">
+                  <td className="py-3 text-caldera">$CALDRA holders</td>
+                  <td className="py-3 text-right font-mono text-caldera">0.5%</td>
+                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Every trade</td>
+                </tr>
+                <tr className="border-b border-border-subtle/30">
+                  <td className="py-3">Claimed creator</td>
+                  <td className="py-3 text-right font-mono">0.75%</td>
+                  <td className="py-3 text-left pl-4 text-text-muted text-xs">If creator verified</td>
+                </tr>
+                <tr className="border-b border-border-subtle/30">
+                  <td className="py-3">DeSo token holders</td>
+                  <td className="py-3 text-right font-mono text-caldera">0.75-1.5%</td>
+                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Split among active tokens</td>
                 </tr>
                 <tr>
-                  <td className="py-3">Unclaimed</td>
-                  <td className="py-3 text-right font-mono">1.5%</td>
-                  <td className="py-3 text-right font-mono text-text-muted">0%</td>
-                  <td className="py-3 text-right font-mono text-caldera">1.5%</td>
+                  <td className="py-3">Community pool</td>
+                  <td className="py-3 text-right font-mono">remainder</td>
+                  <td className="py-3 text-left pl-4 text-text-muted text-xs">If no DeSo tokens exist</td>
+                </tr>
+                <tr className="border-t border-border-subtle">
+                  <td className="py-3 font-bold">Total</td>
                   <td className="py-3 text-right font-mono font-bold">3.0%</td>
+                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Always</td>
                 </tr>
               </tbody>
             </table>
