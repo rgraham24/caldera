@@ -59,6 +59,7 @@ export function TradeTicket({
       setIsConnecting(true);
       try {
         const userData = await connectDeSoWallet();
+        if (!userData) return;
         setConnected(userData);
       } catch (err) {
         console.error("Connect failed:", err);

@@ -8,10 +8,32 @@ export type ConnectedUser = {
   balanceDeso: number;
 };
 
-export async function connectDeSoWallet(): Promise<ConnectedUser> {
-  identity.configure({ appName: "Caldera" });
+export async function connectDeSoWallet(): Promise<ConnectedUser | null> {
+  identity.configure({
+    appName: "Caldera",
+    identityPresenter: async (url: string) => {
+      const width = 450;
+      const height = 700;
+      const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
+      const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
+      const popup = window.open(
+        url,
+        "deso-identity",
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=1`
+      );
+      if (popup) popup.focus();
+    },
+  });
 
-  const loginResult = await identity.login();
+  let loginResult: Awaited<ReturnType<typeof identity.login>>;
+  try {
+    loginResult = await identity.login();
+  } catch {
+    // User closed popup without completing login
+    console.log("DeSo login cancelled");
+    return null;
+  }
+
   const publicKey = loginResult.publicKeyBase58Check;
 
   const [profileRes, balanceRes] = await Promise.all([
