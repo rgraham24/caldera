@@ -79,7 +79,7 @@ export function ClaimProfileModal({
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border-subtle bg-surface-2 p-6">
         <div className="mb-5 flex items-center justify-between">
           <h3 className="font-display text-lg font-bold text-text-primary">
-            Claim {creatorName}&apos;s Profile
+            Claim your Caldera profile
           </h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-text-muted hover:text-text-primary">
             <X className="h-4 w-4" />
@@ -139,7 +139,7 @@ export function ClaimProfileModal({
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yes/10">
               <Check className="h-6 w-6 text-yes" />
             </div>
-            <p className="text-lg font-semibold text-text-primary">Profile claimed!</p>
+            <p className="text-lg font-semibold text-text-primary">Welcome to Caldera, {creatorName}!</p>
             <p className="mt-1 text-sm text-text-muted">
               You&apos;ll now earn from every prediction about you.
             </p>

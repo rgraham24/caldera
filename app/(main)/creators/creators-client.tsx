@@ -134,7 +134,15 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                 <span className="text-xs text-text-muted">{c.creator_coin_holders.toLocaleString()} holders</span>
               </div>
               <div className="flex items-center justify-between text-xs text-text-muted">
-                <span>{formatCompactCurrency(c.total_holder_earnings)} earned by holders</span>
+                {c.token_status === "shadow" || c.token_status === "needs_review" ? (
+                  <span className="text-amber-400">Unclaimed · prediction markets only</span>
+                ) : c.token_status === "active_verified" ? (
+                  <span className="text-yes">✅ Verified · token holders earn</span>
+                ) : c.token_status === "active_unverified" ? (
+                  <span className="text-caldera">🔵 Active · token holders earn</span>
+                ) : (
+                  <span>{formatCompactCurrency(c.total_holder_earnings)} earned by holders</span>
+                )}
                 <span>{c.markets_count} markets</span>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTopProfiles, getDesoPrice } from "@/lib/deso/api";
+import { getTopProfiles, getDesoPrice, getPostCount } from "@/lib/deso/api";
+import { determineTokenStatus } from "@/lib/token-status";
 
 export async function GET() {
   try {
@@ -28,6 +29,15 @@ export async function GET() {
       const publicKey = p.PublicKeyBase58Check;
       const bio = (p.Description || "").slice(0, 200) || null;
       const picUrl = `https://diamondapp.com/api/v0/get-single-profile-picture/${publicKey}`;
+      const isReserved = p.IsReserved || false;
+      const isVerified = p.IsVerified || false;
+      const postCount = await getPostCount(publicKey);
+      const tokenStatus = determineTokenStatus({
+        deso_username: username,
+        deso_is_reserved: isReserved,
+        deso_is_verified: isVerified,
+        deso_post_count: postCount,
+      });
 
       // Check if exists
       const { data: existing } = await supabase
@@ -48,8 +58,10 @@ export async function GET() {
             total_coins_in_circulation: coinsInCirculation,
             deso_public_key: publicKey,
             profile_pic_url: picUrl,
-            deso_is_reserved: p.IsReserved || false,
-            deso_is_verified: p.IsVerified || false,
+            deso_is_reserved: isReserved,
+            deso_is_verified: isVerified,
+            deso_post_count: postCount,
+            token_status: existing.tier === "verified_creator" ? "claimed" : tokenStatus,
             coin_data_updated_at: now,
           })
           .eq("id", existing.id);
@@ -67,9 +79,10 @@ export async function GET() {
           total_coins_in_circulation: coinsInCirculation,
           category: "viral",
           tier: "unclaimed",
-          deso_is_reserved: p.IsReserved || false,
-          deso_is_verified: p.IsVerified || false,
-          token_status: p.IsReserved ? "shadow" : p.IsVerified ? "active_verified" : "active_unverified",
+          deso_is_reserved: isReserved,
+          deso_is_verified: isVerified,
+          deso_post_count: postCount,
+          token_status: tokenStatus,
           coin_data_updated_at: now,
         });
       }

@@ -85,10 +85,12 @@ export type Database = {
           conference: string | null;
           deso_is_reserved: boolean;
           deso_is_verified: boolean;
+          deso_post_count: number;
           token_status: string;
           claim_code: string | null;
           claim_code_expires_at: string | null;
           claim_attempted_by: string | null;
+          claim_watcher_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -142,10 +144,12 @@ export type Database = {
           conference?: string | null;
           deso_is_reserved?: boolean;
           deso_is_verified?: boolean;
+          deso_post_count?: number;
           token_status?: string;
           claim_code?: string | null;
           claim_code_expires_at?: string | null;
           claim_attempted_by?: string | null;
+          claim_watcher_count?: number;
           created_at?: string;
           updated_at?: string;
         };

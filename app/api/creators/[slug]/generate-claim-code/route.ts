@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "CAL-";
+  let code = "CALDERA-";
   for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
   code += "-";
   for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];

@@ -10,6 +10,7 @@ import { MarketChart } from "@/components/markets/MarketChart";
 import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { HolderCalculator } from "@/components/shared/HolderCalculator";
+import { EarningsPreview } from "@/components/creators/EarningsPreview";
 
 type CreatorProfileClientProps = {
   creator: Creator;
@@ -89,7 +90,16 @@ export function CreatorProfileClient({
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
               🔵 ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every trade.
-              <span className="text-text-faint ml-1 text-xs">Unverified DeSo account</span>
+              {(creator.deso_post_count ?? 0) > 0 && (
+                <span className="text-text-faint ml-2 text-xs">Active on BitClout · {creator.deso_post_count} posts</span>
+              )}
+            </p>
+          </div>
+        )}
+        {creator.token_status === "needs_review" && (
+          <div className="mb-6 rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
+            <p className="text-sm text-text-muted">
+              ⚠️ This DeSo account has not been verified. Token earnings are paused pending review.
             </p>
           </div>
         )}
@@ -106,6 +116,17 @@ export function CreatorProfileClient({
               ✅ Caldera verified — {creator.name} earns <span className="text-caldera font-medium">0.75%</span>.
               Token holders earn <span className="text-caldera font-medium">0.75%</span>.
             </p>
+          </div>
+        )}
+
+        {/* Earnings Preview — prominent for shadow profiles */}
+        {(creator.token_status === "shadow" || !creator.token_status) && (
+          <div className="mb-6">
+            <EarningsPreview
+              creator={creator}
+              markets={markets}
+              onClaimClick={() => setShowClaimModal(true)}
+            />
           </div>
         )}
 

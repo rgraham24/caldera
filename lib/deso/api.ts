@@ -24,6 +24,25 @@ export async function getTopProfiles(numToFetch = 100) {
   return data.ProfilesFound || [];
 }
 
+export async function getPostCount(publicKey: string): Promise<number> {
+  try {
+    const res = await fetch(`${DESO_API}/get-posts-for-public-key`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        PublicKeyBase58Check: publicKey,
+        NumToFetch: 10,
+        LastPostHashHex: "",
+      }),
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.Posts?.length || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export type TopHolder = {
   username: string;
   publicKey: string;
