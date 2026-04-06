@@ -79,6 +79,10 @@ export type Database = {
           markets_count: number;
           weekly_volume_usd: number;
           weekly_volume_updated_at: string | null;
+          entity_type: string;
+          sport: string | null;
+          league: string | null;
+          conference: string | null;
           claim_code: string | null;
           claim_code_expires_at: string | null;
           claim_attempted_by: string | null;
@@ -129,6 +133,10 @@ export type Database = {
           markets_count?: number;
           weekly_volume_usd?: number;
           weekly_volume_updated_at?: string | null;
+          entity_type?: string;
+          sport?: string | null;
+          league?: string | null;
+          conference?: string | null;
           claim_code?: string | null;
           claim_code_expires_at?: string | null;
           claim_attempted_by?: string | null;
@@ -165,6 +173,7 @@ export type Database = {
           no_pool: number;
           market_subtype: string;
           is_hero: boolean;
+          secondary_creator_id: string | null;
           resolution_criteria: string | null;
           resolution_source: string | null;
           created_at: string;
@@ -197,6 +206,7 @@ export type Database = {
           no_pool?: number;
           market_subtype?: string;
           is_hero?: boolean;
+          secondary_creator_id?: string | null;
           resolution_criteria?: string | null;
           resolution_source?: string | null;
           created_at?: string;
@@ -229,6 +239,7 @@ export type Database = {
           no_pool?: number;
           market_subtype?: string;
           is_hero?: boolean;
+          secondary_creator_id?: string | null;
           resolution_criteria?: string | null;
           resolution_source?: string | null;
           created_at?: string;

@@ -31,6 +31,7 @@ type HomeClientProps = {
   resolvedMarkets: Market[];
   recentTrades: RecentTrade[];
   creators: (Creator & { price_change_24h: number })[];
+  teamTokens: (Creator & { price_change_24h: number })[];
   totalVolume: number;
   activeMarketCount: number;
 };
@@ -42,6 +43,7 @@ export function HomeClient({
   resolvedMarkets,
   recentTrades,
   creators,
+  teamTokens,
   totalVolume,
   activeMarketCount,
 }: HomeClientProps) {
@@ -357,6 +359,41 @@ export function HomeClient({
             })}
           </div>
         </div>
+
+        {/* Sports Teams tokens */}
+        {teamTokens.length > 0 && (
+          <div className="mb-8">
+            <div className="mb-1 text-[11px] text-text-muted">Sports tokens — earn from every game-day prediction</div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {teamTokens.map((c) => {
+                const sym = c.deso_username || c.creator_coin_symbol;
+                return (
+                  <div
+                    key={c.id}
+                    className="flex min-w-[200px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
+                  >
+                    <CreatorAvatar creator={c} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
+                        {c.name}
+                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-display text-sm font-bold tracking-normal text-caldera">
+                          {c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}
+                        </span>
+                        {c.league && (
+                          <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[8px] font-semibold text-caldera">
+                            {c.league}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* All Markets grid */}
         <div>

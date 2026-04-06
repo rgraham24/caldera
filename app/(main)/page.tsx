@@ -49,19 +49,28 @@ export default async function HomePage() {
     .from("creators")
     .select("*");
 
-  const sortedCreators = (rawCreators ?? [])
+  const allCreators = rawCreators ?? [];
+  const addChange = (c: typeof allCreators[0]) => ({
+    ...c,
+    price_change_24h: parseFloat(((Math.random() - 0.35) * 20).toFixed(1)),
+  });
+
+  const sortedCreators = allCreators
+    .filter((c) => !c.entity_type || c.entity_type === "individual")
     .sort((a, b) => {
-      // Creators with real coin price > $1 first
       const aActive = a.deso_username && a.creator_coin_price > 1 ? 1 : 0;
       const bActive = b.deso_username && b.creator_coin_price > 1 ? 1 : 0;
       if (bActive !== aActive) return bActive - aActive;
       return b.creator_coin_price - a.creator_coin_price;
     })
     .slice(0, 8)
-    .map((c) => ({
-      ...c,
-      price_change_24h: parseFloat(((Math.random() - 0.35) * 20).toFixed(1)),
-    }));
+    .map(addChange);
+
+  const teamTokens = allCreators
+    .filter((c) => c.entity_type && c.entity_type !== "individual")
+    .sort((a, b) => b.creator_coin_price - a.creator_coin_price)
+    .slice(0, 8)
+    .map(addChange);
 
   // Hero creator
   let heroCreator: Creator | null = null;
@@ -89,6 +98,7 @@ export default async function HomePage() {
         market: { title: string; slug: string };
       }>) ?? []}
       creators={sortedCreators as (Creator & { price_change_24h: number })[]}
+      teamTokens={teamTokens as (Creator & { price_change_24h: number })[]}
       totalVolume={totalVolume}
       activeMarketCount={open.length}
     />

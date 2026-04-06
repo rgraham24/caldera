@@ -57,8 +57,15 @@ export function CreatorProfileClient({
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        {/* Unclaimed line */}
-        {creator.tier === "unclaimed" && (
+        {/* Unclaimed or team banner */}
+        {creator.entity_type && creator.entity_type !== "individual" ? (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              <span className="text-caldera font-medium">${coinSymbol}</span> holders earn{" "}
+              <span className="text-caldera font-medium">1.5%</span> of every trade on {creator.name} prediction markets — automatically.
+            </p>
+          </div>
+        ) : creator.tier === "unclaimed" ? (
           <p className="mb-6 flex items-center gap-2 text-sm text-text-muted">
             <span className="h-2 w-2 rounded-full bg-amber-400" />
             Unverified · Are you {creator.name}?{" "}
@@ -69,7 +76,7 @@ export function CreatorProfileClient({
               Verify to earn 0.75% of every trade →
             </button>
           </p>
-        )}
+        ) : null}
 
         {/* Profile Header */}
         <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start">

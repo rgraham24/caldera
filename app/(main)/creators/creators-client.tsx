@@ -13,7 +13,11 @@ type CreatorsClientProps = {
 
 const TIERS = [
   { value: "all", label: "All" },
-  { value: "verified_creator", label: "Claimed" },
+  { value: "individual", label: "Individuals" },
+  { value: "nba", label: "NBA" },
+  { value: "nfl", label: "NFL" },
+  { value: "mlb", label: "MLB" },
+  { value: "ncaa", label: "NCAA" },
 ];
 
 const SORTS = [
@@ -30,7 +34,13 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
 
   const filtered = useMemo(() => {
     let result = [...creators];
-    if (tierFilter !== "all") result = result.filter((c) => c.tier === tierFilter);
+    if (tierFilter === "individual") {
+      result = result.filter((c) => (c.entity_type || "individual") === "individual");
+    } else if (["nba", "nfl", "mlb"].includes(tierFilter)) {
+      result = result.filter((c) => c.sport === tierFilter);
+    } else if (tierFilter === "ncaa") {
+      result = result.filter((c) => (c.entity_type || "individual") === "college_team");
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -108,6 +118,11 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                     </span>
                     {c.tier === "verified_creator" && (
                       <span className="text-caldera text-[10px]">✓</span>
+                    )}
+                    {c.league && (
+                      <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[9px] font-semibold text-caldera">
+                        {c.league}
+                      </span>
                     )}
                   </div>
                 </div>

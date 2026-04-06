@@ -11,18 +11,20 @@ export type FeeBreakdown = {
 
 export type MarketFeeType = "standard" | "user_created" | "official_creator";
 export type CreatorTier = "verified_creator" | "public_figure" | "unclaimed";
+export type EntityType = "individual" | "sports_team" | "college_team" | "brand" | "music_act" | "movie_show" | "esports_team" | "political_party";
 
 /**
  * Fee split:
- * - verified_creator: Platform 1.5% / Creator 0.75% / Holders 0.75% = 3.0%
- * - public_figure:    Platform 1.5% / Holders 1.5%                  = 3.0%
- * - unclaimed:        Platform 1.5% / Holders 1.5%                  = 3.0%
+ * Individual (claimed): Platform 1.5% / Creator 0.75% / Holders 0.75% = 3.0%
+ * Individual (unclaimed): Platform 1.5% / Holders 1.5% = 3.0%
+ * Non-individual (team/brand): Platform 1.5% / Holders 1.5% = 3.0%
  */
 export function calculateFees(
   grossAmount: number,
   marketType: MarketFeeType,
   config: Record<string, string>,
-  creatorTier?: CreatorTier
+  creatorTier?: CreatorTier,
+  entityType?: EntityType
 ): FeeBreakdown {
   let platformRate = 0;
   let creatorRate = 0;
@@ -39,12 +41,12 @@ export function calculateFees(
       break;
     case "official_creator": {
       platformRate = 0.015;
-      const tier = creatorTier || "unclaimed";
-      if (tier === "verified_creator") {
+      const isIndividualClaimed = entityType === "individual" && creatorTier === "verified_creator";
+      if (isIndividualClaimed) {
         creatorRate = 0.0075;
         coinHolderPoolRate = 0.0075;
       } else {
-        // public_figure + unclaimed: all to holders
+        // Non-individual entities + unclaimed individuals: all to holders
         coinHolderPoolRate = 0.015;
       }
       break;
