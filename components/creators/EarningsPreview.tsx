@@ -57,25 +57,37 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
           <p className="font-mono text-xl font-bold text-text-primary tracking-normal">
             {formatCompactCurrency(totalVolume)}
           </p>
-          <p className="mt-0.5 text-[10px] text-text-muted">Total volume on your markets</p>
+          <p className="mt-0.5 text-[10px] text-text-muted">Total money predicted on you</p>
         </div>
-        <div className="rounded-xl bg-surface p-3">
+        <div className="rounded-xl bg-surface p-3 group relative">
           <p className="font-mono text-xl font-bold text-caldera tracking-normal">
             {formatCurrency(creatorShareIfClaimed)}
           </p>
-          <p className="mt-0.5 text-[10px] text-text-muted">Your share if claimed (0.75%)</p>
+          <p className="mt-0.5 text-[10px] text-text-muted">
+            You&apos;d earn (if you claim) <span className="text-text-faint cursor-help">ⓘ</span>
+          </p>
+          <div className="invisible group-hover:visible absolute bottom-full left-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
+            If you claim this profile, you&apos;ll automatically earn 0.75% of every prediction made on your markets — forever. No action needed after claiming. Earnings deposit directly to your wallet.
+            <div className="absolute bottom-[-6px] left-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
+          </div>
         </div>
-        <div className="rounded-xl bg-surface p-3">
+        <div className="rounded-xl bg-surface p-3 group relative">
           <p className="font-mono text-xl font-bold text-amber-400 tracking-normal">
             {formatCurrency(communityPool)}
           </p>
-          <p className="mt-0.5 text-[10px] text-text-muted">Community pool so far</p>
+          <p className="mt-0.5 text-[10px] text-text-muted">
+            Waiting for you to claim <span className="text-text-faint cursor-help">ⓘ</span>
+          </p>
+          <div className="invisible group-hover:visible absolute bottom-full right-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
+            While unclaimed, 1.5% of every prediction goes to a community pool. $CALDRA holders receive 0.5%. Once you claim, fees flow directly to you (0.75%) and your token holders (0.75%) instead.
+            <div className="absolute bottom-[-6px] right-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
+          </div>
         </div>
       </div>
 
       {/* Market context */}
       <p className="text-sm text-text-muted mb-2">
-        {markets.length} prediction market{markets.length !== 1 ? "s" : ""} about {creator.name}
+        {markets.length} prediction{markets.length !== 1 ? "s" : ""} about {creator.name}
       </p>
       {topMarket && (
         <p className="text-xs text-text-muted mb-4">

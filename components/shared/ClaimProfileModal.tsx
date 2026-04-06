@@ -102,7 +102,7 @@ export function ClaimProfileModal({
         {step === "verify" && (
           <>
             <p className="mb-4 text-sm text-text-muted">
-              Post this code anywhere public to verify you are {creatorName}:
+              Post this Caldera verification code publicly to prove you are {creatorName}:
             </p>
             <div className="mb-4 flex items-center justify-between rounded-xl bg-background p-4">
               <span className="font-mono text-lg font-bold tracking-wider text-caldera">{code}</span>
@@ -110,15 +110,19 @@ export function ClaimProfileModal({
                 {copied ? <Check className="h-4 w-4 text-yes" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
-            <p className="mb-4 text-xs text-text-muted">
-              Post it in your Instagram bio, a tweet, YouTube post, DeSo profile — anywhere publicly accessible.
+            <p className="mb-3 text-xs text-text-muted">
+              Post it in your Instagram bio, a tweet, YouTube post — anywhere publicly accessible.
+            </p>
+            <p className="mb-4 text-[10px] text-text-faint">
+              Leave the code visible for at least 24 hours so our system can verify it.
             </p>
             <p className="mb-4 text-[10px] text-text-faint">
               Expires {new Date(expiresAt).toLocaleDateString()}
             </p>
 
             <div className="mb-4">
-              <label className="mb-1.5 block text-xs text-text-muted">URL where you posted it</label>
+              <label className="mb-0.5 block text-xs text-text-muted">Paste the URL where you posted it</label>
+              <p className="mb-1.5 text-[10px] text-text-faint">We&apos;ll automatically scan the page for your code. Takes about 5 seconds.</p>
               <input
                 value={verifyUrl}
                 onChange={(e) => setVerifyUrl(e.target.value)}

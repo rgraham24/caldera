@@ -13,11 +13,12 @@ type CreatorsClientProps = {
 
 const TIERS = [
   { value: "all", label: "All" },
-  { value: "individual", label: "Individuals" },
-  { value: "nba", label: "NBA" },
-  { value: "nfl", label: "NFL" },
-  { value: "mlb", label: "MLB" },
-  { value: "ncaa", label: "NCAA" },
+  { value: "streamers", label: "🎮 Streamers" },
+  { value: "music", label: "🎵 Music" },
+  { value: "sports", label: "⚽ Sports" },
+  { value: "tech", label: "💻 Tech" },
+  { value: "politics", label: "👑 Politics" },
+  { value: "viral", label: "🌊 Entertainment" },
 ];
 
 const SORTS = [
@@ -34,12 +35,10 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
 
   const filtered = useMemo(() => {
     let result = [...creators];
-    if (tierFilter === "individual") {
-      result = result.filter((c) => (c.entity_type || "individual") === "individual");
-    } else if (["nba", "nfl", "mlb"].includes(tierFilter)) {
-      result = result.filter((c) => c.sport === tierFilter);
-    } else if (tierFilter === "ncaa") {
-      result = result.filter((c) => (c.entity_type || "individual") === "college_team");
+    if (tierFilter === "sports") {
+      result = result.filter((c) => c.category === "sports" || c.sport);
+    } else if (tierFilter !== "all") {
+      result = result.filter((c) => c.category === tierFilter);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -103,6 +102,10 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
           ))}
         </select>
       </div>
+
+      <p className="mb-4 text-[10px] text-text-faint">
+        🔵 Active token · earns from predictions &nbsp; ✅ Verified on DeSo &nbsp; 📊 Prediction market only · claim to activate
+      </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((c) => (

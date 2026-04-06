@@ -121,7 +121,7 @@ export function HomeClient({
             <button
               onClick={() => setActiveCategory(null)}
               className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                "shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
                 !activeCategory ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
               )}
             >
@@ -132,7 +132,7 @@ export function HomeClient({
                 key={c.value}
                 onClick={() => setActiveCategory(c.value)}
                 className={cn(
-                  "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  "shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
                   activeCategory === c.value ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
                 )}
               >
@@ -250,9 +250,9 @@ export function HomeClient({
               </div>
             </div>
 
-            {/* Hot Creators */}
+            {/* Trending Tokens */}
             <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Hot Creators</h3>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Trending Tokens</h3>
               <div className="space-y-3">
                 {safeCreators.slice(0, 3).map((c) => {
                   const sym = c.deso_username || c.creator_coin_symbol;

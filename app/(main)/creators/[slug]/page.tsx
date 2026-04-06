@@ -11,11 +11,21 @@ export default async function CreatorProfilePage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data: creator } = await supabase
+  // Try slug first, then deso_username as fallback
+  let { data: creator } = await supabase
     .from("creators")
     .select("*")
     .eq("slug", slug)
     .single();
+
+  if (!creator) {
+    const { data: byUsername } = await supabase
+      .from("creators")
+      .select("*")
+      .eq("deso_username", slug)
+      .single();
+    creator = byUsername;
+  }
 
   if (!creator) notFound();
 

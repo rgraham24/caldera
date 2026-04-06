@@ -68,15 +68,15 @@ export function CreatorProfileClient({
             </p>
             <p className="text-xs text-text-muted mb-3">
               $CALDRA holders earn 0.5% of every trade here.
-              Community pool receives 1.5% until claimed.
+              The remaining 1.5% is held until {creator.name} claims their profile.
             </p>
             <p className="text-xs text-text-muted mb-2">
               Are you {creator.name}? Claim this profile to:
             </p>
             <ul className="text-xs text-text-muted space-y-1 mb-3">
-              <li>→ Earn 0.75% of every future trade automatically</li>
-              <li>→ Activate token holder earnings for your fans</li>
-              <li>→ See real-time prediction stats</li>
+              <li>→ Earn money every time someone makes a prediction about you — automatically</li>
+              <li>→ Let your fans buy your token and earn alongside you</li>
+              <li>→ See everything people are predicting about you</li>
             </ul>
             <button
               onClick={() => setShowClaimModal(true)}
@@ -162,7 +162,7 @@ export function CreatorProfileClient({
             </div>
           </div>
           <div className="flex gap-3 md:ml-auto">
-            {desoUser && (
+            {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
               <button
                 onClick={() => setShowStakeModal(true)}
                 className="rounded-xl bg-caldera px-5 py-2.5 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
@@ -188,16 +188,27 @@ export function CreatorProfileClient({
           ))}
         </div>
 
-        {/* Coin Chart */}
-        {desoUser && (
+        {/* Token chart + calculator — only for active tokens, not shadow */}
+        {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
             <h2 className="section-header mb-4">Token Price</h2>
             <MarketChart yesPrice={livePrice / 200} />
           </div>
         )}
 
-        {/* Holder Calculator */}
-        {desoUser && (
+        {/* Shadow token placeholder */}
+        {(creator.token_status === "shadow" || creator.token_status === "needs_review") && (
+          <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
+            <p className="text-sm text-text-muted">
+              🔒 <span className="font-medium text-text-primary">Token not yet active</span>
+            </p>
+            <p className="mt-1 text-xs text-text-faint">
+              This profile hasn&apos;t been claimed. Claim to launch your token and start earning.
+            </p>
+          </div>
+        )}
+
+        {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
           <div className="mb-8">
             <HolderCalculator
               symbol={coinSymbol || creator.name}
