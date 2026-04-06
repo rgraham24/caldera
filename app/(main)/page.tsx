@@ -81,9 +81,7 @@ export default async function HomePage() {
     heroCreator = data as Creator | null;
   }
 
-  // Stats
   const open = allMarkets ?? [];
-  const totalVolume = open.reduce((s, m) => s + m.total_volume, 0);
 
   return (
     <HomeClient
@@ -96,8 +94,6 @@ export default async function HomePage() {
         market: { title: string; slug: string };
       }>) ?? []}
       creators={sortedCreators as (Creator & { price_change_24h: number })[]}
-      totalVolume={totalVolume}
-      activeMarketCount={open.length}
     />
   );
 }

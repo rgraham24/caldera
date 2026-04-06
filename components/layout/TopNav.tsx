@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { href: "/markets", label: "Markets" },
   { href: "/creators", label: "Tokens" },
   { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/how-it-works", label: "How it works" },
 ];
 
 const AUTH_NAV_ITEMS = [
