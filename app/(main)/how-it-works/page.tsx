@@ -8,183 +8,127 @@ export default function HowItWorksPage() {
         How Caldera Works
       </h1>
       <p className="mt-3 text-lg text-text-muted">
-        Predict outcomes. Hold tokens. Earn from every trade.
+        Three things. That's it.
       </p>
 
-      <div className="mt-12 space-y-16">
-        {/* Section 1 */}
-        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 194, 255, 0.03)" }}>
-          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">01</span>
-          <h2 className="section-header mb-4">Prediction Markets</h2>
-          <div className="space-y-3 text-sm text-text-muted leading-relaxed">
-            <p>
-              You predict <span className="text-yes font-medium">YES</span> or{" "}
-              <span className="text-no font-medium">NO</span> on outcomes about real people —
-              will Tiger Woods be convicted? Will Kai Cenat break his subathon record?
-            </p>
-            <p>
-              Prices move as people trade. If 72% of money is on YES, the YES price is 72¢.
-              If you bought at 50¢ and it resolves YES, you get $1 per share — a 100% return.
-            </p>
-            <div className="mt-4 flex gap-3">
-              <div className="flex-1 rounded-xl bg-yes/10 p-4 text-center">
-                <p className="font-display text-2xl font-bold text-yes">YES 72%</p>
-                <p className="mt-1 text-xs text-text-muted">Buy at 72¢, win $1</p>
-              </div>
-              <div className="flex-1 rounded-xl bg-no/10 p-4 text-center">
-                <p className="font-display text-2xl font-bold text-no">NO 28%</p>
-                <p className="mt-1 text-xs text-text-muted">Buy at 28¢, win $1</p>
-              </div>
+      <div className="mt-12 space-y-8">
+        {/* Section 1 — Making Predictions */}
+        <section className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
+          <div className="mb-4 text-3xl">🎯</div>
+          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Making Predictions</h2>
+          <p className="mb-4 text-sm text-text-muted leading-relaxed">
+            Pick YES or NO on real events. Prices tell you the odds — if YES costs 72¢, the market thinks there&apos;s a 72% chance it happens.
+          </p>
+          <div className="mb-4 flex gap-3">
+            <div className="flex-1 rounded-xl bg-yes/10 p-4 text-center">
+              <p className="font-display text-2xl font-bold text-yes">YES 72%</p>
+              <p className="mt-1 text-xs text-text-muted">Buy at 72¢ → win $1</p>
+              <p className="mt-0.5 text-[10px] text-yes/70">39% profit if correct</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-no/10 p-4 text-center">
+              <p className="font-display text-2xl font-bold text-no">NO 28%</p>
+              <p className="mt-1 text-xs text-text-muted">Buy at 28¢ → win $1</p>
+              <p className="mt-0.5 text-[10px] text-no/70">257% profit if correct</p>
             </div>
           </div>
+          <p className="text-sm text-text-muted leading-relaxed">
+            If you&apos;re wrong, your shares are worth $0 at resolution. Each market has a clear resolution source — court records, official stats, or public announcements. No ambiguity.
+          </p>
         </section>
 
-        {/* Section 2 */}
-        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 255, 136, 0.03)" }}>
-          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">02</span>
-          <h2 className="section-header mb-4">DeSo Tokens</h2>
-          <div className="space-y-3 text-sm text-text-muted leading-relaxed">
-            <p>
-              Every creator on DeSo has a coin tied to their reputation. When you buy{" "}
-              <span className="text-caldera font-medium">$tigerwoods</span> or{" "}
-              <span className="text-caldera font-medium">$elonmusk</span>, you hold a real
-              on-chain asset.
+        {/* Section 2 — Token Holder Earnings */}
+        <section className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
+          <div className="mb-4 text-3xl">💎</div>
+          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Hold Tokens. Earn Passively.</h2>
+          <p className="mb-4 text-sm text-text-muted leading-relaxed">
+            Every creator on Caldera has a token. Holding it earns you a share of every trade on that creator&apos;s markets — automatically, forever.
+          </p>
+          <div className="mb-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
+            <p className="mb-1 text-xs font-semibold text-caldera">Example</p>
+            <p className="text-sm text-text-primary">
+              $10,000 traded on Tiger Woods markets this week.
             </p>
-            <p>
-              <span className="text-text-primary font-medium">Why hold?</span> You earn 0.75%
-              of EVERY trade on that creator&apos;s markets — automatically.
+            <p className="text-sm text-text-primary">
+              You hold 10% of the $tigerwoods supply → you earn{" "}
+              <span className="font-bold text-yes">$15 automatically</span>.
             </p>
-            <div className="mt-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
-              <p className="text-xs font-medium text-caldera mb-2">Example</p>
-              <p className="text-sm text-text-primary">
-                $100,000 trades on Tiger Woods markets → $750 goes to $tigerwoods holders.
-              </p>
-              <p className="text-sm text-text-primary">
-                If you hold 10% of all $tigerwoods coins → you earn <span className="text-yes font-bold">$75</span> automatically.
-              </p>
+            <p className="mt-2 text-xs text-text-muted">
+              No work required. Just hold the token.
+            </p>
+          </div>
+          <p className="text-sm text-text-muted leading-relaxed">
+            This isn&apos;t speculation on token price — it&apos;s passive income from prediction activity. The more people predict about someone, the more token holders earn.
+          </p>
+        </section>
+
+        {/* Section 3 — Claiming Your Profile */}
+        <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
+          <div className="mb-4 text-3xl">🏆</div>
+          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Are you on here? Come get your money.</h2>
+          <p className="mb-4 text-sm text-text-muted leading-relaxed">
+            If you&apos;re a public figure, creator, or athlete with a DeSo account, your profile is already on Caldera.
+            Claim it and earn <span className="font-semibold text-amber-400">0.75% of every prediction about you</span>.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex-1 rounded-xl bg-background p-3 text-center">
+              <p className="text-xl">1️⃣</p>
+              <p className="mt-1 text-xs font-medium text-text-primary">Find your profile</p>
+              <p className="text-[10px] text-text-muted">Search on Caldera</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-background p-3 text-center">
+              <p className="text-xl">2️⃣</p>
+              <p className="mt-1 text-xs font-medium text-text-primary">Post a verification code</p>
+              <p className="text-[10px] text-text-muted">One post on DeSo</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-background p-3 text-center">
+              <p className="text-xl">3️⃣</p>
+              <p className="mt-1 text-xs font-medium text-text-primary">Start earning</p>
+              <p className="text-[10px] text-text-muted">0.75% of every trade</p>
             </div>
           </div>
-        </section>
-
-        {/* Section 3 */}
-        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(255, 170, 0, 0.03)" }}>
-          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">03</span>
-          <h2 className="section-header mb-4">Token Earnings & Ethics</h2>
-          <div className="space-y-3 text-sm text-text-muted leading-relaxed">
-            <p>
-              Not all profiles have active token earning.
-              We follow strict ethical guidelines:
-            </p>
-            <p>
-              <span className="text-caldera">✅ Active token earning:</span> Profiles where the real person
-              created their own DeSo account. Token holders earn from trades.
-            </p>
-            <p>
-              <span className="text-amber-400">⏳ Pending — claim to activate:</span> Profiles where the account
-              was reserved but the person never signed up. Claim on Caldera to activate.
-            </p>
-            <p>
-              <span className="text-text-muted">📊 Prediction market only:</span> All profiles have prediction
-              markets. $CALDRA holders earn 0.5% of every trade regardless.
-            </p>
-            <p className="text-xs text-text-faint border-t border-border-subtle/30 pt-3 mt-3">
-              Caldera never profits from someone&apos;s identity without consent.
-              Prediction markets are information pricing — token earnings require participation.
-            </p>
-          </div>
-        </section>
-
-        {/* Section 4 */}
-        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(139, 92, 246, 0.03)" }}>
-          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">04</span>
-          <h2 className="section-header mb-4">Your Reputation</h2>
-          <div className="space-y-3 text-sm text-text-muted leading-relaxed">
-            <p>
-              Caldera tracks your prediction accuracy. The leaderboard ranks traders by ROI,
-              accuracy, and early call score.
-            </p>
-            <p>
-              Be in the first 20% of traders on a winning market to earn the{" "}
-              <span className="text-text-primary font-medium">Called It Early 🔥</span> badge.
-            </p>
-          </div>
-        </section>
-
-        {/* Section 5 — $CALDRA */}
-        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 194, 255, 0.05)" }}>
-          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">05</span>
-          <h2 className="section-header mb-4">Two Ways to Earn</h2>
-          <div className="space-y-3 text-sm text-text-muted leading-relaxed">
-            <p>
-              <span className="text-yes font-medium">Way 1: Predict correctly.</span>{" "}
-              Buy YES or NO. Correct predictions pay $1 per share.
-            </p>
-            <p>
-              <span className="text-caldera font-medium">Way 2: Hold tokens and earn passively.</span>{" "}
-              Hold <span className="text-caldera">$CALDRA</span> to earn 0.5% of every trade on Caldera.
-              Hold DeSo tokens ($tigerwoods, $lakers, $nba) to earn from predictions about those entities.
-            </p>
-            <div className="mt-4 rounded-xl bg-background p-4">
-              <p className="text-xs font-semibold text-text-muted mb-2">Fee flow per trade</p>
-              <p className="text-sm text-text-primary font-mono">
-                Trade → 1.0% Platform · 0.5% $CALDRA · 1.5% Entity tokens
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 6 — Fee table */}
-        <section className="relative rounded-2xl border border-border-subtle/30 bg-surface p-6 -mx-6">
-          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">06</span>
-          <h2 className="section-header mb-4">Fee Structure</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-subtle text-text-muted">
-                  <th className="py-3 text-left font-medium">Recipient</th>
-                  <th className="py-3 text-right font-medium">%</th>
-                  <th className="py-3 text-left font-medium pl-4">When</th>
-                </tr>
-              </thead>
-              <tbody className="text-text-primary">
-                <tr className="border-b border-border-subtle/30">
-                  <td className="py-3">Platform</td>
-                  <td className="py-3 text-right font-mono">1.0%</td>
-                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Every trade</td>
-                </tr>
-                <tr className="border-b border-border-subtle/30">
-                  <td className="py-3 text-caldera">$CALDRA holders</td>
-                  <td className="py-3 text-right font-mono text-caldera">0.5%</td>
-                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Every trade</td>
-                </tr>
-                <tr className="border-b border-border-subtle/30">
-                  <td className="py-3">Claimed creator</td>
-                  <td className="py-3 text-right font-mono">0.75%</td>
-                  <td className="py-3 text-left pl-4 text-text-muted text-xs">If creator verified</td>
-                </tr>
-                <tr className="border-b border-border-subtle/30">
-                  <td className="py-3">DeSo token holders</td>
-                  <td className="py-3 text-right font-mono text-caldera">0.75-1.5%</td>
-                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Split among active tokens</td>
-                </tr>
-                <tr>
-                  <td className="py-3">Community pool</td>
-                  <td className="py-3 text-right font-mono">remainder</td>
-                  <td className="py-3 text-left pl-4 text-text-muted text-xs">If no DeSo tokens exist</td>
-                </tr>
-                <tr className="border-t border-border-subtle">
-                  <td className="py-3 font-bold">Total</td>
-                  <td className="py-3 text-right font-mono font-bold">3.0%</td>
-                  <td className="py-3 text-left pl-4 text-text-muted text-xs">Always</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="mt-4">
+            <Link
+              href="/creators"
+              className="inline-block rounded-xl bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-400 hover:bg-amber-500/30 transition-colors"
+            >
+              Find your profile →
+            </Link>
           </div>
         </section>
       </div>
 
+      {/* FAQ */}
+      <div className="mt-16">
+        <h2 className="mb-6 font-display text-2xl font-bold text-text-primary">FAQ</h2>
+        <div className="space-y-4">
+          {[
+            {
+              q: "Do I need crypto to use Caldera?",
+              a: "You need a DeSo wallet to trade. Setting one up is free and takes 2 minutes.",
+            },
+            {
+              q: "How do markets resolve?",
+              a: "Each market has a clear resolution source listed — court records, official stats, public announcements. No ambiguity.",
+            },
+            {
+              q: "Can I lose money?",
+              a: "Yes — if your prediction is wrong, your shares are worth $0. Never predict more than you can afford to lose.",
+            },
+            {
+              q: "What are tokens?",
+              a: "Tokens are on the DeSo blockchain. Holding them earns you a share of trading fees from prediction markets about that person.",
+            },
+          ].map((item) => (
+            <div key={item.q} className="rounded-xl border border-border-subtle/30 bg-surface p-4">
+              <p className="mb-1 font-medium text-text-primary text-sm">Q: {item.q}</p>
+              <p className="text-sm text-text-muted">A: {item.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* CTA */}
-      <div className="mt-16 text-center">
+      <div className="mt-12 text-center">
         <Link
           href="/markets"
           className="inline-block rounded-xl bg-caldera px-8 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"

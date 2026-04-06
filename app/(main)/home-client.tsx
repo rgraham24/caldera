@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Market, Creator } from "@/types";
 import { CATEGORIES } from "@/types";
@@ -15,6 +15,7 @@ import {
 } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { useAppStore } from "@/store";
 
 type RecentTrade = {
   id: string;
@@ -47,9 +48,11 @@ export function HomeClient({
   totalVolume,
   activeMarketCount,
 }: HomeClientProps) {
+  const { isAuthenticated } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [watching, setWatching] = useState(247);
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const iv = setInterval(() => {
@@ -63,6 +66,226 @@ export function HomeClient({
   const safeTeams = teamTokens ?? [];
   const safeTrades = recentTrades ?? [];
   const safeResolved = resolvedMarkets ?? [];
+
+  // Landing page for unauthenticated users
+  if (!isAuthenticated) {
+    const featuredMarkets = safeMarkets.slice(0, 3);
+    return (
+      <div className="overflow-x-hidden">
+        {/* HERO */}
+        <section className="relative flex min-h-[90vh] flex-col items-center justify-center px-4 text-center">
+          {/* Ambient background animations */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute left-1/4 top-1/4 h-64 w-64 rounded-full bg-caldera/5 blur-3xl animate-pulse" />
+            <div className="absolute right-1/4 bottom-1/4 h-64 w-64 rounded-full bg-yes/5 blur-3xl animate-pulse [animation-delay:2s]" />
+          </div>
+
+          {/* Floating market probability numbers */}
+          <div className="pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
+            <span className="absolute left-[8%] top-[20%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:0.5s]">YES 67%</span>
+            <span className="absolute right-[10%] top-[30%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:1s]">NO 33%</span>
+            <span className="absolute left-[12%] bottom-[30%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:1.5s]">YES 82%</span>
+            <span className="absolute right-[8%] bottom-[25%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:0.8s]">YES 44%</span>
+            <span className="absolute left-[20%] top-[60%] font-mono text-xs text-text-faint opacity-30 animate-pulse [animation-delay:2.2s]">NO 56%</span>
+            <span className="absolute right-[18%] top-[65%] font-mono text-xs text-text-faint opacity-30 animate-pulse [animation-delay:1.8s]">YES 91%</span>
+          </div>
+
+          <div className="relative z-10 max-w-3xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-caldera/20 bg-caldera/10 px-4 py-1.5 text-xs font-medium text-caldera">
+              <span className="h-1.5 w-1.5 rounded-full bg-caldera animate-pulse" />
+              Live on DeSo blockchain
+            </div>
+
+            <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-text-primary md:text-7xl">
+              Predict outcomes on{" "}
+              <span className="text-caldera">real people.</span>
+              <br />
+              Hold their tokens.{" "}
+              <span className="text-yes">Earn from every trade.</span>
+            </h1>
+
+            <p className="mx-auto mt-6 max-w-xl text-lg text-text-muted">
+              The first prediction market where holding tokens earns you passive income from every bet.
+            </p>
+
+            {/* Large search bar */}
+            <div className="relative mx-auto mt-8 max-w-md">
+              <svg className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search markets, people, or tokens..."
+                className="w-full rounded-2xl border border-border-subtle/50 bg-surface py-4 pl-12 pr-4 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
+              />
+            </div>
+
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/markets"
+                className="rounded-xl bg-caldera px-8 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
+              >
+                Explore Markets →
+              </Link>
+              <Link
+                href="/how-it-works"
+                className="rounded-xl border border-border-subtle/50 px-8 py-3 text-sm font-semibold text-text-muted hover:border-border-visible/60 hover:text-text-primary transition-colors"
+              >
+                How It Works
+              </Link>
+            </div>
+
+            {/* Social proof */}
+            <p className="mt-8 text-xs text-text-faint">
+              <span className="font-mono text-caldera">{formatCompactCurrency(totalVolume)}</span> traded ·{" "}
+              <span className="font-mono text-caldera">{activeMarketCount}</span> active markets ·{" "}
+              <span className="font-mono text-caldera">8,200+</span> token holders
+            </p>
+          </div>
+        </section>
+
+        {/* HOW IT WORKS — 3 cards */}
+        <section className="border-t border-border-subtle/20 bg-surface/30 py-16 px-4">
+          <div className="mx-auto max-w-5xl">
+            <h2 className="mb-2 text-center font-display text-3xl font-bold text-text-primary">How it works</h2>
+            <p className="mb-10 text-center text-sm text-text-muted">Three things. That&apos;s it.</p>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {[
+                {
+                  icon: "🎯",
+                  title: "Predict",
+                  body: "Pick YES or NO on real events about real people. Get it right and earn. Simple.",
+                },
+                {
+                  icon: "💎",
+                  title: "Hold Tokens",
+                  body: "Buy tokens tied to the people you believe in. Earn automatically from every prediction about them.",
+                },
+                {
+                  icon: "🏆",
+                  title: "Earn Together",
+                  body: "The more people predict, the more token holders earn. No work required after you buy.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-border-subtle/30 bg-surface p-6 text-center"
+                >
+                  <div className="mb-3 text-4xl">{item.icon}</div>
+                  <h3 className="mb-2 font-display text-xl font-bold text-text-primary">{item.title}</h3>
+                  <p className="text-sm text-text-muted leading-relaxed">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FEATURED MARKETS */}
+        {featuredMarkets.length > 0 && (
+          <section className="py-16 px-4">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="mb-2 font-display text-3xl font-bold text-text-primary">What people are predicting right now</h2>
+              <p className="mb-8 text-sm text-text-muted">Click any market to see the full detail and trade.</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {featuredMarkets.map((m) => (
+                  <MarketCard key={m.id} market={m} />
+                ))}
+              </div>
+              <div className="mt-6 text-center">
+                <Link
+                  href="/markets"
+                  className="text-sm font-medium text-caldera hover:text-caldera/80 transition-colors"
+                >
+                  See all {activeMarketCount} markets →
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TRENDING TOKENS strip */}
+        {safeCreators.length > 0 && (
+          <section className="border-t border-border-subtle/20 bg-surface/30 py-12 px-4">
+            <div className="mx-auto max-w-5xl">
+              <h2 className="mb-2 font-display text-2xl font-bold text-text-primary">Hold these tokens to earn passively</h2>
+              <p className="mb-6 text-sm text-text-muted">Token holders earn a share of every trade on that person&apos;s markets.</p>
+              <div className="overflow-hidden">
+                <div className="flex gap-3 animate-[scroll-left_60s_linear_infinite] hover:[animation-play-state:paused]">
+                  {[...safeCreators, ...safeCreators].map((c, i) => {
+                    const sym = c.deso_username || c.creator_coin_symbol;
+                    const change = (c as Creator & { price_change_24h?: number }).price_change_24h ?? 0;
+                    return (
+                      <div
+                        key={`${c.id}-${i}`}
+                        className="flex min-w-[190px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
+                      >
+                        <CreatorAvatar creator={c} size="md" />
+                        <div className="min-w-0 flex-1">
+                          <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
+                            {c.name}
+                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-display text-sm font-bold text-caldera">
+                              {c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}
+                            </span>
+                            <span className={cn("font-mono text-[10px]", change >= 0 ? "text-yes" : "text-no")}>
+                              {change >= 0 ? "+" : ""}{change.toFixed(1)}%
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-text-faint">${sym}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* CREATOR CTA */}
+        <section className="py-16 px-4">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/20 bg-amber-500/5 p-8 text-center">
+            <div className="mb-3 text-3xl">🏆</div>
+            <h2 className="mb-2 font-display text-2xl font-bold text-text-primary">Are you on Caldera?</h2>
+            <p className="mb-6 text-sm text-text-muted leading-relaxed">
+              Creators, athletes, and public figures can claim their profile and earn from every prediction about them.
+              Your profile might already be here.
+            </p>
+            <Link
+              href="/creators"
+              className="inline-block rounded-xl bg-amber-500/20 px-6 py-3 text-sm font-semibold text-amber-400 hover:bg-amber-500/30 transition-colors"
+            >
+              Claim Your Profile →
+            </Link>
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section className="border-t border-border-subtle/20 bg-surface/50 py-16 px-4 text-center">
+          <div className="mx-auto max-w-lg">
+            <h2 className="mb-3 font-display text-3xl font-bold text-text-primary">Ready to start?</h2>
+            <p className="mb-8 text-sm text-text-muted">Connect your DeSo wallet to trade. Or just browse first.</p>
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className="rounded-xl bg-caldera px-8 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
+              >
+                Connect Wallet & Trade →
+              </Link>
+              <Link
+                href="/markets"
+                className="rounded-xl border border-border-subtle/50 px-8 py-3 text-sm font-semibold text-text-muted hover:border-border-visible/60 hover:text-text-primary transition-colors"
+              >
+                Browse Markets →
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   const CAT_MAP: Record<string, string[]> = {
     creators: ["creators", "streamers"],

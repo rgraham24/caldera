@@ -30,6 +30,7 @@ export function TradeTicket({
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const { isAuthenticated } = useAppStore();
 
   const amountNum = parseFloat(amount) || 0;
@@ -51,6 +52,11 @@ export function TradeTicket({
   }, [amountNum, side, market, feeConfig]);
 
   const handleTrade = async () => {
+    // First-time trader onboarding
+    if (typeof window !== "undefined" && !localStorage.getItem("caldera_onboarded")) {
+      setShowOnboarding(true);
+      return;
+    }
     if (!isAuthenticated) {
       window.location.href = "/login";
       return;
@@ -86,7 +92,7 @@ export function TradeTicket({
   };
 
   return (
-    <div className="trade-panel-glow rounded-2xl border border-cyan-500/20 bg-surface p-5">
+    <div className="relative trade-panel-glow rounded-2xl border border-cyan-500/20 bg-surface p-5">
       {/* Side toggle */}
       <div className="mb-5 flex rounded-lg bg-background p-1">
         <button
@@ -143,7 +149,7 @@ export function TradeTicket({
         </div>
         {market.creator_id && (
           <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
-            Platform 1% · <span className="text-caldera">$CALDRA 0.5%</span> · Token holders 1.5% · Total 3%
+            Platform 1% · Token holders earn up to 2% · Total 3%
           </p>
         )}
       </div>
@@ -264,6 +270,55 @@ export function TradeTicket({
           ? "Connect to Trade"
           : `Buy ${side.toUpperCase()}`}
       </Button>
+
+      {/* First-time onboarding overlay */}
+      {showOnboarding && (
+        <div className="absolute inset-0 z-20 flex flex-col justify-center rounded-2xl bg-surface/95 p-6 backdrop-blur-sm">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-caldera">How predictions work</p>
+          <h3 className="mb-3 font-display text-xl font-bold text-text-primary">
+            You&apos;re about to buy {side.toUpperCase()} on:
+          </h3>
+          <p className="mb-4 text-sm text-text-muted leading-relaxed">
+            &ldquo;{market.title}&rdquo;
+          </p>
+          <div className="mb-4 rounded-xl border border-border-subtle/30 bg-background p-4 space-y-1.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-text-muted">Current odds</span>
+              <span className={cn("font-mono font-bold", side === "yes" ? "text-yes" : "text-no")}>
+                {side === "yes" ? Math.round(market.yes_price * 100) : Math.round(market.no_price * 100)}% likely
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-text-muted">Cost per share</span>
+              <span className="font-mono text-text-primary">
+                {side === "yes" ? Math.round(market.yes_price * 100) : Math.round(market.no_price * 100)}¢
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-text-muted">Payout per share if correct</span>
+              <span className="font-mono text-yes font-bold">$1.00</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-text-muted">Value if wrong</span>
+              <span className="font-mono text-no">$0.00</span>
+            </div>
+          </div>
+          <p className="mb-6 text-xs text-text-faint">
+            Never predict more than you can afford to lose.
+          </p>
+          <Button
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                localStorage.setItem("caldera_onboarded", "true");
+              }
+              setShowOnboarding(false);
+            }}
+            className="w-full bg-caldera text-white hover:bg-caldera/90 font-semibold"
+          >
+            Got it, let me trade →
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

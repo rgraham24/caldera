@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Search, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { NotificationBell } from "./NotificationBell";
 
 const NAV_ITEMS = [
@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { href: "/creators", label: "Tokens" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/caldra", label: "🔥 $CALDRA" },
 ];
 
 const AUTH_NAV_ITEMS = [
@@ -26,6 +25,18 @@ export function TopNav() {
   const pathname = usePathname();
   const { user, isAuthenticated, desoBalanceNanos } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <nav className="sticky top-0 z-50 border-b border-caldera/15 bg-[rgba(8,15,28,0.85)] backdrop-blur-xl">
@@ -94,8 +105,9 @@ export function TopNav() {
             <div className="relative hidden md:block">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-faint" />
               <input
+                ref={searchRef}
                 type="text"
-                placeholder="Search markets..."
+                placeholder="Search markets... (/)"
                 className="w-48 rounded-lg border border-border-subtle/50 bg-surface py-1.5 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:w-64 transition-all"
               />
             </div>
