@@ -30,12 +30,10 @@ export function TopNav() {
     desoUsername,
     desoProfilePicUrl,
     desoBalanceDeso,
-    setConnected,
     setDisconnected,
   } = useAppStore();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -70,22 +68,9 @@ export function TopNav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen]);
 
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    try {
-      const userData = await connectDeSoWallet();
-      if (!userData) return;
-      setConnected(userData);
-    } catch (err) {
-      console.error("DeSo connect failed:", err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
     setDropdownOpen(false);
-    await disconnectDeSoWallet();
+    disconnectDeSoWallet();
     setDisconnected();
     router.push("/");
   };
@@ -232,32 +217,10 @@ export function TopNav() {
               </div>
             ) : (
               <button
-                onClick={handleConnect}
-                disabled={isConnecting}
-                className="flex items-center gap-1.5 rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-gray-100 disabled:opacity-70"
+                onClick={() => connectDeSoWallet()}
+                className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-gray-100"
               >
-                {isConnecting && (
-                  <svg
-                    className="h-3.5 w-3.5 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                )}
-                {isConnecting ? "Connecting..." : "Connect"}
+                Connect
               </button>
             )}
 
@@ -347,12 +310,11 @@ export function TopNav() {
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    handleConnect();
+                    connectDeSoWallet();
                   }}
-                  disabled={isConnecting}
-                  className="mx-3 mt-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-gray-100 disabled:opacity-70"
+                  className="mx-3 mt-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-gray-100"
                 >
-                  {isConnecting ? "Connecting..." : "Connect Wallet"}
+                  Connect Wallet
                 </button>
               )}
             </div>

@@ -30,10 +30,9 @@ export function TradeTicket({
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { isAuthenticated, setConnected } = useAppStore();
+  const { isAuthenticated } = useAppStore();
 
   const amountNum = parseFloat(amount) || 0;
 
@@ -54,18 +53,9 @@ export function TradeTicket({
   }, [amountNum, side, market, feeConfig]);
 
   const handleTrade = async () => {
-    // Not connected — trigger connect flow
+    // Not connected — redirect to DeSo identity
     if (!isAuthenticated) {
-      setIsConnecting(true);
-      try {
-        const userData = await connectDeSoWallet();
-        if (!userData) return;
-        setConnected(userData);
-      } catch (err) {
-        console.error("Connect failed:", err);
-      } finally {
-        setIsConnecting(false);
-      }
+      connectDeSoWallet();
       return;
     }
 
@@ -266,7 +256,7 @@ export function TradeTicket({
 
       <Button
         onClick={handleTrade}
-        disabled={(isAuthenticated && (amountNum <= 0 || isSubmitting)) || market.status !== "open" || isConnecting}
+        disabled={(isAuthenticated && (amountNum <= 0 || isSubmitting)) || market.status !== "open"}
         className={cn(
           "w-full font-semibold py-3 rounded-lg transition-colors",
           !isAuthenticated || market.status !== "open"
@@ -276,9 +266,7 @@ export function TradeTicket({
             : "bg-no text-white hover:bg-no/90"
         )}
       >
-        {isConnecting
-          ? "Connecting..."
-          : isSubmitting
+        {isSubmitting
           ? "Confirming..."
           : market.status !== "open"
           ? "Market Closed"
