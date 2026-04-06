@@ -10,6 +10,7 @@ import { MarketChart } from "@/components/markets/MarketChart";
 import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { HolderCalculator } from "@/components/shared/HolderCalculator";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
 
 type CreatorProfileClientProps = {
@@ -89,10 +90,7 @@ export function CreatorProfileClient({
         {creator.token_status === "active_unverified" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
-              🔵 ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every trade.
-              {(creator.deso_post_count ?? 0) > 0 && (
-                <span className="text-text-faint ml-2 text-xs">Active on BitClout · {creator.deso_post_count} posts</span>
-              )}
+              🔵 ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every prediction here.
             </p>
           </div>
         )}
@@ -106,7 +104,7 @@ export function CreatorProfileClient({
         {creator.token_status === "active_verified" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
-              ✅ Verified — ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every trade.
+              ✅ ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every prediction here.
             </p>
           </div>
         )}
@@ -177,12 +175,15 @@ export function CreatorProfileClient({
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings), show: creator.tier === "verified_creator" },
-            { label: "Holder Earnings", value: formatCompactCurrency(creator.total_holder_earnings), show: true },
-            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + m.total_volume, 0)), show: true },
-            { label: "Markets", value: String(markets.length), show: true },
+            { label: "Holder Earnings", value: formatCompactCurrency(creator.total_holder_earnings), show: true, tip: "The total amount earned by people who hold this token from prediction activity on Caldera." },
+            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + m.total_volume, 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more earnings for token holders." },
+            { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
-              <p className="text-xs uppercase tracking-widest text-text-muted">{stat.label}</p>
+              <p className="text-xs uppercase tracking-widest text-text-muted">
+                {stat.label}
+                {stat.tip && <InfoTooltip text={stat.tip} />}
+              </p>
               <p className="mt-1 font-mono text-xl font-bold text-yes">{stat.value}</p>
             </div>
           ))}
@@ -191,7 +192,7 @@ export function CreatorProfileClient({
         {/* Token chart + calculator — only for active tokens, not shadow */}
         {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-            <h2 className="section-header mb-4">Token Price</h2>
+            <h2 className="section-header mb-4">Token Price <InfoTooltip text="The current price to buy one token. Prices rise as more people buy — early buyers get the lowest price." /></h2>
             <MarketChart yesPrice={livePrice / 200} />
           </div>
         )}

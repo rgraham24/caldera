@@ -49,7 +49,18 @@ export function MarketsClient({ markets }: MarketsClientProps) {
     let result = [...markets];
 
     if (selectedCategories.size > 0) {
-      result = result.filter((m) => selectedCategories.has(m.category));
+      const expandedCats = new Set<string>();
+      const CAT_GROUPS: Record<string, string[]> = {
+        creators: ["creators", "streamers"],
+        entertainment: ["entertainment", "viral"],
+        tech: ["tech", "crypto"],
+        sports: ["sports", "athletes"],
+      };
+      selectedCategories.forEach((c) => {
+        const group = CAT_GROUPS[c] || [c];
+        group.forEach((g) => expandedCats.add(g));
+      });
+      result = result.filter((m) => expandedCats.has(m.category));
     }
 
     if (statusFilter !== "all") {

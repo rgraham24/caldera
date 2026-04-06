@@ -13,12 +13,12 @@ type CreatorsClientProps = {
 
 const TIERS = [
   { value: "all", label: "All" },
-  { value: "streamers", label: "🎮 Streamers" },
+  { value: "creators", label: "🎬 Creators" },
   { value: "music", label: "🎵 Music" },
   { value: "sports", label: "⚽ Sports" },
   { value: "tech", label: "💻 Tech" },
   { value: "politics", label: "👑 Politics" },
-  { value: "viral", label: "🌊 Entertainment" },
+  { value: "entertainment", label: "🎭 Entertainment" },
 ];
 
 const SORTS = [
@@ -37,6 +37,10 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
     let result = [...creators];
     if (tierFilter === "sports") {
       result = result.filter((c) => c.category === "sports" || c.sport);
+    } else if (tierFilter === "creators") {
+      result = result.filter((c) => ["creators", "streamers", "esports", "media"].includes(c.category || ""));
+    } else if (tierFilter === "entertainment") {
+      result = result.filter((c) => ["entertainment", "viral"].includes(c.category || ""));
     } else if (tierFilter !== "all") {
       result = result.filter((c) => c.category === tierFilter);
     }
@@ -104,7 +108,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
       </div>
 
       <p className="mb-4 text-[10px] text-text-faint">
-        🔵 Active token · earns from predictions &nbsp; ✅ Verified on DeSo &nbsp; 📊 Prediction market only · claim to activate
+        🔵 Active token · earns from predictions &nbsp; ✅ Verified &nbsp; 📊 Prediction market only · claim to activate
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

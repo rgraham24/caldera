@@ -21,16 +21,15 @@ export type MarketStatus = "open" | "closed" | "resolving" | "resolved" | "cance
 export type TradeSide = "yes" | "no";
 
 // Category type
-export type Category = "streamers" | "music" | "sports" | "tech" | "politics" | "viral" | "esports";
+export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment";
 
 export const CATEGORIES: { value: Category; label: string }[] = [
-  { value: "streamers", label: "🎮 Streamers" },
+  { value: "creators", label: "🎬 Creators" },
   { value: "music", label: "🎵 Music" },
   { value: "sports", label: "⚽ Sports" },
   { value: "tech", label: "💻 Tech" },
   { value: "politics", label: "👑 Politics" },
-  { value: "viral", label: "🌊 Viral" },
-  { value: "esports", label: "🎯 Esports" },
+  { value: "entertainment", label: "🎭 Entertainment" },
 ];
 
 // Leaderboard period

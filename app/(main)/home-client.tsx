@@ -64,15 +64,34 @@ export function HomeClient({
   const safeTrades = recentTrades ?? [];
   const safeResolved = resolvedMarkets ?? [];
 
-  const filtered = activeCategory
-    ? safeMarkets.filter((m) => m.category === activeCategory)
-    : safeMarkets;
+  const CAT_MAP: Record<string, string[]> = {
+    creators: ["creators", "streamers"],
+    music: ["music"],
+    sports: ["sports", "athletes"],
+    tech: ["tech", "crypto"],
+    politics: ["politics"],
+    entertainment: ["entertainment", "viral"],
+  };
+
+  const matchesCat = (marketCat: string, filterCat: string | null) => {
+    if (!filterCat) return true;
+    const group = CAT_MAP[filterCat] || [filterCat];
+    return group.includes(marketCat);
+  };
+
+  const filtered = safeMarkets.filter((m) => matchesCat(m.category, activeCategory));
+
+  // Hero market switches to top market in selected category
+  const categoryHero = activeCategory
+    ? filtered.sort((a, b) => b.trending_score - a.trending_score)[0] || null
+    : heroMarket;
 
   const trendingMarkets = safeMarkets
-    .filter((m) => m.id !== heroMarket?.id)
+    .filter((m) => m.id !== (categoryHero?.id ?? heroMarket?.id))
     .slice(0, 3);
 
-  const yesPercent = heroMarket ? Math.round(heroMarket.yes_price * 100) : 50;
+  const activeHero = categoryHero ?? heroMarket;
+  const yesPercent = activeHero ? Math.round(activeHero.yes_price * 100) : 50;
   const noPercent = 100 - yesPercent;
 
   return (
@@ -147,26 +166,26 @@ export function HomeClient({
         {/* Hero + Sidebar */}
         <div className="mb-8 flex flex-col gap-6 lg:flex-row">
           {/* LEFT — Hero Market */}
-          {heroMarket && (
+          {activeHero && (
             <div className="flex-1 lg:max-w-[65%]">
               <div className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
                 {/* Category + badges */}
                 <div className="mb-3 flex items-center gap-2 text-xs text-text-muted">
-                  <span className="capitalize">{heroMarket.category}</span>
-                  {heroMarket.resolve_at && new Date(heroMarket.resolve_at).getTime() - Date.now() < 72 * 3600000 && (
+                  <span className="capitalize">{activeHero.category}</span>
+                  {activeHero.resolve_at && new Date(activeHero.resolve_at).getTime() - Date.now() < 72 * 3600000 && (
                     <span className="rounded-full bg-no/10 px-2 py-0.5 text-[10px] font-semibold text-no">
                       RESOLVES SOON
                     </span>
                   )}
                   <span className="ml-auto font-mono text-caldera">
-                    {formatCompactCurrency(heroMarket.total_volume)} Vol
+                    {formatCompactCurrency(activeHero.total_volume)} Vol
                   </span>
                 </div>
 
                 {/* Title */}
-                <Link href={`/markets/${heroMarket.slug}`}>
+                <Link href={`/markets/${activeHero.slug}`}>
                   <h2 className="mb-4 font-display text-3xl font-bold tracking-tight text-text-primary hover:text-caldera transition-colors">
-                    {heroMarket.title}
+                    {activeHero.title}
                   </h2>
                 </Link>
 
@@ -209,17 +228,17 @@ export function HomeClient({
                     <span className="h-1.5 w-1.5 rounded-full bg-no animate-pulse" />
                     {watching} watching
                   </span>
-                  <span>{heroMarket.resolve_at && formatRelativeTime(heroMarket.resolve_at)}</span>
+                  <span>{activeHero.resolve_at && formatRelativeTime(activeHero.resolve_at)}</span>
                 </div>
 
                 {/* Trade buttons */}
                 <div className="flex gap-3">
-                  <Link href={`/markets/${heroMarket.slug}`} className="flex-1">
+                  <Link href={`/markets/${activeHero.slug}`} className="flex-1">
                     <button className="w-full rounded-xl bg-yes/15 py-3 text-sm font-bold text-yes transition-colors hover:bg-yes/25">
                       Buy YES · {yesPercent}¢
                     </button>
                   </Link>
-                  <Link href={`/markets/${heroMarket.slug}`} className="flex-1">
+                  <Link href={`/markets/${activeHero.slug}`} className="flex-1">
                     <button className="w-full rounded-xl bg-no/15 py-3 text-sm font-bold text-no transition-colors hover:bg-no/25">
                       Buy NO · {noPercent}¢
                     </button>
@@ -375,7 +394,7 @@ export function HomeClient({
         <div>
           <h2 className="section-header mb-5">All Markets</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.filter((m) => m.id !== heroMarket?.id).map((m) => (
+            {filtered.filter((m) => m.id !== activeHero?.id).map((m) => (
               <MarketCard key={m.id} market={m} />
             ))}
           </div>

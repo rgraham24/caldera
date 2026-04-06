@@ -40,10 +40,10 @@ export function determineTokenStatus(creator: {
 
 export function tokenStatusLabel(status: TokenStatus): string {
   switch (status) {
-    case "claimed": return "✅ Caldera verified";
-    case "active_verified": return "✅ Verified DeSo token";
-    case "active_unverified": return "🔵 Active on DeSo";
-    case "needs_review": return "⚠️ Needs review";
+    case "claimed": return "✅ Verified";
+    case "active_verified": return "✅ Verified";
+    case "active_unverified": return "🔵 Active token";
+    case "needs_review": return "⚠️ Under review";
     case "shadow": return "📊 Prediction market only";
   }
 }

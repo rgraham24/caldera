@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/store";
 
@@ -90,13 +91,13 @@ export default function CaldraPage() {
       {stats && (
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { label: "Price", value: formatCurrency(stats.price) },
-            { label: "Holders", value: String(stats.holderCount) },
-            { label: "Volume", value: formatCurrency(stats.totalVolume) },
-            { label: "Distributed", value: formatCurrency(stats.totalDistributed) },
+            { label: "Price", value: formatCurrency(stats.price), tip: "Current price per CALDRA token. Rises as more people buy." },
+            { label: "Holders", value: String(stats.holderCount), tip: "People currently holding CALDRA. All holders earn from every prediction on Caldera." },
+            { label: "Volume", value: formatCurrency(stats.totalVolume), tip: "Total predictions made across all Caldera markets. More volume = more CALDRA earnings." },
+            { label: "Distributed", value: formatCurrency(stats.totalDistributed), tip: "Total earnings paid out to CALDRA holders from prediction fees since launch." },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-border-subtle/30 bg-surface p-3">
-              <p className="text-[10px] uppercase tracking-widest text-text-muted">{s.label}</p>
+              <p className="text-[10px] uppercase tracking-widest text-text-muted">{s.label} <InfoTooltip text={s.tip} /></p>
               <p className="mt-1 font-mono text-lg font-bold text-text-primary">{s.value}</p>
             </div>
           ))}
