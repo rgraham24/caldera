@@ -50,9 +50,13 @@ export default async function HomePage() {
     .select("*");
 
   const allCreators = rawCreators ?? [];
+  const stableChange = (id: string) => {
+    const hash = id.split("").reduce((a, ch) => a + ch.charCodeAt(0), 0);
+    return parseFloat(((((hash % 100) / 100) - 0.35) * 20).toFixed(1));
+  };
   const addChange = (c: typeof allCreators[0]) => ({
     ...c,
-    price_change_24h: parseFloat(((Math.random() - 0.35) * 20).toFixed(1)),
+    price_change_24h: stableChange(c.id),
   });
 
   // Unified token list — all entities sorted by coin price
@@ -64,12 +68,6 @@ export default async function HomePage() {
       return b.creator_coin_price - a.creator_coin_price;
     })
     .slice(0, 16)
-    .map(addChange);
-
-  const teamTokens = allCreators
-    .filter((c) => c.entity_type && c.entity_type !== "individual")
-    .sort((a, b) => b.creator_coin_price - a.creator_coin_price)
-    .slice(0, 8)
     .map(addChange);
 
   // Hero creator
@@ -98,7 +96,6 @@ export default async function HomePage() {
         market: { title: string; slug: string };
       }>) ?? []}
       creators={sortedCreators as (Creator & { price_change_24h: number })[]}
-      teamTokens={teamTokens as (Creator & { price_change_24h: number })[]}
       totalVolume={totalVolume}
       activeMarketCount={open.length}
     />

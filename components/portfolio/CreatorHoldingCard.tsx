@@ -55,7 +55,6 @@ export function CreatorHoldingCard({
 
   useEffect(() => {
     if (expanded && holders.length === 0 && creator.slug) {
-      setLoadingHolders(true);
       fetch(`/api/creators/${creator.slug}/holders`)
         .then((r) => r.json())
         .then(({ data }) => setHolders(data || []))
@@ -77,7 +76,7 @@ export function CreatorHoldingCard({
             <span className="text-[10px] text-text-muted">${sym}</span>
           </div>
           <span className="text-xs text-text-muted">
-            {coinsHeld.toFixed(4)} coins · #{Math.ceil(Math.random() * creator.creator_coin_holders) || 1} of {creator.creator_coin_holders} holders
+            {coinsHeld.toFixed(4)} coins · {creator.creator_coin_holders} holders
           </span>
         </div>
         <div className="text-right shrink-0">

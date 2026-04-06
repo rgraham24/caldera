@@ -145,7 +145,7 @@ export function ClaimProfileModal({
             </div>
             <p className="text-lg font-semibold text-text-primary">Welcome to Caldera, {creatorName}!</p>
             <p className="mt-1 text-sm text-text-muted">
-              You&apos;ll now earn from every prediction about you.
+              You&apos;ll now receive a platform fee from every prediction about you.
             </p>
             <Button onClick={onClose} className="mt-6 w-full bg-caldera text-background font-semibold">Done</Button>
           </div>

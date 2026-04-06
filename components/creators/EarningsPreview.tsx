@@ -64,10 +64,10 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
             {formatCurrency(creatorShareIfClaimed)}
           </p>
           <p className="mt-0.5 text-[10px] text-text-muted">
-            You&apos;d earn (if you claim) <span className="text-text-faint cursor-help">ⓘ</span>
+            Your platform fee share (if you claim) <span className="text-text-faint cursor-help">ⓘ</span>
           </p>
           <div className="invisible group-hover:visible absolute bottom-full left-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
-            If you claim this profile, you&apos;ll automatically earn 0.75% of every prediction made on your markets — forever. No action needed after claiming. Earnings deposit directly to your wallet.
+            If you claim this profile, you&apos;ll receive 0.75% of every prediction made on your markets — forever. No action needed after claiming. Your fee share deposits directly to your wallet.
             <div className="absolute bottom-[-6px] left-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
           </div>
         </div>
@@ -76,7 +76,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
             {formatCurrency(communityPool)}
           </p>
           <p className="mt-0.5 text-[10px] text-text-muted">
-            Waiting for you to claim <span className="text-text-faint cursor-help">ⓘ</span>
+            Fees accumulate until claimed <span className="text-text-faint cursor-help">ⓘ</span>
           </p>
           <div className="invisible group-hover:visible absolute bottom-full right-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
             While unclaimed, 1.5% of every prediction goes to a community pool. $CALDRA holders receive 0.5%. Once you claim, fees flow directly to you (0.75%) and your token holders (0.75%) instead.

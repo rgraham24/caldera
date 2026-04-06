@@ -49,7 +49,7 @@ export function Footer() {
               Risk Disclosure
             </p>
             <p className="text-sm leading-relaxed text-[var(--text-tertiary)]">
-              Prediction markets involve financial risk. Never predict more than you can afford to lose.
+              Caldera is a prediction market platform. Token activity reflects platform fee mechanics. Token prices may go up or down. Not financial advice.
             </p>
           </div>
         </div>

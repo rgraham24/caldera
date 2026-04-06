@@ -17,11 +17,11 @@ export default async function AdminPage() {
   const totalVolume = allMarkets.reduce((sum, m) => sum + (m.total_volume || 0), 0);
   const totalFees = (fees ?? []).reduce((sum, f: { amount: number }) => sum + (f.amount || 0), 0);
   const openMarkets = allMarkets.filter((m) => m.status === "open").length;
+  const weekFromNow = new Date();
+  weekFromNow.setDate(weekFromNow.getDate() + 7);
   const resolvingThisWeek = allMarkets.filter((m) => {
     if (m.status !== "open" || !m.resolve_at) return false;
-    const resolveDate = new Date(m.resolve_at);
-    const weekFromNow = new Date(Date.now() + 7 * 86400000);
-    return resolveDate <= weekFromNow;
+    return new Date(m.resolve_at) <= weekFromNow;
   }).length;
 
   const stats = [

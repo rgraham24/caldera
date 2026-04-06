@@ -32,7 +32,6 @@ type HomeClientProps = {
   resolvedMarkets: Market[];
   recentTrades: RecentTrade[];
   creators: (Creator & { price_change_24h: number })[];
-  teamTokens: (Creator & { price_change_24h: number })[];
   totalVolume: number;
   activeMarketCount: number;
 };
@@ -44,7 +43,6 @@ export function HomeClient({
   resolvedMarkets,
   recentTrades,
   creators,
-  teamTokens,
   totalVolume,
   activeMarketCount,
 }: HomeClientProps) {
@@ -63,7 +61,6 @@ export function HomeClient({
 
   const safeMarkets = allMarkets ?? [];
   const safeCreators = creators ?? [];
-  const safeTeams = teamTokens ?? [];
   const safeTrades = recentTrades ?? [];
   const safeResolved = resolvedMarkets ?? [];
 
@@ -92,15 +89,13 @@ export function HomeClient({
 
           <div className="relative z-10 max-w-3xl">
             <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-[var(--text-primary)] md:text-7xl">
-              Predict anything.
+              The world runs on predictions.
               <br />
-              Hold the token.
-              <br />
-              <span style={{ color: "var(--accent)" }}>Earn from every trade.</span>
+              <span style={{ color: "var(--accent)" }}>Now you own a piece.</span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-lg text-lg text-[var(--text-secondary)]">
-              The prediction market where token holders earn passive income from every trade — automatically.
+              Every market. Every token. One platform.
             </p>
 
             {/* Large search bar */}
@@ -159,17 +154,17 @@ export function HomeClient({
                 {
                   icon: "🎯",
                   title: "Predict",
-                  body: "Pick YES or NO on any outcome. Sports games, elections, earnings, anything.",
+                  body: "Pick YES or NO on any outcome — sports, politics, culture, tech, anything. Get it right and win.",
                 },
                 {
                   icon: "💎",
-                  title: "Hold Tokens",
-                  body: "Buy tokens tied to the people you believe in. Earn automatically from every prediction about them.",
+                  title: "Own the Token",
+                  body: "Every market has a real token behind it. Buy it, hold it, and watch prediction fees flow back into that token automatically.",
                 },
                 {
                   icon: "🏆",
-                  title: "Earn Together",
-                  body: "The more people predict, the more token holders earn. No work required after you buy.",
+                  title: "Watch It Move",
+                  body: "More predictions = more fee-backed token activity. The market and the token move together.",
                 },
               ].map((item) => (
                 <div
@@ -213,8 +208,8 @@ export function HomeClient({
         {safeCreators.length > 0 && (
           <section className="py-12 px-4" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
             <div className="mx-auto max-w-5xl">
-              <h2 className="mb-2 text-xl font-semibold text-[var(--text-primary)]">Hold these tokens to earn passively</h2>
-              <p className="mb-6 text-sm text-[var(--text-secondary)]">Token holders earn a share of every trade on that person&apos;s markets.</p>
+              <h2 className="mb-2 text-xl font-semibold text-[var(--text-primary)]">Own these tokens. Back the market.</h2>
+              <p className="mb-6 text-sm text-[var(--text-secondary)]">Fees flow back into the token from every prediction on that person&apos;s markets.</p>
               <div className="overflow-hidden">
                 <div className="flex gap-3 animate-[scroll-left_60s_linear_infinite] hover:[animation-play-state:paused]">
                   {[...safeCreators, ...safeCreators].map((c, i) => {
@@ -259,8 +254,8 @@ export function HomeClient({
             <div className="mb-3 text-3xl">🏆</div>
             <h2 className="mb-2 text-2xl font-semibold text-[var(--text-primary)]">Are you on Caldera?</h2>
             <p className="mb-6 text-sm leading-relaxed text-[var(--text-secondary)]">
-              Creators, athletes, and public figures can claim their profile and earn from every prediction about them.
-              Your profile might already be here.
+              Every prediction about you drives activity in your token. Claim your profile and receive
+              your platform fee share directly.
             </p>
             <Link
               href="/creators"
@@ -614,11 +609,10 @@ export function HomeClient({
 
         {/* Trending Tokens — auto-scroll */}
         <div className="mb-8">
-          <div className="mb-2 text-xs text-[var(--text-tertiary)]">Trending Tokens — hold to earn from every trade</div>
+          <div className="mb-2 text-xs text-[var(--text-tertiary)]">Own these tokens. Back the market.</div>
           <div className="overflow-hidden">
             <div className="flex gap-3 animate-[scroll-left_60s_linear_infinite] hover:[animation-play-state:paused]">
               {[...safeCreators, ...safeCreators].map((c, i) => {
-                const sym = c.deso_username || c.creator_coin_symbol;
                 const SPORT_EMOJI: Record<string, string> = { nba: "🏀", nfl: "🏈", mlb: "⚾", college_football: "🎓", college_basketball: "🎓" };
                 const sportEmoji = c.sport ? SPORT_EMOJI[c.sport] || "" : "";
                 return (

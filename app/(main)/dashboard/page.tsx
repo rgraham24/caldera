@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCompactCurrency } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -21,18 +21,12 @@ type DashboardData = {
 
 export default function DashboardPage() {
   const { isAuthenticated } = useAppStore();
-  const [data, setData] = useState<DashboardData | null>(null);
-
-  useEffect(() => {
-    // In production: fetch from /api/dashboard
-    // For now: mock data
-    setData({
-      creator: { name: "Creator", total_creator_earnings: 4847.20, total_holder_earnings: 3200 },
-      markets: [],
-      weeklyEarnings: 127.40,
-      monthlyEarnings: 892.10,
-    });
-  }, []);
+  const [data] = useState<DashboardData>({
+    creator: { name: "Creator", total_creator_earnings: 4847.20, total_holder_earnings: 3200 },
+    markets: [],
+    weeklyEarnings: 127.40,
+    monthlyEarnings: 892.10,
+  });
 
   if (!isAuthenticated) {
     return (

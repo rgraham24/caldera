@@ -22,7 +22,6 @@ export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
 
   useEffect(() => {
     if (tab === "activity" && trades.length === 0) {
-      setLoadingTrades(true);
       fetch(`/api/comments/${marketId}`)
         .then(() => {
           // Use trades endpoint — for now show seed trades
@@ -31,7 +30,6 @@ export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
         .finally(() => setLoadingTrades(false));
     }
     if (tab === "holders" && creator?.slug && holders.length === 0) {
-      setLoadingHolders(true);
       fetch(`/api/creators/${creator.slug}/holders`)
         .then((r) => r.json())
         .then(({ data }) => setHolders(data || []))
@@ -89,7 +87,7 @@ export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
                     </span>
                     <span>Trader_{c.user_id.slice(-4)}</span>
                     <span>·</span>
-                    <span className="font-mono">{formatCurrency(Math.floor(Math.random() * 200) + 20)}</span>
+                    <span className="font-mono">{formatCurrency((parseInt(c.id.slice(-4), 16) % 180) + 20)}</span>
                     <span>·</span>
                     <span>{formatRelativeTime(c.created_at)}</span>
                   </div>
@@ -147,7 +145,7 @@ export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
             </div>
           )}
           <p className="mt-3 text-xs text-caldera">
-            Hold ${creator.deso_username || creator.creator_coin_symbol} to earn from every trade on this market →
+            Fees flow back into ${creator.deso_username || creator.creator_coin_symbol} from every trade on this market →
           </p>
         </div>
       )}

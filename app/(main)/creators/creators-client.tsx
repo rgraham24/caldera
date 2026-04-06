@@ -144,9 +144,9 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                 {c.token_status === "shadow" || c.token_status === "needs_review" ? (
                   <span className="text-amber-400">Unclaimed · prediction markets only</span>
                 ) : c.token_status === "active_verified" ? (
-                  <span className="text-yes">✅ Verified · token holders earn</span>
+                  <span className="text-yes">✅ Verified · fees flow back into token</span>
                 ) : c.token_status === "active_unverified" ? (
-                  <span className="text-caldera">🔵 Active · token holders earn</span>
+                  <span className="text-caldera">🔵 Active · fees flow back into token</span>
                 ) : (
                   <span>{formatCompactCurrency(c.total_holder_earnings)} earned by holders</span>
                 )}

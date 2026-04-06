@@ -8,16 +8,16 @@ export default function HowItWorksPage() {
         How Caldera Works
       </h1>
       <p className="mt-3 text-lg text-text-muted">
-        Three things. That's it.
+        Predict anything. Own the token. Watch it move.
       </p>
 
       <div className="mt-12 space-y-8">
-        {/* Section 1 — Making Predictions */}
+        {/* Section 1 — Predict */}
         <section className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
           <div className="mb-4 text-3xl">🎯</div>
-          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Making Predictions</h2>
+          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Predict</h2>
           <p className="mb-4 text-sm text-text-muted leading-relaxed">
-            Pick YES or NO on real events. Prices tell you the odds — if YES costs 72¢, the market thinks there&apos;s a 72% chance it happens.
+            Pick YES or NO on any outcome — sports, politics, culture, tech, anything. Get it right and win.
           </p>
           <div className="mb-4 flex gap-3">
             <div className="flex-1 rounded-xl bg-yes/10 p-4 text-center">
@@ -36,31 +36,24 @@ export default function HowItWorksPage() {
           </p>
         </section>
 
-        {/* Section 2 — Token Holder Earnings */}
+        {/* Section 2 — Own the Token */}
         <section className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
           <div className="mb-4 text-3xl">💎</div>
-          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Hold Tokens. Earn Passively.</h2>
+          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Own the Token</h2>
           <p className="mb-4 text-sm text-text-muted leading-relaxed">
-            Every creator on Caldera has a token. Holding it earns you a share of every trade on that creator&apos;s markets — automatically, forever.
+            Every market has a real token behind it. Buy it, hold it, and watch prediction fees flow back into that token automatically.
           </p>
           <div className="mb-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
             <p className="mb-1 text-xs font-semibold text-caldera">Example</p>
             <p className="text-sm text-text-primary">
-              $10,000 traded on Tiger Woods markets this week.
-            </p>
-            <p className="text-sm text-text-primary">
-              You hold 10% of the $tigerwoods supply → you earn{" "}
-              <span className="font-bold text-yes">$15 automatically</span>.
+              $100,000 trades on Tiger Woods markets → $750 flows back into $tigerwoods automatically.
             </p>
             <p className="mt-2 text-xs text-text-muted">
-              No work required. Just hold the token.
+              No action required. Just hold the token.
             </p>
           </div>
           <p className="text-sm text-text-muted leading-relaxed">
-            This isn&apos;t speculation on token price — it&apos;s passive income from prediction activity. The more people predict about someone, the more token holders earn.
-          </p>
-          <p className="mt-3 text-sm text-text-muted leading-relaxed">
-            Tokens are stored on-chain. You can buy them directly on Caldera from each creator&apos;s profile page.
+            The more people predict about someone, the more the token moves. Tokens are stored on-chain — buy them directly on Caldera from each creator&apos;s profile page.
           </p>
         </section>
 
@@ -70,7 +63,7 @@ export default function HowItWorksPage() {
           <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Are you on here? Come get your money.</h2>
           <p className="mb-4 text-sm text-text-muted leading-relaxed">
             If you&apos;re a public figure, creator, or athlete with a Caldera profile, your account is already here.
-            Claim it and earn <span className="font-semibold text-amber-400">0.75% of every prediction about you</span>.
+            Claim it and <span className="font-semibold text-amber-400">receive 0.75% of every prediction about you</span>.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1 rounded-xl bg-background p-3 text-center">
@@ -85,7 +78,7 @@ export default function HowItWorksPage() {
             </div>
             <div className="flex-1 rounded-xl bg-background p-3 text-center">
               <p className="text-xl">3️⃣</p>
-              <p className="mt-1 text-xs font-medium text-text-primary">Start earning</p>
+              <p className="mt-1 text-xs font-medium text-text-primary">Receive your fee share</p>
               <p className="text-[10px] text-text-muted">0.75% of every trade</p>
             </div>
           </div>
@@ -119,7 +112,7 @@ export default function HowItWorksPage() {
             },
             {
               q: "What are tokens?",
-              a: "Tokens are on-chain assets tied to creators and public figures. Holding them earns you a share of trading fees from prediction markets about that person.",
+              a: "Tokens are on-chain assets tied to creators and public figures. Prediction fees flow back into them automatically based on market activity.",
             },
           ].map((item) => (
             <div key={item.q} className="rounded-xl border border-border-subtle/30 bg-surface p-4">

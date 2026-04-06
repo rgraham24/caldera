@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { Market, CommentWithUser, Creator } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
@@ -14,7 +13,6 @@ import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer"
 import { ShareCard } from "@/components/shared/ShareCard";
 import {
   formatCompactCurrency,
-  formatCurrency,
   formatRelativeTime,
 } from "@/lib/utils";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";

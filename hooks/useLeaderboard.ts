@@ -8,7 +8,6 @@ export function useLeaderboard(period: LeaderboardPeriod = "alltime") {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     fetch(`/api/leaderboard?period=${period}`)
       .then((res) => res.json())
       .then(({ data }) => setEntries(data ?? []))

@@ -83,7 +83,7 @@ export default function CaldraPage() {
           $CALDRA
         </h1>
         <p className="mt-2 text-text-muted">
-          The universal earnings token. Hold $CALDRA to earn from every prediction market on Caldera.
+          The universal platform token. Hold $CALDRA — fees flow back automatically from every prediction market on Caldera.
         </p>
       </div>
 
@@ -92,9 +92,9 @@ export default function CaldraPage() {
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             { label: "Price", value: formatCurrency(stats.price), tip: "Current price per CALDRA token. Rises as more people buy." },
-            { label: "Holders", value: String(stats.holderCount), tip: "People currently holding CALDRA. All holders earn from every prediction on Caldera." },
-            { label: "Volume", value: formatCurrency(stats.totalVolume), tip: "Total predictions made across all Caldera markets. More volume = more CALDRA earnings." },
-            { label: "Distributed", value: formatCurrency(stats.totalDistributed), tip: "Total earnings paid out to CALDRA holders from prediction fees since launch." },
+            { label: "Holders", value: String(stats.holderCount), tip: "People currently holding CALDRA. Fees flow back into CALDRA from every prediction on Caldera." },
+            { label: "Volume", value: formatCurrency(stats.totalVolume), tip: "Total predictions made across all Caldera markets. More volume = more fee-backed token activity." },
+            { label: "Distributed", value: formatCurrency(stats.totalDistributed), tip: "Total platform fees distributed back to CALDRA holders since launch." },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-border-subtle/30 bg-surface p-3">
               <p className="text-[10px] uppercase tracking-widest text-text-muted">{s.label} <InfoTooltip text={s.tip} /></p>
@@ -108,8 +108,8 @@ export default function CaldraPage() {
       <div className="mb-8 rounded-2xl border border-caldera/20 bg-caldera/5 p-5">
         <p className="text-sm text-text-muted leading-relaxed">
           Every trade on Caldera — Tiger Woods, LeBron James, the NBA Finals, creator predictions —
-          pays <span className="text-caldera font-medium">0.5% to $CALDRA holders</span> automatically.
-          The more Caldera grows, the more you earn. This is the only token that earns from everything.
+          sends <span className="text-caldera font-medium">0.5% back into $CALDRA</span> automatically.
+          The more Caldera grows, the more fee-backed token demand there is. This is the only token backed by every market on the platform.
         </p>
       </div>
 

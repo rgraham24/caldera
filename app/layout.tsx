@@ -15,9 +15,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Caldera — Predict anything.",
+  title: "Caldera — The world runs on predictions.",
   description:
-    "The prediction market where token holders earn passive income from every trade — automatically.",
+    "Every market. Every token. One platform.",
 };
 
 export default function RootLayout({

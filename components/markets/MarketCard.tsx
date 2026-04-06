@@ -7,8 +7,9 @@ type MarketCardProps = {
 };
 
 export function MarketCard({ market }: MarketCardProps) {
+  const now = new Date();
   const hoursLeft = market.resolve_at
-    ? (new Date(market.resolve_at).getTime() - Date.now()) / 3600000
+    ? (new Date(market.resolve_at).getTime() - now.getTime()) / 3600000
     : Infinity;
   const isLive = hoursLeft < 24 && hoursLeft > 0;
   const resolvingSoon = hoursLeft < 72 && hoursLeft >= 24;

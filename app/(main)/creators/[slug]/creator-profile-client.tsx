@@ -68,15 +68,14 @@ export function CreatorProfileClient({
               Token earnings: <span className="text-amber-400">Not yet active</span>
             </p>
             <p className="text-xs text-text-muted mb-3">
-              $CALDRA holders earn 0.5% of every trade here.
-              The remaining 1.5% is held until {creator.name} claims their profile.
+              Community fees are held until this profile is claimed.
             </p>
             <p className="text-xs text-text-muted mb-2">
               Are you {creator.name}? Claim this profile to:
             </p>
             <ul className="text-xs text-text-muted space-y-1 mb-3">
-              <li>→ Earn money every time someone makes a prediction about you — automatically</li>
-              <li>→ Let your fans buy your token and earn alongside you</li>
+              <li>→ Receive a platform fee every time someone predicts about you — automatically</li>
+              <li>→ Let your fans buy your token and hold alongside you</li>
               <li>→ See everything people are predicting about you</li>
             </ul>
             <button
@@ -90,7 +89,7 @@ export function CreatorProfileClient({
         {creator.token_status === "active_unverified" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
-              🔵 ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every prediction here.
+              Prediction fees flow back into ${coinSymbol} automatically.
             </p>
           </div>
         )}
@@ -104,7 +103,7 @@ export function CreatorProfileClient({
         {creator.token_status === "active_verified" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
-              ✅ ${coinSymbol} token holders earn <span className="text-caldera font-medium">1.5%</span> of every prediction here.
+              Prediction fees flow back into ${coinSymbol} automatically.
             </p>
           </div>
         )}
