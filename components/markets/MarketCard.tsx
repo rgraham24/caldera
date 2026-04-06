@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Market } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { ProbabilityBadge } from "@/components/shared/ProbabilityBadge";
-import { formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
+import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
 type MarketCardProps = {
   market: Market;
@@ -15,9 +15,19 @@ export function MarketCard({ market }: MarketCardProps) {
   const isLive = hoursLeft < 24 && hoursLeft > 0;
   const resolvingSoon = hoursLeft < 72 && hoursLeft >= 24;
 
+  const CAT_BORDER: Record<string, string> = {
+    sports: "border-t-cyan-500/40",
+    politics: "border-t-violet-500/40",
+    entertainment: "border-t-amber-500/40",
+    music: "border-t-amber-500/40",
+    viral: "border-t-red-500/40",
+    streamers: "border-t-emerald-500/40",
+  };
+  const topBorder = CAT_BORDER[market.category] || "border-t-caldera/30";
+
   return (
     <Link href={`/markets/${market.slug}`}>
-      <div className="group flex h-full flex-col rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-border-visible/60 hover:-translate-y-0.5">
+      <div className={cn("group flex h-full flex-col rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-border-visible/60 hover:-translate-y-0.5", topBorder)}>
         {/* Header */}
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">

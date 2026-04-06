@@ -58,11 +58,17 @@ export function HomeClient({
     return () => clearInterval(iv);
   }, []);
 
-  const filtered = activeCategory
-    ? allMarkets.filter((m) => m.category === activeCategory)
-    : allMarkets;
+  const safeMarkets = allMarkets ?? [];
+  const safeCreators = creators ?? [];
+  const safeTeams = teamTokens ?? [];
+  const safeTrades = recentTrades ?? [];
+  const safeResolved = resolvedMarkets ?? [];
 
-  const trendingMarkets = allMarkets
+  const filtered = activeCategory
+    ? safeMarkets.filter((m) => m.category === activeCategory)
+    : safeMarkets;
+
+  const trendingMarkets = safeMarkets
     .filter((m) => m.id !== heroMarket?.id)
     .slice(0, 3);
 
@@ -87,7 +93,7 @@ export function HomeClient({
       <div className="border-b border-border-subtle/20 bg-surface/30 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
           <div className="flex animate-[scroll_30s_linear_infinite] gap-8 whitespace-nowrap py-2">
-            {recentTrades.map((t) => (
+            {safeTrades.map((t) => (
               <span key={t.id} className="text-[11px] text-text-muted">
                 {t.side === "yes" ? "📈" : "📉"}{" "}
                 <span className={t.side === "yes" ? "text-yes" : "text-no"}>
@@ -96,7 +102,7 @@ export function HomeClient({
                 on {t.market.title.slice(0, 40)}... · {formatCurrency(t.gross_amount)} · {formatRelativeTime(t.created_at)}
               </span>
             ))}
-            {creators.slice(0, 3).map((c) => (
+            {safeCreators.slice(0, 3).map((c) => (
               <span key={c.id} className="text-[11px] text-text-muted">
                 {c.price_change_24h >= 0 ? "🔥" : "📉"} ${c.deso_username || c.creator_coin_symbol}{" "}
                 <span className={c.price_change_24h >= 0 ? "text-yes" : "text-no"}>
@@ -248,7 +254,7 @@ export function HomeClient({
             <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Hot Creators</h3>
               <div className="space-y-3">
-                {creators.slice(0, 3).map((c) => {
+                {safeCreators.slice(0, 3).map((c) => {
                   const sym = c.deso_username || c.creator_coin_symbol;
                   return (
                     <div key={c.id} className="flex items-center gap-3">
@@ -284,11 +290,11 @@ export function HomeClient({
             </div>
 
             {/* Recently Resolved */}
-            {resolvedMarkets.length > 0 && (
+            {safeResolved.length > 0 && (
               <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Recently Called</h3>
                 <div className="space-y-3">
-                  {resolvedMarkets.slice(0, 3).map((m) => (
+                  {safeResolved.slice(0, 3).map((m) => (
                     <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-3 group">
                       <p className="flex-1 truncate text-sm text-text-primary group-hover:text-caldera transition-colors">
                         {m.title}
@@ -304,7 +310,7 @@ export function HomeClient({
 
             {/* Unclaimed creator */}
             {(() => {
-              const unclaimed = creators.find((c) => c.tier === "unclaimed" && c.unclaimed_earnings_escrow > 0);
+              const unclaimed = safeCreators.find((c) => c.tier === "unclaimed" && c.unclaimed_earnings_escrow > 0);
               if (!unclaimed) return null;
               return (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
@@ -323,59 +329,24 @@ export function HomeClient({
           </div>
         </div>
 
-        {/* Hot Creators row */}
+        {/* Trending Tokens — auto-scroll */}
         <div className="mb-8">
-          <div className="mb-1 text-[11px] text-text-muted">Holding these earns you from every trade</div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {creators.map((c) => {
-              const sym = c.deso_username || c.creator_coin_symbol;
-              return (
-                <div
-                  key={c.id}
-                  className="flex min-w-[200px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
-                >
-                  <CreatorAvatar creator={c} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
-                      {c.name}
-                    </Link>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-display text-sm font-bold tracking-normal text-caldera">{c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}</span>
-                      <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
-                        {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  {c.deso_username && (
-                    <button
-                      onClick={() => setStakeCreator(c)}
-                      className="shrink-0 rounded-lg bg-caldera/10 px-2 py-1 text-[10px] font-medium text-caldera hover:bg-caldera/20"
-                    >
-                      Buy ${sym}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Sports Teams tokens */}
-        {teamTokens.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-1 text-[11px] text-text-muted">Sports tokens — earn from every game-day prediction</div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {teamTokens.map((c) => {
+          <div className="mb-2 text-[11px] text-text-muted">Trending Tokens — hold to earn from every trade</div>
+          <div className="overflow-hidden">
+            <div className="flex gap-3 animate-[scroll-left_60s_linear_infinite] hover:[animation-play-state:paused]">
+              {[...safeCreators, ...safeCreators].map((c, i) => {
                 const sym = c.deso_username || c.creator_coin_symbol;
+                const SPORT_EMOJI: Record<string, string> = { nba: "🏀", nfl: "🏈", mlb: "⚾", college_football: "🎓", college_basketball: "🎓" };
+                const sportEmoji = c.sport ? SPORT_EMOJI[c.sport] || "" : "";
                 return (
                   <div
-                    key={c.id}
-                    className="flex min-w-[200px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
+                    key={`${c.id}-${i}`}
+                    className="flex min-w-[210px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3 transition-all hover:border-border-visible/60"
                   >
                     <CreatorAvatar creator={c} size="md" />
                     <div className="min-w-0 flex-1">
                       <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
-                        {c.name}
+                        {sportEmoji ? `${sportEmoji} ` : ""}{c.name}
                       </Link>
                       <div className="flex items-center gap-1.5">
                         <span className="font-display text-sm font-bold tracking-normal text-caldera">
@@ -386,6 +357,11 @@ export function HomeClient({
                             {c.league}
                           </span>
                         )}
+                        {!c.league && c.price_change_24h !== undefined && (
+                          <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
+                            {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -393,7 +369,7 @@ export function HomeClient({
               })}
             </div>
           </div>
-        )}
+        </div>
 
         {/* All Markets grid */}
         <div>

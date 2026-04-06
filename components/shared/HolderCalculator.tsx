@@ -26,12 +26,12 @@ export function HolderCalculator({
   return (
     <div className="rounded-2xl border border-caldera/20 bg-caldera/5 p-5">
       <h3 className="mb-3 text-sm font-semibold text-text-primary">
-        How much would I earn?
+        How much do I earn?
       </h3>
 
       <div className="mb-4">
         <label className="mb-1 block text-xs text-text-muted">
-          How many ${symbol} coins would you hold?
+          How many ${symbol} coins do you hold?
         </label>
         <input
           type="range"

@@ -60,7 +60,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
-          Creators on Caldera
+          Tokens on Caldera
         </h1>
       </div>
       <p className="mb-6 flex items-center gap-2 text-xs text-text-muted">
@@ -75,7 +75,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search creators..."
+            placeholder="Search tokens..."
             className="w-full rounded-xl border border-border-subtle bg-surface py-2.5 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
           />
         </div>

@@ -13,7 +13,8 @@ export default function HowItWorksPage() {
 
       <div className="mt-12 space-y-16">
         {/* Section 1 */}
-        <section>
+        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 194, 255, 0.03)" }}>
+          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">01</span>
           <h2 className="section-header mb-4">Prediction Markets</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
@@ -39,7 +40,8 @@ export default function HowItWorksPage() {
         </section>
 
         {/* Section 2 */}
-        <section>
+        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(0, 255, 136, 0.03)" }}>
+          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">02</span>
           <h2 className="section-header mb-4">Creator Coins</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
@@ -65,7 +67,8 @@ export default function HowItWorksPage() {
         </section>
 
         {/* Section 3 */}
-        <section>
+        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(255, 170, 0, 0.03)" }}>
+          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">03</span>
           <h2 className="section-header mb-4">Claim Your Profile</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
@@ -81,7 +84,8 @@ export default function HowItWorksPage() {
         </section>
 
         {/* Section 4 */}
-        <section>
+        <section className="relative rounded-2xl p-6 -mx-6" style={{ background: "rgba(139, 92, 246, 0.03)" }}>
+          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">04</span>
           <h2 className="section-header mb-4">Your Reputation</h2>
           <div className="space-y-3 text-sm text-text-muted leading-relaxed">
             <p>
@@ -96,7 +100,8 @@ export default function HowItWorksPage() {
         </section>
 
         {/* Section 5 — Fee table */}
-        <section>
+        <section className="relative rounded-2xl border border-border-subtle/30 bg-surface p-6 -mx-6">
+          <span className="absolute top-2 right-4 font-display text-[180px] font-black leading-none text-text-primary opacity-[0.03] select-none">05</span>
           <h2 className="section-header mb-4">Fee Structure</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

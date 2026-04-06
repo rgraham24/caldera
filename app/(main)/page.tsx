@@ -55,15 +55,15 @@ export default async function HomePage() {
     price_change_24h: parseFloat(((Math.random() - 0.35) * 20).toFixed(1)),
   });
 
+  // Unified token list — all entities sorted by coin price
   const sortedCreators = allCreators
-    .filter((c) => !c.entity_type || c.entity_type === "individual")
     .sort((a, b) => {
       const aActive = a.deso_username && a.creator_coin_price > 1 ? 1 : 0;
       const bActive = b.deso_username && b.creator_coin_price > 1 ? 1 : 0;
       if (bActive !== aActive) return bActive - aActive;
       return b.creator_coin_price - a.creator_coin_price;
     })
-    .slice(0, 8)
+    .slice(0, 16)
     .map(addChange);
 
   const teamTokens = allCreators

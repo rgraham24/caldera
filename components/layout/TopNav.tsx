@@ -12,7 +12,7 @@ import { NotificationBell } from "./NotificationBell";
 const NAV_ITEMS = [
   { href: "/", label: "Explore" },
   { href: "/markets", label: "Markets" },
-  { href: "/creators", label: "Creators" },
+  { href: "/creators", label: "Tokens" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/how-it-works", label: "How it works" },
 ];
@@ -27,7 +27,7 @@ export function TopNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border-visible/40 bg-background/90 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-caldera/15 bg-[rgba(8,15,28,0.85)] backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
         <div className="flex h-[4.25rem] items-center justify-between">
           {/* Logo */}
@@ -45,10 +45,10 @@ export function TopNav() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-sm font-medium uppercase tracking-wide transition-colors",
+                    "px-3 py-2 text-sm font-medium uppercase tracking-wide transition-colors border-b-2",
                     pathname === item.href
-                      ? "bg-surface-2 text-text-primary"
-                      : "text-text-muted hover:bg-surface hover:text-text-primary"
+                      ? "border-caldera text-text-primary"
+                      : "border-transparent text-text-muted hover:text-text-primary"
                   )}
                 >
                   {item.label}
