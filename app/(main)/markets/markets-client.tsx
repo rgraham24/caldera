@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { Market, Category } from "@/types";
+import type { Market } from "@/types";
 import { CATEGORIES } from "@/types";
 import { MarketGrid } from "@/components/markets/MarketGrid";
-import { CategoryPill } from "@/components/shared/CategoryPill";
+import { cn } from "@/lib/utils";
 
 type SortOption = "trending" | "volume" | "newest" | "resolving_soon";
 
@@ -26,10 +26,32 @@ type MarketsClientProps = {
   markets: Market[];
 };
 
-export function MarketsClient({ markets }: MarketsClientProps) {
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set()
+function Pill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-all whitespace-nowrap min-h-[36px]",
+        active
+          ? "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-default)]"
+          : "text-[var(--text-secondary)] bg-transparent border-transparent hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+      )}
+    >
+      {children}
+    </button>
   );
+}
+
+export function MarketsClient({ markets }: MarketsClientProps) {
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("trending");
 
@@ -75,20 +97,13 @@ export function MarketsClient({ markets }: MarketsClientProps) {
         result.sort((a, b) => b.total_volume - a.total_volume);
         break;
       case "newest":
-        result.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime()
-        );
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
       case "resolving_soon":
         result.sort((a, b) => {
           if (!a.resolve_at) return 1;
           if (!b.resolve_at) return -1;
-          return (
-            new Date(a.resolve_at).getTime() -
-            new Date(b.resolve_at).getTime()
-          );
+          return new Date(a.resolve_at).getTime() - new Date(b.resolve_at).getTime();
         });
         break;
     }
@@ -98,56 +113,101 @@ export function MarketsClient({ markets }: MarketsClientProps) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <h1 className="mb-6 font-display text-2xl font-bold text-text-primary">
+      <h1 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">
         Markets
       </h1>
 
+      {/* Mobile: horizontal filter bar */}
+      <div className="mb-6 lg:hidden">
+        <div className="overflow-x-auto scrollbar-hide pb-2">
+          <div className="flex gap-2">
+            <Pill active={selectedCategories.size === 0} onClick={() => setSelectedCategories(new Set())}>
+              All
+            </Pill>
+            {CATEGORIES.map((cat) => (
+              <Pill
+                key={cat.value}
+                active={selectedCategories.has(cat.value)}
+                onClick={() => toggleCategory(cat.value)}
+              >
+                {cat.label}
+              </Pill>
+            ))}
+            <div
+              className="shrink-0 self-center mx-2 h-4 w-px"
+              style={{ background: "var(--border-default)" }}
+            />
+            {SORT_OPTIONS.map((opt) => (
+              <Pill
+                key={opt.value}
+                active={sortBy === opt.value}
+                onClick={() => setSortBy(opt.value)}
+              >
+                {opt.label}
+              </Pill>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-8 lg:flex-row">
-        {/* Sidebar filters */}
-        <aside className="w-full shrink-0 lg:w-56">
+        {/* Desktop sidebar filters */}
+        <aside className="hidden w-56 shrink-0 lg:block">
           <div className="sticky top-20 space-y-6">
             {/* Categories */}
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <h3
+                className="mb-3 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--text-tertiary)" }}
+              >
                 Category
               </h3>
               <div className="flex flex-wrap gap-2">
+                <Pill
+                  active={selectedCategories.size === 0}
+                  onClick={() => setSelectedCategories(new Set())}
+                >
+                  All
+                </Pill>
                 {CATEGORIES.map((cat) => (
-                  <CategoryPill
+                  <Pill
                     key={cat.value}
-                    category={cat.label}
                     active={selectedCategories.has(cat.value)}
                     onClick={() => toggleCategory(cat.value)}
-                  />
+                  >
+                    {cat.label}
+                  </Pill>
                 ))}
               </div>
             </div>
 
             {/* Status */}
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <h3
+                className="mb-3 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--text-tertiary)" }}
+              >
                 Status
               </h3>
               <div className="flex flex-wrap gap-2">
                 {STATUS_OPTIONS.map((opt) => (
-                  <button
+                  <Pill
                     key={opt.value}
+                    active={statusFilter === opt.value}
                     onClick={() => setStatusFilter(opt.value)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                      statusFilter === opt.value
-                        ? "bg-caldera/10 text-caldera border border-caldera/20"
-                        : "bg-surface border border-border-subtle text-text-muted hover:text-text-primary"
-                    }`}
                   >
                     {opt.label}
-                  </button>
+                  </Pill>
                 ))}
               </div>
             </div>
 
             {/* Sort */}
             <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <h3
+                className="mb-3 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--text-tertiary)" }}
+              >
                 Sort By
               </h3>
               <div className="flex flex-col gap-1">
@@ -155,11 +215,12 @@ export function MarketsClient({ markets }: MarketsClientProps) {
                   <button
                     key={opt.value}
                     onClick={() => setSortBy(opt.value)}
-                    className={`rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    className={cn(
+                      "rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors min-h-[44px]",
                       sortBy === opt.value
-                        ? "bg-surface-2 text-text-primary font-medium"
-                        : "text-text-muted hover:bg-surface hover:text-text-primary"
-                    }`}
+                        ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+                    )}
                   >
                     {opt.label}
                   </button>
@@ -171,9 +232,9 @@ export function MarketsClient({ markets }: MarketsClientProps) {
 
         {/* Main grid */}
         <div className="flex-1">
-          <div className="mb-4 text-sm text-text-muted">
+          <p className="mb-4 text-sm text-[var(--text-tertiary)]">
             {filtered.length} market{filtered.length !== 1 ? "s" : ""}
-          </div>
+          </p>
           <MarketGrid markets={filtered} />
         </div>
       </div>

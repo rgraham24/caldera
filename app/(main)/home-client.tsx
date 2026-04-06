@@ -82,80 +82,84 @@ export function HomeClient({
 
           {/* Floating market probability numbers */}
           <div className="pointer-events-none absolute inset-0 hidden overflow-hidden md:block">
-            <span className="absolute left-[8%] top-[20%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:0.5s]">YES 67%</span>
-            <span className="absolute right-[10%] top-[30%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:1s]">NO 33%</span>
-            <span className="absolute left-[12%] bottom-[30%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:1.5s]">YES 82%</span>
-            <span className="absolute right-[8%] bottom-[25%] font-mono text-xs text-text-faint opacity-40 animate-pulse [animation-delay:0.8s]">YES 44%</span>
-            <span className="absolute left-[20%] top-[60%] font-mono text-xs text-text-faint opacity-30 animate-pulse [animation-delay:2.2s]">NO 56%</span>
-            <span className="absolute right-[18%] top-[65%] font-mono text-xs text-text-faint opacity-30 animate-pulse [animation-delay:1.8s]">YES 91%</span>
+            <span className="absolute left-[8%] top-[20%] font-mono text-xs text-[var(--text-faint)] opacity-[0.04] animate-pulse [animation-delay:0.5s]">YES 67%</span>
+            <span className="absolute right-[10%] top-[30%] font-mono text-xs text-[var(--text-faint)] opacity-[0.04] animate-pulse [animation-delay:1s]">NO 33%</span>
+            <span className="absolute left-[12%] bottom-[30%] font-mono text-xs text-[var(--text-faint)] opacity-[0.04] animate-pulse [animation-delay:1.5s]">YES 82%</span>
+            <span className="absolute right-[8%] bottom-[25%] font-mono text-xs text-[var(--text-faint)] opacity-[0.04] animate-pulse [animation-delay:0.8s]">YES 44%</span>
+            <span className="absolute left-[20%] top-[60%] font-mono text-xs text-[var(--text-faint)] opacity-[0.04] animate-pulse [animation-delay:2.2s]">NO 56%</span>
+            <span className="absolute right-[18%] top-[65%] font-mono text-xs text-[var(--text-faint)] opacity-[0.04] animate-pulse [animation-delay:1.8s]">YES 91%</span>
           </div>
 
           <div className="relative z-10 max-w-3xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-caldera/20 bg-caldera/10 px-4 py-1.5 text-xs font-medium text-caldera">
-              <span className="h-1.5 w-1.5 rounded-full bg-caldera animate-pulse" />
-              Live on DeSo blockchain
-            </div>
-
-            <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-text-primary md:text-7xl">
-              Predict outcomes on{" "}
-              <span className="text-caldera">real people.</span>
+            <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-[var(--text-primary)] md:text-7xl">
+              Predict anything.
               <br />
-              Hold their tokens.{" "}
-              <span className="text-yes">Earn from every trade.</span>
+              Hold the token.
+              <br />
+              <span style={{ color: "var(--accent)" }}>Earn from every trade.</span>
             </h1>
 
-            <p className="mx-auto mt-6 max-w-xl text-lg text-text-muted">
-              The first prediction market where holding tokens earns you passive income from every bet.
+            <p className="mx-auto mt-6 max-w-lg text-lg text-[var(--text-secondary)]">
+              The prediction market where token holders earn passive income from every trade — automatically.
             </p>
 
             {/* Large search bar */}
             <div className="relative mx-auto mt-8 max-w-md">
-              <svg className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 ref={searchRef}
                 type="text"
                 placeholder="Search markets, people, or tokens..."
-                className="w-full rounded-2xl border border-border-subtle/50 bg-surface py-4 pl-12 pr-4 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
+                className="w-full rounded-xl py-3.5 pl-12 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                style={{
+                  height: "3rem",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border-default)",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.2)",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
               />
             </div>
 
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href="/markets"
-                className="rounded-xl bg-caldera px-8 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
+                className="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-gray-100"
               >
                 Explore Markets →
               </Link>
               <Link
                 href="/how-it-works"
-                className="rounded-xl border border-border-subtle/50 px-8 py-3 text-sm font-semibold text-text-muted hover:border-border-visible/60 hover:text-text-primary transition-colors"
+                className="rounded-lg px-6 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors"
+                style={{ border: "1px solid var(--border-default)" }}
               >
                 How It Works
               </Link>
             </div>
 
             {/* Social proof */}
-            <p className="mt-8 text-xs text-text-faint">
-              <span className="font-mono text-caldera">{formatCompactCurrency(totalVolume)}</span> traded ·{" "}
-              <span className="font-mono text-caldera">{activeMarketCount}</span> active markets ·{" "}
-              <span className="font-mono text-caldera">8,200+</span> token holders
+            <p className="mt-8 text-center text-sm text-[var(--text-tertiary)]">
+              <span className="tabular-nums">{formatCompactCurrency(totalVolume)}</span> predicted ·{" "}
+              <span className="tabular-nums">{activeMarketCount}</span> active markets ·{" "}
+              8,200+ token holders
             </p>
           </div>
         </section>
 
         {/* HOW IT WORKS — 3 cards */}
-        <section className="border-t border-border-subtle/20 bg-surface/30 py-16 px-4">
+        <section className="py-16 px-4" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
           <div className="mx-auto max-w-5xl">
-            <h2 className="mb-2 text-center font-display text-3xl font-bold text-text-primary">How it works</h2>
-            <p className="mb-10 text-center text-sm text-text-muted">Three things. That&apos;s it.</p>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <h2 className="mb-2 text-center text-2xl font-semibold text-[var(--text-primary)]">How it works</h2>
+            <p className="mb-10 text-center text-sm text-[var(--text-secondary)]">Three things. That&apos;s it.</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {[
                 {
                   icon: "🎯",
                   title: "Predict",
-                  body: "Pick YES or NO on real events about real people. Get it right and earn. Simple.",
+                  body: "Pick YES or NO on any outcome. Sports games, elections, earnings, anything.",
                 },
                 {
                   icon: "💎",
@@ -170,11 +174,12 @@ export function HomeClient({
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-border-subtle/30 bg-surface p-6 text-center"
+                  className="rounded-xl p-6 text-center"
+                  style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}
                 >
-                  <div className="mb-3 text-4xl">{item.icon}</div>
-                  <h3 className="mb-2 font-display text-xl font-bold text-text-primary">{item.title}</h3>
-                  <p className="text-sm text-text-muted leading-relaxed">{item.body}</p>
+                  <div className="mb-3 text-3xl">{item.icon}</div>
+                  <h3 className="mb-2 text-base font-semibold text-[var(--text-primary)]">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{item.body}</p>
                 </div>
               ))}
             </div>
@@ -185,8 +190,8 @@ export function HomeClient({
         {featuredMarkets.length > 0 && (
           <section className="py-16 px-4">
             <div className="mx-auto max-w-5xl">
-              <h2 className="mb-2 font-display text-3xl font-bold text-text-primary">What people are predicting right now</h2>
-              <p className="mb-8 text-sm text-text-muted">Click any market to see the full detail and trade.</p>
+              <h2 className="mb-2 text-2xl font-semibold text-[var(--text-primary)]">What people are predicting right now</h2>
+              <p className="mb-8 text-sm text-[var(--text-secondary)]">Click any market to trade.</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {featuredMarkets.map((m) => (
                   <MarketCard key={m.id} market={m} />
@@ -195,7 +200,7 @@ export function HomeClient({
               <div className="mt-6 text-center">
                 <Link
                   href="/markets"
-                  className="text-sm font-medium text-caldera hover:text-caldera/80 transition-colors"
+                  className="text-sm font-medium text-[var(--accent)] transition-colors hover:opacity-80"
                 >
                   See all {activeMarketCount} markets →
                 </Link>
@@ -206,10 +211,10 @@ export function HomeClient({
 
         {/* TRENDING TOKENS strip */}
         {safeCreators.length > 0 && (
-          <section className="border-t border-border-subtle/20 bg-surface/30 py-12 px-4">
+          <section className="py-12 px-4" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
             <div className="mx-auto max-w-5xl">
-              <h2 className="mb-2 font-display text-2xl font-bold text-text-primary">Hold these tokens to earn passively</h2>
-              <p className="mb-6 text-sm text-text-muted">Token holders earn a share of every trade on that person&apos;s markets.</p>
+              <h2 className="mb-2 text-xl font-semibold text-[var(--text-primary)]">Hold these tokens to earn passively</h2>
+              <p className="mb-6 text-sm text-[var(--text-secondary)]">Token holders earn a share of every trade on that person&apos;s markets.</p>
               <div className="overflow-hidden">
                 <div className="flex gap-3 animate-[scroll-left_60s_linear_infinite] hover:[animation-play-state:paused]">
                   {[...safeCreators, ...safeCreators].map((c, i) => {
@@ -218,7 +223,8 @@ export function HomeClient({
                     return (
                       <div
                         key={`${c.id}-${i}`}
-                        className="flex min-w-[190px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3"
+                        className="flex min-w-[190px] shrink-0 items-center gap-3 rounded-xl px-4 py-3"
+                        style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}
                       >
                         <CreatorAvatar creator={c} size="md" />
                         <div className="min-w-0 flex-1">
@@ -246,16 +252,20 @@ export function HomeClient({
 
         {/* CREATOR CTA */}
         <section className="py-16 px-4">
-          <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/20 bg-amber-500/5 p-8 text-center">
+          <div
+            className="mx-auto max-w-2xl rounded-xl p-8 text-center"
+            style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(245,158,11,0.04)" }}
+          >
             <div className="mb-3 text-3xl">🏆</div>
-            <h2 className="mb-2 font-display text-2xl font-bold text-text-primary">Are you on Caldera?</h2>
-            <p className="mb-6 text-sm text-text-muted leading-relaxed">
+            <h2 className="mb-2 text-2xl font-semibold text-[var(--text-primary)]">Are you on Caldera?</h2>
+            <p className="mb-6 text-sm leading-relaxed text-[var(--text-secondary)]">
               Creators, athletes, and public figures can claim their profile and earn from every prediction about them.
               Your profile might already be here.
             </p>
             <Link
               href="/creators"
-              className="inline-block rounded-xl bg-amber-500/20 px-6 py-3 text-sm font-semibold text-amber-400 hover:bg-amber-500/30 transition-colors"
+              className="inline-block rounded-lg px-6 py-3 text-sm font-semibold text-amber-400 transition-colors"
+              style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)" }}
             >
               Claim Your Profile →
             </Link>
@@ -263,20 +273,21 @@ export function HomeClient({
         </section>
 
         {/* FINAL CTA */}
-        <section className="border-t border-border-subtle/20 bg-surface/50 py-16 px-4 text-center">
+        <section className="py-16 px-4 text-center" style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
           <div className="mx-auto max-w-lg">
-            <h2 className="mb-3 font-display text-3xl font-bold text-text-primary">Ready to start?</h2>
-            <p className="mb-8 text-sm text-text-muted">Connect your DeSo wallet to trade. Or just browse first.</p>
+            <h2 className="mb-3 text-3xl font-semibold text-[var(--text-primary)]">Ready to start?</h2>
+            <p className="mb-8 text-sm text-[var(--text-secondary)]">Connect your wallet to trade. Or just browse first.</p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href="/login"
-                className="rounded-xl bg-caldera px-8 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
+                className="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-gray-100"
               >
                 Connect Wallet & Trade →
               </Link>
               <Link
                 href="/markets"
-                className="rounded-xl border border-border-subtle/50 px-8 py-3 text-sm font-semibold text-text-muted hover:border-border-visible/60 hover:text-text-primary transition-colors"
+                className="rounded-lg px-6 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors"
+                style={{ border: "1px solid var(--border-default)" }}
               >
                 Browse Markets →
               </Link>
@@ -320,36 +331,35 @@ export function HomeClient({
   return (
     <div>
       {/* Stat strip */}
-      <div className="border-b border-border-subtle/30 bg-surface/50">
-        <div className="mx-auto max-w-7xl px-4 py-1.5 md:px-6 lg:px-8">
-          <p className="text-[10px] text-text-muted">
-            <span className="font-mono text-caldera">{formatCompactCurrency(totalVolume)}</span> traded ·{" "}
-            <span className="font-mono text-caldera">{activeMarketCount}</span> markets ·{" "}
-            <span className="font-mono text-caldera">8,200+</span> holders earning ·{" "}
-            <span className="flex items-center gap-1 inline-flex"><span className="h-1 w-1 rounded-full bg-yes animate-pulse" /> Powered by DeSo</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Activity ticker */}
-      <div className="border-b border-border-subtle/20 bg-surface/30 overflow-hidden">
+      <div className="overflow-hidden" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
           <div className="flex animate-[scroll_30s_linear_infinite] gap-8 whitespace-nowrap py-2">
             {safeTrades.map((t) => (
-              <span key={t.id} className="text-[11px] text-text-muted">
-                {t.side === "yes" ? "📈" : "📉"}{" "}
-                <span className={t.side === "yes" ? "text-yes" : "text-no"}>
+              <span key={t.id} className="flex items-center gap-1.5 text-xs">
+                <span
+                  className="rounded px-1 py-0.5 text-[10px] font-semibold"
+                  style={{
+                    color: t.side === "yes" ? "var(--yes)" : "var(--no)",
+                    background: t.side === "yes" ? "var(--yes-bg)" : "var(--no-bg)",
+                  }}
+                >
                   {t.side.toUpperCase()}
-                </span>{" "}
-                on {t.market.title.slice(0, 40)}... · {formatCurrency(t.gross_amount)} · {formatRelativeTime(t.created_at)}
+                </span>
+                <span className="text-[var(--text-secondary)]">{t.market.title.slice(0, 38)}</span>
+                <span className="font-mono font-medium text-[var(--text-primary)] tabular-nums">{formatCurrency(t.gross_amount)}</span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span className="text-[var(--text-tertiary)]">{formatRelativeTime(t.created_at)}</span>
               </span>
             ))}
             {safeCreators.slice(0, 3).map((c) => (
-              <span key={c.id} className="text-[11px] text-text-muted">
-                {c.price_change_24h >= 0 ? "🔥" : "📉"} ${c.deso_username || c.creator_coin_symbol}{" "}
-                <span className={c.price_change_24h >= 0 ? "text-yes" : "text-no"}>
+              <span key={c.id} className="flex items-center gap-1.5 text-xs">
+                <span className="font-mono text-[var(--text-secondary)]">${c.deso_username || c.creator_coin_symbol}</span>
+                <span
+                  className="font-mono font-medium tabular-nums"
+                  style={{ color: c.price_change_24h >= 0 ? "var(--yes)" : "var(--no)" }}
+                >
                   {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
-                </span> today
+                </span>
               </span>
             ))}
           </div>
@@ -357,25 +367,29 @@ export function HomeClient({
       </div>
 
       {/* Category nav */}
-      <div className="border-b border-border-subtle/20 bg-background">
+      <div style={{ borderBottom: "1px solid var(--border-subtle)" }}>
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
           <div className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
             <button
               onClick={() => setActiveCategory(null)}
               className={cn(
-                "shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                !activeCategory ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
+                "shrink-0 cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-all whitespace-nowrap",
+                !activeCategory
+                  ? "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-default)]"
+                  : "text-[var(--text-secondary)] bg-transparent border-transparent hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
               )}
             >
-              🔥 Trending
+              All
             </button>
             {CATEGORIES.map((c) => (
               <button
                 key={c.value}
                 onClick={() => setActiveCategory(c.value)}
                 className={cn(
-                  "shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                  activeCategory === c.value ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
+                  "shrink-0 cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-all whitespace-nowrap",
+                  activeCategory === c.value
+                    ? "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-default)]"
+                    : "text-[var(--text-secondary)] bg-transparent border-transparent hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
                 )}
               >
                 {c.label}
@@ -391,78 +405,86 @@ export function HomeClient({
           {/* LEFT — Hero Market */}
           {activeHero && (
             <div className="flex-1 lg:max-w-[65%]">
-              <div className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
-                {/* Category + badges */}
-                <div className="mb-3 flex items-center gap-2 text-xs text-text-muted">
-                  <span className="capitalize">{activeHero.category}</span>
-                  {activeHero.resolve_at && new Date(activeHero.resolve_at).getTime() - Date.now() < 72 * 3600000 && (
-                    <span className="rounded-full bg-no/10 px-2 py-0.5 text-[10px] font-semibold text-no">
-                      RESOLVES SOON
-                    </span>
+              <div
+                className="rounded-xl p-6"
+                style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+              >
+                {/* Category + volume + date */}
+                <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                  <span className="uppercase tracking-wider font-medium">{activeHero.category}</span>
+                  <span>·</span>
+                  <span className="font-mono tabular-nums">{formatCompactCurrency(activeHero.total_volume)} Vol</span>
+                  {activeHero.resolve_at && (
+                    <>
+                      <span>·</span>
+                      <span>{formatRelativeTime(activeHero.resolve_at)}</span>
+                    </>
                   )}
-                  <span className="ml-auto font-mono text-caldera">
-                    {formatCompactCurrency(activeHero.total_volume)} Vol
+                  <span className="ml-auto flex items-center gap-1 text-[var(--text-tertiary)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+                    {watching} watching
                   </span>
                 </div>
 
                 {/* Title */}
                 <Link href={`/markets/${activeHero.slug}`}>
-                  <h2 className="mb-4 font-display text-3xl font-bold tracking-tight text-text-primary hover:text-caldera transition-colors">
+                  <h2 className="mb-4 text-2xl font-bold leading-tight text-[var(--text-primary)] transition-colors hover:text-[var(--accent)]">
                     {activeHero.title}
                   </h2>
                 </Link>
 
                 {/* Creator bar */}
                 {heroCreator && (
-                  <div className="mb-4 flex items-center gap-3">
+                  <div className="mb-5 flex items-center gap-3">
                     <CreatorAvatar creator={heroCreator} size="sm" />
-                    <Link href={`/creators/${heroCreator.slug}`} className="text-sm font-medium text-text-primary hover:text-caldera">
+                    <Link href={`/creators/${heroCreator.slug}`} className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
                       {heroCreator.name}
                     </Link>
-                    <span className="font-mono text-xs text-text-muted">
+                    <span className="font-mono text-xs text-[var(--text-tertiary)] tabular-nums">
                       {formatCurrency(heroCreator.creator_coin_price)}
                     </span>
                   </div>
                 )}
 
-                {/* Probability bars */}
-                <div className="mb-4 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="w-10 text-right font-mono text-sm font-bold text-yes">YES</span>
-                    <div className="flex-1 h-8 rounded-full bg-background overflow-hidden">
-                      <div className="h-full rounded-full bg-yes/20 flex items-center pl-3" style={{ width: `${yesPercent}%` }}>
-                        <span className="font-mono text-sm font-bold text-yes">{yesPercent}%</span>
-                      </div>
-                    </div>
+                {/* Probability — two numbers side by side */}
+                <div className="mb-4 flex items-center gap-4">
+                  <div className="flex-1 text-center">
+                    <p className="text-4xl font-bold tabular-nums text-yes leading-none">{yesPercent}%</p>
+                    <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">YES</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="w-10 text-right font-mono text-sm font-bold text-no">NO</span>
-                    <div className="flex-1 h-8 rounded-full bg-background overflow-hidden">
-                      <div className="h-full rounded-full bg-no/20 flex items-center pl-3" style={{ width: `${noPercent}%` }}>
-                        <span className="font-mono text-sm font-bold text-no">{noPercent}%</span>
-                      </div>
-                    </div>
+                  <div className="h-12 w-px" style={{ background: "var(--border-default)" }} />
+                  <div className="flex-1 text-center">
+                    <p className="text-4xl font-bold tabular-nums text-no leading-none">{noPercent}%</p>
+                    <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">NO</p>
                   </div>
                 </div>
 
-                {/* Live stats */}
-                <div className="mb-4 flex items-center gap-4 text-[11px] text-text-muted">
-                  <span className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-no animate-pulse" />
-                    {watching} watching
-                  </span>
-                  <span>{activeHero.resolve_at && formatRelativeTime(activeHero.resolve_at)}</span>
+                {/* Probability bar */}
+                <div
+                  className="mb-5 h-1.5 w-full rounded-full"
+                  style={{ background: "var(--border-subtle)" }}
+                >
+                  <div
+                    className="h-full rounded-full bg-yes transition-all duration-500"
+                    style={{ width: `${yesPercent}%` }}
+                  />
                 </div>
 
                 {/* Trade buttons */}
                 <div className="flex gap-3">
                   <Link href={`/markets/${activeHero.slug}`} className="flex-1">
-                    <button className="w-full rounded-xl bg-yes/15 py-3 text-sm font-bold text-yes transition-colors hover:bg-yes/25">
+                    <button
+                      className="w-full rounded-lg py-3 text-sm font-semibold text-yes transition-colors min-h-[44px]"
+                      style={{ background: "var(--yes-bg)", border: "1px solid rgba(34,197,94,0.2)" }}
+                    >
                       Buy YES · {yesPercent}¢
                     </button>
                   </Link>
                   <Link href={`/markets/${activeHero.slug}`} className="flex-1">
-                    <button className="w-full rounded-xl bg-no/15 py-3 text-sm font-bold text-no transition-colors hover:bg-no/25">
+                    <button
+                      className="w-full rounded-lg py-3 text-sm font-semibold text-no transition-colors min-h-[44px]"
+                      style={{ background: "var(--no-bg)", border: "1px solid rgba(239,68,68,0.2)" }}
+                    >
                       Buy NO · {noPercent}¢
                     </button>
                   </Link>
@@ -473,18 +495,22 @@ export function HomeClient({
 
           {/* RIGHT — Sidebar */}
           <div className="w-full lg:w-[35%] space-y-4">
-            {/* Trending Now */}
-            <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Trending Now</h3>
+            {/* Hot Markets */}
+            <div
+              className="rounded-xl p-4"
+              style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+            >
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Hot Markets</h3>
               <div className="space-y-3">
                 {trendingMarkets.map((m) => (
                   <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-3 group">
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-text-primary group-hover:text-caldera transition-colors">
-                        {m.title}
-                      </p>
-                    </div>
-                    <span className={cn("font-mono text-sm font-bold shrink-0", m.yes_price >= 0.5 ? "text-yes" : "text-no")}>
+                    <p className="flex-1 truncate text-sm font-medium text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent)]">
+                      {m.title}
+                    </p>
+                    <span
+                      className="font-mono text-sm font-bold tabular-nums shrink-0"
+                      style={{ color: m.yes_price >= 0.5 ? "var(--yes)" : "var(--no)" }}
+                    >
                       {formatPercent(m.yes_price)}
                     </span>
                   </Link>
@@ -493,8 +519,11 @@ export function HomeClient({
             </div>
 
             {/* Trending Tokens */}
-            <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Trending Tokens</h3>
+            <div
+              className="rounded-xl p-4"
+              style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+            >
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Trending Tokens</h3>
               <div className="space-y-3">
                 {safeCreators.slice(0, 3).map((c) => {
                   const sym = c.deso_username || c.creator_coin_symbol;
@@ -503,15 +532,20 @@ export function HomeClient({
                       <Link href={`/creators/${c.slug}`} className="flex items-center gap-2 flex-1 min-w-0">
                         <CreatorAvatar creator={c} size="sm" />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-text-primary">{c.name}</p>
-                          <div className="flex items-center gap-1">
-                            <span className="font-mono text-xs text-caldera">{c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}</span>
+                          <p className="truncate text-sm font-medium text-[var(--text-primary)]">{c.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs tabular-nums text-[var(--accent)]">
+                              {c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}
+                            </span>
                             {c.price_change_24h >= 0 ? (
                               <ArrowUpRight className="h-3 w-3 text-yes" />
                             ) : (
                               <ArrowDownRight className="h-3 w-3 text-no" />
                             )}
-                            <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
+                            <span
+                              className="font-mono text-[10px] tabular-nums"
+                              style={{ color: c.price_change_24h >= 0 ? "var(--yes)" : "var(--no)" }}
+                            >
                               {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
                             </span>
                           </div>
@@ -520,7 +554,8 @@ export function HomeClient({
                       {c.deso_username && (
                         <button
                           onClick={() => setStakeCreator(c)}
-                          className="shrink-0 rounded-lg bg-caldera/10 px-2.5 py-1 text-[10px] font-medium text-caldera hover:bg-caldera/20 transition-colors"
+                          className="shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-medium transition-colors"
+                          style={{ background: "var(--caldera-muted)", color: "var(--accent)" }}
                         >
                           Buy ${sym}
                         </button>
@@ -533,15 +568,21 @@ export function HomeClient({
 
             {/* Recently Resolved */}
             {safeResolved.length > 0 && (
-              <div className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-text-muted">Recently Called</h3>
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+              >
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Recently Called</h3>
                 <div className="space-y-3">
                   {safeResolved.slice(0, 3).map((m) => (
                     <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-3 group">
-                      <p className="flex-1 truncate text-sm text-text-primary group-hover:text-caldera transition-colors">
+                      <p className="flex-1 truncate text-sm text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent)]">
                         {m.title}
                       </p>
-                      <span className={cn("text-xs font-bold", m.resolution_outcome === "yes" ? "text-yes" : "text-no")}>
+                      <span
+                        className="text-xs font-bold shrink-0"
+                        style={{ color: m.resolution_outcome === "yes" ? "var(--yes)" : "var(--no)" }}
+                      >
                         {m.resolution_outcome?.toUpperCase()}
                       </span>
                     </Link>
@@ -573,7 +614,7 @@ export function HomeClient({
 
         {/* Trending Tokens — auto-scroll */}
         <div className="mb-8">
-          <div className="mb-2 text-[11px] text-text-muted">Trending Tokens — hold to earn from every trade</div>
+          <div className="mb-2 text-xs text-[var(--text-tertiary)]">Trending Tokens — hold to earn from every trade</div>
           <div className="overflow-hidden">
             <div className="flex gap-3 animate-[scroll-left_60s_linear_infinite] hover:[animation-play-state:paused]">
               {[...safeCreators, ...safeCreators].map((c, i) => {
@@ -583,7 +624,8 @@ export function HomeClient({
                 return (
                   <div
                     key={`${c.id}-${i}`}
-                    className="flex min-w-[210px] shrink-0 items-center gap-3 rounded-xl border border-border-subtle/30 bg-surface px-4 py-3 transition-all hover:border-border-visible/60"
+                    className="flex min-w-[210px] shrink-0 items-center gap-3 rounded-xl px-4 py-3"
+                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
                   >
                     <CreatorAvatar creator={c} size="md" />
                     <div className="min-w-0 flex-1">
@@ -615,7 +657,7 @@ export function HomeClient({
 
         {/* All Markets grid */}
         <div>
-          <h2 className="section-header mb-5">All Markets</h2>
+          <h2 className="mb-5 text-lg font-medium text-[var(--text-primary)]">All Markets</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.filter((m) => m.id !== activeHero?.id).map((m) => (
               <MarketCard key={m.id} market={m} />

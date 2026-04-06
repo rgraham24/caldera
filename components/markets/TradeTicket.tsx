@@ -254,12 +254,12 @@ export function TradeTicket({
         onClick={handleTrade}
         disabled={amountNum <= 0 || isSubmitting || market.status !== "open"}
         className={cn(
-          "w-full text-white font-semibold",
+          "w-full font-semibold py-3 rounded-lg transition-colors",
           !isAuthenticated || market.status !== "open"
-            ? "bg-caldera hover:bg-caldera/90"
+            ? "bg-white text-black hover:bg-gray-100"
             : side === "yes"
-            ? "bg-yes hover:bg-yes/90"
-            : "bg-no hover:bg-no/90"
+            ? "bg-yes text-white hover:bg-yes/90"
+            : "bg-no text-white hover:bg-no/90"
         )}
       >
         {isSubmitting

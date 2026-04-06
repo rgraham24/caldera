@@ -68,7 +68,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
       </div>
       <p className="mb-6 flex items-center gap-2 text-xs text-text-muted">
         <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
-        Prices update live from the DeSo blockchain
+        Live prices from on-chain data
       </p>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">

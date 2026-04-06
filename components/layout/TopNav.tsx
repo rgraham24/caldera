@@ -39,13 +39,21 @@ export function TopNav() {
   }, []);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-caldera/15 bg-[rgba(8,15,28,0.85)] backdrop-blur-xl">
+    <nav
+      className="sticky top-0 z-50"
+      style={{
+        background: "rgba(10,10,15,0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: "1px solid var(--border-subtle)",
+      }}
+    >
       <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-        <div className="flex h-[4.25rem] items-center justify-between">
+        <div className="flex h-14 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="wordmark-glow font-display text-2xl font-bold tracking-tight text-caldera">
+            <Link href="/" className="flex items-center">
+              <span className="font-display text-lg font-semibold tracking-tight text-[var(--text-primary)]">
                 Caldera
               </span>
             </Link>
@@ -57,10 +65,10 @@ export function TopNav() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "px-3 py-2 text-sm font-medium uppercase tracking-wide transition-colors border-b-2",
+                    "px-3 py-1.5 text-sm font-medium transition-colors border-b-2",
                     pathname === item.href
-                      ? "border-caldera text-text-primary"
-                      : "border-transparent text-text-muted hover:text-text-primary"
+                      ? "border-[var(--accent)] text-[var(--text-primary)]"
+                      : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   )}
                 >
                   {item.label}
@@ -73,10 +81,10 @@ export function TopNav() {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm font-medium uppercase tracking-wide transition-colors",
+                        "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border-b-2",
                         pathname === item.href
-                          ? "bg-surface-2 text-text-primary"
-                          : "text-text-muted hover:bg-surface hover:text-text-primary"
+                          ? "border-[var(--accent)] text-[var(--text-primary)]"
+                          : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       )}
                     >
                       {item.label}
@@ -86,10 +94,10 @@ export function TopNav() {
                     <Link
                       href={`/profile/${user.username}`}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm font-medium uppercase tracking-wide transition-colors",
+                        "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border-b-2",
                         pathname.startsWith("/profile/")
-                          ? "bg-surface-2 text-text-primary"
-                          : "text-text-muted hover:bg-surface hover:text-text-primary"
+                          ? "border-[var(--accent)] text-[var(--text-primary)]"
+                          : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       )}
                     >
                       Profile
@@ -103,12 +111,18 @@ export function TopNav() {
           {/* Right side */}
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-faint" />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Search markets... (/)"
-                className="w-48 rounded-lg border border-border-subtle/50 bg-surface py-1.5 pl-8 pr-3 text-xs text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:w-64 transition-all"
+                placeholder="Search... (/)"
+                className="w-48 rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-all focus:outline-none focus:w-64"
+                style={{
+                  background: "var(--bg-surface)",
+                  borderColor: "var(--border-subtle)",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
               />
             </div>
 
@@ -117,24 +131,21 @@ export function TopNav() {
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
                 {desoBalanceNanos > 0 && (
-                  <span className="hidden font-mono text-xs text-text-muted sm:inline">
+                  <span className="hidden font-mono text-xs text-[var(--text-secondary)] sm:inline">
                     {(desoBalanceNanos / 1e9).toFixed(2)} DESO
                   </span>
                 )}
                 <Link href={`/profile/${user?.username}`}>
-                  <Button variant="ghost" size="sm" className="text-text-muted">
+                  <button className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                     {user?.username}
-                  </Button>
+                  </button>
                 </Link>
               </div>
             ) : (
               <Link href="/login">
-                <Button
-                  size="sm"
-                  className="bg-caldera text-white hover:bg-caldera/90"
-                >
+                <button className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-gray-100">
                   Connect
-                </Button>
+                </button>
               </Link>
             )}
 
@@ -142,7 +153,7 @@ export function TopNav() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-text-muted md:hidden"
+              className="text-[var(--text-secondary)] md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
@@ -156,7 +167,7 @@ export function TopNav() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-border-subtle pb-4 md:hidden">
+          <div className="pb-4 md:hidden" style={{ borderTop: "1px solid var(--border-subtle)" }}>
             <div className="flex flex-col gap-1 pt-2">
               {NAV_ITEMS.map((item) => (
                 <Link
@@ -164,10 +175,10 @@ export function TopNav() {
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px] flex items-center",
                     pathname === item.href
-                      ? "bg-surface-2 text-text-primary"
-                      : "text-text-muted hover:text-text-primary"
+                      ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   )}
                 >
                   {item.label}
@@ -181,10 +192,10 @@ export function TopNav() {
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        "rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px] flex items-center",
                         pathname === item.href
-                          ? "bg-surface-2 text-text-primary"
-                          : "text-text-muted hover:text-text-primary"
+                          ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       )}
                     >
                       {item.label}
@@ -195,10 +206,10 @@ export function TopNav() {
                       href={`/profile/${user.username}`}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        "rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px] flex items-center",
                         pathname.startsWith("/profile/")
-                          ? "bg-surface-2 text-text-primary"
-                          : "text-text-muted hover:text-text-primary"
+                          ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       )}
                     >
                       Profile

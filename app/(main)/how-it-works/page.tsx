@@ -59,6 +59,9 @@ export default function HowItWorksPage() {
           <p className="text-sm text-text-muted leading-relaxed">
             This isn&apos;t speculation on token price — it&apos;s passive income from prediction activity. The more people predict about someone, the more token holders earn.
           </p>
+          <p className="mt-3 text-sm text-text-muted leading-relaxed">
+            Tokens are stored on-chain. You can buy them directly on Caldera from each creator&apos;s profile page.
+          </p>
         </section>
 
         {/* Section 3 — Claiming Your Profile */}
@@ -66,7 +69,7 @@ export default function HowItWorksPage() {
           <div className="mb-4 text-3xl">🏆</div>
           <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Are you on here? Come get your money.</h2>
           <p className="mb-4 text-sm text-text-muted leading-relaxed">
-            If you&apos;re a public figure, creator, or athlete with a DeSo account, your profile is already on Caldera.
+            If you&apos;re a public figure, creator, or athlete with a Caldera profile, your account is already here.
             Claim it and earn <span className="font-semibold text-amber-400">0.75% of every prediction about you</span>.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -78,7 +81,7 @@ export default function HowItWorksPage() {
             <div className="flex-1 rounded-xl bg-background p-3 text-center">
               <p className="text-xl">2️⃣</p>
               <p className="mt-1 text-xs font-medium text-text-primary">Post a verification code</p>
-              <p className="text-[10px] text-text-muted">One post on DeSo</p>
+              <p className="text-[10px] text-text-muted">One public post</p>
             </div>
             <div className="flex-1 rounded-xl bg-background p-3 text-center">
               <p className="text-xl">3️⃣</p>
@@ -104,7 +107,7 @@ export default function HowItWorksPage() {
           {[
             {
               q: "Do I need crypto to use Caldera?",
-              a: "You need a DeSo wallet to trade. Setting one up is free and takes 2 minutes.",
+              a: "You need a wallet to trade. Setting one up is free and takes 2 minutes.",
             },
             {
               q: "How do markets resolve?",
@@ -116,7 +119,7 @@ export default function HowItWorksPage() {
             },
             {
               q: "What are tokens?",
-              a: "Tokens are on the DeSo blockchain. Holding them earns you a share of trading fees from prediction markets about that person.",
+              a: "Tokens are on-chain assets tied to creators and public figures. Holding them earns you a share of trading fees from prediction markets about that person.",
             },
           ].map((item) => (
             <div key={item.q} className="rounded-xl border border-border-subtle/30 bg-surface p-4">

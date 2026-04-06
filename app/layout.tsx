@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { DM_Sans, IBM_Plex_Mono, Sora } from "next/font/google";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -13,15 +14,10 @@ const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
 });
 
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Caldera — The Market for People",
+  title: "Caldera — Predict anything.",
   description:
-    "Predict outcomes. Take a stake. Earn from every trade.",
+    "The prediction market where token holders earn passive income from every trade — automatically.",
 };
 
 export default function RootLayout({
@@ -32,8 +28,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${ibmPlexMono.variable} ${sora.variable} h-full antialiased`}
+      className={`${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400&display=swap"
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
