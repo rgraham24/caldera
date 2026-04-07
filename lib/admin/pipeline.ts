@@ -40,113 +40,62 @@ const CURATOR_SYSTEM_PROMPT =
 
 const FEATURED_COUNT = 8;
 
-// ─── Step 1: Discover entities (Brave + Reddit + YouTube grounding) ──────────
+// ─── Step 1: Discover entities ────────────────────────────────────────────────
+
+// Hard cap on any single external fetch — silent skip on timeout
+function withTimeout<T>(promise: Promise<T>, ms = 3000): Promise<T | null> {
+  return Promise.race([
+    promise.catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
 
 const BRAVE_QUERIES = [
-  "Kick streamer arrested banned drama controversy April 2026",
-  "YouTuber beef exposed drama meltdown this week 2026",
-  "IRL streamer viral fight arrest meltdown April 2026",
-  "LivestreamFail reddit controversy ban viral clip today",
-  "influencer scandal exposed arrested April 2026",
+  "Kick streamer drama banned arrested April 2026",
+  "YouTuber influencer scandal viral this week 2026",
 ];
 
 const ENTITY_SCOUT_SYSTEM =
   'You are a hot entity scout for a prediction marketplace. List exactly 3 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.';
 
 async function fetchBraveResults(query: string, braveKey: string): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
-      { headers: { Accept: "application/json", "X-Subscription-Token": braveKey } }
-    );
-    if (!res.ok) return "";
-    const data = await res.json();
-    const results: { title: string; description: string }[] = data?.web?.results ?? [];
-    const lines = results.map((r) => `- ${r.title}: ${r.description ?? ""}`).join("\n");
-    return `Query: ${query}\nResults:\n${lines}`;
-  } catch {
-    return "";
-  }
+  const result = await withTimeout(
+    fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`, {
+      headers: { Accept: "application/json", "X-Subscription-Token": braveKey },
+    }).then((r) => (r.ok ? r.json() : null))
+  );
+  if (!result) return "";
+  const results: { title: string; description: string }[] = result?.web?.results ?? [];
+  const lines = results.map((r) => `- ${r.title}: ${r.description ?? ""}`).join("\n");
+  return lines ? `Query: ${query}\nResults:\n${lines}` : "";
 }
 
 async function fetchRedditHot(subreddit: string, limit: number): Promise<string> {
-  try {
-    const data = await fetch(
-      `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`,
-      { headers: { "User-Agent": "CalderaMarkets/1.0" } }
-    ).then((r) => r.json());
-    const titles: string[] =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (data?.data?.children ?? []).map((c: any) => c.data?.title).filter(Boolean);
-    return `Reddit r/${subreddit} hot posts:\n${titles.join("\n")}`;
-  } catch {
-    return "";
-  }
-}
-
-async function fetchYouTubeTrending(): Promise<string> {
-  try {
-    const html = await fetch("https://www.youtube.com/feed/trending?hl=en&gl=US", {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    }).then((r) => r.text());
-    const matches = html.match(/"title":\{"runs":\[\{"text":"([^"]+)"/g) ?? [];
-    const titles = matches
-      .slice(0, 10)
-      .map((m) => m.match(/"text":"([^"]+)"/)?.[1] ?? "")
-      .filter(Boolean);
-    return titles.length ? `YouTube Trending:\n${titles.join("\n")}` : "";
-  } catch {
-    return "";
-  }
+  const result = await withTimeout(
+    fetch(`https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`, {
+      headers: { "User-Agent": "CalderaMarkets/1.0" },
+    }).then((r) => (r.ok ? r.json() : null))
+  );
+  if (!result) return "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const titles: string[] = (result?.data?.children ?? []).map((c: any) => c.data?.title).filter(Boolean);
+  return titles.length ? `Reddit r/${subreddit} hot posts:\n${titles.join("\n")}` : "";
 }
 
 async function fetchKickFeatured(): Promise<string> {
-  try {
-    // Try v2 endpoint first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let data: any = await fetch("https://kick.com/api/v2/channels/featured", {
+  const result = await withTimeout(
+    fetch("https://kick.com/api/v2/channels/featured", {
       headers: { "User-Agent": "CalderaMarkets/1.0", Accept: "application/json" },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
-
-    // Fallback to v1
-    if (!data) {
-      data = await fetch("https://kick.com/api/v1/featured-livestreams", {
-        headers: { "User-Agent": "CalderaMarkets/1.0", Accept: "application/json" },
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
-    }
-
-    if (!data) return "";
-    const channels: string[] = (Array.isArray(data) ? data : [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((c: any) => c?.channel?.user?.username ?? c?.slug ?? "")
-      .filter(Boolean)
-      .slice(0, 10);
-    return channels.length ? `Kick.com Featured Live Channels:\n${channels.join("\n")}` : "";
-  } catch {
-    return "";
-  }
-}
-
-async function fetchTikTokTrending(): Promise<string> {
-  try {
-    const html = await fetch("https://www.tiktok.com/trending", {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
-      },
-    }).then((r) => r.text());
-    const tags = (html.match(/"hashtagName":"([^"]+)"/g) ?? [])
-      .slice(0, 15)
-      .map((s) => s.replace(/"hashtagName":"|"/g, ""))
-      .filter(Boolean);
-    return tags.length ? `TikTok Trending Hashtags:\n${tags.join("\n")}` : "";
-  } catch {
-    return "";
-  }
+    }).then((r) => (r.ok ? r.json() : null))
+  );
+  if (!result) return "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const channels: string[] = (Array.isArray(result) ? result : [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((c: any) => c?.channel?.user?.username ?? c?.slug ?? "")
+    .filter(Boolean)
+    .slice(0, 10);
+  return channels.length ? `Kick.com Featured Live Channels:\n${channels.join("\n")}` : "";
 }
 
 function parseEntityList(text: string): string[] {
@@ -169,7 +118,7 @@ async function callClaudeForEntities(apiKey: string, userContent: string): Promi
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 512,
+      max_tokens: 256,
       system: ENTITY_SCOUT_SYSTEM,
       messages: [{ role: "user", content: userContent }],
     }),
@@ -183,36 +132,22 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
   const braveKey = process.env.BRAVE_SEARCH_API_KEY;
 
   if (braveKey) {
-    // Fetch all sources in parallel
-    const [braveResults, lsf, boxing, mma, ksi, loganpaul, pka, youtube, kick, tiktok] =
-      await Promise.all([
-        Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
-        fetchRedditHot("LivestreamFail", 10),
-        fetchRedditHot("Boxing", 5),
-        fetchRedditHot("MMA", 5),
-        fetchRedditHot("ksi", 5),
-        fetchRedditHot("LoganPaul", 5),
-        fetchRedditHot("PKA", 5),
-        fetchYouTubeTrending(),
-        fetchKickFeatured(),
-        fetchTikTokTrending(),
-      ]);
+    // All external fetches run in parallel, each capped at 3s
+    const [braveResults, lsf, kick] = await Promise.all([
+      Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
+      fetchRedditHot("LivestreamFail", 10),
+      fetchKickFeatured(),
+    ]);
 
-    const rawData = [
-      ...braveResults.filter(Boolean),
-      lsf, boxing, mma, ksi, loganpaul, pka,
-      youtube, kick, tiktok,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    const rawData = [...braveResults, lsf, kick].filter(Boolean).join("\n\n");
 
     return callClaudeForEntities(
       apiKey,
-      `Find the 3 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit (LivestreamFail/Boxing/MMA/KSI/LoganPaul/PKA), YouTube Trending, Kick.com live channels, and TikTok Trending, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 3 entries.\n\nFresh data:\n${rawData}`
+      `Find the 3 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit LivestreamFail, and Kick.com live channels, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 3 entries.\n\nFresh data:\n${rawData}`
     );
   }
 
-  // Fallback: Claude knowledge only (no Brave key configured)
+  // Fallback: Claude knowledge only
   return callClaudeForEntities(
     apiKey,
     "List 3 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
