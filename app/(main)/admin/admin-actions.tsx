@@ -8,6 +8,9 @@ import { slugify } from "@/lib/utils";
 const ADMIN_PASSWORD = "caldera-admin-2026";
 
 export function AdminActions() {
+  const [cycling, setCycling] = useState(false);
+  const [cycleResult, setCycleResult] = useState<string | null>(null);
+
   const [curating, setCurating] = useState(false);
   const [curateResult, setCurateResult] = useState<string | null>(null);
 
@@ -23,6 +26,27 @@ export function AdminActions() {
   const [generatedMarkets, setGeneratedMarkets] = useState<GeneratedMarket[]>([]);
   const [genError, setGenError] = useState<string | null>(null);
   const [creatingIdx, setCreatingIdx] = useState<number | null>(null);
+
+  const handleCycle = async () => {
+    setCycling(true);
+    setCycleResult(null);
+    try {
+      const res = await fetch("/api/admin/autonomous-cycle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+      });
+      const { data, error } = await res.json();
+      if (error) throw new Error(error);
+      setCycleResult(
+        `✓ ${data.entities} entities → ${data.markets_created} markets created · ${data.dates_fixed} dates fixed · ${data.featured_updated} featured`
+      );
+    } catch (err) {
+      setCycleResult(`Error: ${err instanceof Error ? err.message : "Cycle failed"}`);
+    } finally {
+      setCycling(false);
+    }
+  };
 
   const handleCurate = async () => {
     setCurating(true);
@@ -130,6 +154,27 @@ export function AdminActions() {
 
   return (
     <div className="space-y-6">
+      {/* Autonomous Cycle */}
+      <div className="rounded-2xl border border-caldera/30 bg-caldera/5 p-5">
+        <h2 className="mb-3 text-sm font-semibold text-caldera">⚡ Autonomous Market Cycle</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Discovers 15 hot entities, generates 10 markets each, fixes stale dates, and curates the homepage — all in one shot. Also runs automatically every 6 hours via cron.
+        </p>
+        <Button
+          onClick={handleCycle}
+          disabled={cycling}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {cycling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {cycling ? "Running Cycle..." : "Run Autonomous Cycle"}
+        </Button>
+        {cycleResult && (
+          <p className={`mt-3 text-xs ${cycleResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {cycleResult}
+          </p>
+        )}
+      </div>
+
       {/* AI Homepage Curation */}
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">AI Homepage Curation</h2>
