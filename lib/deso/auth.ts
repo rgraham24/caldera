@@ -13,7 +13,7 @@ export function connectDeSoWallet(): void {
   const identityUrl =
     "https://identity.deso.org/log-in?" +
     new URLSearchParams({
-      accessLevelRequest: "2",
+      accessLevelRequest: "3",
       redirect_uri: callbackUrl,
       derive: "false",
     }).toString();

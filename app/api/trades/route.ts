@@ -8,6 +8,7 @@ const tradeSchema = z.object({
   marketId: z.string().uuid(),
   side: z.enum(["yes", "no"]),
   amount: z.number().positive(),
+  txnHash: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { marketId, side, amount } = parsed.data;
+    const { marketId, side, amount, txnHash } = parsed.data;
     const supabase = await createClient();
 
     // Get current user
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
         creator_fee_amount: fees.creatorFee,
         market_creator_fee_amount: fees.marketCreatorFee,
         coin_holder_pool_amount: fees.coinHolderPoolFee,
+        tx_hash: txnHash,
       })
       .select()
       .single();

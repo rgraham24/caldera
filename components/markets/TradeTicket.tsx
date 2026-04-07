@@ -15,6 +15,7 @@ import {
 import { useAppStore } from "@/store";
 import { Info } from "lucide-react";
 import { connectDeSoWallet } from "@/lib/deso/auth";
+import { executeDesoTransfer } from "@/lib/deso/transactions";
 
 type TradeTicketProps = {
   market: Market;
@@ -77,6 +78,11 @@ export function TradeTicket({
     setError(null);
 
     try {
+      const { txnHash } = await executeDesoTransfer(
+        useAppStore.getState().desoPublicKey!,
+        amountNum
+      );
+
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,6 +90,7 @@ export function TradeTicket({
           marketId: market.id,
           side,
           amount: amountNum,
+          txnHash,
         }),
       });
 
