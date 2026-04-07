@@ -36,15 +36,11 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
   const [sortBy, setSortBy] = useState("price");
   const [search, setSearch] = useState("");
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
-  const { isConnected, desoBalanceUSD, openDepositModal } = useAppStore();
+  const { isConnected } = useAppStore();
 
   const handleBuyClick = (c: Creator) => {
     if (!isConnected) {
       connectDeSoWallet();
-      return;
-    }
-    if (desoBalanceUSD < 1) {
-      openDepositModal();
       return;
     }
     setStakeCreator(c);
