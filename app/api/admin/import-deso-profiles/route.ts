@@ -9,7 +9,7 @@ const DESO_PRICE_USD = 5.25;
 
 export async function POST(req: NextRequest) {
   try {
-    const { count = 100, desoPublicKey, adminPassword } = await req.json();
+    const { count = 100, cursor, desoPublicKey, adminPassword } = await req.json();
 
     const isAdmin =
       ADMIN_KEYS.includes(desoPublicKey || "") ||
@@ -21,14 +21,17 @@ export async function POST(req: NextRequest) {
 
     const numToFetch = Math.min(Math.max(1, Number(count)), 1000);
 
+    const desoBody: Record<string, unknown> = {
+      NumToFetch: numToFetch,
+      OrderBy: "influencer_coin_price",
+      NoErrorOnMissing: true,
+    };
+    if (cursor) desoBody.LastPublicKeyBase58Check = cursor;
+
     const profilesRes = await fetch("https://node.deso.org/api/v0/get-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        NumToFetch: numToFetch,
-        OrderBy: "influencer_coin_price",
-        NoErrorOnMissing: true,
-      }),
+      body: JSON.stringify(desoBody),
     });
 
     if (!profilesRes.ok) {
@@ -74,7 +77,14 @@ export async function POST(req: NextRequest) {
       if (error) { skipped++; } else { imported++; }
     }
 
-    return NextResponse.json({ data: { imported, skipped, total: profiles.length } });
+    const lastProfile = profiles[profiles.length - 1];
+    const nextCursor = lastProfile
+      ? (lastProfile.PublicKeyBase58Check as string) ?? null
+      : null;
+
+    return NextResponse.json({
+      data: { imported, skipped, total: profiles.length, nextCursor },
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal server error" },
