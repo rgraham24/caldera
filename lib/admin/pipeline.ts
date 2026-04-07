@@ -100,6 +100,55 @@ async function fetchYouTubeTrending(): Promise<string> {
   }
 }
 
+async function fetchKickFeatured(): Promise<string> {
+  try {
+    // Try v2 endpoint first
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let data: any = await fetch("https://kick.com/api/v2/channels/featured", {
+      headers: { "User-Agent": "CalderaMarkets/1.0", Accept: "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+
+    // Fallback to v1
+    if (!data) {
+      data = await fetch("https://kick.com/api/v1/featured-livestreams", {
+        headers: { "User-Agent": "CalderaMarkets/1.0", Accept: "application/json" },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+    }
+
+    if (!data) return "";
+    const channels: string[] = (Array.isArray(data) ? data : [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((c: any) => c?.channel?.user?.username ?? c?.slug ?? "")
+      .filter(Boolean)
+      .slice(0, 10);
+    return channels.length ? `Kick.com Featured Live Channels:\n${channels.join("\n")}` : "";
+  } catch {
+    return "";
+  }
+}
+
+async function fetchTikTokTrending(): Promise<string> {
+  try {
+    const html = await fetch("https://www.tiktok.com/trending", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
+      },
+    }).then((r) => r.text());
+    const tags = (html.match(/"hashtagName":"([^"]+)"/g) ?? [])
+      .slice(0, 15)
+      .map((s) => s.replace(/"hashtagName":"|"/g, ""))
+      .filter(Boolean);
+    return tags.length ? `TikTok Trending Hashtags:\n${tags.join("\n")}` : "";
+  } catch {
+    return "";
+  }
+}
+
 function parseEntityList(text: string): string[] {
   try {
     return JSON.parse(text);
@@ -135,27 +184,31 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
 
   if (braveKey) {
     // Fetch all sources in parallel
-    const [braveResults, lsf, boxing, mma, youtube] = await Promise.all([
-      Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
-      fetchRedditHot("LivestreamFail", 10),
-      fetchRedditHot("Boxing", 5),
-      fetchRedditHot("MMA", 5),
-      fetchYouTubeTrending(),
-    ]);
+    const [braveResults, lsf, boxing, mma, ksi, loganpaul, pka, youtube, kick, tiktok] =
+      await Promise.all([
+        Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
+        fetchRedditHot("LivestreamFail", 10),
+        fetchRedditHot("Boxing", 5),
+        fetchRedditHot("MMA", 5),
+        fetchRedditHot("ksi", 5),
+        fetchRedditHot("LoganPaul", 5),
+        fetchRedditHot("PKA", 5),
+        fetchYouTubeTrending(),
+        fetchKickFeatured(),
+        fetchTikTokTrending(),
+      ]);
 
     const rawData = [
       ...braveResults.filter(Boolean),
-      lsf,
-      boxing,
-      mma,
-      youtube,
+      lsf, boxing, mma, ksi, loganpaul, pka,
+      youtube, kick, tiktok,
     ]
       .filter(Boolean)
       .join("\n\n");
 
     return callClaudeForEntities(
       apiKey,
-      `Find the 15 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit LivestreamFail, Reddit Boxing/MMA, and YouTube Trending, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 15 entries.\n\nFresh data:\n${rawData}`
+      `Find the 15 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit (LivestreamFail/Boxing/MMA/KSI/LoganPaul/PKA), YouTube Trending, Kick.com live channels, and TikTok Trending, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 15 entries.\n\nFresh data:\n${rawData}`
     );
   }
 
