@@ -51,7 +51,7 @@ const BRAVE_QUERIES = [
 ];
 
 const ENTITY_SCOUT_SYSTEM =
-  'You are a hot entity scout for a prediction marketplace. List exactly 5 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.';
+  'You are a hot entity scout for a prediction marketplace. List exactly 3 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.';
 
 async function fetchBraveResults(query: string, braveKey: string): Promise<string> {
   try {
@@ -208,14 +208,14 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
 
     return callClaudeForEntities(
       apiKey,
-      `Find the 5 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit (LivestreamFail/Boxing/MMA/KSI/LoganPaul/PKA), YouTube Trending, Kick.com live channels, and TikTok Trending, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 5 entries.\n\nFresh data:\n${rawData}`
+      `Find the 3 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit (LivestreamFail/Boxing/MMA/KSI/LoganPaul/PKA), YouTube Trending, Kick.com live channels, and TikTok Trending, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 3 entries.\n\nFresh data:\n${rawData}`
     );
   }
 
   // Fallback: Claude knowledge only (no Brave key configured)
   return callClaudeForEntities(
     apiKey,
-    "List 5 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
+    "List 3 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
   );
 }
 
@@ -272,7 +272,7 @@ export async function bulkGenerateAndInsert(
 
     // 2s cooldown between batches to avoid rate limits
     if (i + BATCH_SIZE < entities.length) {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 

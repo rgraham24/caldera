@@ -9,10 +9,13 @@ Your markets drive massive on-chain engagement and liquidity using DeSo-native f
 
 Core Rules (never break these):
 - Urgency is mandatory. Use short punchy timeframes: by end of this week, by April 30, in the next 14 days, next game, before May 15, etc.
-- Current-moment obsessed. Base EVERYTHING on the Latest Research Summary provided. Incorporate DeSo angles: creator coin price action, DAO activity, viral posts, on-chain tipping/drama, NFT drops, etc.
 - High-conversion formula: spicy, personal, chaotic, rivalries, scandals, self-destruction, token pumps/dumps, will their coin moon or rug, public meltdowns, immediate next moves.
 - Binary and resolvable. Every market is Yes/No with crystal clear resolution criteria preferably on-chain or verifiable via DeSo.
-- Generate exactly 10 markets per entity.
+- Generate exactly 5 markets per entity.
+- At least 3 out of 5 markets MUST resolve within 30 days of April 7 2026 (before May 7 2026).
+- At least 1 must resolve within 14 days (before April 21 2026).
+- NEVER use December 31 2026 or end of year as a resolve date unless it is a specific scheduled event.
+- Every title must feel like it could trend on Twitter today.
 
 Return ONLY a valid JSON array. No markdown, no explanation, no preamble. Start immediately with [ and end with ]:
 [
@@ -46,36 +49,26 @@ async function callClaude(
   };
   if (system) body.system = system;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify(body),
-  });
+  const doFetch = () =>
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+    });
+
+  let res = await doFetch();
+
+  // Retry on 429 (rate limit) or 5xx (transient error) after a short wait
+  if (!res.ok && (res.status === 429 || res.status >= 500)) {
+    await new Promise((r) => setTimeout(r, res.status === 429 ? 5000 : 3000));
+    res = await doFetch();
+  }
 
   if (!res.ok) {
-    // Retry once after 5s on rate limit
-    if (res.status === 429) {
-      await new Promise((r) => setTimeout(r, 5000));
-      const retry = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify(body),
-      });
-      if (!retry.ok) {
-        const err = await retry.text();
-        throw new Error(`Claude API error (${retry.status}): ${err}`);
-      }
-      const retryData = await retry.json();
-      return retryData.content?.[0]?.text ?? "";
-    }
     const err = await res.text();
     throw new Error(`Claude API error (${res.status}): ${err}`);
   }
@@ -84,43 +77,50 @@ async function callClaude(
   return data.content?.[0]?.text ?? "";
 }
 
+function parseMarkets(text: string): GeneratedMarket[] {
+  // Reject Anthropic error messages before attempting JSON parse
+  if (!text.startsWith("[") && text.toLowerCase().includes("error occurred")) {
+    throw new Error("Claude returned an error message instead of JSON");
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error(`Failed to parse Claude response: ${text.slice(0, 120)}`);
+    return JSON.parse(match[0]);
+  }
+}
+
 export async function generateMarketsForTopic(
   topic: string,
   apiKey: string
 ): Promise<GeneratedMarket[]> {
-  // First call: research summary
-  const summary = await callClaude(
-    apiKey,
-    [
-      {
-        role: "user",
-        content: `In 200 words or less, summarize what is happening RIGHT NOW with: "${topic}". Focus on the most recent news, controversies, upcoming events, rivalries, and anything time-sensitive as of early April 2026. Be specific with names, dates, and facts.`,
-      },
-    ],
-    undefined,
-    512
-  );
-
-  // Second call: market generation using summary
+  // Single Claude call — no research summary step
   const marketsText = await callClaude(
     apiKey,
     [
       {
         role: "user",
-        content: `Generate markets for: ${topic}\n\nLatest Research Summary:\n${summary}\n\nCRITICAL URGENCY RULES:\n- At least 6 out of 10 markets MUST resolve within 30 days of April 7 2026 (before May 7 2026)\n- At least 3 must resolve within 14 days (before April 21 2026)\n- NEVER use December 31 2026 or end of year as a resolve date unless it is a specific scheduled event like an award show, championship game, or election\n- If a legal case has no set date, use 90 days max\n- Every title must feel like it could trend on Twitter today`,
+        content: `Generate exactly 5 prediction markets for: ${topic}`,
       },
     ],
     SYSTEM_PROMPT,
-    2048
+    1024
   );
 
   let markets: GeneratedMarket[];
   try {
-    markets = JSON.parse(marketsText);
+    markets = parseMarkets(marketsText);
   } catch {
-    const match = marketsText.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error("Failed to parse Claude response");
-    markets = JSON.parse(match[0]);
+    // One retry after 3s if parse fails (e.g. transient Anthropic error response)
+    await new Promise((r) => setTimeout(r, 3000));
+    const retryText = await callClaude(
+      apiKey,
+      [{ role: "user", content: `Generate exactly 5 prediction markets for: ${topic}` }],
+      SYSTEM_PROMPT,
+      1024
+    );
+    markets = parseMarkets(retryText);
   }
 
   return markets;
