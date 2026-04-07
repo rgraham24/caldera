@@ -40,13 +40,14 @@ const CURATOR_SYSTEM_PROMPT =
 
 const FEATURED_COUNT = 8;
 
-// ─── Step 1: Discover entities (with optional Brave Search grounding) ────────
+// ─── Step 1: Discover entities (Brave + Reddit + YouTube grounding) ──────────
 
 const BRAVE_QUERIES = [
-  "trending creator streamer drama controversy today 2026",
-  "viral influencer scandal celebrity news this week",
-  "sports athlete drama trade injury controversy today",
-  "musician rapper beef feud viral moment this week",
+  "Kick streamer arrested banned drama controversy April 2026",
+  "YouTuber beef exposed drama meltdown this week 2026",
+  "IRL streamer viral fight arrest meltdown April 2026",
+  "LivestreamFail reddit controversy ban viral clip today",
+  "influencer scandal exposed arrested April 2026",
 ];
 
 const ENTITY_SCOUT_SYSTEM =
@@ -56,20 +57,44 @@ async function fetchBraveResults(query: string, braveKey: string): Promise<strin
   try {
     const res = await fetch(
       `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
-      {
-        headers: {
-          Accept: "application/json",
-          "X-Subscription-Token": braveKey,
-        },
-      }
+      { headers: { Accept: "application/json", "X-Subscription-Token": braveKey } }
     );
     if (!res.ok) return "";
     const data = await res.json();
     const results: { title: string; description: string }[] = data?.web?.results ?? [];
-    const lines = results
-      .map((r) => `- ${r.title}: ${r.description ?? ""}`)
-      .join("\n");
+    const lines = results.map((r) => `- ${r.title}: ${r.description ?? ""}`).join("\n");
     return `Query: ${query}\nResults:\n${lines}`;
+  } catch {
+    return "";
+  }
+}
+
+async function fetchRedditHot(subreddit: string, limit: number): Promise<string> {
+  try {
+    const data = await fetch(
+      `https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`,
+      { headers: { "User-Agent": "CalderaMarkets/1.0" } }
+    ).then((r) => r.json());
+    const titles: string[] =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (data?.data?.children ?? []).map((c: any) => c.data?.title).filter(Boolean);
+    return `Reddit r/${subreddit} hot posts:\n${titles.join("\n")}`;
+  } catch {
+    return "";
+  }
+}
+
+async function fetchYouTubeTrending(): Promise<string> {
+  try {
+    const html = await fetch("https://www.youtube.com/feed/trending?hl=en&gl=US", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    }).then((r) => r.text());
+    const matches = html.match(/"title":\{"runs":\[\{"text":"([^"]+)"/g) ?? [];
+    const titles = matches
+      .slice(0, 10)
+      .map((m) => m.match(/"text":"([^"]+)"/)?.[1] ?? "")
+      .filter(Boolean);
+    return titles.length ? `YouTube Trending:\n${titles.join("\n")}` : "";
   } catch {
     return "";
   }
@@ -85,42 +110,7 @@ function parseEntityList(text: string): string[] {
   }
 }
 
-export async function discoverEntities(apiKey: string): Promise<string[]> {
-  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-
-  if (braveKey) {
-    // Fetch all 4 search queries in parallel
-    const searchResults = await Promise.all(
-      BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))
-    );
-    const rawData = searchResults.filter(Boolean).join("\n\n");
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 512,
-        system: ENTITY_SCOUT_SYSTEM,
-        messages: [
-          {
-            role: "user",
-            content: `Find the 15 hottest entities right now for a prediction market. Based on these fresh search results, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 15 entries.\n\nFresh data:\n${rawData}`,
-          },
-        ],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`Entity discovery failed: ${res.status}`);
-    const data = await res.json();
-    return parseEntityList(data.content?.[0]?.text ?? "");
-  }
-
-  // Fallback: Claude knowledge only
+async function callClaudeForEntities(apiKey: string, userContent: string): Promise<string[]> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -132,19 +122,48 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
       model: "claude-sonnet-4-6",
       max_tokens: 512,
       system: ENTITY_SCOUT_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content:
-            "List 15 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array.",
-        },
-      ],
+      messages: [{ role: "user", content: userContent }],
     }),
   });
-
   if (!res.ok) throw new Error(`Entity discovery failed: ${res.status}`);
   const data = await res.json();
   return parseEntityList(data.content?.[0]?.text ?? "");
+}
+
+export async function discoverEntities(apiKey: string): Promise<string[]> {
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+
+  if (braveKey) {
+    // Fetch all sources in parallel
+    const [braveResults, lsf, boxing, mma, youtube] = await Promise.all([
+      Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
+      fetchRedditHot("LivestreamFail", 10),
+      fetchRedditHot("Boxing", 5),
+      fetchRedditHot("MMA", 5),
+      fetchYouTubeTrending(),
+    ]);
+
+    const rawData = [
+      ...braveResults.filter(Boolean),
+      lsf,
+      boxing,
+      mma,
+      youtube,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    return callClaudeForEntities(
+      apiKey,
+      `Find the 15 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit LivestreamFail, Reddit Boxing/MMA, and YouTube Trending, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 15 entries.\n\nFresh data:\n${rawData}`
+    );
+  }
+
+  // Fallback: Claude knowledge only (no Brave key configured)
+  return callClaudeForEntities(
+    apiKey,
+    "List 15 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
+  );
 }
 
 // ─── Step 2: Generate + insert markets ────────────────────────────────────────
