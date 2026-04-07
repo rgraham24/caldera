@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const ADMIN_KEYS = [
+  "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7",
+  "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
+];
+
 export async function POST(req: NextRequest) {
   try {
-    const { topic } = await req.json();
+    const { topic, desoPublicKey, adminPassword } = await req.json();
+
+    const isAdmin =
+      ADMIN_KEYS.includes(desoPublicKey || "") ||
+      (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     if (!topic) {
       return NextResponse.json({ error: "topic is required" }, { status: 400 });

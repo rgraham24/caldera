@@ -41,7 +41,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/import-deso-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: importCount }),
+        body: JSON.stringify({ count: importCount, adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -62,7 +62,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);

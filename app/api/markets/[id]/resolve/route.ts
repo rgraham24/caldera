@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
+const ADMIN_KEYS = [
+  "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7",
+  "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
+];
+
 const resolveSchema = z.object({
   outcome: z.enum(["yes", "no", "cancelled"]),
   sourceUrl: z.string().optional(),
   notes: z.string().optional(),
+  desoPublicKey: z.string().optional(),
+  adminPassword: z.string().optional(),
 });
 
 export async function POST(
@@ -26,7 +33,15 @@ export async function POST(
       );
     }
 
-    const { outcome, sourceUrl, notes } = parsed.data;
+    const { outcome, sourceUrl, notes, desoPublicKey, adminPassword } = parsed.data;
+
+    const isAdmin =
+      ADMIN_KEYS.includes(desoPublicKey || "") ||
+      (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Update market
     const now = new Date().toISOString();

@@ -315,6 +315,7 @@ function ResolveMarketForm({
           sourceUrl: form.get("sourceUrl") || undefined,
           notes: form.get("notes") || undefined,
           desoPublicKey: desoPublicKey ?? "",
+          adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD,
         }),
       });
 
