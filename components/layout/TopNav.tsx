@@ -25,7 +25,6 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const {
-    isConnected,
     desoUsername,
     desoProfilePicUrl,
     desoBalanceDeso,
@@ -34,12 +33,21 @@ export function TopNav() {
     openDepositModal,
   } = useAppStore();
 
-  const [mounted, setMounted] = useState(false);
+  const [isConnected, setIsConnected] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const stored = JSON.parse(localStorage.getItem("caldera-auth") || "{}");
+      return stored?.state?.isConnected ?? false;
+    } catch { return false; }
+  });
+
+  // Keep synced with store after rehydration
+  const storeConnected = useAppStore((state) => state.isConnected);
+  useEffect(() => { setIsConnected(storeConnected); }, [storeConnected]);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   const isLowBalance = desoBalanceUSD < 1;
   const searchRef = useRef<HTMLInputElement>(null);
@@ -159,9 +167,7 @@ export function TopNav() {
 
             <NotificationBell />
 
-            {!mounted ? (
-              <div className="h-8 w-24 rounded-lg bg-[var(--bg-elevated)]" />
-            ) : isConnected ? (
+            {isConnected ? (
               /* Connected state — avatar + username + balance + dropdown */
               <div className="relative flex items-center gap-2" ref={dropdownRef}>
                 {/* Add Funds / balance chip */}
