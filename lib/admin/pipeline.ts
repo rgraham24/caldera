@@ -160,14 +160,23 @@ async function fetchGoogleTrends(): Promise<string> {
   return titles.length ? `Google Trends US:\n${titles.join("\n")}` : "";
 }
 
-function parseEntityList(text: string): string[] {
+function stripMarkdown(text: string): string {
+  return text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+}
+
+function parseJsonArray(text: string): unknown[] {
+  const clean = stripMarkdown(text);
   try {
-    return JSON.parse(text);
+    return JSON.parse(clean);
   } catch {
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error("Failed to parse entity list from Claude");
-    return JSON.parse(match[0]);
+    const match = clean.match(/\[[\s\S]*\]/)?.[0];
+    if (!match) throw new Error(`No JSON array found in: ${clean.slice(0, 120)}`);
+    return JSON.parse(match);
   }
+}
+
+function parseEntityList(text: string): string[] {
+  return parseJsonArray(text) as string[];
 }
 
 async function callClaudeForEntities(apiKey: string, userContent: string): Promise<string[]> {
@@ -373,11 +382,10 @@ export async function curateHomepage(
 
   let rankedIds: string[];
   try {
-    rankedIds = JSON.parse(text);
+    rankedIds = parseJsonArray(text) as string[];
   } catch {
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error("Failed to parse curator response");
-    rankedIds = JSON.parse(match[0]);
+    console.error("[curateHomepage] Failed to parse curator response. Raw:", text.slice(0, 300));
+    return 0;
   }
 
   const heroIds = rankedIds.slice(0, FEATURED_COUNT);
