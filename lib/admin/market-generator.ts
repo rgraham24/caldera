@@ -57,6 +57,25 @@ async function callClaude(
   });
 
   if (!res.ok) {
+    // Retry once after 5s on rate limit
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const retry = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!retry.ok) {
+        const err = await retry.text();
+        throw new Error(`Claude API error (${retry.status}): ${err}`);
+      }
+      const retryData = await retry.json();
+      return retryData.content?.[0]?.text ?? "";
+    }
     const err = await res.text();
     throw new Error(`Claude API error (${res.status}): ${err}`);
   }

@@ -255,16 +255,27 @@ export async function bulkGenerateAndInsert(
   apiKey: string,
   supabase: SupabaseClient
 ): Promise<number> {
-  const results = await Promise.allSettled(
-    entities.map((entity) => generateMarketsForTopic(entity, apiKey))
-  );
-
+  const BATCH_SIZE = 3;
   let created = 0;
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      created += await insertMarkets(result.value, supabase);
+
+  for (let i = 0; i < entities.length; i += BATCH_SIZE) {
+    const batch = entities.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map((entity) => generateMarketsForTopic(entity, apiKey))
+    );
+
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value?.length > 0) {
+        created += await insertMarkets(result.value, supabase);
+      }
+    }
+
+    // 2s cooldown between batches to avoid rate limits
+    if (i + BATCH_SIZE < entities.length) {
+      await new Promise((r) => setTimeout(r, 2000));
     }
   }
+
   return created;
 }
 
