@@ -105,14 +105,14 @@ export function TradeTicket({
     <>
     <div className="relative trade-panel-glow rounded-2xl border border-cyan-500/20 bg-surface p-5">
       {/* Side toggle */}
-      <div className="mb-5 flex rounded-lg bg-background p-1">
+      <div className="mb-5 flex gap-2">
         <button
           onClick={() => setSide("yes")}
           className={cn(
-            "flex-1 rounded-md py-2.5 text-sm font-semibold transition-colors",
+            "flex-1 py-3 rounded-lg font-semibold text-sm transition-all duration-150",
             side === "yes"
-              ? "bg-yes text-white"
-              : "text-text-muted hover:text-text-primary"
+              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40"
+              : "text-text-muted border border-transparent hover:text-text-primary hover:border-border-subtle"
           )}
         >
           Yes {Math.round(market.yes_price * 100)}¢
@@ -120,10 +120,10 @@ export function TradeTicket({
         <button
           onClick={() => setSide("no")}
           className={cn(
-            "flex-1 rounded-md py-2.5 text-sm font-semibold transition-colors",
+            "flex-1 py-3 rounded-lg font-semibold text-sm transition-all duration-150",
             side === "no"
-              ? "bg-no text-white"
-              : "text-text-muted hover:text-text-primary"
+              ? "bg-red-500/15 text-red-400 border border-red-500/40"
+              : "text-text-muted border border-transparent hover:text-text-primary hover:border-border-subtle"
           )}
         >
           No {Math.round(market.no_price * 100)}¢
@@ -152,17 +152,20 @@ export function TradeTicket({
             <button
               key={preset}
               onClick={() => setAmount(String(preset))}
-              className="rounded-md bg-surface-2 px-3 py-1 text-xs text-text-muted transition-colors hover:text-text-primary"
+              className={cn(
+                "flex-1 rounded-lg border py-1.5 text-xs font-medium transition-all duration-150",
+                amount === String(preset)
+                  ? "border-caldera/50 bg-caldera/10 text-caldera"
+                  : "border-border-subtle bg-surface-2 text-text-muted hover:border-border-default hover:text-text-primary"
+              )}
             >
               ${preset}
             </button>
           ))}
         </div>
-        {market.creator_id && (
-          <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
-            Platform 1% · Token holders earn up to 2% · Total 3%
-          </p>
-        )}
+        <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
+          1% to Caldera · 1% buys the token · Free to sell
+        </p>
       </div>
 
       {/* Quote details */}
@@ -246,13 +249,14 @@ export function TradeTicket({
               </span>
             </div>
           </div>
-          <div className="border-t border-border-subtle pt-2">
+          <div className="border-t border-border-subtle pt-2 space-y-1.5">
             <div className="flex justify-between font-medium">
               <span className="text-text-muted">Est. Payout if {side.toUpperCase()} wins</span>
               <span className="font-mono text-yes">
                 {formatCurrency(quote.estimatedPayout)}
               </span>
             </div>
+            <p className="text-[10px] text-text-faint">Sells are always free</p>
           </div>
         </div>
       )}
@@ -265,12 +269,12 @@ export function TradeTicket({
         onClick={handleTrade}
         disabled={(isConnected && (amountNum <= 0 || isSubmitting)) || market.status !== "open"}
         className={cn(
-          "w-full font-semibold py-3 rounded-lg transition-colors",
+          "w-full py-3.5 rounded-xl font-bold text-base transition-all duration-150 active:scale-[0.99] shadow-lg",
           !isConnected || market.status !== "open"
-            ? "bg-white text-black hover:bg-gray-100"
+            ? "bg-white text-black hover:bg-gray-100 shadow-none"
             : side === "yes"
-            ? "bg-yes text-white hover:bg-yes/90"
-            : "bg-no text-white hover:bg-no/90"
+            ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/25"
+            : "bg-red-500 hover:bg-red-400 text-white shadow-red-500/25"
         )}
       >
         {isSubmitting

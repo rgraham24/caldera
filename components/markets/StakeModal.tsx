@@ -274,7 +274,7 @@ export function StakeModal({
                 <div className="border-t border-border-subtle/50 pt-1.5 flex justify-between">
                   <span className="text-text-muted">Fee</span>
                   <span className="font-mono text-text-muted">
-                    1.5% platform + 0.75% to stakeholders
+                    {tab === "buy" ? "2% on buys" : "Free to sell"}
                   </span>
                 </div>
               </div>

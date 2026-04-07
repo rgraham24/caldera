@@ -49,7 +49,7 @@ export function Footer() {
               Risk Disclosure
             </p>
             <p className="text-sm leading-relaxed text-[var(--text-tertiary)]">
-              Caldera is a prediction market platform. Token activity reflects platform fee mechanics. Token prices may go up or down. Not financial advice.
+              Caldera charges 2% on buys. Sells are always free. 1% of every fee auto-buys the associated token. Not financial advice.
             </p>
           </div>
         </div>

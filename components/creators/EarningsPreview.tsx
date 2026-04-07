@@ -15,8 +15,8 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
   const [copied, setCopied] = useState(false);
 
   const totalVolume = markets.reduce((s, m) => s + m.total_volume, 0);
-  const creatorShareIfClaimed = totalVolume * 0.0075;
-  const communityPool = totalVolume * 0.015;
+  const creatorShareIfClaimed = totalVolume * 0.01;
+  const communityPool = totalVolume * 0.01;
   const topMarket = markets.sort((a, b) => b.total_volume - a.total_volume)[0];
   const sym = creator.deso_username || creator.creator_coin_symbol || creator.name;
 
@@ -39,7 +39,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
           💰 What {creator.name} could earn on Caldera
         </p>
         <p className="text-sm text-text-muted">
-          No prediction markets yet. When markets are created, {creator.name} could earn 0.75% of every trade by claiming this profile.
+          No prediction markets yet. When markets are created, 1% of every trade will auto-buy {creator.name}&apos;s token if claimed.
         </p>
       </div>
     );
@@ -67,7 +67,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
             Your platform fee share (if you claim) <span className="text-text-faint cursor-help">ⓘ</span>
           </p>
           <div className="invisible group-hover:visible absolute bottom-full left-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
-            If you claim this profile, you&apos;ll receive 0.75% of every prediction made on your markets — forever. No action needed after claiming. Your fee share deposits directly to your wallet.
+            If you claim this profile, 1% of every prediction on your markets auto-buys your token — forever. No action needed after claiming.
             <div className="absolute bottom-[-6px] left-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
           </div>
         </div>
@@ -79,7 +79,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
             Fees accumulate until claimed <span className="text-text-faint cursor-help">ⓘ</span>
           </p>
           <div className="invisible group-hover:visible absolute bottom-full right-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
-            While unclaimed, 1.5% of every prediction goes to a community pool. $CALDRA holders receive 0.5%. Once you claim, fees flow directly to you (0.75%) and your token holders (0.75%) instead.
+            While unclaimed, 1% of every prediction goes to a community pool. Once you claim, that 1% auto-buys your token on every trade instead.
             <div className="absolute bottom-[-6px] right-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
           </div>
         </div>

@@ -1,16 +1,17 @@
 /**
  * Caldera Fee Calculator — Single Source of Truth
  *
- * LAYER 1: Prediction Markets (always applies)
- * - Platform treasury: 1.0%
- * - $CALDRA holders: 0.5%
+ * Total fee: 2% on buys · Sells are always free
  *
- * LAYER 2: Token Holder Earnings (varies by market)
- * - Creator (if claimed): 0.75%
- * - DeSo token holders: split among personal/team/league tokens that exist
- * - Community pool: remainder if no DeSo tokens
+ * SPLIT:
+ * - 1% platform (funds Caldera operations)
+ * - 1% token auto-buy (split among active DeSo tokens for this market)
+ *   → goes to community pool if no active tokens exist
  *
- * Total: always 3.0%
+ * const TOTAL_FEE       = 0.02
+ * const PLATFORM_FEE    = 0.01
+ * const TOKEN_AUTOBUY   = 0.01
+ * const SELL_FEE        = 0
  */
 
 export type CreatorInfo = {
@@ -53,19 +54,12 @@ export function calculateMarketFees(
   teamCreator?: CreatorInfo | null,
   leagueCreator?: CreatorInfo | null
 ): FeeBreakdown {
-  const total = round(tradeAmountUsd * 0.03);
+  const total = round(tradeAmountUsd * 0.02);
   const platform = round(tradeAmountUsd * 0.01);
-  const caldra = round(tradeAmountUsd * 0.005);
+  const caldra = 0; // folded into platform — no separate line item
+  const creatorEarning = 0; // no separate creator fee; token auto-buy covers all
 
-  const isClaimedIndividual =
-    creator?.entity_type === "individual" &&
-    creator?.tier === "verified_creator";
-
-  const creatorEarning = isClaimedIndividual
-    ? round(tradeAmountUsd * 0.0075)
-    : 0;
-
-  const remainingPool = round(total - platform - caldra - creatorEarning);
+  const remainingPool = round(total - platform); // = 1% token auto-buy
 
   // Only active tokens earn — shadow profiles go to community pool
   const isActive = (c?: CreatorInfo | null) =>

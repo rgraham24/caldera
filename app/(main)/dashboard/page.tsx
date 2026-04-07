@@ -93,7 +93,7 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-mono">{Math.round(m.yes_price * 100)}%</td>
                     <td className="px-4 py-3 text-right font-mono text-text-muted">{formatCompactCurrency(m.total_volume)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-yes">{formatCurrency(m.total_volume * 0.0075)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-yes">{formatCurrency(m.total_volume * 0.01)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -19,7 +19,7 @@ export function HolderCalculator({
   const [coins, setCoins] = useState(1);
 
   const pctOfSupply = totalCoinsInCirculation > 0 ? (coins / totalCoinsInCirculation) * 100 : 0;
-  const weeklyEarnings = weeklyVolume * 0.0075 * (pctOfSupply / 100);
+  const weeklyEarnings = weeklyVolume * 0.01 * (pctOfSupply / 100);
   const annualEarnings = weeklyEarnings * 52;
   const costToBuy = coins * coinPrice;
 
@@ -62,7 +62,7 @@ export function HolderCalculator({
           <span className="font-mono font-bold text-caldera">{formatCurrency(weeklyEarnings)}</span>
         </div>
         <p className="text-[10px] text-text-faint font-mono">
-          {formatCurrency(weeklyVolume)} × 0.75% × {pctOfSupply.toFixed(2)}% = {formatCurrency(weeklyEarnings)}/wk
+          {formatCurrency(weeklyVolume)} × 1% × {pctOfSupply.toFixed(2)}% = {formatCurrency(weeklyEarnings)}/wk
         </p>
         <div className="flex justify-between">
           <span className="text-text-muted">Annualized</span>

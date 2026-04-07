@@ -61,9 +61,9 @@ export function CreatorCoinExplainer({
           <div className="border-t border-caldera/10 px-4 pb-4 pt-3">
             <p className="text-sm text-text-muted leading-relaxed">
               {creator.tier === "verified_creator" ? (
-                <>{creator.name} earns <span className="text-caldera font-medium">0.75%</span> of every trade. ${desoUser || creator.creator_coin_symbol} holders earn <span className="text-caldera font-medium">0.75%</span> proportional to their position.</>
+                <>1% of every trade auto-buys <span className="text-caldera font-medium">${desoUser || creator.creator_coin_symbol}</span> on DeSo. Proportional to your holdings.</>
               ) : (
-                <>${desoUser || creator.creator_coin_symbol} holders earn <span className="text-caldera font-medium">1.5%</span> of all trading fees. {creator.name} hasn&apos;t claimed this profile yet.</>
+                <>1% of every trade auto-buys <span className="text-caldera font-medium">${desoUser || creator.creator_coin_symbol}</span>. {creator.name} hasn&apos;t claimed this profile yet.</>
               )}
             </p>
 

@@ -232,19 +232,15 @@ export function HomeClient({
                 {/* Trade buttons */}
                 <div className="flex gap-3">
                   <Link href={`/markets/${activeHero.slug}`} className="flex-1">
-                    <button
-                      className="w-full rounded-lg py-3 text-sm font-semibold text-yes transition-colors min-h-[44px]"
-                      style={{ background: "var(--yes-bg)", border: "1px solid rgba(34,197,94,0.2)" }}
-                    >
-                      Buy YES · {yesPercent}¢
+                    <button className="w-full flex-1 py-4 rounded-xl font-bold text-base bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20 transition-all duration-150 active:scale-[0.98] border border-emerald-400/30 flex flex-col items-center gap-0.5">
+                      <span>YES</span>
+                      <span className="text-sm opacity-80 font-mono font-normal">{yesPercent}¢</span>
                     </button>
                   </Link>
                   <Link href={`/markets/${activeHero.slug}`} className="flex-1">
-                    <button
-                      className="w-full rounded-lg py-3 text-sm font-semibold text-no transition-colors min-h-[44px]"
-                      style={{ background: "var(--no-bg)", border: "1px solid rgba(239,68,68,0.2)" }}
-                    >
-                      Buy NO · {noPercent}¢
+                    <button className="w-full flex-1 py-4 rounded-xl font-bold text-base bg-red-500/90 hover:bg-red-400 text-white shadow-lg shadow-red-500/20 transition-all duration-150 active:scale-[0.98] border border-red-400/30 flex flex-col items-center gap-0.5">
+                      <span>NO</span>
+                      <span className="text-sm opacity-80 font-mono font-normal">{noPercent}¢</span>
                     </button>
                   </Link>
                 </div>
@@ -382,30 +378,40 @@ export function HomeClient({
                 return (
                   <div
                     key={`${c.id}-${i}`}
-                    className="flex min-w-[210px] shrink-0 items-center gap-3 rounded-xl px-4 py-3"
+                    className="flex min-w-[230px] shrink-0 flex-col rounded-xl px-4 py-3 gap-2"
                     style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
                   >
-                    <CreatorAvatar creator={c} size="md" />
-                    <div className="min-w-0 flex-1">
-                      <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
-                        {sportEmoji ? `${sportEmoji} ` : ""}{c.name}
-                      </Link>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-display text-sm font-bold tracking-normal text-caldera">
-                          {c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}
-                        </span>
-                        {c.league && (
-                          <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[8px] font-semibold text-caldera">
-                            {c.league}
+                    <div className="flex items-center gap-3">
+                      <CreatorAvatar creator={c} size="md" />
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/creators/${c.slug}`} className="block truncate text-sm font-medium text-text-primary hover:text-caldera transition-colors">
+                          {sportEmoji ? `${sportEmoji} ` : ""}{c.name}
+                        </Link>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-display text-sm font-bold tracking-normal text-caldera">
+                            {c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : "Not active"}
                           </span>
-                        )}
-                        {!c.league && c.price_change_24h !== undefined && (
-                          <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
-                            {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
-                          </span>
-                        )}
+                          {c.league && (
+                            <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[8px] font-semibold text-caldera">
+                              {c.league}
+                            </span>
+                          )}
+                          {!c.league && c.price_change_24h !== undefined && (
+                            <span className={cn("font-mono text-[10px]", c.price_change_24h >= 0 ? "text-yes" : "text-no")}>
+                              {c.price_change_24h >= 0 ? "+" : ""}{c.price_change_24h.toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {c.deso_username && (
+                      <button
+                        onClick={() => setStakeCreator(c)}
+                        className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white transition-colors hover:border-white/20 hover:bg-white/10"
+                      >
+                        Buy ${c.deso_username || c.creator_coin_symbol}
+                      </button>
+                    )}
                   </div>
                 );
               })}

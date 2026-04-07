@@ -382,7 +382,7 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
               <p className="mt-1 font-mono text-lg font-semibold text-yes">
                 ~{formatCurrency(MOCK_HOLDINGS.reduce((s, h) => {
                   const pct = h.creator.total_coins_in_circulation > 0 ? h.coinsHeld / h.creator.total_coins_in_circulation : 0;
-                  return s + pct * h.weeklyVolume * 0.0075;
+                  return s + pct * h.weeklyVolume * 0.01;
                 }, 0))}
               </p>
             </div>

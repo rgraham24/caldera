@@ -93,6 +93,43 @@ export default function HowItWorksPage() {
         </section>
       </div>
 
+      {/* Fee table */}
+      <section className="mt-8 rounded-2xl border border-border-subtle/30 bg-surface p-6">
+        <div className="mb-4 text-3xl">💸</div>
+        <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Fees</h2>
+        <div className="overflow-hidden rounded-xl border border-border-subtle/30">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border-subtle bg-surface-2">
+                <th className="px-4 py-2.5 text-left font-medium text-text-muted">Action</th>
+                <th className="px-4 py-2.5 text-right font-medium text-text-muted">Fee</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { action: "Buy YES/NO", fee: "2%", highlight: false },
+                { action: "Sell", fee: "Free", highlight: true },
+                { action: "Deposit (Solana USDC)", fee: "~0.5%", highlight: false },
+                { action: "Withdraw", fee: "~0.5%", highlight: false },
+              ].map((row) => (
+                <tr key={row.action} className="border-b border-border-subtle/30 last:border-0">
+                  <td className="px-4 py-2.5 text-text-primary">{row.action}</td>
+                  <td className={`px-4 py-2.5 text-right font-mono font-semibold ${row.highlight ? "text-yes" : "text-text-primary"}`}>
+                    {row.fee}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4 space-y-1.5 text-sm text-text-muted">
+          <p className="font-semibold text-text-primary text-xs uppercase tracking-widest">How the 2% is split</p>
+          <p>1% funds Caldera&apos;s operations.</p>
+          <p>1% is used to automatically purchase that creator or team&apos;s token on the DeSo blockchain — creating real buy pressure every time someone trades.</p>
+          <p className="text-yes text-xs font-medium pt-1">Sells are always free. No penalty for exiting.</p>
+        </div>
+      </section>
+
       {/* FAQ */}
       <div className="mt-16">
         <h2 className="mb-6 font-display text-2xl font-bold text-text-primary">FAQ</h2>

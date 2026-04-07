@@ -37,11 +37,11 @@ export function DepositModal({ onClose }: DepositModalProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const heroSwapFrom =
+  const heroSwapDepositTicker =
     network === "solana" ? "USDC-SOL" : network === "polygon" ? "USDC-MATIC" : "USDC";
   const heroSwapSrc = desoPublicKey
-    ? `https://heroswap.com/embed?from=${heroSwapFrom}&to=DUSD&recipientAddress=${desoPublicKey}`
-    : `https://heroswap.com/embed?from=${heroSwapFrom}&to=DUSD`;
+    ? `https://heroswap.com/embed?depositTicker=${heroSwapDepositTicker}&receiveTicker=DUSD&receiveAddress=${desoPublicKey}`
+    : `https://heroswap.com/embed?depositTicker=${heroSwapDepositTicker}&receiveTicker=DUSD`;
 
   return (
     <div
@@ -165,9 +165,9 @@ export function DepositModal({ onClose }: DepositModalProps) {
                   width="100%"
                   height="380"
                   style={{ border: "none", borderRadius: "12px" }}
-                  title="HeroSwap deposit"
                   allow="clipboard-write"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  title="HeroSwap deposit"
                 />
               ) : (
                 <div
@@ -286,7 +286,7 @@ export function DepositModal({ onClose }: DepositModalProps) {
               </div>
 
               <p className="text-xs text-[var(--text-secondary)]">
-                Min deposit: $5 · Caldera trading fee: 3%
+                Min deposit: $5 · Caldera trading: 2% on buys, free on sells
               </p>
             </div>
           )}
@@ -385,13 +385,13 @@ export function DepositModal({ onClose }: DepositModalProps) {
                     volatility.
                   </p>
                   <iframe
-                    src={`https://heroswap.com/embed?from=DESO&to=DUSD&recipientAddress=${desoPublicKey}`}
+                    src={`https://heroswap.com/embed?depositTicker=DESO&receiveTicker=DUSD&receiveAddress=${desoPublicKey}`}
                     width="100%"
                     height="340"
                     style={{ border: "none", borderRadius: "10px" }}
-                    title="HeroSwap DESO to DUSD"
                     allow="clipboard-write"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    title="HeroSwap DESO to DUSD"
                   />
                 </div>
               )}
@@ -422,12 +422,13 @@ export function DepositModal({ onClose }: DepositModalProps) {
               >
                 {[
                   {
-                    label: "Trading",
-                    note: "3% (1.5% platform + 1.5% creator token auto-buy)",
+                    label: "Trading (buy)",
+                    note: "2% · 1% platform + 1% token auto-buy",
                   },
                   { label: "Deposit via Solana USDC", note: "~0.5%" },
                   { label: "Deposit via Polygon USDC", note: "~0.5%" },
                   { label: "Deposit via Ethereum USDC", note: "$5–15 gas" },
+                  { label: "Sell", note: "Free" },
                   { label: "Withdrawal", note: "~0.5% via HeroSwap" },
                   { label: "DeSo transactions", note: "<$0.01" },
                 ].map((f) => (

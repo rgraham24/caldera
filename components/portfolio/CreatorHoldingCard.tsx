@@ -50,7 +50,7 @@ export function CreatorHoldingCard({
     creator.total_coins_in_circulation > 0
       ? (coinsHeld / creator.total_coins_in_circulation) * 100
       : 0;
-  const weeklyEarnings = percentOfSupply > 0 ? (percentOfSupply / 100) * weeklyVolume * 0.0075 : 0;
+  const weeklyEarnings = percentOfSupply > 0 ? (percentOfSupply / 100) * weeklyVolume * 0.01 : 0;
   const sym = creator.deso_username || creator.name;
 
   useEffect(() => {

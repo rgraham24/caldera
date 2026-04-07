@@ -6,6 +6,9 @@ import type { Creator } from "@/types";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { Search } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { StakeModal } from "@/components/markets/StakeModal";
+import { useAppStore } from "@/store";
+import { connectDeSoWallet } from "@/lib/deso/auth";
 
 type CreatorsClientProps = {
   creators: Creator[];
@@ -32,6 +35,20 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
   const [tierFilter, setTierFilter] = useState("all");
   const [sortBy, setSortBy] = useState("price");
   const [search, setSearch] = useState("");
+  const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
+  const { isConnected, desoBalanceUSD, openDepositModal } = useAppStore();
+
+  const handleBuyClick = (c: Creator) => {
+    if (!isConnected) {
+      connectDeSoWallet();
+      return;
+    }
+    if (desoBalanceUSD < 1) {
+      openDepositModal();
+      return;
+    }
+    setStakeCreator(c);
+  };
 
   const filtered = useMemo(() => {
     let result = [...creators];
@@ -107,55 +124,81 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
         </select>
       </div>
 
-      <p className="mb-4 text-[10px] text-text-faint">
-        🔵 Active token · earns from predictions &nbsp; ✅ Verified &nbsp; 📊 Prediction market only · claim to activate
-      </p>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/40 mb-2">
+        <span>🔵 Active · 1% of every buy auto-buys token</span>
+        <span>✅ Verified on DeSo</span>
+        <span>🟡 Unclaimed · prediction markets only</span>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((c) => (
-          <Link key={c.id} href={`/creators/${c.slug}`}>
-            <div className="rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-border-visible/60 hover:-translate-y-0.5">
-              <div className="mb-3 flex items-center gap-3">
-                <CreatorAvatar creator={c} size="lg" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-semibold text-text-primary">{c.name}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] tracking-widest text-text-muted">
-                      ${c.deso_username || c.creator_coin_symbol}
-                    </span>
-                    {c.tier === "verified_creator" && (
-                      <span className="text-caldera text-[10px]">✓</span>
-                    )}
-                    {c.league && (
-                      <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[9px] font-semibold text-caldera">
-                        {c.league}
+        {filtered.map((c) => {
+          const sym = c.deso_username || c.creator_coin_symbol;
+          const hasToken = !!c.deso_username;
+          return (
+            <div
+              key={c.id}
+              className="rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30 flex flex-col"
+            >
+              <Link href={`/creators/${c.slug}`} className="flex-1">
+                <div className="mb-3 flex items-center gap-3">
+                  <CreatorAvatar creator={c} size="lg" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-semibold text-text-primary">{c.name}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] tracking-widest text-text-muted">
+                        ${sym}
                       </span>
-                    )}
+                      {c.tier === "verified_creator" && (
+                        <span className="text-caldera text-[10px]">✓</span>
+                      )}
+                      {c.league && (
+                        <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[9px] font-semibold text-caldera">
+                          {c.league}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="mb-3 flex items-baseline gap-3">
-                <span className="font-display text-xl font-bold tracking-normal text-text-primary">
-                  {c.deso_username && c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : c.deso_username ? "Not active" : "—"}
-                </span>
-                <span className="text-xs text-text-muted">{c.creator_coin_holders.toLocaleString()} holders</span>
-              </div>
-              <div className="flex items-center justify-between text-xs text-text-muted">
-                {c.token_status === "shadow" || c.token_status === "needs_review" ? (
-                  <span className="text-amber-400">Unclaimed · prediction markets only</span>
-                ) : c.token_status === "active_verified" ? (
-                  <span className="text-yes">✅ Verified · fees flow back into token</span>
-                ) : c.token_status === "active_unverified" ? (
-                  <span className="text-caldera">🔵 Active · fees flow back into token</span>
-                ) : (
-                  <span>{formatCompactCurrency(c.total_holder_earnings)} earned by holders</span>
-                )}
-                <span>{c.markets_count} markets</span>
-              </div>
+                <div className="mb-3 flex items-baseline gap-3">
+                  <span className="font-display text-xl font-bold tracking-normal text-text-primary">
+                    {hasToken && c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : hasToken ? "Not active" : "—"}
+                  </span>
+                  <span className="text-xs text-text-muted">{c.creator_coin_holders.toLocaleString()} holders</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-text-muted">
+                  {c.token_status === "shadow" || c.token_status === "needs_review" ? (
+                    <span className="text-amber-400">Unclaimed · prediction markets only</span>
+                  ) : c.token_status === "active_verified" ? (
+                    <span className="text-yes">✅ Verified · fees flow back into token on buys</span>
+                  ) : c.token_status === "active_unverified" ? (
+                    <span className="text-caldera">🔵 Active · fees flow back into token on buys</span>
+                  ) : (
+                    <span>{formatCompactCurrency(c.total_holder_earnings)} earned by holders</span>
+                  )}
+                  <span>{c.markets_count} markets</span>
+                </div>
+              </Link>
+
+              {/* Buy button — shown for all cards */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleBuyClick(c); }}
+                className="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-md shadow-indigo-500/20 transition-all duration-150 active:scale-[0.98] border border-indigo-400/20"
+              >
+                Buy ${c.deso_username || c.slug}
+              </button>
             </div>
-          </Link>
-        ))}
+          );
+        })}
       </div>
+
+      {stakeCreator && (
+        <StakeModal
+          creator={stakeCreator}
+          isOpen={!!stakeCreator}
+          onClose={() => setStakeCreator(null)}
+          desoUsername={stakeCreator.deso_username}
+        />
+      )}
     </div>
   );
 }

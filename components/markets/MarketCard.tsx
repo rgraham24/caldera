@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Market } from "@/types";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
@@ -7,6 +10,7 @@ type MarketCardProps = {
 };
 
 export function MarketCard({ market }: MarketCardProps) {
+  const router = useRouter();
   const now = new Date();
   const hoursLeft = market.resolve_at
     ? (new Date(market.resolve_at).getTime() - now.getTime()) / 3600000
@@ -86,12 +90,31 @@ export function MarketCard({ market }: MarketCardProps) {
             <span className="text-sm font-medium tabular-nums text-[var(--text-tertiary)]">
               {formatCompactCurrency(market.total_volume)} Vol
             </span>
-            <span
-              className="text-xs text-[var(--accent)] opacity-0 transition-opacity group-hover:opacity-100"
-            >
-              Trade →
-            </span>
           </div>
+        </div>
+
+        {/* YES / NO quick-trade buttons */}
+        <div className="flex gap-2 mt-3 pt-3 border-t border-white/5">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`/markets/${market.slug}?side=yes`);
+            }}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all duration-150 active:scale-[0.98]"
+          >
+            YES {yesPercent}¢
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`/markets/${market.slug}?side=no`);
+            }}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 transition-all duration-150 active:scale-[0.98]"
+          >
+            NO {100 - yesPercent}¢
+          </button>
         </div>
       </div>
     </Link>
