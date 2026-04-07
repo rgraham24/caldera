@@ -30,20 +30,28 @@ export function AdminActions() {
   const handleCycle = async () => {
     setCycling(true);
     setCycleResult(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
     try {
       const res = await fetch("/api/admin/autonomous-cycle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+        signal: controller.signal,
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
       setCycleResult(
-        `✓ ${data.entities} entities → ${data.markets_created} markets created · ${data.dates_fixed} dates fixed · ${data.featured_updated} featured`
+        `✓ Created ${data.markets_created} markets from ${data.entities} entities · ${data.dates_fixed} dates fixed · ${data.featured_updated} featured`
       );
     } catch (err) {
-      setCycleResult(`Error: ${err instanceof Error ? err.message : "Cycle failed"}`);
+      if (err instanceof Error && err.name === "AbortError") {
+        setCycleResult("Error: Request timed out after 120s");
+      } else {
+        setCycleResult(`Error: ${err instanceof Error ? err.message : "Cycle failed"}`);
+      }
     } finally {
+      clearTimeout(timeout);
       setCycling(false);
     }
   };
@@ -166,7 +174,7 @@ export function AdminActions() {
           className="bg-caldera text-background font-semibold hover:bg-caldera/90"
         >
           {cycling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {cycling ? "Running Cycle..." : "Run Autonomous Cycle"}
+          {cycling ? "Running cycle... (this takes ~60s)" : "Run Autonomous Cycle"}
         </Button>
         {cycleResult && (
           <p className={`mt-3 text-xs ${cycleResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
