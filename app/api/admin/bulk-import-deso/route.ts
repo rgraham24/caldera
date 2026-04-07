@@ -70,7 +70,7 @@ async function fetchAndInsertPage(
 
 export async function POST(req: NextRequest) {
   try {
-    const { pages = 10, desoPublicKey, adminPassword } = await req.json();
+    const { pages = 10, startCursor, desoPublicKey, adminPassword } = await req.json();
 
     const isAdmin =
       ADMIN_KEYS.includes(desoPublicKey || "") ||
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     let totalImported = 0;
     let totalSkipped = 0;
-    let cursor: string | null = null;
+    let cursor: string | null = startCursor ?? null;
     let completedPages = 0;
 
     for (let i = 0; i < numPages; i++) {
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      data: { totalImported, totalSkipped, pages: completedPages },
+      data: { totalImported, totalSkipped, pages: completedPages, nextCursor: cursor },
     });
   } catch (err) {
     return NextResponse.json(
