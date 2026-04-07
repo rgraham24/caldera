@@ -88,7 +88,7 @@ export async function generateMarketsForTopic(
     [
       {
         role: "user",
-        content: `Generate markets for: ${topic}\n\nLatest Research Summary:\n${summary}`,
+        content: `Generate markets for: ${topic}\n\nLatest Research Summary:\n${summary}\n\nCRITICAL URGENCY RULES:\n- At least 6 out of 10 markets MUST resolve within 30 days of April 7 2026 (before May 7 2026)\n- At least 3 must resolve within 14 days (before April 21 2026)\n- NEVER use December 31 2026 or end of year as a resolve date unless it is a specific scheduled event like an award show, championship game, or election\n- If a legal case has no set date, use 90 days max\n- Every title must feel like it could trend on Twitter today`,
       },
     ],
     SYSTEM_PROMPT,
