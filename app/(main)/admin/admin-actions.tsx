@@ -8,6 +8,9 @@ import { slugify } from "@/lib/utils";
 const ADMIN_PASSWORD = "caldera-admin-2026";
 
 export function AdminActions() {
+  const [curating, setCurating] = useState(false);
+  const [curateResult, setCurateResult] = useState<string | null>(null);
+
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
@@ -20,6 +23,25 @@ export function AdminActions() {
   const [generatedMarkets, setGeneratedMarkets] = useState<GeneratedMarket[]>([]);
   const [genError, setGenError] = useState<string | null>(null);
   const [creatingIdx, setCreatingIdx] = useState<number | null>(null);
+
+  const handleCurate = async () => {
+    setCurating(true);
+    setCurateResult(null);
+    try {
+      const res = await fetch("/api/admin/curate-markets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+      });
+      const { data, error } = await res.json();
+      if (error) throw new Error(error);
+      setCurateResult(`Featured ${data.featured} markets from ${data.total_evaluated} evaluated`);
+    } catch (err) {
+      setCurateResult(`Error: ${err instanceof Error ? err.message : "Curation failed"}`);
+    } finally {
+      setCurating(false);
+    }
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -108,6 +130,27 @@ export function AdminActions() {
 
   return (
     <div className="space-y-6">
+      {/* AI Homepage Curation */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">AI Homepage Curation</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Claude evaluates the top 50 markets by volume + 24h activity and picks the 8 best for homepage featuring.
+        </p>
+        <Button
+          onClick={handleCurate}
+          disabled={curating}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {curating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {curating ? "Curating..." : "Curate Homepage"}
+        </Button>
+        {curateResult && (
+          <p className={`mt-3 text-xs ${curateResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {curateResult}
+          </p>
+        )}
+      </div>
+
       {/* DeSo Sync */}
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">DeSo Sync</h2>
