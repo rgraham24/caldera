@@ -93,7 +93,6 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "caldera-auth",
-      skipHydration: true,
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),

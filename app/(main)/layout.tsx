@@ -4,8 +4,6 @@ import { Footer } from "@/components/layout/Footer";
 import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
 import StarterBanner from "@/components/shared/StarterBanner";
-import { StoreHydration } from "@/components/providers/StoreHydration";
-
 export default function MainLayout({
   children,
 }: {
@@ -13,7 +11,6 @@ export default function MainLayout({
 }) {
   return (
     <>
-      <StoreHydration />
       <TopNav />
       <WelcomeBanner />
       <StarterBanner />
