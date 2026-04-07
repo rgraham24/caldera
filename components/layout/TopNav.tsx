@@ -25,7 +25,6 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const {
-    _hasHydrated,
     isConnected,
     desoUsername,
     desoProfilePicUrl,
@@ -157,10 +156,7 @@ export function TopNav() {
 
             <NotificationBell />
 
-            {!_hasHydrated ? (
-              /* Placeholder while localStorage rehydrates — prevents flash of "Connect" */
-              <div className="h-8 w-24 rounded-lg bg-[var(--bg-elevated)] animate-pulse" />
-            ) : isConnected ? (
+            {isConnected ? (
               /* Connected state — avatar + username + balance + dropdown */
               <div className="relative flex items-center gap-2" ref={dropdownRef}>
                 {/* Add Funds / balance chip */}
