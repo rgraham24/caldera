@@ -5,7 +5,7 @@ import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 export const maxDuration = 60;
 
 const CURATOR_SYSTEM_PROMPT =
-  "You are a prediction market curator. Given a list of markets with their trading data, return a JSON array of market IDs sorted by engagement priority for homepage featuring. Consider: recency of trades, volume, resolve date urgency (sooner = higher priority), and title appeal. Return ONLY a JSON array of market IDs in priority order, nothing else.";
+  "You are a prediction market curator. Given a list of markets with their trading data, return a JSON array of market IDs sorted by engagement priority for homepage featuring. Consider: recency of trades, volume, resolve date urgency (sooner = higher priority), and title appeal. Return ONLY a JSON array of market IDs exactly as I provided them, no modifications, nothing else.";
 
 const FEATURED_COUNT = 8;
 
@@ -92,11 +92,13 @@ async function runCuration() {
     rankedIds = JSON.parse(match);
   }
 
-  const heroIds = new Set(rankedIds.slice(0, FEATURED_COUNT));
-  await supabase.from("markets").update({ is_hero: false }).eq("status", "open");
-  await supabase.from("markets").update({ is_hero: true }).in("id", [...heroIds]);
+  const topMarketIds = rankedIds.slice(0, FEATURED_COUNT);
+  console.log("[curate-markets] topMarketIds to feature:", topMarketIds);
 
-  return { featured: heroIds.size, total_evaluated: markets.length };
+  await supabase.from("markets").update({ is_hero: false }).neq("id", "00000000-0000-0000-0000-000000000000");
+  await supabase.from("markets").update({ is_hero: true }).in("id", topMarketIds);
+
+  return { featured: topMarketIds.length, total_evaluated: markets.length };
 }
 
 // GET — called by Vercel cron
