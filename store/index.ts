@@ -3,15 +3,6 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { User } from "@/types";
 import type { ConnectedUser } from "@/lib/deso/auth";
 
-function getPersistedAuth() {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem("caldera-auth") || "{}")?.state ?? {};
-  } catch {
-    return {};
-  }
-}
-
 type AppState = {
   user: User | null;
   isConnected: boolean;
@@ -41,18 +32,16 @@ type AppState = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => {
-      const p = getPersistedAuth();
-      return {
+    (set) => ({
         user: null,
-        isConnected: p.isConnected ?? false,
+        isConnected: false,
         isLoading: false,
-        desoPublicKey: p.desoPublicKey ?? null,
-        desoUsername: p.desoUsername ?? null,
-        desoProfilePicUrl: p.desoProfilePicUrl ?? null,
+        desoPublicKey: null,
+        desoUsername: null,
+        desoProfilePicUrl: null,
         desoBalanceNanos: 0,
-        desoBalanceUSD: p.desoBalanceUSD ?? 0,
-        desoBalanceDeso: p.desoBalanceDeso ?? 0,
+        desoBalanceUSD: 0,
+        desoBalanceDeso: 0,
         isDepositModalOpen: false,
         openDepositModal: () => set({ isDepositModalOpen: true }),
         closeDepositModal: () => set({ isDepositModalOpen: false }),
@@ -101,10 +90,10 @@ export const useAppStore = create<AppState>()(
             desoBalanceUSD: 0,
             desoBalanceDeso: 0,
           }),
-      };
-    },
+    }),
     {
       name: "caldera-auth",
+      skipHydration: true,
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),
