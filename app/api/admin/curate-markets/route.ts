@@ -98,7 +98,12 @@ async function runCuration() {
   await supabase.from("markets").update({ is_hero: false }).neq("id", "00000000-0000-0000-0000-000000000000");
   await supabase.from("markets").update({ is_hero: true }).in("id", topMarketIds);
 
-  return { featured: topMarketIds.length, total_evaluated: markets.length };
+  return {
+    featured: topMarketIds.length,
+    total_evaluated: markets.length,
+    debug_ids: topMarketIds.slice(0, 3),
+    sample_db_ids: markets.slice(0, 3).map((m) => m.id),
+  };
 }
 
 // GET — called by Vercel cron
