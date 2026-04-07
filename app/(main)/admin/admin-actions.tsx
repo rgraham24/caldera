@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
 import { slugify } from "@/lib/utils";
 
+const ADMIN_PASSWORD = "caldera-admin-2026";
+
 export function AdminActions() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/import-deso-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: importCount, adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD }),
+        body: JSON.stringify({ count: importCount, adminPassword: ADMIN_PASSWORD }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -62,7 +64,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD }),
+        body: JSON.stringify({ topic, adminPassword: ADMIN_PASSWORD }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);

@@ -8,6 +8,8 @@ import {
   formatRelativeTime,
   slugify,
 } from "@/lib/utils";
+
+const ADMIN_PASSWORD = "caldera-admin-2026";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -315,7 +317,7 @@ function ResolveMarketForm({
           sourceUrl: form.get("sourceUrl") || undefined,
           notes: form.get("notes") || undefined,
           desoPublicKey: desoPublicKey ?? "",
-          adminPassword: process.env.NEXT_PUBLIC_ADMIN_PASSWORD,
+          adminPassword: ADMIN_PASSWORD,
         }),
       });
 
