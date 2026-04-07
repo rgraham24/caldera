@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const ADMIN_KEYS = [
-  "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7",
-  "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
-];
 const DESO_PRICE_USD = 5.25;
 
 export async function POST(req: NextRequest) {
   try {
-    const { count = 100, desoPublicKey } = await req.json();
-
-    if (!ADMIN_KEYS.includes(desoPublicKey)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { count = 100 } = await req.json();
 
     const numToFetch = Math.min(Math.max(1, Number(count)), 1000);
 

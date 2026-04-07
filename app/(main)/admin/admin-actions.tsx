@@ -3,12 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
-import { useAppStore } from "@/store";
 import { slugify } from "@/lib/utils";
 
 export function AdminActions() {
-  const desoPublicKey = useAppStore((s) => s.desoPublicKey);
-
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
@@ -44,7 +41,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/import-deso-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: importCount, desoPublicKey }),
+        body: JSON.stringify({ count: importCount }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -65,7 +62,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, desoPublicKey }),
+        body: JSON.stringify({ topic }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
