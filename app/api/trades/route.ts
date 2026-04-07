@@ -5,7 +5,7 @@ import { calculateFees, getMarketFeeType } from "@/lib/fees/calculator";
 import { z } from "zod";
 
 const tradeSchema = z.object({
-  marketId: z.string().uuid(),
+  marketId: z.string().min(1),
   side: z.enum(["yes", "no"]),
   amount: z.number().positive(),
   txnHash: z.string().optional(),
