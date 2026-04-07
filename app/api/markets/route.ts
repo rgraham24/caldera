@@ -7,14 +7,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
   const category = searchParams.get("category");
-  const status = searchParams.get("status");
-  const sort = searchParams.get("sort") || "trending";
-  const limit = parseInt(searchParams.get("limit") || "50");
+  const status = searchParams.get("status") ?? "open";
+  const sort = searchParams.get("sort") || "volume";
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const offset = parseInt(searchParams.get("offset") || "0");
 
-  let query = supabase.from("markets").select("*");
+  let query = supabase.from("markets").select("*").eq("status", status);
 
-  if (category) query = query.eq("category", category);
-  if (status) query = query.eq("status", status);
+  if (category && category !== "all") query = query.eq("category", category);
 
   switch (sort) {
     case "volume":
@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
       query = query.order("resolve_at", { ascending: true });
       break;
     default:
-      query = query.order("trending_score", { ascending: false });
+      query = query.order("total_volume", { ascending: false });
   }
 
-  const { data, error } = await query.limit(limit);
+  const { data, error } = await query.range(offset, offset + limit - 1);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

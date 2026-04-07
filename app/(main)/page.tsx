@@ -6,45 +6,52 @@ import type { Market } from "@/types";
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Hero carousel — up to 8 is_hero markets
-  const { data: heroMarkets } = await supabase
-    .from("markets")
-    .select("*")
-    .eq("is_hero", true)
-    .eq("status", "open")
-    .limit(8);
+  const [
+    { data: heroMarkets },
+    { data: initialMarkets },
+    ...categoryVolumes
+  ] = await Promise.all([
+    // Featured carousel — up to 6 is_hero markets
+    supabase
+      .from("markets")
+      .select("*")
+      .eq("is_hero", true)
+      .eq("status", "open")
+      .order("total_volume", { ascending: false })
+      .limit(6),
 
-  // Trending — top 6 by volume
-  const { data: trendingMarkets } = await supabase
-    .from("markets")
-    .select("*")
-    .eq("status", "open")
-    .order("total_volume", { ascending: false })
-    .limit(6);
+    // Initial main grid — top 20 by volume
+    supabase
+      .from("markets")
+      .select("*")
+      .eq("status", "open")
+      .order("total_volume", { ascending: false })
+      .limit(20),
 
-  // Top 4 per category — run in parallel
-  const categoryResults = await Promise.all(
-    CATEGORIES.map(({ value }) =>
+    // Volume per category for sidebar Hot Topics
+    ...CATEGORIES.map(({ value }) =>
       supabase
         .from("markets")
-        .select("*")
+        .select("total_volume")
         .eq("status", "open")
         .eq("category", value)
-        .order("total_volume", { ascending: false })
-        .limit(4)
-        .then(({ data }) => ({ category: value, markets: (data ?? []) as Market[] }))
-    )
-  );
+        .then(({ data }) => ({
+          category: value,
+          volume: (data ?? []).reduce((s, m) => s + (m.total_volume ?? 0), 0),
+          count: (data ?? []).length,
+        }))
+    ),
+  ]);
 
-  const categoryMarkets = Object.fromEntries(
-    categoryResults.map(({ category, markets }) => [category, markets])
-  ) as Record<string, Market[]>;
+  const hotTopics = (categoryVolumes as { category: string; volume: number; count: number }[])
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.volume - a.volume);
 
   return (
     <HomeClient
-      heroMarkets={(heroMarkets ?? []) as Market[]}
-      trendingMarkets={(trendingMarkets ?? []) as Market[]}
-      categoryMarkets={categoryMarkets}
+      featuredMarkets={(heroMarkets ?? []) as Market[]}
+      initialMarkets={(initialMarkets ?? []) as Market[]}
+      hotTopics={hotTopics}
     />
   );
 }
