@@ -73,15 +73,23 @@ async function runCuration() {
   }
 
   const claudeData = await res.json();
-  const text: string = claudeData.content?.[0]?.text ?? "";
+  const rawText: string = claudeData.content?.[0]?.text ?? "";
+
+  console.log("[curate-markets] Claude raw response:", JSON.stringify(rawText));
+
+  // Strip markdown code fences, then try direct parse, then regex fallback
+  const text = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
   let rankedIds: string[];
   try {
     rankedIds = JSON.parse(text);
   } catch {
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error("Failed to parse Claude response");
-    rankedIds = JSON.parse(match[0]);
+    const match = text.match(/\[[\s\S]*\]/)?.[0];
+    if (!match) {
+      console.error("[curate-markets] Failed to parse Claude response. Raw:", rawText.slice(0, 500));
+      return { featured: 0, total_evaluated: markets.length };
+    }
+    rankedIds = JSON.parse(match);
   }
 
   const heroIds = new Set(rankedIds.slice(0, FEATURED_COUNT));
