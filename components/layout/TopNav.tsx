@@ -25,6 +25,7 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const {
+    isConnected,
     desoUsername,
     desoProfilePicUrl,
     desoBalanceDeso,
@@ -33,17 +34,8 @@ export function TopNav() {
     openDepositModal,
   } = useAppStore();
 
-  const [isConnected, setIsConnected] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const stored = JSON.parse(localStorage.getItem("caldera-auth") || "{}");
-      return stored?.state?.isConnected ?? false;
-    } catch { return false; }
-  });
-
-  // Keep synced with store after rehydration
-  const storeConnected = useAppStore((state) => state.isConnected);
-  useEffect(() => { setIsConnected(storeConnected); }, [storeConnected]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -167,7 +159,8 @@ export function TopNav() {
 
             <NotificationBell />
 
-            {isConnected ? (
+            <div suppressHydrationWarning>
+            {mounted && isConnected ? (
               /* Connected state — avatar + username + balance + dropdown */
               <div className="relative flex items-center gap-2" ref={dropdownRef}>
                 {/* Add Funds / balance chip */}
@@ -258,14 +251,17 @@ export function TopNav() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : mounted ? (
               <button
                 onClick={() => connectDeSoWallet()}
                 className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-gray-100"
               >
                 Connect
               </button>
+            ) : (
+              <div className="h-8 w-24" />
             )}
+            </div>
 
             {/* Mobile hamburger */}
             <Button
