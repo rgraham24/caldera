@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
-const ADMIN_KEY = "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7";
+const ADMIN_KEYS = [
+  "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7",
+  "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
+];
 
 const resolveSchema = z.object({
   outcome: z.enum(["yes", "no", "cancelled"]),
@@ -31,7 +34,7 @@ export async function POST(
 
     const { outcome, sourceUrl, notes, desoPublicKey } = parsed.data;
 
-    if (desoPublicKey !== ADMIN_KEY) {
+    if (!ADMIN_KEYS.includes(desoPublicKey)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

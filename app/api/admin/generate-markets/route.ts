@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ADMIN_KEY = "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7";
+const ADMIN_KEYS = [
+  "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7",
+  "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
+];
 
 export async function POST(req: NextRequest) {
   try {
     const { topic, desoPublicKey } = await req.json();
 
-    if (desoPublicKey !== ADMIN_KEY) {
+    if (!ADMIN_KEYS.includes(desoPublicKey)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
