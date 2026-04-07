@@ -9,6 +9,7 @@ const tradeSchema = z.object({
   side: z.enum(["yes", "no"]),
   amount: z.number().positive(),
   txnHash: z.string().optional(),
+  desoPublicKey: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -23,24 +24,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { marketId, side, amount, txnHash } = parsed.data;
-    const supabase = await createClient();
+    const { marketId, side, amount, txnHash, desoPublicKey } = parsed.data;
 
-    // Get current user
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    if (!authUser) {
+    if (!desoPublicKey) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user record
-    const { data: dbUser } = await supabase
+    const supabase = await createClient();
+
+    // Look up user by DeSo public key, create if not found
+    let dbUser: { id: string } | null = null;
+    const { data: existingUser } = await supabase
       .from("users")
       .select("id")
-      .eq("id", authUser.id)
+      .eq("deso_public_key", desoPublicKey)
       .single();
+
+    if (existingUser) {
+      dbUser = existingUser;
+    } else {
+      const { data: newUser } = await supabase
+        .from("users")
+        .insert({ deso_public_key: desoPublicKey, username: desoPublicKey.substring(0, 8) })
+        .select("id")
+        .single();
+      dbUser = newUser;
+    }
 
     if (!dbUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

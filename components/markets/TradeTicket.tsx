@@ -78,6 +78,7 @@ export function TradeTicket({
           marketId: market.id,
           side,
           amount: amountNum,
+          desoPublicKey: useAppStore.getState().desoPublicKey,
         }),
       });
 
