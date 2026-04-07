@@ -4,6 +4,9 @@ import type { User } from "@/types";
 import type { ConnectedUser } from "@/lib/deso/auth";
 
 type AppState = {
+  _hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
+
   user: User | null;
   isConnected: boolean;
   isLoading: boolean;
@@ -33,6 +36,9 @@ type AppState = {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
+      _hasHydrated: false,
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
+
       user: null,
       isConnected: false,
       isLoading: false,
@@ -96,6 +102,9 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
       partialize: (state) => ({
         isConnected: state.isConnected,
         desoPublicKey: state.desoPublicKey,
