@@ -24,7 +24,7 @@ const SCHEDULED_EVENT_KEYWORDS = [
 
 function randomNearTermDate(): string {
   const base = new Date("2026-04-07T00:00:00Z");
-  base.setDate(base.getDate() + 30 + Math.floor(Math.random() * 61)); // 30–90 days
+  base.setDate(base.getDate() + 30 + Math.floor(Math.random() * 61));
   return base.toISOString();
 }
 
@@ -42,7 +42,7 @@ const FEATURED_COUNT = 8;
 
 // ─── Step 1: Discover entities ────────────────────────────────────────────────
 
-// Hard cap on any single external fetch — silent skip on timeout
+// Hard cap on any single external fetch — silent null on timeout
 function withTimeout<T>(promise: Promise<T>, ms = 3000): Promise<T | null> {
   return Promise.race([
     promise.catch(() => null),
@@ -51,12 +51,15 @@ function withTimeout<T>(promise: Promise<T>, ms = 3000): Promise<T | null> {
 }
 
 const BRAVE_QUERIES = [
-  "Kick streamer drama banned arrested April 2026",
-  "YouTuber influencer scandal viral this week 2026",
+  "Kick streamer arrested banned drama controversy April 2026",
+  "YouTuber beef exposed drama meltdown this week 2026",
+  "IRL streamer viral fight arrest meltdown April 2026",
+  "LivestreamFail reddit controversy ban viral clip today",
+  "influencer scandal exposed arrested April 2026",
 ];
 
 const ENTITY_SCOUT_SYSTEM =
-  'You are a hot entity scout for a prediction marketplace. List exactly 3 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.';
+  'You are a hot entity scout for a prediction marketplace. List exactly 10 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.';
 
 async function fetchBraveResults(query: string, braveKey: string): Promise<string> {
   const result = await withTimeout(
@@ -82,6 +85,21 @@ async function fetchRedditHot(subreddit: string, limit: number): Promise<string>
   return titles.length ? `Reddit r/${subreddit} hot posts:\n${titles.join("\n")}` : "";
 }
 
+async function fetchYouTubeTrending(): Promise<string> {
+  const html = await withTimeout(
+    fetch("https://www.youtube.com/feed/trending?hl=en&gl=US", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    }).then((r) => (r.ok ? r.text() : null))
+  );
+  if (!html) return "";
+  const matches = html.match(/"title":\{"runs":\[\{"text":"([^"]+)"/g) ?? [];
+  const titles = matches
+    .slice(0, 10)
+    .map((m) => m.match(/"text":"([^"]+)"/)?.[1] ?? "")
+    .filter(Boolean);
+  return titles.length ? `YouTube Trending:\n${titles.join("\n")}` : "";
+}
+
 async function fetchKickFeatured(): Promise<string> {
   const result = await withTimeout(
     fetch("https://kick.com/api/v2/channels/featured", {
@@ -96,6 +114,50 @@ async function fetchKickFeatured(): Promise<string> {
     .filter(Boolean)
     .slice(0, 10);
   return channels.length ? `Kick.com Featured Live Channels:\n${channels.join("\n")}` : "";
+}
+
+async function fetchTwitchTopStreams(): Promise<string> {
+  const clientId = process.env.TWITCH_CLIENT_ID;
+  const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return "";
+
+  // Get app access token
+  const tokenRes = await withTimeout(
+    fetch("https://id.twitch.tv/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+    }).then((r) => (r.ok ? r.json() : null))
+  );
+  if (!tokenRes?.access_token) return "";
+
+  const streamsRes = await withTimeout(
+    fetch("https://api.twitch.tv/helix/streams?first=20", {
+      headers: {
+        "Client-ID": clientId,
+        Authorization: `Bearer ${tokenRes.access_token}`,
+      },
+    }).then((r) => (r.ok ? r.json() : null))
+  );
+  if (!streamsRes) return "";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const names: string[] = (streamsRes.data ?? []).map((s: any) => s.user_name).filter(Boolean);
+  return names.length ? `Twitch Top Streamers:\n${names.join("\n")}` : "";
+}
+
+async function fetchGoogleTrends(): Promise<string> {
+  const xml = await withTimeout(
+    fetch("https://trends.google.com/trends/trendingsearches/daily/rss?geo=US", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    }).then((r) => (r.ok ? r.text() : null))
+  );
+  if (!xml) return "";
+  const titles = (xml.match(/<title><!\[CDATA\[([^\]]+)\]\]><\/title>/g) ?? [])
+    .slice(1, 16) // skip feed title
+    .map((m) => m.replace(/<title><!\[CDATA\[/, "").replace(/\]\]><\/title>/, "").trim())
+    .filter(Boolean);
+  return titles.length ? `Google Trends US:\n${titles.join("\n")}` : "";
 }
 
 function parseEntityList(text: string): string[] {
@@ -118,7 +180,7 @@ async function callClaudeForEntities(apiKey: string, userContent: string): Promi
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 256,
+      max_tokens: 512,
       system: ENTITY_SCOUT_SYSTEM,
       messages: [{ role: "user", content: userContent }],
     }),
@@ -132,25 +194,36 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
   const braveKey = process.env.BRAVE_SEARCH_API_KEY;
 
   if (braveKey) {
-    // All external fetches run in parallel, each capped at 3s
-    const [braveResults, lsf, kick] = await Promise.all([
-      Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
-      fetchRedditHot("LivestreamFail", 10),
-      fetchKickFeatured(),
-    ]);
+    const [braveResults, lsf, boxing, mma, ksi, loganpaul, youtube, kick, twitch, trends] =
+      await Promise.all([
+        Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
+        fetchRedditHot("LivestreamFail", 10),
+        fetchRedditHot("Boxing", 5),
+        fetchRedditHot("MMA", 5),
+        fetchRedditHot("ksi", 5),
+        fetchRedditHot("LoganPaul", 5),
+        fetchYouTubeTrending(),
+        fetchKickFeatured(),
+        fetchTwitchTopStreams(),
+        fetchGoogleTrends(),
+      ]);
 
-    const rawData = [...braveResults, lsf, kick].filter(Boolean).join("\n\n");
+    const rawData = [
+      ...braveResults,
+      lsf, boxing, mma, ksi, loganpaul,
+      youtube, kick, twitch, trends,
+    ].filter(Boolean).join("\n\n");
 
     return callClaudeForEntities(
       apiKey,
-      `Find the 3 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit LivestreamFail, and Kick.com live channels, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 3 entries.\n\nFresh data:\n${rawData}`
+      `Find the 10 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit (LivestreamFail/Boxing/MMA/KSI/LoganPaul), YouTube Trending, Kick.com, Twitch, and Google Trends, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 10 entries.\n\nFresh data:\n${rawData}`
     );
   }
 
   // Fallback: Claude knowledge only
   return callClaudeForEntities(
     apiKey,
-    "List 3 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
+    "List 10 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
   );
 }
 
@@ -190,7 +263,7 @@ export async function bulkGenerateAndInsert(
   apiKey: string,
   supabase: SupabaseClient
 ): Promise<number> {
-  const BATCH_SIZE = 2;
+  const BATCH_SIZE = 3;
   let created = 0;
 
   for (let i = 0; i < entities.length; i += BATCH_SIZE) {
@@ -205,9 +278,8 @@ export async function bulkGenerateAndInsert(
       }
     }
 
-    // 2s cooldown between batches to avoid rate limits
     if (i + BATCH_SIZE < entities.length) {
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 2000));
     }
   }
 

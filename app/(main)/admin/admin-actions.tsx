@@ -31,34 +31,19 @@ export function AdminActions() {
   const handleCycle = async () => {
     setCycling(true);
     setCycleResult(null);
-    setCycleStep(null);
+    setCycleStep("Running full autonomous cycle (up to 5 min)...");
 
-    const post = async (body: Record<string, unknown>) => {
+    try {
       const res = await fetch("/api/admin/autonomous-cycle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      return json.data;
-    };
-
-    try {
-      // Step 1: discover
-      setCycleStep("Step 1/3: Discovering hot entities...");
-      const { entities } = await post({ step: "discover" });
-
-      // Step 2: generate
-      setCycleStep(`Step 2/3: Generating markets for ${(entities as string[]).join(", ")}...`);
-      const { markets_created } = await post({ step: "generate", entities });
-
-      // Step 3: finalize
-      setCycleStep("Step 3/3: Curating homepage...");
-      const { dates_fixed, featured_updated } = await post({ step: "finalize" });
-
+      const { entities, markets_created, dates_fixed, featured_updated } = json.data;
       setCycleResult(
-        `✓ Created ${markets_created} markets from ${(entities as string[]).length} entities · ${dates_fixed} dates fixed · ${featured_updated} featured`
+        `✓ Discovered ${entities} entities · Created ${markets_created} markets · ${dates_fixed} dates fixed · ${featured_updated} featured`
       );
     } catch (err) {
       setCycleResult(`Error: ${err instanceof Error ? err.message : "Cycle failed"}`);

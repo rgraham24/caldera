@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/admin/autonomous-cycle",
-      "schedule": "0 8 * * *"
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/admin/curate-markets",
+      "schedule": "0 */2 * * *"
     }
   ]
 }
