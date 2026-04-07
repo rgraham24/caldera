@@ -32,7 +32,7 @@ export function TradeTicket({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { isConnected, desoBalanceUSD, openDepositModal } = useAppStore();
+  const { isConnected } = useAppStore();
 
   const amountNum = parseFloat(amount) || 0;
 
