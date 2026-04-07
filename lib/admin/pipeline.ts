@@ -40,9 +40,87 @@ const CURATOR_SYSTEM_PROMPT =
 
 const FEATURED_COUNT = 8;
 
-// ─── Step 1: Discover entities ────────────────────────────────────────────────
+// ─── Step 1: Discover entities (with optional Brave Search grounding) ────────
+
+const BRAVE_QUERIES = [
+  "trending creator streamer drama controversy today 2026",
+  "viral influencer scandal celebrity news this week",
+  "sports athlete drama trade injury controversy today",
+  "musician rapper beef feud viral moment this week",
+];
+
+const ENTITY_SCOUT_SYSTEM =
+  'You are a hot entity scout for a prediction marketplace. List exactly 15 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.';
+
+async function fetchBraveResults(query: string, braveKey: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
+      {
+        headers: {
+          Accept: "application/json",
+          "X-Subscription-Token": braveKey,
+        },
+      }
+    );
+    if (!res.ok) return "";
+    const data = await res.json();
+    const results: { title: string; description: string }[] = data?.web?.results ?? [];
+    const lines = results
+      .map((r) => `- ${r.title}: ${r.description ?? ""}`)
+      .join("\n");
+    return `Query: ${query}\nResults:\n${lines}`;
+  } catch {
+    return "";
+  }
+}
+
+function parseEntityList(text: string): string[] {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error("Failed to parse entity list from Claude");
+    return JSON.parse(match[0]);
+  }
+}
 
 export async function discoverEntities(apiKey: string): Promise<string[]> {
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+
+  if (braveKey) {
+    // Fetch all 4 search queries in parallel
+    const searchResults = await Promise.all(
+      BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))
+    );
+    const rawData = searchResults.filter(Boolean).join("\n\n");
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 512,
+        system: ENTITY_SCOUT_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: `Find the 15 hottest entities right now for a prediction market. Based on these fresh search results, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 15 entries.\n\nFresh data:\n${rawData}`,
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Entity discovery failed: ${res.status}`);
+    const data = await res.json();
+    return parseEntityList(data.content?.[0]?.text ?? "");
+  }
+
+  // Fallback: Claude knowledge only
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -53,24 +131,20 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: 512,
-      system:
-        'You are a hot entity scout for a prediction marketplace. List exactly 15 public figures, creators, athletes, or cultural moments that are trending RIGHT NOW in April 2026 with maximum drama, controversy, or urgency. Return ONLY a JSON array of strings like ["Entity Name", ...]. No explanation.',
-      messages: [{ role: "user", content: "List the 15 hottest entities right now." }],
+      system: ENTITY_SCOUT_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content:
+            "List 15 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array.",
+        },
+      ],
     }),
   });
 
   if (!res.ok) throw new Error(`Entity discovery failed: ${res.status}`);
-
   const data = await res.json();
-  const text: string = data.content?.[0]?.text ?? "";
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    const match = text.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error("Failed to parse entity list from Claude");
-    return JSON.parse(match[0]);
-  }
+  return parseEntityList(data.content?.[0]?.text ?? "");
 }
 
 // ─── Step 2: Generate + insert markets ────────────────────────────────────────
