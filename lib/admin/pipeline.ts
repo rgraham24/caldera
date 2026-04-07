@@ -236,7 +236,55 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
   );
 }
 
-// ─── Step 2: Generate + insert markets ────────────────────────────────────────
+// ─── Step 2: Relevance gatekeeper ─────────────────────────────────────────────
+
+const GATEKEEPER_SYSTEM =
+  "You are a prediction market relevance gatekeeper. Today is April 7 2026. For each market, decide if it should be KEPT or REJECTED. Reject if: the event already happened, the question is stale (could have been written 3+ months ago), or the timeframe is too far out and drama has cooled. Return ONLY a JSON array of the markets to KEEP, with the same structure as input. Be ruthless — only keep markets tied to current drama from the last 14 days.";
+
+async function filterStaleMarkets(
+  markets: GeneratedMarket[],
+  apiKey: string
+): Promise<GeneratedMarket[]> {
+  if (markets.length === 0) return [];
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        system: GATEKEEPER_SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: `Filter this batch, keeping only currently relevant markets: ${JSON.stringify(markets)}`,
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn("[filterStaleMarkets] API error, keeping all markets:", res.status);
+      return markets;
+    }
+
+    const data = await res.json();
+    const text: string = data.content?.[0]?.text ?? "";
+    const kept = parseJsonArray(text) as GeneratedMarket[];
+    console.log(`[filterStaleMarkets] ${markets.length} in → ${kept.length} kept (${markets.length - kept.length} rejected)`);
+    return kept;
+  } catch (err) {
+    console.warn("[filterStaleMarkets] Failed, keeping all markets:", err);
+    return markets;
+  }
+}
+
+// ─── Step 3: Generate + insert markets ────────────────────────────────────────
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -283,7 +331,10 @@ export async function bulkGenerateAndInsert(
 
     for (const result of results) {
       if (result.status === "fulfilled" && result.value?.length > 0) {
-        created += await insertMarkets(result.value, supabase);
+        const filtered = await filterStaleMarkets(result.value, apiKey);
+        if (filtered.length > 0) {
+          created += await insertMarkets(filtered, supabase);
+        }
       }
     }
 
@@ -295,7 +346,7 @@ export async function bulkGenerateAndInsert(
   return created;
 }
 
-// ─── Step 3: Fix stale dates ──────────────────────────────────────────────────
+// ─── Step 4: Fix stale dates ──────────────────────────────────────────────────
 
 export async function fixStaleDates(supabase: SupabaseClient): Promise<number> {
   const { data: markets } = await supabase
@@ -318,7 +369,7 @@ export async function fixStaleDates(supabase: SupabaseClient): Promise<number> {
   return updated;
 }
 
-// ─── Step 4: Curate homepage ──────────────────────────────────────────────────
+// ─── Step 5: Curate homepage ──────────────────────────────────────────────────
 
 export async function curateHomepage(
   apiKey: string,
