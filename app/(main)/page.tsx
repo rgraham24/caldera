@@ -1,99 +1,50 @@
 import { createClient } from "@/lib/supabase/server";
 import { HomeClient } from "./home-client";
-import type { Creator } from "@/types";
+import { CATEGORIES } from "@/types";
+import type { Market } from "@/types";
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Hero market — flagged or highest trending
-  const { data: heroRow } = await supabase
+  // Hero carousel — up to 8 is_hero markets
+  const { data: heroMarkets } = await supabase
     .from("markets")
     .select("*")
     .eq("is_hero", true)
     .eq("status", "open")
-    .limit(1)
-    .single();
+    .limit(8);
 
-  const heroMarket = heroRow ?? (await supabase
+  // Trending — top 6 by volume
+  const { data: trendingMarkets } = await supabase
     .from("markets")
     .select("*")
     .eq("status", "open")
-    .order("trending_score", { ascending: false })
-    .limit(1)
-    .single()).data;
-
-  // All open markets
-  const { data: allMarkets } = await supabase
-    .from("markets")
-    .select("*")
-    .eq("status", "open")
-    .order("trending_score", { ascending: false });
-
-  // Resolved markets
-  const { data: resolvedMarkets } = await supabase
-    .from("markets")
-    .select("*")
-    .eq("status", "resolved")
-    .order("resolved_at", { ascending: false })
+    .order("total_volume", { ascending: false })
     .limit(6);
 
-  // Recent trades for ticker
-  const { data: recentTrades } = await supabase
-    .from("trades")
-    .select("*, market:markets(title, slug)")
-    .order("created_at", { ascending: false })
-    .limit(20);
+  // Top 4 per category — run in parallel
+  const categoryResults = await Promise.all(
+    CATEGORIES.map(({ value }) =>
+      supabase
+        .from("markets")
+        .select("*")
+        .eq("status", "open")
+        .eq("category", value)
+        .order("total_volume", { ascending: false })
+        .limit(4)
+        .then(({ data }) => ({ category: value, markets: (data ?? []) as Market[] }))
+    )
+  );
 
-  // Top creators
-  const { data: rawCreators } = await supabase
-    .from("creators")
-    .select("*");
-
-  const allCreators = rawCreators ?? [];
-  const stableChange = (id: string) => {
-    const hash = id.split("").reduce((a, ch) => a + ch.charCodeAt(0), 0);
-    return parseFloat(((((hash % 100) / 100) - 0.35) * 20).toFixed(1));
-  };
-  const addChange = (c: typeof allCreators[0]) => ({
-    ...c,
-    price_change_24h: stableChange(c.id),
-  });
-
-  // Unified token list — all entities sorted by coin price
-  const sortedCreators = allCreators
-    .sort((a, b) => {
-      const aActive = a.deso_username && a.creator_coin_price > 1 ? 1 : 0;
-      const bActive = b.deso_username && b.creator_coin_price > 1 ? 1 : 0;
-      if (bActive !== aActive) return bActive - aActive;
-      return b.creator_coin_price - a.creator_coin_price;
-    })
-    .slice(0, 16)
-    .map(addChange);
-
-  // Hero creator
-  let heroCreator: Creator | null = null;
-  if (heroMarket?.creator_id) {
-    const { data } = await supabase
-      .from("creators")
-      .select("*")
-      .eq("id", heroMarket.creator_id)
-      .single();
-    heroCreator = data as Creator | null;
-  }
-
-  const open = allMarkets ?? [];
+  const categoryMarkets = Object.fromEntries(
+    categoryResults.map(({ category, markets }) => [category, markets])
+  ) as Record<string, Market[]>;
 
   return (
     <HomeClient
-      heroMarket={heroMarket}
-      heroCreator={heroCreator}
-      allMarkets={open}
-      resolvedMarkets={resolvedMarkets ?? []}
-      recentTrades={(recentTrades as unknown as Array<{
-        id: string; side: string; gross_amount: number; created_at: string;
-        market: { title: string; slug: string };
-      }>) ?? []}
-      creators={sortedCreators as (Creator & { price_change_24h: number })[]}
+      heroMarkets={(heroMarkets ?? []) as Market[]}
+      trendingMarkets={(trendingMarkets ?? []) as Market[]}
+      categoryMarkets={categoryMarkets}
     />
   );
 }
