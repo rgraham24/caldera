@@ -11,8 +11,24 @@ function AuthCallbackInner() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      const rawPayload = searchParams.get("payload");
       const publicKey =
-        searchParams.get("public_key") || searchParams.get("publicKey");
+        searchParams.get("public_key") ||
+        searchParams.get("publicKey") ||
+        (() => {
+          try {
+            if (!rawPayload) return null;
+            const decoded = JSON.parse(decodeURIComponent(rawPayload));
+            return (
+              decoded.publicKeyAdded ||
+              decoded.PublicKeyBase58Check ||
+              (decoded.users ? Object.keys(decoded.users)[0] : null)
+            );
+          } catch { return null; }
+        })();
+
+      console.log("[auth/callback] rawPayload:", rawPayload);
+      console.log("[auth/callback] extracted publicKey:", publicKey);
 
       if (!publicKey) {
         const returnTo = localStorage.getItem("caldera_auth_return") || "/";
