@@ -1,40 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { CreatorHoldingCard } from "@/components/portfolio/CreatorHoldingCard";
 import { useAppStore } from "@/store";
+import { connectDeSoWallet } from "@/lib/deso/auth";
 
-type PortfolioClientProps = {
-  positions: Array<{
-    id: string;
-    side: string;
-    quantity: number;
-    avg_entry_price: number;
-    total_cost: number;
-    fees_paid: number;
-    realized_pnl: number;
-    unrealized_pnl_cached: number;
+type Position = {
+  id: string;
+  side: string;
+  quantity: number;
+  avg_entry_price: number;
+  total_cost: number;
+  fees_paid: number;
+  realized_pnl: number;
+  unrealized_pnl_cached: number;
+  status: string;
+  market: {
+    title: string;
+    slug: string;
+    yes_price: number;
+    no_price: number;
     status: string;
-    market: {
-      title: string;
-      slug: string;
-      yes_price: number;
-      no_price: number;
-      status: string;
-    };
-  }>;
-  watchlist: Array<{
-    id: string;
-    market: {
-      title: string;
-      slug: string;
-      yes_price: number;
-      total_volume: number;
-      category: string;
-    } | null;
-  }>;
+  };
+};
+
+type WatchlistItem = {
+  id: string;
+  market: {
+    title: string;
+    slug: string;
+    yes_price: number;
+    total_volume: number;
+    category: string;
+  } | null;
 };
 
 type Tab = "open" | "settled" | "watchlist" | "holdings";
@@ -61,9 +61,24 @@ const MOCK_HOLDINGS = [
   },
 ];
 
-export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) {
+export function PortfolioClient() {
   const [tab, setTab] = useState<Tab>("open");
-  const { desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { isConnected, desoPublicKey, desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
+
+  useEffect(() => {
+    if (!desoPublicKey) {
+      setLoading(false);
+      return;
+    }
+    fetch(`/api/portfolio?desoPublicKey=${encodeURIComponent(desoPublicKey)}`)
+      .then((r) => r.json())
+      .then((json) => { if (json.data) setPositions(json.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [desoPublicKey]);
 
   const openPositions = positions.filter((p) => p.status === "open");
   const settledPositions = positions.filter((p) => p.status === "settled");
@@ -83,6 +98,28 @@ export function PortfolioClient({ positions, watchlist }: PortfolioClientProps) 
     0
   );
   const totalFeesPaid = positions.reduce((sum, p) => sum + p.fees_paid, 0);
+
+  if (!isConnected) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-24 text-center md:px-6 lg:px-8">
+        <p className="mb-4 text-text-muted">Connect your wallet to view your portfolio.</p>
+        <button
+          onClick={connectDeSoWallet}
+          className="rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-black hover:bg-gray-100"
+        >
+          Connect Wallet
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-24 text-center md:px-6 lg:px-8">
+        <p className="text-text-muted">Loading portfolio...</p>
+      </div>
+    );
+  }
 
   return (
     <>

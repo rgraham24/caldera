@@ -31,6 +31,7 @@ export function TradeTicket({
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { isConnected } = useAppStore();
 
@@ -87,8 +88,11 @@ export function TradeTicket({
         throw new Error(data.error || "Trade failed");
       }
 
+      const shares = quote?.sharesReceived.toFixed(2) ?? "?";
+      setSuccessMessage(`✓ Trade confirmed! You bought ${shares} shares of ${side.toUpperCase()}`);
       setAmount("");
       onTradeComplete?.();
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trade failed");
     } finally {
@@ -256,6 +260,9 @@ export function TradeTicket({
         </div>
       )}
 
+      {successMessage && (
+        <p className="mb-3 text-xs text-yes">{successMessage}</p>
+      )}
       {error && (
         <p className="mb-3 text-xs text-no">{error}</p>
       )}
