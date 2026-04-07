@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 1024,
         messages: [
           {
@@ -50,7 +50,8 @@ Example format:
 
     if (!res.ok) {
       const err = await res.text();
-      return NextResponse.json({ error: `Claude API error: ${err}` }, { status: 500 });
+      console.error("[generate-markets] Anthropic error:", res.status, err);
+      return NextResponse.json({ error: `Claude API error (${res.status}): ${err}` }, { status: 500 });
     }
 
     const claudeData = await res.json();
