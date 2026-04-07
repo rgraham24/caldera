@@ -9,6 +9,7 @@ const ADMIN_PASSWORD = "caldera-admin-2026";
 
 export function AdminActions() {
   const [cycling, setCycling] = useState(false);
+  const [cycleStep, setCycleStep] = useState<string | null>(null);
   const [cycleResult, setCycleResult] = useState<string | null>(null);
 
   const [curating, setCurating] = useState(false);
@@ -30,29 +31,40 @@ export function AdminActions() {
   const handleCycle = async () => {
     setCycling(true);
     setCycleResult(null);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120_000);
-    try {
+    setCycleStep(null);
+
+    const post = async (body: Record<string, unknown>) => {
       const res = await fetch("/api/admin/autonomous-cycle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
-        signal: controller.signal,
+        body: JSON.stringify({ ...body, adminPassword: ADMIN_PASSWORD }),
       });
-      const { data, error } = await res.json();
-      if (error) throw new Error(error);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      return json.data;
+    };
+
+    try {
+      // Step 1: discover
+      setCycleStep("Step 1/3: Discovering hot entities...");
+      const { entities } = await post({ step: "discover" });
+
+      // Step 2: generate
+      setCycleStep(`Step 2/3: Generating markets for ${(entities as string[]).join(", ")}...`);
+      const { markets_created } = await post({ step: "generate", entities });
+
+      // Step 3: finalize
+      setCycleStep("Step 3/3: Curating homepage...");
+      const { dates_fixed, featured_updated } = await post({ step: "finalize" });
+
       setCycleResult(
-        `✓ Created ${data.markets_created} markets from ${data.entities} entities · ${data.dates_fixed} dates fixed · ${data.featured_updated} featured`
+        `✓ Created ${markets_created} markets from ${(entities as string[]).length} entities · ${dates_fixed} dates fixed · ${featured_updated} featured`
       );
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setCycleResult("Error: Request timed out after 120s");
-      } else {
-        setCycleResult(`Error: ${err instanceof Error ? err.message : "Cycle failed"}`);
-      }
+      setCycleResult(`Error: ${err instanceof Error ? err.message : "Cycle failed"}`);
     } finally {
-      clearTimeout(timeout);
       setCycling(false);
+      setCycleStep(null);
     }
   };
 
@@ -174,7 +186,7 @@ export function AdminActions() {
           className="bg-caldera text-background font-semibold hover:bg-caldera/90"
         >
           {cycling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {cycling ? "Running cycle... (this takes ~60s)" : "Run Autonomous Cycle"}
+          {cycling ? (cycleStep ?? "Starting...") : "Run Autonomous Cycle"}
         </Button>
         {cycleResult && (
           <p className={`mt-3 text-xs ${cycleResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
