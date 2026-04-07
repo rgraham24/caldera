@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
+import { useAppStore } from "@/store";
 
 type AdminMarketsClientProps = {
   markets: Market[];
@@ -296,6 +297,7 @@ function ResolveMarketForm({
   const [outcome, setOutcome] = useState<string>("yes");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const desoPublicKey = useAppStore((s) => s.desoPublicKey);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -312,6 +314,7 @@ function ResolveMarketForm({
           outcome,
           sourceUrl: form.get("sourceUrl") || undefined,
           notes: form.get("notes") || undefined,
+          desoPublicKey: desoPublicKey ?? "",
         }),
       });
 

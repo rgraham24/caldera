@@ -89,10 +89,10 @@ export function PortfolioClient() {
     return sum + p.quantity * currentPrice;
   }, 0);
 
-  const totalUnrealizedPnl = openPositions.reduce(
-    (sum, p) => sum + p.unrealized_pnl_cached,
-    0
-  );
+  const totalUnrealizedPnl = openPositions.reduce((sum, p) => {
+    const currentPrice = p.side === "yes" ? p.market.yes_price : p.market.no_price;
+    return sum + (currentPrice - p.avg_entry_price) * p.quantity;
+  }, 0);
   const totalRealizedPnl = settledPositions.reduce(
     (sum, p) => sum + p.realized_pnl,
     0
@@ -273,12 +273,12 @@ export function PortfolioClient() {
                     <td
                       className={cn(
                         "px-4 py-3 text-right font-mono font-medium",
-                        pos.unrealized_pnl_cached >= 0
+                        (currentPrice - pos.avg_entry_price) * pos.quantity >= 0
                           ? "text-yes"
                           : "text-no"
                       )}
                     >
-                      {formatCurrency(pos.unrealized_pnl_cached)}
+                      {formatCurrency((currentPrice - pos.avg_entry_price) * pos.quantity)}
                     </td>
                   </tr>
                 );

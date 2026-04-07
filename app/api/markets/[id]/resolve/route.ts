@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
+const ADMIN_KEY = "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7";
+
 const resolveSchema = z.object({
   outcome: z.enum(["yes", "no", "cancelled"]),
   sourceUrl: z.string().optional(),
   notes: z.string().optional(),
+  desoPublicKey: z.string(),
 });
 
 export async function POST(
@@ -15,24 +18,6 @@ export async function POST(
   try {
     const { id } = await params;
     const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    if (!authUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: dbUser } = await supabase
-      .from("users")
-      .select("is_admin")
-      .eq("id", authUser.id)
-      .single();
-
-    if (!dbUser?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await req.json();
     const parsed = resolveSchema.safeParse(body);
@@ -44,7 +29,11 @@ export async function POST(
       );
     }
 
-    const { outcome, sourceUrl, notes } = parsed.data;
+    const { outcome, sourceUrl, notes, desoPublicKey } = parsed.data;
+
+    if (desoPublicKey !== ADMIN_KEY) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // Update market
     const now = new Date().toISOString();
@@ -68,7 +57,7 @@ export async function POST(
     // Insert resolution record
     await supabase.from("market_resolutions").insert({
       market_id: id,
-      resolved_by_user_id: authUser.id,
+      resolved_by_user_id: null,
       outcome,
       source_url: sourceUrl,
       notes,
