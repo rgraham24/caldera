@@ -11,7 +11,6 @@ function AuthCallbackInner() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      console.log("[callback] raw payload:", searchParams.get("payload"));
       const publicKey =
         searchParams.get("public_key") ||
         searchParams.get("publicKey") ||
