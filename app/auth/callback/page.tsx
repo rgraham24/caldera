@@ -11,8 +11,17 @@ function AuthCallbackInner() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      // DEBUG: log full URL and all search params
+      console.log("[auth/callback] href:", window.location.href);
+      console.log("[auth/callback] hash:", window.location.hash);
+      const allParams: Record<string, string> = {};
+      searchParams.forEach((v, k) => { allParams[k] = v; });
+      console.log("[auth/callback] searchParams:", allParams);
+
       const publicKey =
         searchParams.get("public_key") || searchParams.get("publicKey");
+
+      console.log("[auth/callback] publicKey:", publicKey);
 
       if (!publicKey) {
         const returnTo = localStorage.getItem("caldera_auth_return") || "/";
@@ -38,21 +47,25 @@ function AuthCallbackInner() {
           }
         ).then((r) => r.json());
 
+        console.log("[auth/callback] profileRes:", profileRes);
+
         const balanceNanos: number =
           profileRes.Profile?.DESOBalanceNanos || 0;
         const desoPrice = 5.25;
         const balanceUSD = (balanceNanos / 1e9) * desoPrice;
         const balanceDeso = balanceNanos / 1e9;
 
-        localStorage.removeItem("caldera_welcomed");
-        setConnected({
+        const userData = {
           publicKey,
           username:
             profileRes.Profile?.Username || publicKey.substring(0, 8),
           profilePicUrl: `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`,
           balanceUSD,
           balanceDeso,
-        });
+        };
+        console.log("[auth/callback] calling setConnected with:", userData);
+        localStorage.removeItem("caldera_welcomed");
+        setConnected(userData);
       } catch (e) {
         // Proceed with minimal data on error
         localStorage.removeItem("caldera_welcomed");
@@ -67,6 +80,8 @@ function AuthCallbackInner() {
 
       const returnTo = localStorage.getItem("caldera_auth_return") || "/";
       localStorage.removeItem("caldera_auth_return");
+      console.log("[auth/callback] caldera-auth in localStorage:", localStorage.getItem("caldera-auth"));
+      console.log("[auth/callback] redirecting to:", returnTo);
       router.push(returnTo);
     };
 
