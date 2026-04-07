@@ -163,9 +163,9 @@ export function AdminActions() {
 
       {/* AI Market Generator */}
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">AI Market Generator</h2>
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">AI Market Generator ✦ Research-Powered</h2>
         <p className="mb-4 text-xs text-text-muted">
-          Describe a creator, topic, or event and Claude will generate 5 prediction market ideas.
+          Enter any creator, topic, or event. Claude researches what&apos;s happening right now, then generates 10 high-urgency prediction markets.
         </p>
         <div className="flex gap-3">
           <input
@@ -182,7 +182,7 @@ export function AdminActions() {
             className="bg-caldera text-background font-semibold hover:bg-caldera/90"
           >
             {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {generating ? "Generating..." : "Generate Markets"}
+            {generating ? "Researching + Generating..." : "Generate 10 Markets"}
           </Button>
         </div>
 
