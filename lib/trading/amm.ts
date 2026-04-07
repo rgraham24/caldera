@@ -58,15 +58,16 @@ export function getTradeQuote(
   let sharesReceived: number;
 
   if (side === "yes") {
-    // Buying YES: user adds $ to NO pool, receives YES shares
+    // FPMM: $1 = 1 YES + 1 NO share (minting)
+    // User mints inputAmount YES+NO, adds NO to pool, keeps YES from pool + minted YES
     newNoPool = state.noPool + inputAmount;
     newYesPool = k / newNoPool;
-    sharesReceived = state.yesPool - newYesPool;
+    sharesReceived = inputAmount + (state.yesPool - newYesPool);
   } else {
-    // Buying NO: user adds $ to YES pool, receives NO shares
+    // FPMM: user mints inputAmount YES+NO, adds YES to pool, keeps NO from pool + minted NO
     newYesPool = state.yesPool + inputAmount;
     newNoPool = k / newYesPool;
-    sharesReceived = state.noPool - newNoPool;
+    sharesReceived = inputAmount + (state.noPool - newNoPool);
   }
 
   const avgFillPrice = inputAmount / sharesReceived;
