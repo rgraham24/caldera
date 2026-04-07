@@ -59,12 +59,6 @@ export function TradeTicket({
       return;
     }
 
-    // Empty wallet — show deposit modal instead of failing
-    if (desoBalanceUSD < 1) {
-      openDepositModal();
-      return;
-    }
-
     // First-time trader onboarding
     if (typeof window !== "undefined" && !localStorage.getItem("caldera_onboarded")) {
       setShowOnboarding(true);
@@ -335,26 +329,6 @@ export function TradeTicket({
         </div>
       )}
 
-      {/* Empty wallet intercept overlay */}
-      {isConnected && desoBalanceUSD < 1 && amountNum > 0 && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-surface/95 p-6 text-center backdrop-blur-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[var(--accent)]">
-            Funds needed
-          </p>
-          <p className="mb-2 font-display text-lg font-bold text-text-primary">
-            Add funds to trade
-          </p>
-          <p className="mb-5 text-sm text-text-muted">
-            You need funds to place predictions. Add USDC to your wallet.
-          </p>
-          <Button
-            onClick={openDepositModal}
-            className="bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 font-semibold"
-          >
-            Add Funds →
-          </Button>
-        </div>
-      )}
     </div>
     </>
   );
