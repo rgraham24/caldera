@@ -24,18 +24,10 @@ const AUTH_NAV_ITEMS = [
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    isConnected,
-    desoUsername,
-    desoProfilePicUrl,
-    desoBalanceDeso,
-    desoBalanceUSD,
-    setDisconnected,
-    openDepositModal,
-  } = useAppStore();
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const isConnected = useAppStore((state) => state.isConnected);
+  const desoUsername = useAppStore((state) => state.desoUsername);
+  const desoProfilePicUrl = useAppStore((state) => state.desoProfilePicUrl);
+  const { desoBalanceDeso, desoBalanceUSD, setDisconnected, openDepositModal } = useAppStore();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -159,8 +151,7 @@ export function TopNav() {
 
             <NotificationBell />
 
-            <div suppressHydrationWarning>
-            {mounted && isConnected ? (
+            {isConnected ? (
               /* Connected state — avatar + username + balance + dropdown */
               <div className="relative flex items-center gap-2" ref={dropdownRef}>
                 {/* Add Funds / balance chip */}
@@ -251,17 +242,14 @@ export function TopNav() {
                   </div>
                 )}
               </div>
-            ) : mounted ? (
+            ) : (
               <button
                 onClick={() => connectDeSoWallet()}
                 className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-gray-100"
               >
                 Connect
               </button>
-            ) : (
-              <div className="h-8 w-24" />
             )}
-            </div>
 
             {/* Mobile hamburger */}
             <Button

@@ -96,6 +96,11 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          useAppStore.setState({ isConnected: state.isConnected });
+        }
+      },
       partialize: (state) => ({
         isConnected: state.isConnected,
         desoPublicKey: state.desoPublicKey,
