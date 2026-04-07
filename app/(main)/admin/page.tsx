@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import type { Market } from "@/types";
 import { AdminActions } from "./admin-actions";
+import { AdminGate } from "./admin-gate";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -32,26 +33,28 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <h1 className="mb-6 font-display text-2xl font-bold text-text-primary">
-        Admin Dashboard
-      </h1>
+    <AdminGate>
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+        <h1 className="mb-6 font-display text-2xl font-bold text-text-primary">
+          Admin Dashboard
+        </h1>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-border-subtle bg-surface p-5"
-          >
-            <p className="text-xs text-text-muted">{stat.label}</p>
-            <p className="mt-2 font-mono text-2xl font-bold text-text-primary">
-              {stat.value}
-            </p>
-          </div>
-        ))}
+        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-border-subtle bg-surface p-5"
+            >
+              <p className="text-xs text-text-muted">{stat.label}</p>
+              <p className="mt-2 font-mono text-2xl font-bold text-text-primary">
+                {stat.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <AdminActions />
       </div>
-
-      <AdminActions />
-    </div>
+    </AdminGate>
   );
 }
