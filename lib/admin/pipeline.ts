@@ -669,6 +669,36 @@ export async function createShadowProfileIfNeeded(
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
+/** Derive varied starting pools from market title so odds feel organic, not all 62/38. */
+function getStartingOdds(title: string): { yesPool: number; noPool: number; yesPrice: number; noPrice: number } {
+  const lower = title.toLowerCase();
+
+  // Strong YES lean — things likely to happen
+  if (
+    /will.*win|will.*sign|will.*release|will.*drop|will.*confirm|will.*announce/.test(lower) &&
+    /champion|title|deal|comeback|record/.test(lower)
+  ) {
+    const yes = 550 + Math.floor(Math.random() * 150); // 55-70% yes
+    return { yesPool: 1000 - yes, noPool: yes, yesPrice: yes / 1000, noPrice: (1000 - yes) / 1000 };
+  }
+
+  // Strong NO lean — things unlikely to happen
+  if (/will.*retire|will.*quit|will.*arrested|will.*banned|will.*sued/.test(lower)) {
+    const yes = 200 + Math.floor(Math.random() * 200); // 20-40% yes
+    return { yesPool: 1000 - yes, noPool: yes, yesPrice: yes / 1000, noPrice: (1000 - yes) / 1000 };
+  }
+
+  // Controversy / drama — could go either way, slight NO lean
+  if (/drama|beef|feud|fight|controversy|exposed|cancel/.test(lower)) {
+    const yes = 300 + Math.floor(Math.random() * 250); // 30-55% yes
+    return { yesPool: 1000 - yes, noPool: yes, yesPrice: yes / 1000, noPrice: (1000 - yes) / 1000 };
+  }
+
+  // Default — slight YES lean with randomness
+  const yes = 400 + Math.floor(Math.random() * 300); // 40-70% yes
+  return { yesPool: 1000 - yes, noPool: yes, yesPrice: yes / 1000, noPrice: (1000 - yes) / 1000 };
+}
+
 async function insertMarkets(
   markets: GeneratedMarket[],
   supabase: SupabaseClient,
@@ -688,6 +718,7 @@ async function insertMarkets(
   let created = 0;
   for (const market of markets) {
     const slug = uniqueSlug(slugify(market.title));
+    const odds = isSpeculationPool ? null : getStartingOdds(market.title);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const row: any = {
       title: market.title,
@@ -697,11 +728,11 @@ async function insertMarkets(
       rules_text: market.resolution_criteria,
       resolve_at: market.resolve_at,
       status: "open",
-      yes_pool: isSpeculationPool ? 33 : 380,
-      no_pool: isSpeculationPool ? 33 : 620,
-      yes_price: 0.5,
-      no_price: 0.5,
-      liquidity: isSpeculationPool ? 33 : 1000,
+      yes_pool: isSpeculationPool ? 33 : Math.round(odds!.yesPool),
+      no_pool: isSpeculationPool ? 33 : Math.round(odds!.noPool),
+      yes_price: isSpeculationPool ? 0.5 : odds!.yesPrice,
+      no_price: isSpeculationPool ? 0.5 : odds!.noPrice,
+      liquidity: isSpeculationPool ? 66 : 1000,
       total_volume: 0,
     };
     // Use category token as league fallback if no specific league set

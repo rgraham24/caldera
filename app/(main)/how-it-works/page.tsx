@@ -161,13 +161,23 @@ export default function HowItWorksPage() {
       </div>
 
       {/* CTA */}
-      <div className="mt-12 text-center">
-        <Link
-          href="/markets"
-          className="inline-block rounded-xl bg-caldera px-8 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
-        >
-          Start Trading →
-        </Link>
+      <div className="mt-12 rounded-2xl border border-border-subtle/30 bg-surface p-10 text-center space-y-4">
+        <h2 className="font-display text-2xl font-semibold text-text-primary">Ready to start?</h2>
+        <p className="text-text-muted">Browse tokens, pick markets, and earn from being right.</p>
+        <div className="flex flex-wrap gap-4 justify-center pt-2">
+          <Link
+            href="/creators"
+            className="inline-block rounded-xl bg-caldera px-6 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
+          >
+            Browse Tokens →
+          </Link>
+          <Link
+            href="/markets"
+            className="inline-block rounded-xl border border-border-subtle px-6 py-3 text-sm font-semibold text-text-primary hover:bg-surface-2 transition-colors"
+          >
+            View Markets →
+          </Link>
+        </div>
       </div>
     </div>
   );

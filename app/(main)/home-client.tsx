@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Market, Creator } from "@/types";
@@ -598,6 +598,43 @@ const SORT_OPTS = [
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
+// SearchParamsSyncer is isolated so useSearchParams() only suspends this null-rendering
+// component — the rest of HomeClient renders immediately with server-provided data.
+function SearchParamsSyncer({
+  onSync,
+}: {
+  onSync: (filter: string, sort: string) => void;
+}) {
+  const searchParams = useSearchParams();
+  const onSyncRef = useRef(onSync);
+  onSyncRef.current = onSync;
+
+  useEffect(() => {
+    const cat = searchParams.get("category");
+    const sortParam = searchParams.get("sort");
+    if (!cat && !sortParam) return;
+
+    let newFilter = "all";
+    let newSort = "newest";
+
+    if (cat) {
+      newFilter = cat;
+    } else if (sortParam === "breaking") {
+      newSort = "breaking";
+    } else if (sortParam === "new") {
+      newSort = "newest";
+    } else if (sortParam === "following") {
+      newSort = "following";
+    } else {
+      newSort = "volume";
+    }
+
+    onSyncRef.current(newFilter, newSort);
+  }, [searchParams]);
+
+  return null;
+}
+
 export function HomeClient({
   heroMarkets,
   breakingMarkets,
@@ -605,7 +642,6 @@ export function HomeClient({
   tokenStripCreators,
   initialMarkets,
 }: HomeClientProps) {
-  const searchParams = useSearchParams();
   const [activeFilter, setActiveFilter] = useState("all");
   const [sort, setSort] = useState("newest");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
@@ -695,41 +731,22 @@ export function HomeClient({
     fetchMarkets(activeFilter, s, 0, false);
   };
 
-  // Sync URL params → market grid (nav tab clicks)
-  useEffect(() => {
-    const cat = searchParams.get("category");
-    const sortParam = searchParams.get("sort");
-    if (!cat && !sortParam) return; // default state covered by initialMarkets
-
-    let newFilter = "all";
-    let newSort = "newest";
-
-    if (cat) {
-      newFilter = cat;
-    } else if (sortParam === "breaking") {
-      newSort = "breaking";
-    } else if (sortParam === "new") {
-      newSort = "newest";
-    } else if (sortParam === "following") {
-      newSort = "following";
-    } else {
-      // "trending" or unknown → volume sort
-      newSort = "volume";
-    }
-
-    setActiveFilter(newFilter);
-    setSort(newSort);
+  const handleParamsSync = useCallback((filter: string, sort: string) => {
+    setActiveFilter(filter);
+    setSort(sort);
     setOffset(0);
-    fetchMarkets(newFilter, newSort, 0, false);
-
-    // Scroll to the markets grid
+    fetchMarkets(filter, sort, 0, false);
     setTimeout(() => {
       marketsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 150);
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchMarkets]);
 
   return (
     <div>
+      {/* URL param sync — isolated in Suspense so it doesn't suspend the whole page */}
+      <Suspense fallback={null}>
+        <SearchParamsSyncer onSync={handleParamsSync} />
+      </Suspense>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* Hero section */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
