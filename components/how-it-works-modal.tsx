@@ -13,7 +13,7 @@ const STEPS = [
     number: "2",
     title: "Place a trade",
     description:
-      "Connect your DeSo wallet in minutes — and you'll get free DESO to start trading right away. Buy YES or NO at the current price. If your prediction is correct, it pays out at resolution.",
+      "Connect your wallet in minutes and get free DESO to start trading right away. Pick YES or NO — if correct, it pays out at resolution.",
     visual: "trade",
   },
   {
@@ -79,7 +79,7 @@ export function HowItWorksModal() {
         if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl w-full max-w-sm overflow-hidden">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl w-full max-w-[360px] overflow-hidden">
         {/* Visual area */}
         <div className="bg-[var(--bg-elevated)] p-8 flex items-center justify-center min-h-[220px] relative">
 
@@ -115,7 +115,7 @@ export function HowItWorksModal() {
           )}
 
           {current.visual === "trade" && (
-            <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[240px] border border-[var(--border-subtle)]">
+            <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
               <div className="text-xs text-[var(--text-tertiary)] mb-1">Buying YES shares</div>
               <div className="text-4xl font-semibold text-[var(--text-primary)] mb-1">$50</div>
               <div className="h-px bg-[var(--border-subtle)] my-3" />
@@ -127,7 +127,7 @@ export function HowItWorksModal() {
                 <span className="text-[var(--text-tertiary)]">Pays if correct</span>
                 <span className="font-medium text-green-500">$74.60</span>
               </div>
-              <button className="w-full bg-green-500 text-white text-sm font-medium py-2.5 rounded-xl">
+              <button className="w-full bg-green-500 text-white text-sm font-medium py-2.5 rounded-xl whitespace-nowrap">
                 Buy YES
               </button>
             </div>
@@ -150,10 +150,10 @@ export function HowItWorksModal() {
                   <div className="text-xs text-green-500">▲ 3.2%</div>
                 </div>
               </div>
-              <div className="bg-[var(--bg-elevated)] rounded-xl p-3">
+              <div className="bg-[var(--bg-elevated)] rounded-xl px-3 py-3">
                 <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest buyback</div>
-                <div className="text-sm font-medium text-[var(--text-primary)]">🔄 $0.87 bought back just now</div>
-                <div className="text-xs text-[var(--text-tertiary)] mt-0.5">from a LeBron market trade</div>
+                <div className="text-sm font-medium text-[var(--text-primary)]">🔄 $0.87 auto-buyback</div>
+                <div className="text-xs text-[var(--text-tertiary)] mt-0.5">triggered by a market trade</div>
               </div>
             </div>
           )}
