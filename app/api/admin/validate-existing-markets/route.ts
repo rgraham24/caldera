@@ -19,11 +19,11 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // Fetch open markets created in the last 7 days
+    // Fetch open markets created in the last 7 days (include total_volume for safety check)
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: markets, error } = await supabase
       .from("markets")
-      .select("id, title, description, category, resolve_at")
+      .select("id, title, description, category, resolve_at, total_volume")
       .eq("status", "open")
       .gte("created_at", sevenDaysAgo);
 
@@ -32,23 +32,37 @@ export async function POST(req: NextRequest) {
     }
 
     if (!markets?.length) {
-      return NextResponse.json({ data: { deleted: 0, kept: 0, message: "No recent markets to validate" } });
+      return NextResponse.json({ data: { deleted: 0, kept: 0, skipped_has_volume: 0, message: "No recent markets to validate" } });
     }
 
     // Run through relevance gatekeeper — returns IDs to KEEP
     const keptIds = await filterStaleMarketsPublic(markets, apiKey);
     const keptSet = new Set(keptIds);
-    const toDelete = markets.filter((m) => !keptSet.has(m.id)).map((m) => m.id);
+    const failed = markets.filter((m) => !keptSet.has(m.id));
+
+    // Safety: never delete markets with trades (users may have positions)
+    const toDelete = failed.filter((m) => (m.total_volume ?? 0) === 0).map((m) => m.id);
+    const skippedHasVolume = failed.length - toDelete.length;
 
     if (toDelete.length === 0) {
-      return NextResponse.json({ data: { deleted: 0, kept: markets.length, message: "All markets passed relevance check" } });
+      return NextResponse.json({
+        data: {
+          deleted: 0,
+          kept: markets.length - failed.length,
+          skipped_has_volume: skippedHasVolume,
+          message: skippedHasVolume > 0
+            ? `All markets passed or have volume — skipped ${skippedHasVolume} with trades`
+            : "All markets passed relevance check",
+        },
+      });
     }
 
-    // Delete stale markets
+    // Delete only zero-volume stale markets
     const { error: deleteError } = await supabase
       .from("markets")
       .delete()
-      .in("id", toDelete);
+      .in("id", toDelete)
+      .eq("total_volume", 0);
 
     if (deleteError) {
       return NextResponse.json({ error: deleteError.message }, { status: 500 });
@@ -58,7 +72,8 @@ export async function POST(req: NextRequest) {
       data: {
         deleted: toDelete.length,
         kept: keptIds.length,
-        message: `Deleted ${toDelete.length} stale markets, kept ${keptIds.length}`,
+        skipped_has_volume: skippedHasVolume,
+        message: `Deleted ${toDelete.length} stale markets, kept ${keptIds.length}${skippedHasVolume > 0 ? `, skipped ${skippedHasVolume} with existing trades` : ""}`,
       },
     });
   } catch (err) {
