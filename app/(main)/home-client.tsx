@@ -402,7 +402,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
           WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
         }}
       >
-        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 px-4 pb-3 hover:[animation-play-state:paused]">
+        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 pb-3 hover:[animation-play-state:paused]">
           {doubled.map((c, i) => {
             const rank = i % creators.length;
             const isTop3 = rank < 3;
