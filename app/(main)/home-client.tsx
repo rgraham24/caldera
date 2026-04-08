@@ -287,21 +287,27 @@ function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: C
                 <span className="w-5 shrink-0 text-center text-xs font-bold text-[var(--text-tertiary)]">{i + 1}</span>
               )}
               <CreatorAvatar creator={c} size="sm" />
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
                   ${c.deso_username ?? c.creator_coin_symbol ?? c.name}
                 </span>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
-                    {formatCurrency(c.creator_coin_price ?? 0)}
-                  </span>
-                  {(c.creator_coin_market_cap ?? 0) > 0 && (
-                    <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
-                      · {formatCompactCurrency(c.creator_coin_market_cap ?? 0)} mcap
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-0">
+                    <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Price</span>
+                    <span className="font-mono text-xs font-semibold text-white tabular-nums">
+                      {(c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : "—"}
                     </span>
+                  </div>
+                  {(c.creator_coin_market_cap ?? 0) > 0 && (
+                    <div className="flex flex-col gap-0">
+                      <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Mkt Cap</span>
+                      <span className="font-mono text-xs font-semibold text-white tabular-nums">
+                        {formatCompactCurrency(c.creator_coin_market_cap ?? 0)}
+                      </span>
+                    </div>
                   )}
                   {momentum && (
-                    <span className="text-[10px] text-[var(--accent)]">{momentum}</span>
+                    <span className="text-[9px] text-[var(--accent)] self-end pb-px">{momentum}</span>
                   )}
                 </div>
               </div>
@@ -440,30 +446,39 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
                   <span className="truncate text-xs font-semibold text-[var(--text-primary)]">${sym}</span>
                 </div>
 
-                {/* Row 2: price (muted) */}
-                <div className="font-mono text-[10px] text-[var(--text-tertiary)] pl-0.5">
-                  {price > 0.01 ? formatCurrency(price) : "—"}
-                </div>
-
-                {/* Row 3: market cap headline + trend % */}
-                <div
-                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors duration-700"
-                  style={{
-                    background: flash === "up"
-                      ? "rgba(34,197,94,0.15)"
-                      : flash === "down"
-                      ? "rgba(239,68,68,0.15)"
-                      : "rgba(255,255,255,0.04)",
-                  }}
-                >
-                  <span className="font-mono text-sm font-bold text-[var(--text-primary)] tabular-nums transition-all duration-500">
-                    {mcap > 0 ? formatCompactCurrency(mcap) : "—"}
-                  </span>
-                  {trend !== 0 && (
-                    <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${trend > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {trend > 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
+                {/* Row 2+3: Price and Mkt Cap columns with labels */}
+                <div className="flex gap-4 pl-0.5">
+                  {/* Price column */}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">Price</span>
+                    <span className="font-mono text-sm font-semibold text-white tabular-nums">
+                      {price > 0.01 ? formatCurrency(price) : "—"}
                     </span>
-                  )}
+                  </div>
+
+                  {/* Mkt Cap column */}
+                  <div
+                    className="flex flex-col gap-0.5 rounded-lg px-2 py-0.5 transition-colors duration-700"
+                    style={{
+                      background: flash === "up"
+                        ? "rgba(34,197,94,0.15)"
+                        : flash === "down"
+                        ? "rgba(239,68,68,0.15)"
+                        : "transparent",
+                    }}
+                  >
+                    <span className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">Mkt Cap</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-sm font-semibold text-white tabular-nums transition-all duration-500">
+                        {mcap > 0 ? formatCompactCurrency(mcap) : "—"}
+                      </span>
+                      {trend !== 0 && (
+                        <span className={`shrink-0 text-xs font-semibold tabular-nums ${trend > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {trend > 0 ? "▲" : "▼"}{Math.abs(trend).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Row 4: holders + buy */}
