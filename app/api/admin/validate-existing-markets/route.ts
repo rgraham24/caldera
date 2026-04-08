@@ -27,13 +27,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: { deleted: 0, kept: 0, message: "No open markets found" } });
     }
 
-    // 2. Fetch market IDs that have real trades
-    const { data: tradeRows } = await supabase
-      .from("trades")
-      .select("market_id")
-      .in("market_id", markets.map((m) => m.id));
+    // 2. Fetch market IDs with real activity (trades OR positions)
+    const marketIds = markets.map((m) => m.id);
+    const [{ data: tradeRows }, { data: positionRows }] = await Promise.all([
+      supabase.from("trades").select("market_id").in("market_id", marketIds),
+      supabase.from("positions").select("market_id").in("market_id", marketIds),
+    ]);
 
-    const hasRealTrades = new Set((tradeRows ?? []).map((r) => r.market_id));
+    const hasRealTrades = new Set([
+      ...(tradeRows ?? []).map((r) => r.market_id),
+      ...(positionRows ?? []).map((r) => r.market_id),
+    ]);
 
     // 3. Apply hard SQL-equivalent rules client-side — delete if NO real trades AND any condition matches
     const VAGUE = ["someday", "eventually", "at some point", "by end of 2026"];
