@@ -175,15 +175,6 @@ export function TopNav() {
 
             {/* Right side — shrink-0 */}
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              {/* How it works */}
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("show-hiw-modal"))}
-                className="hidden md:flex items-center gap-1.5 text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors whitespace-nowrap"
-              >
-                <span className="text-base">ⓘ</span>
-                How it works
-              </button>
-
               {/* Search */}
               <div className="relative hidden lg:block">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
@@ -199,6 +190,17 @@ export function TopNav() {
               </div>
 
               <NotificationBell />
+
+              {/* How it works */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("show-hiw-modal"))}
+                className="hidden md:flex items-center gap-1.5 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors whitespace-nowrap mr-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm0 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM7.25 7a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 .75.75v3.25h.25a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1 0-1.5h.25V7.75H8A.75.75 0 0 1 7.25 7z"/>
+                </svg>
+                How it works
+              </button>
 
               {isConnected ? (
                 <div className="relative flex items-center gap-1.5" ref={dropdownRef}>
