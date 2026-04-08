@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 async function getDesoPriceUsd(): Promise<number> {
   try {
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const numPages = Math.min(Math.max(1, Number(pages)), 100);
+    const numPages = Math.min(Math.max(1, Number(pages)), 20);
     const supabase = await createClient();
 
     const DESO_PRICE_USD = await getDesoPriceUsd();
@@ -121,7 +121,13 @@ export async function POST(req: NextRequest) {
     let cursor: string | null = startCursor ?? null;
     let completedPages = 0;
 
+    const startTime = Date.now();
     for (let i = 0; i < numPages; i++) {
+      // Stop if approaching 45 seconds to stay within Vercel's 60s timeout
+      if (Date.now() - startTime > 45000) {
+        console.log("[bulk-import] Stopping early to avoid timeout");
+        break;
+      }
       const { imported, skipped, nextCursor } = await fetchAndInsertPage(cursor, supabase, DESO_PRICE_USD, minHolders);
       totalImported += imported;
       totalSkipped += skipped;

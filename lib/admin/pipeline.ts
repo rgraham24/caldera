@@ -1005,7 +1005,11 @@ export async function importMarqueeProfileDeSoFirst(
     .maybeSingle();
 
   if (existing) {
-    console.log(`[marqueeImport] Already exists: ${slug}`);
+    // Still create team/league even if creator already exists —
+    // bulk-import may have created the profile without team/league tokens
+    if (profile.team) await createShadowProfileIfNeeded(profile.team, supabase);
+    if (profile.league) await createShadowProfileIfNeeded(profile.league, supabase);
+    console.log(`[marqueeImport] Already exists: ${slug} — team/league ensured`);
     return { slug, status: "already_exists", source: desoProfile ? "deso" : "shadow" };
   }
 
