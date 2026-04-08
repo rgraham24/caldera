@@ -1167,3 +1167,43 @@ export async function importMarqueeProfileDeSoFirst(
   console.log(`[marqueeImport] ${profile.name} → ${slug} (${tokenStatus}, ${source}, $${coinPriceUsd.toFixed(2)})`);
   return { slug, status: tokenStatus, source };
 }
+
+// ─── Auto-claim verification ──────────────────────────────────────────────────
+
+export async function checkPendingClaims(supabase: AnySupabase): Promise<number> {
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  if (!braveKey) return 0;
+
+  // Get pending claim codes
+  const { data: codes } = await supabase
+    .from("claim_codes")
+    .select("slug, code")
+    .eq("status", "pending")
+    .limit(20);
+
+  if (!codes?.length) return 0;
+
+  let claimed = 0;
+  for (const { slug, code } of codes) {
+    try {
+      // Search for the claim code being posted publicly
+      const searchText = await fetchBraveResults(code, braveKey);
+      if (searchText && searchText.includes(code)) {
+        // Code found publicly — auto-verify
+        await supabase
+          .from("claim_codes")
+          .update({ status: "claimed", claimed_at: new Date().toISOString() })
+          .eq("code", code);
+
+        await supabase
+          .from("creators")
+          .update({ token_status: "claimed" })
+          .eq("slug", slug);
+
+        console.log(`[checkPendingClaims] Auto-claimed: ${slug} via code ${code}`);
+        claimed++;
+      }
+    } catch { continue; }
+  }
+  return claimed;
+}
