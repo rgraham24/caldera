@@ -179,7 +179,7 @@ function HeroSection({ markets }: { markets: Market[] }) {
         <div
           ref={chipContainerRef}
           className="mx-auto flex gap-2 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          style={{ scrollBehavior: "smooth", maxWidth: "600px" }}
+          style={{ scrollBehavior: "smooth", maxWidth: "600px", paddingLeft: "280px", paddingRight: "280px" }}
         >
           {markets.map((chip, i) => (
             <button
