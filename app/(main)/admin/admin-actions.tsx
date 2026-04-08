@@ -21,6 +21,9 @@ export function AdminActions() {
   const [validating, setValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<string | null>(null);
 
+  const [generatingForImported, setGeneratingForImported] = useState(false);
+  const [generateForImportedResult, setGenerateForImportedResult] = useState<string | null>(null);
+
   const [categoryTokenImporting, setCategoryTokenImporting] = useState(false);
   const [categoryTokenResult, setCategoryTokenResult] = useState<string | null>(null);
 
@@ -142,6 +145,25 @@ export function AdminActions() {
       setMarqueeResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
     } finally {
       setMarqueeImporting(false);
+    }
+  };
+
+  const handleGenerateForImported = async () => {
+    setGeneratingForImported(true);
+    setGenerateForImportedResult(null);
+    try {
+      const res = await fetch("/api/admin/generate-for-imported", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: ADMIN_PASSWORD, limit: 20 }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setGenerateForImportedResult(`✅ Created ${json.marketsCreated} markets for imported creators`);
+    } catch (err) {
+      setGenerateForImportedResult(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    } finally {
+      setGeneratingForImported(false);
     }
   };
 
@@ -412,6 +434,27 @@ export function AdminActions() {
         {marqueeResult && (
           <p className={`mt-3 text-xs ${marqueeResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {marqueeResult}
+          </p>
+        )}
+      </div>
+
+      {/* Generate Markets for Imported Creators */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🎯 Generate Markets for Imported Creators</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Targets active_unverified creators with 0 markets. Run multiple times to cover all creators.
+        </p>
+        <Button
+          onClick={handleGenerateForImported}
+          disabled={generatingForImported}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {generatingForImported && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {generatingForImported ? "Generating..." : "Generate Markets for Imported Creators"}
+        </Button>
+        {generateForImportedResult && (
+          <p className={`mt-3 text-xs ${generateForImportedResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {generateForImportedResult}
           </p>
         )}
       </div>

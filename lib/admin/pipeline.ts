@@ -789,6 +789,28 @@ export async function bulkGenerateAndInsert(
   return created;
 }
 
+export async function generateMarketsForImportedCreators(
+  apiKey: string,
+  supabase: SupabaseClient,
+  limit = 20
+): Promise<number> {
+  // Fetch creators who have 0 markets and are active_unverified or active_verified
+  const { data: creators } = await supabase
+    .from("creators")
+    .select("slug, name, token_status")
+    .in("token_status", ["active_unverified", "active_verified"])
+    .eq("markets_count", 0)
+    .not("name", "in", '("ConflictMarkets","ElectionMarkets","SportsMarkets","ViralMarkets","CryptoMarkets1","EntertainmentMarkets")')
+    .limit(limit);
+
+  if (!creators?.length) return 0;
+
+  console.log(`[generateForImported] Found ${creators.length} creators with 0 markets`);
+
+  const entities = creators.map((c: { name: string }) => c.name);
+  return await bulkGenerateAndInsert(entities, apiKey, supabase);
+}
+
 // ─── Step 4: Fix stale dates ──────────────────────────────────────────────────
 
 export async function fixStaleDates(supabase: SupabaseClient): Promise<number> {
