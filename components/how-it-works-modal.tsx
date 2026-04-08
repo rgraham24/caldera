@@ -29,7 +29,7 @@ export function HowItWorksModal() {
   const current = STEPS[step];
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-end sm:items-center justify-center p-4" style={{backgroundColor:"rgba(0,0,0,0.75)"}} onClick={(e)=>{if(e.target===e.currentTarget)dismiss();}}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4" style={{backgroundColor:"rgba(0,0,0,0.75)"}} onClick={(e)=>{if(e.target===e.currentTarget)dismiss();}}>
       <div style={{backgroundColor:"#ffffff",borderRadius:"16px",width:"100%",maxWidth:"360px",overflow:"hidden",color:"#111111"}}>
         <div style={{backgroundColor:"#f4f4f5",padding:"32px 24px",display:"flex",alignItems:"center",justifyContent:"center",minHeight:"220px",position:"relative"}}>
           <button onClick={dismiss} style={{position:"absolute",top:"12px",right:"12px",background:"none",border:"none",cursor:"pointer",fontSize:"20px",color:"#888",width:"28px",height:"28px"}}>×</button>
