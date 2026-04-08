@@ -87,6 +87,23 @@ export async function POST(req: NextRequest) {
     const feeType = getMarketFeeType(market);
     const fees = calculateFees(amount, feeType, feeConfig);
 
+    // Fire-and-forget buyback event — never blocks the trade
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mkt = market as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    void (supabase as any).from("buyback_events").insert({
+      market_id: market.id,
+      market_title: market.title,
+      creator_slug: mkt.creator_slug ?? null,
+      team_slug: mkt.team_creator_slug ?? null,
+      league_slug: mkt.league_creator_slug ?? null,
+      trade_amount_usd: amount,
+      personal_buyback_usd: fees.personalToken,
+      team_buyback_usd: fees.teamToken,
+      league_buyback_usd: fees.leagueToken,
+      platform_fee_usd: fees.platform,
+    });
+
     // Calculate trade quote with net amount (after fees)
     const quote = getTradeQuote(
       { yesPool: market.yes_pool, noPool: market.no_pool },

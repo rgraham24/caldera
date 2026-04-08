@@ -14,6 +14,21 @@ import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
 import { FollowButton } from "@/components/shared/FollowButton";
 
+type BuybackEvent = {
+  id: string;
+  market_id: string;
+  market_title: string | null;
+  creator_slug: string | null;
+  team_slug: string | null;
+  league_slug: string | null;
+  trade_amount_usd: number;
+  personal_buyback_usd: number;
+  team_buyback_usd: number;
+  league_buyback_usd: number;
+  platform_fee_usd: number;
+  created_at: string;
+};
+
 type CreatorProfileClientProps = {
   creator: Creator;
   markets: Market[];
@@ -40,6 +55,16 @@ export function CreatorProfileClient({
   const [livePic, setLivePic] = useState<string | null>(creator.profile_pic_url);
   const [desoUser, setDesoUser] = useState<string | null>(creator.deso_username);
   const [isLive, setIsLive] = useState(false);
+  const [buybacks, setBuybacks] = useState<{ events: BuybackEvent[]; totalBuyback: number }>({ events: [], totalBuyback: 0 });
+
+  useEffect(() => {
+    fetch(`/api/creators/${creator.slug}/buybacks`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && !data.error) setBuybacks(data);
+      })
+      .catch(() => {});
+  }, [creator.slug]);
 
   useEffect(() => {
     fetch(`/api/creators/${creator.slug}/coin-data`)
@@ -231,6 +256,54 @@ export function CreatorProfileClient({
               totalCoinsInCirculation={creator.total_coins_in_circulation}
               weeklyVolume={creator.weekly_volume_usd || 0}
             />
+          </div>
+        )}
+
+        {/* Buyback Activity Feed */}
+        {(buybacks.totalBuyback > 0 || creator.token_status === "shadow" || !creator.token_status) && (
+          <div className="mb-8 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-orange-400">🔄 Token Buyback Activity</span>
+              <span className="text-xs text-text-muted">Last 20 trades</span>
+            </div>
+            {buybacks.totalBuyback > 0 ? (
+              <p className="text-xs text-text-muted mb-3">
+                <span className="font-semibold text-orange-300">${buybacks.totalBuyback.toFixed(4)}</span>{" "}
+                auto-bought into ${coinSymbol} from prediction activity
+              </p>
+            ) : (
+              <p className="text-xs text-text-muted mb-3">
+                No buybacks yet — every trade on this profile&apos;s markets triggers an auto-buy.
+              </p>
+            )}
+            {buybacks.events.length > 0 ? (
+              <div className="space-y-1.5">
+                {buybacks.events.map((e) => {
+                  const buybackAmt =
+                    e.creator_slug === creator.slug ? e.personal_buyback_usd :
+                    e.team_slug === creator.slug ? e.team_buyback_usd :
+                    e.league_buyback_usd;
+                  const role =
+                    e.creator_slug === creator.slug ? "personal" :
+                    e.team_slug === creator.slug ? "team" :
+                    "league";
+                  return (
+                    <div key={e.id} className="flex items-center justify-between text-xs text-text-muted">
+                      <span className="truncate max-w-[60%]">
+                        {e.market_title ?? e.market_id}
+                        <span className="ml-1 text-text-faint">({role})</span>
+                      </span>
+                      <span className="font-mono text-orange-300">
+                        +${buybackAmt.toFixed(4)}{" "}
+                        <span className="text-text-faint">{formatRelativeTime(e.created_at)}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-text-faint">Trades will appear here in real time.</p>
+            )}
           </div>
         )}
 
