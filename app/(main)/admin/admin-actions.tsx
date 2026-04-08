@@ -21,12 +21,10 @@ export function AdminActions() {
   const [validating, setValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<string | null>(null);
 
-  const [importPages, setImportPages] = useState(5);
+  const [importSkip, setImportSkip] = useState(0);
   const [importMinHolders, setImportMinHolders] = useState(2);
-  const [importStartCursor, setImportStartCursor] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
-  const [importNextCursor, setImportNextCursor] = useState<string | null>(null);
 
   const [marqueeImporting, setMarqueeImporting] = useState(false);
   const [marqueeResult, setMarqueeResult] = useState<string | null>(null);
@@ -148,23 +146,23 @@ export function AdminActions() {
   const handleImport = async () => {
     setImporting(true);
     setImportResult(null);
-    setImportNextCursor(null);
     try {
       const res = await fetch("/api/admin/bulk-import-deso", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pages: importPages,
+          skip: importSkip,
+          limit: 500,
           minHolders: importMinHolders,
-          startCursor: importStartCursor.trim() || undefined,
           adminPassword: ADMIN_PASSWORD,
         }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
-      setImportNextCursor(data.nextCursor ?? null);
+      // Auto-advance skip for the next run
+      if (data.nextSkip != null) setImportSkip(data.nextSkip);
       setImportResult(
-        `✅ Imported ${data.totalImported} profiles, skipped ${data.totalSkipped} (${data.pages} pages × 50 profiles)`
+        `✅ Imported ${data.totalImported}, skipped ${data.totalSkipped} dupes/ghosts. Next skip: ${data.nextSkip ?? "end of list"}`
       );
     } catch (err) {
       setImportResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
@@ -391,18 +389,17 @@ export function AdminActions() {
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">Import DeSo Profiles</h2>
         <p className="mb-4 text-xs text-text-muted">
-          Bulk import creator profiles from DeSo ordered by coin price. Upserts on slug. Max 20 pages × 50 profiles = 1,000 per run.
+          Fetches 500 profiles at a time from DeSo ordered by coin price. Skip auto-advances after each run — just keep clicking Import to paginate through all of DeSo.
         </p>
         <div className="mb-3 flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-wider text-text-muted">Pages (50 each, max 20)</label>
+            <label className="text-[10px] uppercase tracking-wider text-text-muted">Skip (for pagination)</label>
             <input
               type="number"
-              min={1}
-              max={20}
-              value={importPages}
-              onChange={(e) => setImportPages(Number(e.target.value))}
-              className="w-20 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary focus:border-caldera focus:outline-none"
+              min={0}
+              value={importSkip}
+              onChange={(e) => setImportSkip(Number(e.target.value))}
+              className="w-24 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary focus:border-caldera focus:outline-none"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -416,46 +413,19 @@ export function AdminActions() {
               className="w-20 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary focus:border-caldera focus:outline-none"
             />
           </div>
-          <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
-            <label className="text-[10px] uppercase tracking-wider text-text-muted">Start cursor (optional)</label>
-            <input
-              type="text"
-              value={importStartCursor}
-              onChange={(e) => setImportStartCursor(e.target.value)}
-              placeholder="Paste next cursor to paginate"
-              className="rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-xs text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
-            />
-          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handleImport}
-            disabled={importing}
-            className="bg-caldera text-background font-semibold hover:bg-caldera/90"
-          >
-            {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {importing ? "Importing..." : "Import Profiles"}
-          </Button>
-          <span className="text-xs text-text-muted">Run multiple times with the next cursor to paginate through all of DeSo</span>
-        </div>
+        <Button
+          onClick={handleImport}
+          disabled={importing}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {importing ? "Importing..." : "Import Profiles"}
+        </Button>
         {importResult && (
           <p className={`mt-3 text-xs ${importResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {importResult}
           </p>
-        )}
-        {importNextCursor && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-text-muted">Next cursor:</span>
-            <code className="flex-1 truncate rounded bg-background px-2 py-1 text-[10px] text-caldera border border-border-subtle">
-              {importNextCursor}
-            </code>
-            <button
-              onClick={() => setImportStartCursor(importNextCursor)}
-              className="shrink-0 rounded-lg border border-border-subtle px-2 py-1 text-[10px] font-medium text-text-muted hover:text-text-primary transition-colors"
-            >
-              Use →
-            </button>
-          </div>
         )}
       </div>
 
