@@ -178,8 +178,8 @@ function HeroSection({ markets }: { markets: Market[] }) {
       {markets.length > 1 && (
         <div
           ref={chipContainerRef}
-          className="flex gap-2 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          style={{ scrollBehavior: "smooth" }}
+          className="mx-auto flex gap-2 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          style={{ scrollBehavior: "smooth", maxWidth: "600px" }}
         >
           {markets.map((chip, i) => (
             <button
