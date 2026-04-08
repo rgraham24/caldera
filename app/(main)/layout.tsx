@@ -14,7 +14,7 @@ export default function MainLayout({
       <TopNav />
       <WelcomeBanner />
       <StarterBanner />
-      <main className="flex-1 pb-16 md:pb-0">{children}</main>
+      <main className="flex-1 overflow-x-hidden pb-16 md:pb-0">{children}</main>
       <Footer />
       <MobileNav />
       <DepositModalRoot />

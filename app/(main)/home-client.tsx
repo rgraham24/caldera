@@ -328,7 +328,7 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
   const doubled = [...creators, ...creators];
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full overflow-hidden">
       {/* Header */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
         <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
@@ -339,7 +339,7 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
 
       {/* Scrolling strip — floating cards on transparent background */}
       <div
-        className="overflow-hidden bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="w-full max-w-full overflow-hidden bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
