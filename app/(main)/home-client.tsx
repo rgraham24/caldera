@@ -37,28 +37,14 @@ function chipLabel(title: string): string {
 function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
-  const chipContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-rotate every 6 seconds with crossfade + direct scroll control
+  // Auto-rotate every 6 seconds with crossfade
   useEffect(() => {
     if (markets.length <= 1) return;
     const interval = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setIdx((prev) => {
-          const newIdx = (prev + 1) % markets.length;
-          const container = chipContainerRef.current;
-          if (container) {
-            if (newIdx === 0) {
-              container.scrollTo({ left: 0, behavior: "instant" });
-            } else {
-              const chipWidth = container.scrollWidth / markets.length;
-              const targetScroll = newIdx * chipWidth - container.clientWidth / 2 + chipWidth / 2;
-              container.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
-            }
-          }
-          return newIdx;
-        });
+        setIdx((prev) => (prev + 1) % markets.length);
         setVisible(true);
       }, 300);
     }, 6000);
@@ -79,10 +65,6 @@ function HeroSection({ markets }: { markets: Market[] }) {
     if (i === idx) return;
     setVisible(false);
     setTimeout(() => { setIdx(i); setVisible(true); }, 300);
-  };
-
-  const scrollChips = (dir: -1 | 1) => {
-    chipContainerRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
   };
 
   return (
@@ -180,49 +162,33 @@ function HeroSection({ markets }: { markets: Market[] }) {
         </div>
       </div>
 
-      {/* ── Chip pill row with edge arrows ── */}
+      {/* ── Chip marquee — infinite CSS loop, pauses on hover ── */}
       {markets.length > 1 && (
-        <div className="relative flex items-center gap-1">
-          <button
-            onClick={() => scrollChips(-1)}
-            className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-white/8"
-            aria-label="Scroll left"
-            style={{ color: "var(--text-tertiary)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-
-          <div
-            ref={chipContainerRef}
-            className="flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-            style={{
-              maskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
-            }}
-          >
-            {markets.map((chip, i) => (
-              <button
-                key={chip.id}
-                onClick={() => select(i)}
-                className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
-                  i === idx
-                    ? "bg-[var(--accent)]/30 border border-[var(--accent)] text-white"
-                    : "bg-white/10 text-white/50 border border-white/10 hover:bg-white/20 hover:text-white/80"
-                }`}
-              >
-                <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
-              </button>
-            ))}
+        <div
+          className="overflow-hidden"
+          style={{
+            maskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
+            WebkitMaskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
+          }}
+        >
+          <div className="chip-track">
+            {[...markets, ...markets].map((chip, i) => {
+              const realIdx = i % markets.length;
+              return (
+                <button
+                  key={`${chip.id}-${i}`}
+                  onClick={() => select(realIdx)}
+                  className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
+                    realIdx === idx
+                      ? "bg-[var(--accent)]/30 border border-[var(--accent)] text-white"
+                      : "bg-white/10 text-white/50 border border-white/10 hover:bg-white/20 hover:text-white/80"
+                  }`}
+                >
+                  <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
+                </button>
+              );
+            })}
           </div>
-
-          <button
-            onClick={() => scrollChips(1)}
-            className="shrink-0 rounded-full p-1.5 transition-colors hover:bg-white/8"
-            aria-label="Scroll right"
-            style={{ color: "var(--text-tertiary)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
         </div>
       )}
     </div>
