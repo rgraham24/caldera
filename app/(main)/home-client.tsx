@@ -38,14 +38,19 @@ function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
   const chipRowRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Auto-rotate every 6 seconds with crossfade
+  // Auto-rotate every 6 seconds with crossfade + chip auto-scroll
   useEffect(() => {
     if (markets.length <= 1) return;
     const interval = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setIdx((prev) => (prev + 1) % markets.length);
+        setIdx((prev) => {
+          const newIdx = (prev + 1) % markets.length;
+          chipRefs.current[newIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          return newIdx;
+        });
         setVisible(true);
       }, 300);
     }, 6000);
@@ -188,23 +193,20 @@ function HeroSection({ markets }: { markets: Market[] }) {
               WebkitMaskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
             }}
           >
-            {markets.map((chip, i) => {
-              const isSelected = idx === i;
-              return (
-                <button
-                  key={chip.id}
-                  onClick={() => select(i)}
-                  className="flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all"
-                  style={{
-                    background: isSelected ? "rgba(249,115,22,0.15)" : "var(--bg-surface)",
-                    color: isSelected ? "#fff" : "var(--text-secondary)",
-                    border: `1px solid ${isSelected ? "rgba(249,115,22,0.5)" : "var(--border-subtle)"}`,
-                  }}
-                >
-                  <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
-                </button>
-              );
-            })}
+            {markets.map((chip, i) => (
+              <button
+                key={chip.id}
+                ref={(el) => { chipRefs.current[i] = el; }}
+                onClick={() => select(i)}
+                className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
+                  i === idx
+                    ? "bg-white text-black border border-white"
+                    : "bg-white/10 text-white/60 border border-white/20 hover:bg-white/20 hover:text-white"
+                }`}
+              >
+                <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
+              </button>
+            ))}
           </div>
 
           <button
