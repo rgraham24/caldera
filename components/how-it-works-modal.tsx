@@ -34,16 +34,27 @@ const STEPS = [
 
 export function HowItWorksModal() {
   const [show, setShow] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    // Show to first-time visitors after 1.5s delay
-    const seen = localStorage.getItem("caldera_hiw_seen");
-    if (!seen) {
-      const timer = setTimeout(() => setShow(true), 1500);
-      return () => clearTimeout(timer);
-    }
+    setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const seen = localStorage.getItem("caldera_hiw_seen");
+      if (!seen) {
+        const timer = setTimeout(() => {
+          setShow(true);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // localStorage not available
+    }
+  }, [mounted]);
 
   // Listen for manual trigger from nav
   useEffect(() => {
@@ -56,7 +67,9 @@ export function HowItWorksModal() {
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem("caldera_hiw_seen", "1");
+    try {
+      localStorage.setItem("caldera_hiw_seen", "1");
+    } catch {}
     setShow(false);
   };
 
@@ -68,7 +81,7 @@ export function HowItWorksModal() {
     }
   };
 
-  if (!show) return null;
+  if (!mounted || !show) return null;
 
   const current = STEPS[step];
 
