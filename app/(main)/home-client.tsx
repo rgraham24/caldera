@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import type { Market, Creator } from "@/types";
 import { CATEGORIES } from "@/types";
@@ -324,11 +324,59 @@ function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: C
 
 // ─── Token strip ──────────────────────────────────────────────────────────────
 
-const CAT_EMOJI: Record<string, string> = {
-  creators: "🎬", music: "🎵", sports: "⚽", tech: "💻", politics: "👑", entertainment: "🎭",
-};
+/** Seeded mock trend: deterministic per slug, consistent per session, range −5% to +5% */
+function slugTrend(slug: string): number {
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  const raw = ((h % 1000) / 1000) * 10 - 5;
+  return Math.round(raw * 10) / 10;
+}
 
-function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creator) => void }) {
+function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[]; onBuy: (c: Creator) => void }) {
+  const [creators, setCreators] = useState(initialCreators);
+  const [flashing, setFlashing] = useState<Record<string, "up" | "down">>({});
+  const prevPricesRef = useRef<Record<string, number>>({});
+
+  // Stable seeded trends — computed once from initial list
+  const trends = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const c of initialCreators) map[c.slug] = slugTrend(c.slug);
+    return map;
+  }, [initialCreators]);
+
+  // Poll for live prices every 30 seconds
+  useEffect(() => {
+    for (const c of initialCreators) prevPricesRef.current[c.slug] = c.creator_coin_price ?? 0;
+
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/creators/top?limit=20");
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!Array.isArray(data)) return;
+
+        const newFlash: Record<string, "up" | "down"> = {};
+        for (const c of data as Creator[]) {
+          const prev = prevPricesRef.current[c.slug];
+          const cur = c.creator_coin_price ?? 0;
+          if (prev !== undefined && cur !== prev) {
+            newFlash[c.slug] = cur > prev ? "up" : "down";
+          }
+          prevPricesRef.current[c.slug] = cur;
+        }
+
+        setCreators(data);
+        if (Object.keys(newFlash).length > 0) {
+          setFlashing(newFlash);
+          setTimeout(() => setFlashing({}), 1000);
+        }
+      } catch { /* silent — polling is best-effort */ }
+    };
+
+    const id = setInterval(poll, 30_000);
+    return () => clearInterval(id);
+  }, [initialCreators]);
+
   if (creators.length === 0) return null;
   const doubled = [...creators, ...creators];
 
@@ -336,7 +384,13 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
     <div className="relative w-full overflow-hidden">
       {/* Header */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
-        <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
+          <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+            LIVE
+          </span>
+        </div>
         <Link href="/creators" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
           View all →
         </Link>
@@ -350,54 +404,72 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
           WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
         }}
       >
-        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 px-4 pb-2 hover:[animation-play-state:paused]">
+        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 px-4 pb-3 hover:[animation-play-state:paused]">
           {doubled.map((c, i) => {
             const rank = i % creators.length;
             const isTop3 = rank < 3;
             const sym = c.deso_username ?? c.creator_coin_symbol ?? c.name;
             const price = c.creator_coin_price ?? 0;
+            const mcap = c.creator_coin_market_cap ?? 0;
             const holders = c.creator_coin_holders ?? 0;
-            const emoji = c.category ? CAT_EMOJI[c.category] ?? "" : "";
             const momentum = holders > 1000 ? "🔥 Hot" : holders > 500 ? "↑ Rising" : null;
+            const trend = trends[c.slug] ?? 0;
+            const flash = flashing[c.slug];
 
             return (
               <div
                 key={`${c.id}-${i}`}
-                className="group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3 transition-all duration-200 hover:scale-[1.03]"
+                className="group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3.5 transition-all duration-200 hover:scale-[1.03]"
                 style={{
                   background: "var(--bg-surface)",
                   border: `1px solid ${isTop3 ? "rgba(249,115,22,0.25)" : "var(--border-subtle)"}`,
                   boxShadow: isTop3 ? "0 0 12px rgba(249,115,22,0.10)" : "none",
-                  minWidth: "180px",
+                  minWidth: "210px",
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <div className="relative">
-                    <CreatorAvatar creator={c} size="sm" />
-                    {isTop3 && (
-                      <span className="absolute -right-1 -top-1 animate-pulse text-[10px] leading-none">
-                        {rank === 0 ? "🥇" : rank === 1 ? "🥈" : "🥉"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                      {emoji && <span className="mr-1">{emoji}</span>}${sym}
+                {/* Row 1: rank + avatar + $symbol */}
+                <div className="flex items-center gap-2">
+                  {isTop3 ? (
+                    <span className="text-sm leading-none shrink-0">
+                      {rank === 0 ? "🥇" : rank === 1 ? "🥈" : "🥉"}
                     </span>
-                    <span className="font-mono text-[10px] font-bold" style={{ color: "var(--accent)" }}>
-                      {price > 0.01 ? formatCurrency(price) : "—"}
-                    </span>
-                    {(c.creator_coin_market_cap ?? 0) > 0 && (
-                      <span className="font-mono text-[9px] text-[var(--text-tertiary)]">
-                        {formatCompactCurrency(c.creator_coin_market_cap ?? 0)} mcap
-                      </span>
-                    )}
-                  </div>
+                  ) : (
+                    <span className="w-4 shrink-0 text-center text-[10px] font-bold text-[var(--text-tertiary)]">{rank + 1}</span>
+                  )}
+                  <CreatorAvatar creator={c} size="sm" />
+                  <span className="truncate text-xs font-semibold text-[var(--text-primary)]">${sym}</span>
                 </div>
 
+                {/* Row 2: price (muted) */}
+                <div className="font-mono text-[10px] text-[var(--text-tertiary)] pl-0.5">
+                  {price > 0.01 ? formatCurrency(price) : "—"}
+                </div>
+
+                {/* Row 3: market cap headline + trend % */}
+                <div
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors duration-700"
+                  style={{
+                    background: flash === "up"
+                      ? "rgba(34,197,94,0.15)"
+                      : flash === "down"
+                      ? "rgba(239,68,68,0.15)"
+                      : "rgba(255,255,255,0.04)",
+                  }}
+                >
+                  <span className="font-mono text-sm font-bold text-[var(--text-primary)] tabular-nums transition-all duration-500">
+                    {mcap > 0 ? formatCompactCurrency(mcap) : "—"}
+                  </span>
+                  {trend !== 0 && (
+                    <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${trend > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {trend > 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+
+                {/* Row 4: holders + buy */}
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
-                    {holders > 0 ? `+${holders.toLocaleString()} holders` : "—"}
+                    {holders > 0 ? `${holders.toLocaleString()} holders` : "—"}
                     {momentum && <span className="ml-1 text-[var(--accent)]">{momentum}</span>}
                   </span>
                   {c.deso_username && (
