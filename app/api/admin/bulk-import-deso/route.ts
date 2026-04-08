@@ -5,8 +5,10 @@ import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 // Curated list of known DeSo usernames across all categories
 // These are real profiles that exist on DeSo with active coins
 const DESO_USERNAME_BATCHES: string[][] = [
-  // Batch 1 — Top DeSo OGs + crypto
-  ["dharmesh","Da5id","PremierNS","diamondhands","pearl","artz","nader","naval",
+  // Batch 1 — Category tokens (active_verified) + Top DeSo OGs + crypto
+  ["ConflictMarkets","ElectionMarkets","SportsMarkets",
+   "ViralMarkets","CryptoMarkets1","EntertainmentMarkets",
+   "dharmesh","Da5id","PremierNS","diamondhands","pearl","artz","nader","naval",
    "chamath","balajis","elonmusk","realdonaldtrump","vitalikbuterin","cz_binance",
    "shl","craig","scottadamssays","madonna","arodb","trevian",
    "gainzy","maebeam","salilsethi","clayspace","clayvis"],
