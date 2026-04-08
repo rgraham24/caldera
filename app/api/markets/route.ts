@@ -8,9 +8,46 @@ export async function GET(req: NextRequest) {
 
   const category = searchParams.get("category");
   const status = searchParams.get("status") ?? "open";
-  const sort = searchParams.get("sort") || "volume";
+  const sort = searchParams.get("sort") || "newest";
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
   const offset = parseInt(searchParams.get("offset") || "0");
+  const desoPublicKey = searchParams.get("desoPublicKey");
+
+  // Following feed: fetch followed slugs → get matching creator names → title-match markets
+  if (sort === "following" && desoPublicKey) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: followRows } = await (supabase as any)
+      .from("follows")
+      .select("following_slug")
+      .eq("follower_deso_key", desoPublicKey);
+
+    const slugs: string[] = (followRows ?? []).map((r: { following_slug: string }) => r.following_slug);
+
+    if (slugs.length === 0) return NextResponse.json({ data: [] });
+
+    // Get creator names for those slugs
+    const { data: creators } = await supabase
+      .from("creators")
+      .select("name, slug")
+      .in("slug", slugs);
+
+    const names = (creators ?? []).map((c) => c.name).filter(Boolean);
+    if (names.length === 0) return NextResponse.json({ data: [] });
+
+    // Fetch open markets and filter by creator name in title (client-side, small set)
+    const { data: allMarkets } = await supabase
+      .from("markets")
+      .select("*")
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    const filtered = (allMarkets ?? []).filter((m) =>
+      names.some((name) => m.title.toLowerCase().includes(name.toLowerCase()))
+    );
+
+    return NextResponse.json({ data: filtered.slice(offset, offset + limit) });
+  }
 
   let query = supabase.from("markets").select("*").eq("status", status);
 
@@ -27,7 +64,7 @@ export async function GET(req: NextRequest) {
       query = query.order("resolve_at", { ascending: true });
       break;
     default:
-      query = query.order("total_volume", { ascending: false });
+      query = query.order("created_at", { ascending: false });
   }
 
   const { data, error } = await query.range(offset, offset + limit - 1);

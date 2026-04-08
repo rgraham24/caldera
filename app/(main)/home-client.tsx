@@ -542,11 +542,16 @@ export function HomeClient({
           offset: String(off),
           status: "open",
         });
-        // "resolving_soon" filter pill overrides sort; "following" falls back to newest for now
-        const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal === "following" ? "newest" : sortVal;
+        const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal;
         params.set("sort", effectiveSort);
         if (category !== "all" && category !== "resolving_soon") {
           params.set("category", category);
+        }
+        // Following feed: send desoPublicKey so the API can filter by followed creators
+        if (effectiveSort === "following") {
+          const { useAppStore } = await import("@/store");
+          const key = useAppStore.getState().desoPublicKey;
+          if (key) params.set("desoPublicKey", key);
         }
 
         const res = await fetch(`/api/markets?${params}`, { signal: ctrl.signal });

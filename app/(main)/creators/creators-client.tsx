@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import type { Creator } from "@/types";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
@@ -43,7 +43,19 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
   const [sortBy, setSortBy] = useState("price");
   const [search, setSearch] = useState("");
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
-  const { isConnected } = useAppStore();
+  const [followedSlugs, setFollowedSlugs] = useState<Set<string>>(new Set());
+  const { isConnected, desoPublicKey } = useAppStore();
+
+  // Load all followed slugs once on mount (single fetch, not per-card)
+  useEffect(() => {
+    if (!desoPublicKey) return;
+    fetch(`/api/follows?desoPublicKey=${desoPublicKey}`)
+      .then((r) => r.json())
+      .then(({ data }) => {
+        if (Array.isArray(data)) setFollowedSlugs(new Set(data));
+      })
+      .catch(() => {});
+  }, [desoPublicKey]);
 
   const handleBuyClick = (c: Creator) => {
     if (!isConnected) {
@@ -190,7 +202,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
 
               {/* Follow + Buy buttons */}
               <div className="mt-4 flex gap-2">
-                <FollowButton slug={c.slug} className="flex-none" />
+                <FollowButton slug={c.slug} initialFollowing={followedSlugs.has(c.slug)} className="flex-none" />
                 <button
                   onClick={(e) => { e.stopPropagation(); handleBuyClick(c); }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-md shadow-indigo-500/20 transition-all duration-150 active:scale-[0.98] border border-indigo-400/20"
