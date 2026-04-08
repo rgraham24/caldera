@@ -48,6 +48,7 @@ export function HowItWorksModal() {
 
   const dismiss = () => {
     localStorage.setItem("caldera_hiw_seen", "1");
+    setStep(0);
     setShow(false);
   };
 
