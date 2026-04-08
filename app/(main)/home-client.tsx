@@ -48,7 +48,12 @@ function HeroSection({ markets }: { markets: Market[] }) {
       setTimeout(() => {
         setIdx((prev) => {
           const newIdx = (prev + 1) % markets.length;
-          chipRefs.current[newIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          if (newIdx === 0) {
+            // Reset scroll instantly during the opacity-0 window so jump is invisible
+            if (chipRowRef.current) chipRowRef.current.scrollLeft = 0;
+          } else {
+            chipRefs.current[newIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          }
           return newIdx;
         });
         setVisible(true);
@@ -200,8 +205,8 @@ function HeroSection({ markets }: { markets: Market[] }) {
                 onClick={() => select(i)}
                 className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
                   i === idx
-                    ? "bg-white text-black border border-white"
-                    : "bg-white/10 text-white/60 border border-white/20 hover:bg-white/20 hover:text-white"
+                    ? "bg-[var(--accent)]/30 border border-[var(--accent)] text-white"
+                    : "bg-white/10 text-white/50 border border-white/10 hover:bg-white/20 hover:text-white/80"
                 }`}
               >
                 <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
