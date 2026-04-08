@@ -12,6 +12,7 @@ import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { HolderCalculator } from "@/components/shared/HolderCalculator";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
+import { FollowButton } from "@/components/shared/FollowButton";
 
 type CreatorProfileClientProps = {
   creator: Creator;
@@ -158,7 +159,8 @@ export function CreatorProfileClient({
               </div>
             </div>
           </div>
-          <div className="flex gap-3 md:ml-auto">
+          <div className="flex items-center gap-3 md:ml-auto">
+            <FollowButton slug={creator.slug} />
             {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
               <button
                 onClick={() => setShowStakeModal(true)}

@@ -9,6 +9,13 @@ import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
+import { FollowButton } from "@/components/shared/FollowButton";
+
+function creatorMarketCap(c: Creator): number {
+  if (c.creator_coin_market_cap > 0) return c.creator_coin_market_cap;
+  // Fallback estimate: price × sqrt(holders) × 1000
+  return c.creator_coin_price * Math.sqrt(c.creator_coin_holders || 1) * 1000;
+}
 
 type CreatorsClientProps = {
   creators: Creator[];
@@ -161,6 +168,12 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                   </span>
                   <span className="text-xs text-text-muted">{c.creator_coin_holders.toLocaleString()} holders</span>
                 </div>
+                {hasToken && creatorMarketCap(c) > 0 && (
+                  <div className="mb-1 flex items-center gap-2 text-xs">
+                    <span className="text-text-muted">Mkt cap</span>
+                    <span className="font-mono font-semibold text-text-primary">{formatCompactCurrency(creatorMarketCap(c))}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs text-text-muted">
                   {c.token_status === "shadow" || c.token_status === "needs_review" ? (
                     <span className="text-amber-400">Unclaimed · prediction markets only</span>
@@ -175,13 +188,16 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                 </div>
               </Link>
 
-              {/* Buy button — shown for all cards */}
-              <button
-                onClick={(e) => { e.stopPropagation(); handleBuyClick(c); }}
-                className="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-md shadow-indigo-500/20 transition-all duration-150 active:scale-[0.98] border border-indigo-400/20"
-              >
-                Buy ${c.deso_username || c.slug}
-              </button>
+              {/* Follow + Buy buttons */}
+              <div className="mt-4 flex gap-2">
+                <FollowButton slug={c.slug} className="flex-none" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleBuyClick(c); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-md shadow-indigo-500/20 transition-all duration-150 active:scale-[0.98] border border-indigo-400/20"
+                >
+                  Buy ${c.deso_username || c.slug}
+                </button>
+              </div>
             </div>
           );
         })}

@@ -20,7 +20,9 @@ const CENTER_TABS: Tab[] = [
   { id: "trending", label: "Trending", href: "/", icon: TrendingUp },
   { id: "breaking", label: "Breaking", href: "/?sort=breaking", icon: Zap },
   { id: "new", label: "New", href: "/?sort=new", icon: Clock },
+  { id: "following", label: "Following", href: "/?sort=following" },
   { divider: true },
+  { id: "tokens", label: "Tokens", href: "/creators" },
   { id: "creators", label: "Creators", href: "/?category=creators" },
   { id: "sports", label: "Sports", href: "/?category=sports" },
   { id: "music", label: "Music", href: "/?category=music" },
@@ -34,12 +36,14 @@ function CenterTabs() {
   const searchParams = useSearchParams();
 
   const activeId = (() => {
+    if (pathname === "/creators") return "tokens";
     if (pathname !== "/") return null;
     const cat = searchParams.get("category");
     const sort = searchParams.get("sort");
     if (cat) return cat;
     if (sort === "breaking") return "breaking";
     if (sort === "new") return "new";
+    if (sort === "following") return "following";
     return "trending";
   })();
 

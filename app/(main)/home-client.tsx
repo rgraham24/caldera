@@ -295,6 +295,11 @@ function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: C
                   <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
                     {formatCurrency(c.creator_coin_price ?? 0)}
                   </span>
+                  {(c.creator_coin_market_cap ?? 0) > 0 && (
+                    <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
+                      · {formatCompactCurrency(c.creator_coin_market_cap ?? 0)} mcap
+                    </span>
+                  )}
                   {momentum && (
                     <span className="text-[10px] text-[var(--accent)]">{momentum}</span>
                   )}
@@ -382,6 +387,11 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
                     <span className="font-mono text-[10px] font-bold" style={{ color: "var(--accent)" }}>
                       {price > 0.01 ? formatCurrency(price) : "—"}
                     </span>
+                    {(c.creator_coin_market_cap ?? 0) > 0 && (
+                      <span className="font-mono text-[9px] text-[var(--text-tertiary)]">
+                        {formatCompactCurrency(c.creator_coin_market_cap ?? 0)} mcap
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -532,8 +542,8 @@ export function HomeClient({
           offset: String(off),
           status: "open",
         });
-        // "resolving_soon" filter pill overrides sort
-        const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal;
+        // "resolving_soon" filter pill overrides sort; "following" falls back to newest for now
+        const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal === "following" ? "newest" : sortVal;
         params.set("sort", effectiveSort);
         if (category !== "all" && category !== "resolving_soon") {
           params.set("category", category);
