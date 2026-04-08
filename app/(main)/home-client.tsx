@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import type { Market, Creator } from "@/types";
 import { CATEGORIES } from "@/types";
@@ -37,6 +37,19 @@ function HeroSection({ markets }: { markets: Market[] }) {
   const [visible, setVisible] = useState(true);
   const chipRowRef = useRef<HTMLDivElement>(null);
 
+  // Auto-rotate every 6 seconds with crossfade
+  useEffect(() => {
+    if (markets.length <= 1) return;
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx((prev) => (prev + 1) % markets.length);
+        setVisible(true);
+      }, 300);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [markets.length]);
+
   if (markets.length === 0) return null;
 
   const m = markets[idx];
@@ -50,7 +63,7 @@ function HeroSection({ markets }: { markets: Market[] }) {
   const select = (i: number) => {
     if (i === idx) return;
     setVisible(false);
-    setTimeout(() => { setIdx(i); setVisible(true); }, 160);
+    setTimeout(() => { setIdx(i); setVisible(true); }, 300);
   };
 
   const scrollChips = (dir: -1 | 1) => {
@@ -67,7 +80,7 @@ function HeroSection({ markets }: { markets: Market[] }) {
           background: "linear-gradient(160deg, #13131c 0%, #1a1a28 55%, #1e1830 100%)",
           border: "1px solid var(--border-subtle)",
           opacity: visible ? 1 : 0,
-          transition: "opacity 160ms ease",
+          transition: "opacity 300ms ease",
         }}
       >
         {/* Probability glow */}
@@ -315,17 +328,23 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
   const doubled = [...creators, ...creators];
 
   return (
-    <div style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated, #0d0d0d)" }} className="border-y">
+    <div className="py-4">
       {/* Header */}
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 md:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
         <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
         <Link href="/creators" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
           View all →
         </Link>
       </div>
 
-      {/* Scrolling strip */}
-      <div className="overflow-hidden pb-4">
+      {/* Scrolling strip — floating cards on transparent background */}
+      <div
+        className="overflow-hidden"
+        style={{
+          maskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
+          WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
+        }}
+      >
         <div className="flex animate-[scroll-left_60s_linear_infinite] gap-3 px-4 hover:[animation-play-state:paused]">
           {doubled.map((c, i) => {
             const rank = i % creators.length;
