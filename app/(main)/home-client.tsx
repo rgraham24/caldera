@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import type { Market, Creator } from "@/types";
 import { CATEGORIES } from "@/types";
@@ -9,7 +9,7 @@ import {
   formatCompactCurrency,
   formatRelativeTime,
 } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
+import { ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
 
@@ -82,25 +82,11 @@ function SecondNav({ active, onChange }: { active: NavTab; onChange: (tab: NavTa
   );
 }
 
-// ─── Hero carousel ────────────────────────────────────────────────────────────
+// ─── Hero section (Polymarket-style: main card + chip row) ───────────────────
 
-function HeroCarousel({ markets }: { markets: Market[] }) {
+function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const resetTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (markets.length < 2) return;
-    timerRef.current = setInterval(
-      () => setIdx((i) => (i + 1) % markets.length),
-      6000
-    );
-  }, [markets.length]);
-
-  useEffect(() => {
-    resetTimer();
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [resetTimer]);
+  const [visible, setVisible] = useState(true);
 
   if (markets.length === 0) return null;
 
@@ -108,92 +94,126 @@ function HeroCarousel({ markets }: { markets: Market[] }) {
   const yes = Math.round((m.yes_price ?? 0.5) * 100);
   const no = 100 - yes;
 
-  const go = (newIdx: number) => { setIdx(newIdx); resetTimer(); };
-  const prev = () => go((idx - 1 + markets.length) % markets.length);
-  const next = () => go((idx + 1) % markets.length);
+  const select = (i: number) => {
+    if (i === idx) return;
+    setVisible(false);
+    setTimeout(() => { setIdx(i); setVisible(true); }, 180);
+  };
 
   return (
-    <div
-      className="relative flex flex-col rounded-2xl p-6"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-    >
-      <div className="mb-3 flex items-center gap-2">
-        <span
-          className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-          style={{ background: "var(--caldera-muted, #f9731615)", color: "var(--accent)" }}
-        >
-          {m.category}
-        </span>
-        {m.resolve_at && (
-          <span className="text-xs text-[var(--text-tertiary)]">{formatRelativeTime(m.resolve_at)}</span>
-        )}
-      </div>
-
-      <Link href={`/markets/${m.slug}`}>
-        <h2 className="mb-5 line-clamp-2 text-xl font-bold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors sm:text-2xl">
-          {m.title}
-        </h2>
-      </Link>
-
-      <div className="mb-2 flex items-end gap-3">
-        <span
-          className="text-5xl font-bold tabular-nums leading-none"
-          style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
-        >
-          {yes}%
-        </span>
-        <span className="mb-1.5 text-sm text-[var(--text-tertiary)]">chance YES</span>
-      </div>
-
-      <div className="mb-5 h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
+    <div className="flex flex-col gap-3">
+      {/* Main card */}
+      <div
+        className="relative overflow-hidden rounded-2xl p-7"
+        style={{
+          background: "linear-gradient(135deg, #111118 0%, #18181f 60%, #1e1a2e 100%)",
+          border: "1px solid var(--border-subtle)",
+          opacity: visible ? 1 : 0,
+          transition: "opacity 180ms ease",
+        }}
+      >
+        {/* Subtle background glow based on probability */}
         <div
-          className="h-full rounded-full bg-yes transition-all duration-500"
-          style={{ width: `${yes}%` }}
+          className="pointer-events-none absolute inset-0 rounded-2xl"
+          style={{
+            background: yes >= 50
+              ? "radial-gradient(ellipse at 80% 50%, rgba(34,197,94,0.06) 0%, transparent 70%)"
+              : "radial-gradient(ellipse at 80% 50%, rgba(239,68,68,0.06) 0%, transparent 70%)",
+          }}
         />
-      </div>
 
-      <div className="mb-4 flex gap-3">
-        <Link href={`/markets/${m.slug}`} className="flex-1">
-          <button className="w-full rounded-xl py-3.5 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
-            YES {yes}¢
-          </button>
-        </Link>
-        <Link href={`/markets/${m.slug}`} className="flex-1">
-          <button className="w-full rounded-xl py-3.5 text-sm font-bold text-white bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/20 transition-all active:scale-[0.98]">
-            NO {no}¢
-          </button>
-        </Link>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-[var(--text-tertiary)]">
-          {formatCompactCurrency(m.total_volume ?? 0)} vol
-        </span>
-        {markets.length > 1 && (
-          <div className="flex items-center gap-2">
-            <button onClick={prev} className="rounded-full p-1.5 hover:bg-white/5 transition-colors" aria-label="Previous">
-              <ChevronLeft className="h-4 w-4 text-[var(--text-tertiary)]" />
-            </button>
-            <div className="flex gap-1.5">
-              {markets.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => go(i)}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{
-                    width: i === idx ? "16px" : "6px",
-                    background: i === idx ? "var(--accent)" : "var(--border-default)",
-                  }}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-            <button onClick={next} className="rounded-full p-1.5 hover:bg-white/5 transition-colors" aria-label="Next">
-              <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
-            </button>
+        <div className="relative">
+          {/* Category + timeframe */}
+          <div className="mb-4 flex items-center gap-2">
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+              style={{ background: "var(--caldera-muted, #f9731615)", color: "var(--accent)" }}
+            >
+              {m.category}
+            </span>
+            {m.resolve_at && (
+              <span className="text-xs text-[var(--text-tertiary)]">{formatRelativeTime(m.resolve_at)}</span>
+            )}
           </div>
-        )}
+
+          {/* Title */}
+          <Link href={`/markets/${m.slug}`}>
+            <h2 className="mb-6 line-clamp-2 text-2xl font-bold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors sm:text-3xl">
+              {m.title}
+            </h2>
+          </Link>
+
+          {/* Probability */}
+          <div className="mb-2 flex items-end gap-3">
+            <span
+              className="text-6xl font-bold tabular-nums leading-none"
+              style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
+            >
+              {yes}%
+            </span>
+            <span className="mb-2 text-base text-[var(--text-tertiary)]">chance YES</span>
+          </div>
+
+          {/* Bar */}
+          <div className="mb-6 h-2 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <div
+              className="h-full rounded-full bg-yes"
+              style={{ width: `${yes}%`, transition: "width 300ms ease" }}
+            />
+          </div>
+
+          {/* Buttons + volume */}
+          <div className="flex items-center gap-3">
+            <Link href={`/markets/${m.slug}`} className="flex-1">
+              <button className="w-full rounded-xl py-4 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98]">
+                YES {yes}¢
+              </button>
+            </Link>
+            <Link href={`/markets/${m.slug}`} className="flex-1">
+              <button className="w-full rounded-xl py-4 text-sm font-bold text-white bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/25 transition-all active:scale-[0.98]">
+                NO {no}¢
+              </button>
+            </Link>
+            <span className="shrink-0 font-mono text-xs text-[var(--text-tertiary)]">
+              {formatCompactCurrency(m.total_volume ?? 0)} vol
+            </span>
+          </div>
+        </div>
       </div>
+
+      {/* Chip row — other featured markets */}
+      {markets.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {markets.slice(1).map((chip, i) => {
+            const chipIdx = i + 1;
+            const chipYes = Math.round((chip.yes_price ?? 0.5) * 100);
+            const isSelected = idx === chipIdx;
+            return (
+              <button
+                key={chip.id}
+                onClick={() => select(chipIdx)}
+                className="flex shrink-0 flex-col items-start rounded-xl px-3.5 py-3 text-left transition-all"
+                style={{
+                  background: isSelected ? "var(--bg-elevated, #0d0d0d)" : "var(--bg-surface)",
+                  border: isSelected ? "1px solid var(--border-default)" : "1px solid var(--border-subtle)",
+                  minWidth: "160px",
+                  maxWidth: "220px",
+                }}
+              >
+                <p className="mb-1.5 line-clamp-2 text-[11px] font-medium leading-snug text-[var(--text-primary)]">
+                  {chip.title}
+                </p>
+                <span
+                  className="font-mono text-sm font-bold tabular-nums"
+                  style={{ color: chipYes >= 50 ? "var(--yes)" : "var(--no)" }}
+                >
+                  {chipYes}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -273,41 +293,80 @@ function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: C
 
 // ─── Token strip ──────────────────────────────────────────────────────────────
 
+const CAT_EMOJI: Record<string, string> = {
+  creators: "🎬", music: "🎵", sports: "⚽", tech: "💻", politics: "👑", entertainment: "🎭",
+};
+
 function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creator) => void }) {
   if (creators.length === 0) return null;
   const doubled = [...creators, ...creators];
+
   return (
-    <div
-      className="overflow-hidden border-y py-3"
-      style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated, #0d0d0d)" }}
-    >
-      <div className="flex animate-[scroll-left_60s_linear_infinite] gap-4 hover:[animation-play-state:paused]">
-        {doubled.map((c, i) => (
-          <div
-            key={`${c.id}-${i}`}
-            className="group flex shrink-0 items-center gap-3 rounded-xl px-4 py-2"
-            style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-          >
-            <CreatorAvatar creator={c} size="sm" />
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-[var(--text-primary)]">
-                ${c.deso_username ?? c.creator_coin_symbol ?? c.name}
-              </span>
-              <span className="font-mono text-[10px] text-[var(--accent)]">
-                {(c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : "—"}
-              </span>
-            </div>
-            {c.deso_username && (
-              <button
-                onClick={() => onBuy(c)}
-                className="hidden rounded-md border px-2.5 py-1 text-[10px] font-semibold transition-colors group-hover:flex"
-                style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
+    <div style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated, #0d0d0d)" }} className="border-y">
+      {/* Header */}
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 md:px-6 lg:px-8">
+        <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
+        <Link href="/creators" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
+          View all →
+        </Link>
+      </div>
+
+      {/* Scrolling strip */}
+      <div className="overflow-hidden pb-4">
+        <div className="flex animate-[scroll-left_60s_linear_infinite] gap-3 px-4 hover:[animation-play-state:paused]">
+          {doubled.map((c, i) => {
+            const isTop3 = (i % creators.length) < 3;
+            const sym = c.deso_username ?? c.creator_coin_symbol ?? c.name;
+            const price = c.creator_coin_price ?? 0;
+            const holders = c.creator_coin_holders ?? 0;
+            const emoji = c.category ? CAT_EMOJI[c.category] ?? "" : "";
+
+            return (
+              <div
+                key={`${c.id}-${i}`}
+                className="group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3 transition-all duration-200 hover:scale-[1.03]"
+                style={{
+                  background: "var(--bg-surface)",
+                  border: `1px solid ${isTop3 ? "rgba(249,115,22,0.25)" : "var(--border-subtle)"}`,
+                  boxShadow: isTop3 ? "0 0 12px rgba(249,115,22,0.12)" : "none",
+                  minWidth: "180px",
+                }}
               >
-                Buy
-              </button>
-            )}
-          </div>
-        ))}
+                <div className="flex items-center gap-2.5">
+                  <div className="relative">
+                    <CreatorAvatar creator={c} size="sm" />
+                    {isTop3 && (
+                      <span className="absolute -right-1 -top-1 h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--accent)]" />
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                      {emoji && <span className="mr-1">{emoji}</span>}${sym}
+                    </span>
+                    <span className="font-mono text-[10px] font-bold" style={{ color: "var(--accent)" }}>
+                      {price > 0.01 ? formatCurrency(price) : "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-[var(--text-tertiary)]">
+                    +{holders.toLocaleString()} holders
+                  </span>
+                  {c.deso_username && (
+                    <button
+                      onClick={() => onBuy(c)}
+                      className="rounded-md px-2.5 py-1 text-[10px] font-semibold opacity-0 transition-all group-hover:opacity-100"
+                      style={{ background: "var(--accent)", color: "#fff" }}
+                    >
+                      Buy →
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -497,7 +556,7 @@ export function HomeClient({
           <div className="mb-8 flex flex-col gap-4 lg:flex-row">
             {heroMarkets.length > 0 && (
               <div className="lg:w-[65%]">
-                <HeroCarousel markets={heroMarkets} />
+                <HeroSection markets={heroMarkets} />
               </div>
             )}
             <div className="flex flex-col gap-4 lg:w-[35%]">
