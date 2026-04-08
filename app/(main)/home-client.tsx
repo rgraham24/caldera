@@ -37,8 +37,6 @@ function chipLabel(title: string): string {
 function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
-  const chipContainerRef = useRef<HTMLDivElement>(null);
-
   // Auto-rotate every 6 seconds with crossfade
   useEffect(() => {
     if (markets.length <= 1) return;
@@ -51,17 +49,6 @@ function HeroSection({ markets }: { markets: Market[] }) {
     }, 6000);
     return () => clearInterval(interval);
   }, [markets.length]);
-
-  // Scroll active chip to center whenever idx changes
-  useEffect(() => {
-    const container = chipContainerRef.current;
-    if (!container) return;
-    const activeChip = container.children[idx] as HTMLElement;
-    if (!activeChip) return;
-    const containerCenter = container.offsetWidth / 2;
-    const chipCenter = activeChip.offsetLeft + activeChip.offsetWidth / 2;
-    container.scrollTo({ left: chipCenter - containerCenter, behavior: "smooth" });
-  }, [idx]);
 
   if (markets.length === 0) return null;
 
@@ -174,25 +161,19 @@ function HeroSection({ markets }: { markets: Market[] }) {
         </div>
       </div>
 
-      {/* ── Chip pill row — static, scrolls to center active chip ── */}
+      {/* ── Dot indicators ── */}
       {markets.length > 1 && (
-        <div
-          ref={chipContainerRef}
-          className="mx-auto flex gap-2 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          style={{ scrollBehavior: "smooth", maxWidth: "600px", paddingLeft: "280px", paddingRight: "280px" }}
-        >
-          {markets.map((chip, i) => (
+        <div className="mt-3 flex items-center justify-center gap-2">
+          {markets.map((_, i) => (
             <button
-              key={chip.id}
+              key={i}
               onClick={() => select(i)}
-              className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-300 border ${
+              className={`rounded-full transition-all duration-300 ${
                 i === idx
-                  ? "bg-primary/30 border-primary/60 text-white"
-                  : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"
+                  ? "h-2 w-6 bg-primary"
+                  : "h-2 w-2 bg-white/30 hover:bg-white/50"
               }`}
-            >
-              {chip.title.length > 28 ? chip.title.substring(0, 28) + "…" : chip.title}
-            </button>
+            />
           ))}
         </div>
       )}
