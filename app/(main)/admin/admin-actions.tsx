@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Copy, Check } from "lucide-react";
 import { slugify } from "@/lib/utils";
 
 const ADMIN_PASSWORD = "caldera-admin-2026";
@@ -30,6 +30,15 @@ export function AdminActions() {
   const [generatedMarkets, setGeneratedMarkets] = useState<GeneratedMarket[]>([]);
   const [genError, setGenError] = useState<string | null>(null);
   const [creatingIdx, setCreatingIdx] = useState<number | null>(null);
+
+  // Claim codes
+  const [claimCodes, setClaimCodes] = useState<ClaimCodeRow[]>([]);
+  const [claimCodesLoaded, setClaimCodesLoaded] = useState(false);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [singleSlug, setSingleSlug] = useState("");
+  const [singleGenerating, setSingleGenerating] = useState(false);
 
   const handleCycle = async () => {
     setCycling(true);
@@ -177,6 +186,62 @@ export function AdminActions() {
     } finally {
       setCreatingIdx(null);
     }
+  };
+
+  const loadClaimCodes = async () => {
+    try {
+      const res = await fetch(`/api/admin/generate-claim-code?adminPassword=${ADMIN_PASSWORD}`);
+      const { data } = await res.json();
+      setClaimCodes(data ?? []);
+      setClaimCodesLoaded(true);
+    } catch { setClaimCodesLoaded(true); }
+  };
+
+  const handleBulkGenerate = async () => {
+    setBulkGenerating(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/admin/generate-claim-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, bulk: true }),
+      });
+      const { data, error } = await res.json();
+      if (error) throw new Error(error);
+      setBulkResult(`Generated ${data.generated} claim codes`);
+      loadClaimCodes();
+    } catch (err) {
+      setBulkResult(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    } finally {
+      setBulkGenerating(false);
+    }
+  };
+
+  const handleSingleGenerate = async () => {
+    if (!singleSlug.trim()) return;
+    setSingleGenerating(true);
+    try {
+      const res = await fetch("/api/admin/generate-claim-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, slug: singleSlug.trim() }),
+      });
+      const { data, error } = await res.json();
+      if (error) throw new Error(error);
+      setBulkResult(`Code generated: ${data.code}`);
+      setSingleSlug("");
+      loadClaimCodes();
+    } catch (err) {
+      setBulkResult(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    } finally {
+      setSingleGenerating(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedCode(id);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   return (
@@ -367,6 +432,105 @@ export function AdminActions() {
           </div>
         )}
       </div>
+
+      {/* Claim Codes Manager */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">🔑 Claim Codes</h2>
+            <p className="mt-1 text-xs text-text-muted">Generate shareable /claim/[code] URLs for unclaimed creators</p>
+          </div>
+          {!claimCodesLoaded && (
+            <Button variant="outline" size="sm" onClick={loadClaimCodes} className="text-xs">
+              Load Codes
+            </Button>
+          )}
+        </div>
+
+        <div className="mb-4 flex flex-wrap gap-3">
+          <Button
+            onClick={handleBulkGenerate}
+            disabled={bulkGenerating}
+            className="bg-caldera text-background font-semibold hover:bg-caldera/90 text-xs"
+            size="sm"
+          >
+            {bulkGenerating && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            Generate for Top 20 Unclaimed
+          </Button>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={singleSlug}
+              onChange={(e) => setSingleSlug(e.target.value)}
+              placeholder="creator-slug"
+              className="rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-xs text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
+              onKeyDown={(e) => e.key === "Enter" && handleSingleGenerate()}
+            />
+            <Button
+              onClick={handleSingleGenerate}
+              disabled={singleGenerating || !singleSlug.trim()}
+              size="sm"
+              className="text-xs"
+              variant="outline"
+            >
+              {singleGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        </div>
+
+        {bulkResult && (
+          <p className={`mb-3 text-xs ${bulkResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {bulkResult}
+          </p>
+        )}
+
+        {claimCodesLoaded && claimCodes.length === 0 && (
+          <p className="text-xs text-text-faint">No claim codes yet. Generate some above.</p>
+        )}
+
+        {claimCodes.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border-subtle text-left text-text-muted">
+                  <th className="pb-2 pr-4 font-medium">Slug</th>
+                  <th className="pb-2 pr-4 font-medium">Code</th>
+                  <th className="pb-2 pr-4 font-medium">Status</th>
+                  <th className="pb-2 pr-4 font-medium">URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {claimCodes.map((row) => (
+                  <tr key={row.id} className="border-b border-border-subtle/50">
+                    <td className="py-2 pr-4 font-medium text-text-primary">{row.slug}</td>
+                    <td className="py-2 pr-4 font-mono text-caldera">{row.code}</td>
+                    <td className="py-2 pr-4">
+                      <span className={`rounded-full px-2 py-0.5 font-medium ${
+                        row.status === "claimed" ? "bg-yes/10 text-yes" :
+                        row.status === "expired" ? "bg-no/10 text-no" :
+                        "bg-caldera/10 text-caldera"
+                      }`}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="max-w-[200px] truncate text-text-muted">{row.claimUrl}</span>
+                        <button
+                          onClick={() => copyToClipboard(row.claimUrl, row.id)}
+                          className="shrink-0 rounded p-1 text-text-muted hover:text-text-primary transition-colors"
+                        >
+                          {copiedCode === row.id ? <Check className="h-3.5 w-3.5 text-yes" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -378,4 +542,14 @@ type GeneratedMarket = {
   resolution_criteria: string;
   resolve_at: string;
   created?: boolean;
+};
+
+type ClaimCodeRow = {
+  id: string;
+  slug: string;
+  code: string;
+  status: string;
+  claimUrl: string;
+  created_at: string;
+  claimed_at: string | null;
 };

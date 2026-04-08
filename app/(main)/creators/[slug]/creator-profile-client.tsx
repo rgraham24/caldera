@@ -25,12 +25,14 @@ type CreatorProfileClientProps = {
     created_at: string;
     market: { title: string; slug: string };
   }>;
+  claimUrl?: string | null;
 };
 
 export function CreatorProfileClient({
   creator,
   markets,
   recentTrades,
+  claimUrl,
 }: CreatorProfileClientProps) {
   const [showStakeModal, setShowStakeModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -79,12 +81,23 @@ export function CreatorProfileClient({
               <li>→ Let your fans buy your token and hold alongside you</li>
               <li>→ See everything people are predicting about you</li>
             </ul>
-            <button
-              onClick={() => setShowClaimModal(true)}
-              className="text-sm font-medium text-caldera hover:text-caldera/80"
-            >
-              Claim this profile →
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {claimUrl ? (
+                <Link
+                  href={claimUrl}
+                  className="text-sm font-semibold text-caldera hover:text-caldera/80 underline underline-offset-2"
+                >
+                  Claim this profile →
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setShowClaimModal(true)}
+                  className="text-sm font-medium text-caldera hover:text-caldera/80"
+                >
+                  Claim this profile →
+                </button>
+              )}
+            </div>
           </div>
         )}
         {creator.token_status === "active_unverified" && (

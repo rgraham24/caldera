@@ -58,6 +58,21 @@ export function MarketDetailClient({
             )}
           </div>
 
+          {/* Unclaimed token banner */}
+          {creator && (creator.token_status === "shadow" || creator.token_status === "needs_review" || !creator.token_status) && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+              <p className="text-xs text-amber-400">
+                <span className="font-semibold">${creator.deso_username ?? creator.creator_coin_symbol ?? creator.slug}</span> token unclaimed — {creator.name} could be earning from this market
+              </p>
+              <a
+                href={`/creators/${creator.slug}`}
+                className="shrink-0 text-xs font-semibold text-amber-400 hover:text-amber-300 whitespace-nowrap"
+              >
+                Claim →
+              </a>
+            </div>
+          )}
+
           {/* Creator stake explainer */}
           {creator && (
             <div className="mb-6">
