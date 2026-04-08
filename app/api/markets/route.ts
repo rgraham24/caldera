@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase.from("markets").select("*").eq("status", status);
 
-  if (category && category !== "all") query = query.eq("category", category);
+  if (category && category !== "all") query = query.ilike("category", category);
 
   switch (sort) {
     case "volume":

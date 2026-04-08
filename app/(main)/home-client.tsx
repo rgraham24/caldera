@@ -619,6 +619,15 @@ export function HomeClient({
   const isConnected = useAppStore((s) => s.isConnected);
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const [followedCount, setFollowedCount] = useState<number | null>(null);
+  const [commentaryMarkets, setCommentaryMarkets] = useState<Market[]>([]);
+
+  // Fetch Commentary / World Events markets on mount
+  useEffect(() => {
+    fetch("/api/markets?category=commentary&status=open&sort=newest&limit=10")
+      .then((r) => r.json())
+      .then(({ data }) => { if (Array.isArray(data)) setCommentaryMarkets(data); })
+      .catch(() => {});
+  }, []);
 
   // When Following tab is active and user is connected, check if they follow anyone
   useEffect(() => {
@@ -742,6 +751,54 @@ export function HomeClient({
       <TokenStrip creators={tokenStripCreators} onBuy={setStakeCreator} />
 
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        {/* World Events featured row */}
+        {commentaryMarkets.length > 0 && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-lg">🌍</span>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">World Events</h2>
+              <span className="text-xs text-[var(--text-tertiary)] ml-2">Bet on what pundits &amp; journalists will say</span>
+              <Link href="/markets?category=commentary" className="ml-auto text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors shrink-0">
+                See all →
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+              {commentaryMarkets.map((m) => {
+                const yes = Math.round((m.yes_price ?? 0.5) * 100);
+                return (
+                  <Link
+                    key={m.id}
+                    href={`/markets/${m.slug}`}
+                    className="shrink-0 flex flex-col rounded-xl p-4 transition-colors"
+                    style={{
+                      width: "240px",
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border-subtle)",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                  >
+                    <p className="mb-3 line-clamp-3 text-sm font-medium leading-snug text-[var(--text-primary)]">
+                      {m.title}
+                    </p>
+                    <div className="mt-auto flex items-center justify-between">
+                      <span
+                        className="font-display text-xl font-bold tabular-nums"
+                        style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
+                      >
+                        {yes}%
+                      </span>
+                      <span className="text-xs text-[var(--text-tertiary)]">
+                        {formatCompactCurrency(m.total_volume ?? 0)} vol
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 4. All markets */}
         <div ref={marketsRef} className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>

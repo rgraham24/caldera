@@ -59,9 +59,17 @@ export function MarketCard({ market }: MarketCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="mb-4 flex-1 text-base font-semibold leading-snug text-[var(--text-primary)] line-clamp-2">
+        <h3 className="mb-2 flex-1 text-base font-semibold leading-snug text-[var(--text-primary)] line-clamp-2">
           {market.title}
         </h3>
+
+        {/* Speculation pool badge */}
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {(market as any).is_speculation_pool && (
+          <span className="mb-3 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+            ⚠ Unverified · Speculative
+          </span>
+        )}
 
         {/* Probability bar */}
         <div

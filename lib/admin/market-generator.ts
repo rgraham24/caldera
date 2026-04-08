@@ -22,7 +22,7 @@ Return ONLY a valid JSON array. No markdown, no explanation, no preamble. Start 
   {
     "title": "short catchy 4-8 word title",
     "description": "1-2 sentences including why this is hot right now and any DeSo angle",
-    "category": "one of: creators, sports, music, politics, tech, entertainment",
+    "category": "one of: creators, sports, music, politics, tech, entertainment, commentary, Commentary, Streamers, Viral",
     "resolution_criteria": "exact resolution source - preferably DeSo on-chain: verified post from official profile, creator coin price, official DAO vote, or credible news",
     "resolve_at": "ISO date string — use near-term dates within 14-90 days from today April 7 2026"
   }
@@ -182,7 +182,7 @@ ${schema}`;
 
 Generate 4 prediction markets about ${entityName}.
 Focus on the most interesting, timely, and resolvable questions about their public life.
-Pick the most appropriate category from: Sports, Music, Tech, Politics, Commentary, Streamers, Viral.
+Pick the most appropriate category from: Sports, Music, Tech, Politics, Commentary, Streamers, Entertainment, Viral.
 ${schema}`;
 }
 

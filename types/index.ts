@@ -21,13 +21,14 @@ export type MarketStatus = "open" | "closed" | "resolving" | "resolved" | "cance
 export type TradeSide = "yes" | "no";
 
 // Category type
-export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment";
+export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment" | "commentary";
 
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "creators", label: "🎬 Creators" },
   { value: "sports", label: "⚽ Sports" },
   { value: "music", label: "🎵 Music" },
   { value: "politics", label: "👑 Politics" },
+  { value: "commentary", label: "🌍 World Events" },
   { value: "tech", label: "💻 Tech" },
   { value: "entertainment", label: "🎭 Entertainment" },
 ];
