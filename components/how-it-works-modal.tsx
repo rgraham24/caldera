@@ -6,28 +6,28 @@ const STEPS = [
     number: "1",
     title: "Pick a market",
     description:
-      "Browse markets on any topic. Buy YES or NO shares based on what you think will happen. Odds shift in real time as traders join.",
+      "Browse markets on any topic. Pick YES or NO based on what you think will happen. Odds shift in real time as others trade.",
     visual: "market",
   },
   {
     number: "2",
     title: "Place a trade",
     description:
-      "Connect your DeSo wallet in minutes — it's free. Buy YES or NO shares at the current price. If your prediction is correct, shares pay out at resolution.",
+      "Connect your DeSo wallet in minutes — and you'll get free DESO to start trading right away. Buy YES or NO at the current price. If your prediction is correct, it pays out at resolution.",
     visual: "trade",
   },
   {
     number: "3",
-    title: "Every market has a token",
+    title: "Every person has a token",
     description:
-      "Every person and entity on Caldera has a real token on the DeSo blockchain. When markets are traded, 1% of every fee automatically buys that token on-chain.",
+      "Every public figure on Caldera has a real token. When markets are traded, 1% of every fee automatically buys back that token.",
     visual: "token",
   },
   {
     number: "4",
     title: "Fees flow back into tokens",
     description:
-      "Hold any token on Caldera. As markets about that person or entity are traded, fees automatically buy that token — creating on-chain buy pressure with every trade.",
+      "Hold any token on Caldera. As markets about that person are traded, fees automatically buy back that token — on every single trade.",
     visual: "earn",
   },
 ];
@@ -84,29 +84,32 @@ export function HowItWorksModal() {
         <div className="bg-[var(--bg-elevated)] p-8 flex items-center justify-center min-h-[220px] relative">
 
           {current.visual === "market" && (
-            <div className="relative">
-              <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400">
-                    LIVE
-                  </span>
-                  <span className="text-xs text-[var(--text-tertiary)]">14 days left</span>
+            <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
+              <div className="flex items-center gap-3 mb-4">
+                <img
+                  src="https://node.deso.org/api/v0/get-single-profile-picture/BC1YLh2JrNMXmkerRRa7UgeqGgvcAbQ96rtfJHkVXkmafNNdfsHZDPZ?fallback=https://i.imgur.com/w1BEqJv.png"
+                  className="w-10 h-10 rounded-full object-cover"
+                  alt="realdonaldtrump"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">realdonaldtrump</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">392 holders</div>
                 </div>
-                <div className="text-sm font-medium text-[var(--text-primary)] leading-snug mb-4">
-                  Will there be a US recession in 2026?
-                </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-2xl font-semibold text-[var(--text-primary)]">67%</span>
-                  <span className="text-xs text-[var(--text-tertiary)]">chance YES</span>
-                </div>
-                <div className="flex gap-2">
-                  <button className="flex-1 bg-green-500 text-white text-sm font-medium py-2 rounded-xl">
-                    YES 67¢
-                  </button>
-                  <button className="flex-1 bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium py-2 rounded-xl border border-[var(--border-subtle)]">
-                    NO 33¢
-                  </button>
-                </div>
+              </div>
+              <div className="text-sm font-medium text-[var(--text-primary)] leading-snug mb-3">
+                Will Trump sign a new executive order on tariffs before May 1?
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-2xl font-semibold text-[var(--text-primary)]">71%</span>
+                <span className="text-xs text-[var(--text-tertiary)]">chance YES</span>
+              </div>
+              <div className="flex gap-2">
+                <button className="flex-1 bg-green-500 text-white text-sm font-medium py-2 rounded-xl">
+                  YES 71¢
+                </button>
+                <button className="flex-1 bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium py-2 rounded-xl border border-[var(--border-subtle)]">
+                  NO 29¢
+                </button>
               </div>
             </div>
           )}
@@ -133,12 +136,14 @@ export function HowItWorksModal() {
           {current.visual === "token" && (
             <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-11 h-11 rounded-full bg-purple-500/20 flex items-center justify-center text-sm font-semibold text-purple-400">
-                  LJ
-                </div>
+                <img
+                  src="https://node.deso.org/api/v0/get-single-profile-picture/BC1YLhbhbNctADcV4AZDFk2NtAGWrfPytryAZsZoTA1KGme7EcNZbTH?fallback=https://i.imgur.com/w1BEqJv.png"
+                  className="w-11 h-11 rounded-full object-cover"
+                  alt="lebronjames"
+                />
                 <div className="flex-1">
                   <div className="text-sm font-semibold text-[var(--text-primary)]">$lebronjames</div>
-                  <div className="text-xs text-[var(--text-tertiary)]">1,573 holders · DeSo</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">1,573 holders</div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-semibold text-[var(--text-primary)]">$1.46</div>
@@ -146,34 +151,29 @@ export function HowItWorksModal() {
                 </div>
               </div>
               <div className="bg-[var(--bg-elevated)] rounded-xl p-3">
-                <div className="text-xs text-[var(--text-tertiary)] mb-1">Last auto-buy</div>
-                <div className="text-sm font-medium text-[var(--text-primary)]">🔄 $0.87 bought just now</div>
-                <div className="text-xs text-[var(--text-tertiary)] mt-0.5">from LeBron market trade</div>
+                <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest buyback</div>
+                <div className="text-sm font-medium text-[var(--text-primary)]">🔄 $0.87 bought back just now</div>
+                <div className="text-xs text-[var(--text-tertiary)] mt-0.5">from a LeBron market trade</div>
               </div>
             </div>
           )}
 
           {current.visual === "earn" && (
-            <div className="w-full max-w-[280px] space-y-2">
-              <div className="bg-[var(--bg-surface)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
-                <div className="text-xs text-[var(--text-tertiary)] mb-0.5">Trade on any market</div>
-                <div className="text-sm font-semibold text-[var(--text-primary)]">$100 trade on LeBron market</div>
+            <div className="w-full max-w-[280px] space-y-2.5">
+              <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">
+                <div className="text-xs text-[var(--text-tertiary)] mb-0.5">Someone trades</div>
+                <div className="text-sm font-semibold text-[var(--text-primary)]">$100 on a LeBron market</div>
               </div>
-              <div className="text-center text-[var(--text-tertiary)] text-base leading-none py-0.5">↓</div>
-              <div className="bg-[var(--bg-surface)] rounded-xl p-3.5 border border-[var(--border-subtle)]">
-                <div className="text-xs text-[var(--text-tertiary)] mb-1">2% fee splits automatically</div>
-                <div className="flex justify-between text-xs">
-                  <span className="font-medium text-[var(--text-primary)]">$1 → buys $lebronjames</span>
-                  <span className="text-[var(--text-tertiary)]">on-chain</span>
-                </div>
-                <div className="flex justify-between text-xs mt-0.5">
-                  <span className="text-[var(--text-tertiary)]">$1 → platform</span>
-                </div>
+              <div className="text-center text-[var(--text-tertiary)]">↓</div>
+              <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)] space-y-1">
+                <div className="text-xs text-[var(--text-tertiary)]">2% fee splits</div>
+                <div className="text-sm font-medium text-green-500">$1 → buys back $lebronjames</div>
+                <div className="text-sm text-[var(--text-tertiary)]">$1 → platform</div>
               </div>
-              <div className="text-center text-[var(--text-tertiary)] text-base leading-none py-0.5">↓</div>
-              <div className="bg-purple-500/10 rounded-xl p-3.5 border border-purple-500/20">
-                <div className="text-xs font-medium text-purple-400 text-center">
-                  Token auto-bought on every trade · on-chain · automatic
+              <div className="text-center text-[var(--text-tertiary)]">↓</div>
+              <div className="bg-[var(--bg-elevated)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">
+                <div className="text-xs font-medium text-[var(--text-primary)] text-center leading-relaxed">
+                  Token buyback happens automatically<br />on every single trade
                 </div>
               </div>
             </div>
