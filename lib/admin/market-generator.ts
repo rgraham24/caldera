@@ -91,7 +91,7 @@ function parseMarkets(text: string): GeneratedMarket[] {
   }
 }
 
-function classifyEntityType(name: string): "pundit" | "journalist" | "athlete" | "streamer" | "musician" | "politician" | "brand" | "general" {
+export function classifyEntityType(name: string): "pundit" | "journalist" | "athlete" | "streamer" | "musician" | "politician" | "brand" | "general" {
   const n = name.toLowerCase();
   if (/tucker|shapiro|rogan|bari weiss|chamath|zeihan|bremmer|friedman|hannity|maddow|coulter|maher|limbaugh|podcast|show host/.test(n)) return "pundit";
   if (/journalist|reporter|correspondent|times|post|reuters|ap |nyt|wsj|clarissa|arwa|woodward|bernstein/.test(n)) return "journalist";

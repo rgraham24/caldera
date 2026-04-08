@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { generateMarketsForTopic, GeneratedMarket } from "./market-generator";
+import { generateMarketsForTopic, GeneratedMarket, classifyEntityType } from "./market-generator";
 
 // ─── Slug helpers ────────────────────────────────────────────────────────────
 
@@ -362,6 +362,80 @@ export async function filterStaleMarketsPublic(
 //
 type TokenTier = "hard_reserved" | "speculation_pool" | "shadow";
 
+type EntityContext = {
+  entityType: string;
+  team: string | null;
+  league: string | null;
+};
+
+function getEntityContext(entityName: string, entityType: string): EntityContext {
+  const n = entityName.toLowerCase();
+
+  if (entityType === "streamer") {
+    const team =
+      /kick|kick\.com/.test(n) ? "kick" :
+      /twitch/.test(n) ? "twitch" :
+      /youtube/.test(n) ? "youtube" :
+      "streamers";
+    return { entityType, team, league: "streamers" };
+  }
+
+  if (entityType === "pundit") {
+    const team =
+      /tucker|hannity|ingraham|gutfeld|fox/.test(n) ? "fox-news" :
+      /maddow|hayes|reid|msnbc/.test(n) ? "msnbc" :
+      /cooper|tapper|zakaria|cnn/.test(n) ? "cnn" :
+      /rogan/.test(n) ? "spotify" :
+      /shapiro|prager|daily.wire/.test(n) ? "the-daily-wire" :
+      /chamath|palihapitiya/.test(n) ? "all-in-podcast" :
+      /bari.weiss|substack/.test(n) ? "substack" :
+      null;
+    const league =
+      /tucker|hannity|shapiro|ingraham|prager|coulter/.test(n) ? "conservative-media" :
+      /maddow|hayes|reid/.test(n) ? "progressive-media" :
+      /rogan|chamath|friedman|bremmer/.test(n) ? "podcasts" :
+      /bari|substack/.test(n) ? "substack" :
+      "commentary";
+    return { entityType, team, league };
+  }
+
+  if (entityType === "journalist") {
+    const team =
+      /nyt|new.york.times/.test(n) ? "new-york-times" :
+      /wsj|wall.street/.test(n) ? "wall-street-journal" :
+      /wapo|washington.post/.test(n) ? "washington-post" :
+      /cnn/.test(n) ? "cnn" :
+      /bbc/.test(n) ? "bbc" :
+      /reuters/.test(n) ? "reuters" :
+      /ap |associated.press/.test(n) ? "associated-press" :
+      null;
+    return { entityType, team, league: "journalism" };
+  }
+
+  if (entityType === "politician") {
+    const team =
+      /republican|trump|maga|desantis|rubio|scott/.test(n) ? "republican-party" :
+      /democrat|biden|harris|pelosi|schumer|aoc/.test(n) ? "democratic-party" :
+      null;
+    return { entityType, team, league: "us-politics" };
+  }
+
+  if (entityType === "musician") {
+    const league =
+      /rap|hip.hop|drake|kendrick|travis|wayne|cardi|nicki/.test(n) ? "hiphop" :
+      /pop|taylor|ariana|billie|dua/.test(n) ? "pop" :
+      /rock|metal/.test(n) ? "rock" :
+      "music";
+    return { entityType, team: null, league };
+  }
+
+  if (entityType === "athlete") {
+    return { entityType, team: null, league: "sports" };
+  }
+
+  return { entityType, team: null, league: null };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
@@ -530,7 +604,9 @@ async function insertMarkets(
   supabase: SupabaseClient,
   creatorId?: string | null,
   creatorSlug?: string | null,
-  tier: TokenTier = "shadow"
+  tier: TokenTier = "shadow",
+  teamSlug?: string | null,
+  leagueSlug?: string | null
 ): Promise<number> {
   if (tier === "hard_reserved") {
     console.log(`[insertMarkets] Skipping — hard_reserved creator: ${creatorSlug}`);
@@ -561,6 +637,8 @@ async function insertMarkets(
     if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
     if (creatorSlug) row.creator_slug = creatorSlug;
+    if (teamSlug) row.team_creator_slug = teamSlug;
+    if (leagueSlug) row.league_creator_slug = leagueSlug;
     const { error } = await supabase.from("markets").insert(row);
     if (!error) created++;
   }
@@ -598,12 +676,29 @@ export async function bulkGenerateAndInsert(
         const profile = profileResults[batchIdx];
         const filtered = await filterStaleMarkets(result.value, apiKey, entity);
         if (filtered.length > 0) {
+          const entityType = classifyEntityType(entity);
+          const ctx = getEntityContext(entity, entityType);
+
+          let teamProfile: { id: string; slug: string } | null = null;
+          let leagueProfile: { id: string; slug: string } | null = null;
+
+          if (ctx.team) {
+            const tp = await createShadowProfileIfNeeded(ctx.team, supabase);
+            if (tp) teamProfile = { id: tp.id, slug: tp.slug };
+          }
+          if (ctx.league) {
+            const lp = await createShadowProfileIfNeeded(ctx.league, supabase);
+            if (lp) leagueProfile = { id: lp.id, slug: lp.slug };
+          }
+
           created += await insertMarkets(
             filtered,
             supabase,
             profile?.id ?? null,
             profile?.slug ?? null,
-            profile?.tier ?? "shadow"
+            profile?.tier ?? "shadow",
+            teamProfile?.slug ?? null,
+            leagueProfile?.slug ?? null
           );
         }
       }
