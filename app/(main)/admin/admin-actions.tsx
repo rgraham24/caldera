@@ -21,8 +21,7 @@ export function AdminActions() {
   const [validating, setValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<string | null>(null);
 
-  const [importPrefixes, setImportPrefixes] = useState("a,b,c,d,e");
-  const [importMinHolders, setImportMinHolders] = useState(2);
+  const [batchIndex, setBatchIndex] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
@@ -147,25 +146,31 @@ export function AdminActions() {
     setImporting(true);
     setImportResult(null);
     try {
-      const prefixes = importPrefixes.split(",").map(p => p.trim()).filter(Boolean);
       const res = await fetch("/api/admin/bulk-import-deso", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prefixes,
-          minHolders: importMinHolders,
+          batchIndex,
+          minHolders: 0,
           adminPassword: ADMIN_PASSWORD,
         }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
-      // Auto-populate next batch of prefixes
-      if (data.nextBatch?.length > 0) {
-        setImportPrefixes(data.nextBatch.join(","));
+      if (data.message) {
+        setImportResult(`🎉 ${data.message}`);
+        return;
       }
-      setImportResult(
-        `✅ Imported ${data.totalImported} profiles from prefixes: ${data.completedPrefixes.join(", ")}. Next batch: ${data.nextBatch?.join(", ") ?? "all done"}`
-      );
+      if (data.hasMore) {
+        setBatchIndex(data.nextBatchIndex);
+        setImportResult(
+          `✅ Batch ${data.batchIndex + 1}/${data.totalBatches}: imported ${data.totalImported}, skipped ${data.totalSkipped} (${data.elapsed}ms). Click Import for next batch.`
+        );
+      } else {
+        setImportResult(
+          `🎉 All batches complete! Last batch: imported ${data.totalImported}, skipped ${data.totalSkipped}.`
+        );
+      }
     } catch (err) {
       setImportResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
     } finally {
@@ -391,38 +396,15 @@ export function AdminActions() {
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">Import DeSo Profiles</h2>
         <p className="mb-4 text-xs text-text-muted">
-          Sweeps DeSo by username prefix (a–z, 0–9), fetching up to 100 profiles per letter. After each run, the next batch is auto-populated — just keep clicking Import to cover all of DeSo.
+          Fetches curated known usernames in parallel using get-single-profile. 10 batches total — click Import after each to advance. Fast: ~2s per batch.
         </p>
-        <div className="mb-3 flex flex-wrap items-end gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-wider text-text-muted">Letter prefixes (comma-separated)</label>
-            <input
-              type="text"
-              value={importPrefixes}
-              onChange={(e) => setImportPrefixes(e.target.value)}
-              placeholder="a,b,c,d,e"
-              className="w-56 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-wider text-text-muted">Min holders</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={importMinHolders}
-              onChange={(e) => setImportMinHolders(Number(e.target.value))}
-              className="w-20 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary focus:border-caldera focus:outline-none"
-            />
-          </div>
-        </div>
         <Button
           onClick={handleImport}
           disabled={importing}
           className="bg-caldera text-background font-semibold hover:bg-caldera/90"
         >
           {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {importing ? "Importing..." : "Import Profiles"}
+          {importing ? "Importing..." : `Import Batch ${batchIndex + 1} of 10`}
         </Button>
         {importResult && (
           <p className={`mt-3 text-xs ${importResult.startsWith("Error") ? "text-no" : "text-yes"}`}>

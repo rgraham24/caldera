@@ -2,11 +2,63 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 
-// All prefixes to sweep — covers a-z and 0-9
-const ALL_PREFIXES = [
-  "a","b","c","d","e","f","g","h","i","j","k","l","m",
-  "n","o","p","q","r","s","t","u","v","w","x","y","z",
-  "0","1","2","3","4","5","6","7","8","9"
+// Curated list of known DeSo usernames across all categories
+// These are real profiles that exist on DeSo with active coins
+const DESO_USERNAME_BATCHES: string[][] = [
+  // Batch 1 — Top DeSo OGs + crypto
+  ["dharmesh","Da5id","PremierNS","diamondhands","pearl","artz","nader","naval",
+   "chamath","balajis","elonmusk","realdonaldtrump","vitalikbuterin","cz_binance",
+   "shl","craig","scottadamssays","madonna","arodb","trevian",
+   "gainzy","maebeam","salilsethi","clayspace","clayvis"],
+
+  // Batch 2 — Streamers / creators
+  ["loganpaul","ksi","MrBeast","IShowSpeed","xqc","KaiCenat","pokimane",
+   "ninja","Valkyrae","DisguisedToast","HasanAbi","Asmongold","Shroud",
+   "TimTheTatman","NICKMERCS","DrDisrespect","Tfue","summit1g","sodapoppin",
+   "moistcr1tikal","penguinz0","jacksepticeye","markiplier","pewdiepie"],
+
+  // Batch 3 — Athletes
+  ["lebronjames","tombrady","tigerwoods","conormcgregor","LionelMessi",
+   "cristiano","stephencurry","patrickmahomes","serenawilliams","novakdjokovic",
+   "jonjones","caneloalvarez","tysonfury","anthonyjoshua","kyliejenner",
+   "kimkardashian","kendalljenner","justinbieber","arianagrande","selenagomez"],
+
+  // Batch 4 — Music
+  ["drake","kanyewest","beyonce","taylorswift","TravisScott","kendricklamar",
+   "nickiminaj","eminem","jayz","rihanna","theweeknd","postmalone","badbunny",
+   "billieeilish","dualipa","lizzo","cardib","megantheestallion","dojacatmusic",
+   "oliviarodrigo","harrystyles","edzsheeran","adele","brunomarss"],
+
+  // Batch 5 — Pundits / commentary
+  ["tuckercarlson","benshapiro","joerogan","jordanpeterson","lexfridman",
+   "hubermanlab","timpool","daverubin","glennbeck","megynkelly","rachelmaddow",
+   "billmaher","samharris","bariweiss","scottgalloway","profgalloway",
+   "andrewsullivan","matttaibbi","glenngreenwald","jessesignorino"],
+
+  // Batch 6 — Tech / business
+  ["samaltman","markzuckerberg","jeffbezos","sundarpichai","jensenhuang",
+   "satyanadella","timcook","jackdorsey","ev","paulg","ycombinator",
+   "andrewchen","eriktorenberg","packyM","byrnehobart","stratechery"],
+
+  // Batch 7 — Politics
+  ["aoc","rondesantis","gavinnewsom","nikkihaley",
+   "berniesanders","tedcruz","jdvance","mikepence",
+   "hillaryclinton","elizabethwarren","marcorubio","randpaul","tulsigabbard"],
+
+  // Batch 8 — Sports teams
+  ["lakers","chiefs","yankees","warriors","patriots","cowboysNFL",
+   "realmadrid","manchesterunited","barcelona","liverpool","chelsea",
+   "UFC","WWE","nba","nfl","mlb","nhl","espn"],
+
+  // Batch 9 — Entertainment / viral
+  ["johnnysomali","ac7ionman","destiny","moistcr1tikal","jidion",
+   "adin","amp","fanum","duke","chrismd","wroetoshaw","miniminter",
+   "calluxofficial","calfreezy","vikstarr123","behzinga"],
+
+  // Batch 10 — DeSo ecosystem / web3
+  ["naderthemaker","clayspace","tijn","maebeam","rigelrozanski",
+   "lazynina","bitcloutpulse","desoprotocol","diamondapp","openfund",
+   "daodao","heroswap","polygram","desocialworld","bitcloutx"],
 ];
 
 async function getDesoPriceUsd(): Promise<number> {
@@ -19,52 +71,68 @@ async function getDesoPriceUsd(): Promise<number> {
   } catch { return 5; }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchProfilesForPrefix(
-  prefix: string,
-  desoPriceUsd: number,
-  minHolders: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any
-): Promise<{ imported: number; skipped: number }> {
-  let imported = 0;
-  let skipped = 0;
-
+export async function POST(req: NextRequest) {
   try {
-    const res = await fetch("https://node.deso.org/api/v0/get-profiles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        NumToFetch: 100,
-        OrderBy: "influencer_coin_price",
-        NoErrorOnMissing: true,
-        UsernamePrefix: prefix,
-      }),
-    });
+    const {
+      batchIndex = 0,
+      adminPassword,
+      desoPublicKey,
+      minHolders = 0,
+    } = await req.json();
 
-    if (!res.ok) {
-      console.warn(`[bulk-import] DeSo error for prefix "${prefix}": ${res.status}`);
-      return { imported: 0, skipped: 0 };
+    const isAdmin =
+      ADMIN_KEYS.includes(desoPublicKey || "") ||
+      (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const data = await res.json();
-    const profiles: Record<string, unknown>[] = data.ProfilesFound ?? [];
+    const batch = DESO_USERNAME_BATCHES[batchIndex];
+    if (!batch) {
+      return NextResponse.json({
+        data: { message: "All batches complete!", totalBatches: DESO_USERNAME_BATCHES.length },
+      });
+    }
+
+    const desoPriceUsd = await getDesoPriceUsd();
+    const supabase = await createClient();
+    const startTime = Date.now();
+
+    let totalImported = 0;
+    let totalSkipped = 0;
+
+    // Fetch all profiles in parallel — get-single-profile is fast
+    const results = await Promise.allSettled(
+      batch.map((username) =>
+        fetch("https://api.deso.org/api/v0/get-single-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ Username: username }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+      )
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows: Record<string, any>[] = [];
-    for (const p of profiles) {
+    for (const result of results) {
+      if (result.status !== "fulfilled" || !result.value?.Profile) {
+        totalSkipped++;
+        continue;
+      }
+
+      const p = result.value.Profile;
       const username = p.Username as string;
-      if (!username) { skipped++; continue; }
+      if (!username) { totalSkipped++; continue; }
 
       const coinPriceNanos = (p.CoinPriceDeSoNanos as number) || 0;
       const coinEntry = p.CoinEntry as Record<string, unknown> | undefined;
       const holders = (coinEntry?.NumberOfHolders as number) || 0;
 
-      // Skip ghosts
-      if (coinPriceNanos === 0 && holders === 0) { skipped++; continue; }
-
-      // Apply minHolders filter
-      if (holders < minHolders) { skipped++; continue; }
+      if (coinPriceNanos === 0 && holders === 0) { totalSkipped++; continue; }
+      if (holders < minHolders) { totalSkipped++; continue; }
 
       const coinPriceUSD = (coinPriceNanos / 1e9) * desoPriceUsd;
       const slug = username.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -84,87 +152,37 @@ async function fetchProfilesForPrefix(
         creator_coin_symbol: username.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20),
         token_status: tokenStatus,
         estimated_followers: holders * 100,
+        bio: (p.Description as string) ?? null,
       });
     }
 
     if (rows.length > 0) {
-      const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
         .from("creators")
         .upsert(rows, { onConflict: "slug", ignoreDuplicates: false });
       if (error) {
-        console.warn(`[bulk-import] Upsert error for prefix "${prefix}":`, error.message);
-        skipped += rows.length;
+        console.warn("[bulk-import] Upsert error:", error.message);
+        totalSkipped += rows.length;
+        totalImported = 0;
       } else {
-        imported += rows.length;
+        totalImported += rows.length;
       }
     }
-  } catch (err) {
-    console.warn(`[bulk-import] Error for prefix "${prefix}":`, err);
-  }
 
-  return { imported, skipped };
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const {
-      prefixes,
-      minHolders = 2,
-      adminPassword,
-      desoPublicKey,
-    } = await req.json();
-
-    const isAdmin =
-      ADMIN_KEYS.includes(desoPublicKey || "") ||
-      (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Default to first 5 letters if no prefixes specified
-    const toProcess: string[] = Array.isArray(prefixes) && prefixes.length > 0
-      ? prefixes
-      : ["a", "b", "c", "d", "e"];
-
-    const desoPriceUsd = await getDesoPriceUsd();
-    const supabase = await createClient();
-    const startTime = Date.now();
-
-    let totalImported = 0;
-    let totalSkipped = 0;
-    const completedPrefixes: string[] = [];
-
-    console.log(`[bulk-import] Live DESO price: $${desoPriceUsd}, sweeping prefixes: ${toProcess.join(", ")}`);
-
-    for (const prefix of toProcess) {
-      // Stop if approaching 50s Vercel timeout
-      if (Date.now() - startTime > 45000) {
-        console.log("[bulk-import] Stopping early — timeout approaching");
-        break;
-      }
-
-      const { imported, skipped } = await fetchProfilesForPrefix(
-        prefix, desoPriceUsd, minHolders, supabase
-      );
-      totalImported += imported;
-      totalSkipped += skipped;
-      completedPrefixes.push(prefix);
-      console.log(`[bulk-import] Prefix "${prefix}": +${imported} imported, ${skipped} skipped`);
-    }
-
-    // Calculate which prefixes remain from the full sweep set
-    const completedSet = new Set(completedPrefixes);
-    const remainingPrefixes = ALL_PREFIXES.filter(p => !completedSet.has(p));
+    const nextBatchIndex = batchIndex + 1;
+    const hasMore = nextBatchIndex < DESO_USERNAME_BATCHES.length;
 
     return NextResponse.json({
       data: {
         totalImported,
         totalSkipped,
-        completedPrefixes,
+        batchIndex,
+        nextBatchIndex: hasMore ? nextBatchIndex : null,
+        hasMore,
+        totalBatches: DESO_USERNAME_BATCHES.length,
         desoPriceUsd,
-        remainingPrefixes,
-        nextBatch: remainingPrefixes.slice(0, 5),
+        elapsed: Date.now() - startTime,
       },
     });
   } catch (err) {
