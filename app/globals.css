@@ -166,20 +166,6 @@
   100% { transform: translateX(-50%); }
 }
 
-/* Hero chip marquee */
-@keyframes chip-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.chip-track {
-  display: flex;
-  gap: 8px;
-  width: max-content;
-  animation: chip-scroll 30s linear infinite;
-}
-.chip-track:hover {
-  animation-play-state: paused;
-}
 
 /* Shimmer loading skeleton */
 @keyframes shimmer {

@@ -37,6 +37,7 @@ function chipLabel(title: string): string {
 function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const chipContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-rotate every 6 seconds with crossfade
   useEffect(() => {
@@ -50,6 +51,17 @@ function HeroSection({ markets }: { markets: Market[] }) {
     }, 6000);
     return () => clearInterval(interval);
   }, [markets.length]);
+
+  // Scroll active chip to center whenever idx changes
+  useEffect(() => {
+    const container = chipContainerRef.current;
+    if (!container) return;
+    const activeChip = container.children[idx] as HTMLElement;
+    if (!activeChip) return;
+    const containerCenter = container.offsetWidth / 2;
+    const chipCenter = activeChip.offsetLeft + activeChip.offsetWidth / 2;
+    container.scrollTo({ left: chipCenter - containerCenter, behavior: "smooth" });
+  }, [idx]);
 
   if (markets.length === 0) return null;
 
@@ -162,33 +174,26 @@ function HeroSection({ markets }: { markets: Market[] }) {
         </div>
       </div>
 
-      {/* ── Chip marquee — infinite CSS loop, pauses on hover ── */}
+      {/* ── Chip pill row — static, scrolls to center active chip ── */}
       {markets.length > 1 && (
         <div
-          className="overflow-hidden"
-          style={{
-            maskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
-            WebkitMaskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
-          }}
+          ref={chipContainerRef}
+          className="flex gap-2 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          style={{ scrollBehavior: "smooth" }}
         >
-          <div className="chip-track">
-            {[...markets, ...markets].map((chip, i) => {
-              const realIdx = i % markets.length;
-              return (
-                <button
-                  key={`${chip.id}-${i}`}
-                  onClick={() => select(realIdx)}
-                  className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
-                    realIdx === idx
-                      ? "bg-[var(--accent)]/30 border border-[var(--accent)] text-white"
-                      : "bg-white/10 text-white/50 border border-white/10 hover:bg-white/20 hover:text-white/80"
-                  }`}
-                >
-                  <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
-                </button>
-              );
-            })}
-          </div>
+          {markets.map((chip, i) => (
+            <button
+              key={chip.id}
+              onClick={() => select(i)}
+              className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-300 border ${
+                i === idx
+                  ? "bg-primary/30 border-primary/60 text-white"
+                  : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"
+              }`}
+            >
+              {chip.title.length > 28 ? chip.title.substring(0, 28) + "…" : chip.title}
+            </button>
+          ))}
         </div>
       )}
     </div>
