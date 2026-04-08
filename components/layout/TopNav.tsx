@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Search, Menu, X, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
 
@@ -155,7 +155,9 @@ export function TopNav() {
 
             {/* Center tabs — hidden on mobile, scrollable on desktop */}
             <div className="hidden flex-1 overflow-hidden md:block">
-              <CenterTabs />
+              <Suspense fallback={<div className="h-14" />}>
+                <CenterTabs />
+              </Suspense>
             </div>
 
             {/* Right side — shrink-0 */}
