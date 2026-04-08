@@ -7,12 +7,14 @@ export default function StarterBanner() {
   const [show, setShow] = useState(false)
   const { isConnected, desoBalanceDeso, desoUsername } = useAppStore()
 
+  const FUNDED_KEY = 'caldera_deso_funded_shown'
+
   useEffect(() => {
     if (!isConnected) return
-    const welcomed = localStorage.getItem('caldera_welcomed')
-    if (welcomed === 'true') return
+    // Only show once ever — persists across sessions in localStorage
+    if (localStorage.getItem(FUNDED_KEY)) return
+    localStorage.setItem(FUNDED_KEY, '1')
     setShow(true)
-    localStorage.setItem('caldera_welcomed', 'true')
     const t = setTimeout(() => setShow(false), 8000)
     return () => clearTimeout(t)
   }, [isConnected])

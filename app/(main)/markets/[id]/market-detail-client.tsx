@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAppStore } from "@/store";
+import { useDesoBalance } from "@/hooks/useDesoBalance";
 import type { Market, CommentWithUser, Creator } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
@@ -33,6 +35,14 @@ export function MarketDetailClient({
   creator,
 }: MarketDetailClientProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
+
+  // Active balance polling (10s) on trade page — immediate refresh after trade
+  const { refresh: refreshBalance } = useDesoBalance(
+    isConnected ? desoPublicKey : null,
+    (nanos, usd) => setDesoBalance(nanos, usd),
+    true
+  );
 
   const yesPercent = Math.round(market.yes_price * 100);
   const isResolved = market.status === "resolved";
@@ -228,7 +238,7 @@ export function MarketDetailClient({
         <div className="w-full lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
             {market.status === "open" && (
-              <TradeTicket market={market} feeConfig={feeConfig} />
+              <TradeTicket market={market} feeConfig={feeConfig} onTradeComplete={refreshBalance} />
             )}
 
             <div className="flex items-center justify-center gap-3">

@@ -9,6 +9,7 @@ import { Search, Menu, X, ChevronDown, TrendingUp, Zap, Clock } from "lucide-rea
 import { useState, useRef, useEffect, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
+import { useDesoBalance } from "@/hooks/useDesoBalance";
 
 // ─── Center tabs (Polymarket-style) ──────────────────────────────────────────
 
@@ -99,7 +100,14 @@ export function TopNav() {
   const isConnected = useAppStore((state) => state.isConnected);
   const desoUsername = useAppStore((state) => state.desoUsername);
   const desoProfilePicUrl = useAppStore((state) => state.desoProfilePicUrl);
-  const { desoBalanceDeso, desoBalanceUSD, setDisconnected, openDepositModal } = useAppStore();
+  const { desoPublicKey, desoBalanceDeso, desoBalanceUSD, setDisconnected, setDesoBalance, openDepositModal } = useAppStore();
+
+  // Idle balance polling (30s) — keeps nav balance fresh without hammering the API
+  useDesoBalance(
+    isConnected ? desoPublicKey : null,
+    (nanos, usd) => setDesoBalance(nanos, usd),
+    false
+  );
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
