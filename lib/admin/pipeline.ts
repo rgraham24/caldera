@@ -356,8 +356,12 @@ export async function filterStaleMarketsPublic(
 // SQL required before this runs (add to Supabase if not present):
 //   ALTER TABLE creators ADD COLUMN IF NOT EXISTS token_symbol text;
 //   ALTER TABLE creators ADD COLUMN IF NOT EXISTS status text DEFAULT 'shadow';
+//   ALTER TABLE creators ADD COLUMN IF NOT EXISTS estimated_followers integer DEFAULT 0;
 //   ALTER TABLE markets  ADD COLUMN IF NOT EXISTS creator_slug text;
+//   ALTER TABLE markets  ADD COLUMN IF NOT EXISTS is_speculation_pool boolean DEFAULT false;
 //
+type TokenTier = "hard_reserved" | "speculation_pool" | "shadow";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
@@ -369,6 +373,52 @@ function generateClaimCode(): string {
   for (let i = 0; i < 4; i++) p1 += letters[Math.floor(Math.random() * letters.length)];
   for (let i = 0; i < 4; i++) p2 += digits[Math.floor(Math.random() * digits.length)];
   return `CALDERA-${p1}-${p2}`;
+}
+
+/** Score an entity's tier based on estimated follower count from Brave search */
+async function scoreEntityTier(
+  entityName: string,
+  braveKey?: string
+): Promise<{ tier: TokenTier; estimatedFollowers: number }> {
+  if (!braveKey) return { tier: "shadow", estimatedFollowers: 0 };
+  try {
+    const text = await fetchBraveResults(
+      `${entityName} followers Instagram TikTok Twitter verified`,
+      braveKey
+    );
+    if (!text) return { tier: "shadow", estimatedFollowers: 0 };
+
+    // Match patterns like "12.5M followers", "850K followers", "1,200,000 followers"
+    let estimatedFollowers = 0;
+    const mMatch = text.match(/(\d+(?:\.\d+)?)\s*M\s*followers/i);
+    const kMatch = text.match(/(\d+(?:\.\d+)?)\s*K\s*followers/i);
+    const rawMatch = text.match(/([\d,]+)\s*followers/i);
+
+    if (mMatch) {
+      estimatedFollowers = Math.round(parseFloat(mMatch[1]) * 1_000_000);
+    } else if (kMatch) {
+      estimatedFollowers = Math.round(parseFloat(kMatch[1]) * 1_000);
+    } else if (rawMatch) {
+      estimatedFollowers = parseInt(rawMatch[1].replace(/,/g, ""), 10);
+    }
+
+    const lowerText = text.toLowerCase();
+    const isOfficialBrand =
+      /\b(nfl|nba|nhl|mlb|nascar|official|verified)\b/.test(lowerText);
+
+    let tier: TokenTier;
+    if (estimatedFollowers >= 1_000_000 || (isOfficialBrand && estimatedFollowers >= 500_000)) {
+      tier = "hard_reserved";
+    } else if (estimatedFollowers >= 100_000) {
+      tier = "speculation_pool";
+    } else {
+      tier = "shadow";
+    }
+
+    return { tier, estimatedFollowers };
+  } catch {
+    return { tier: "shadow", estimatedFollowers: 0 };
+  }
 }
 
 /** Extract the most likely social handle from Brave search text */
@@ -385,43 +435,50 @@ function extractHandle(text: string, fallback: string): string {
 export async function createShadowProfileIfNeeded(
   entityName: string,
   supabase: AnySupabase
-): Promise<string | null> {
+): Promise<{ id: string; slug: string; tier: TokenTier } | null> {
   const baseSlug = slugify(entityName);
 
   // 1. Check if creator already exists
   const { data: existing } = await supabase
     .from("creators")
-    .select("id, slug")
+    .select("id, slug, token_status")
     .eq("slug", baseSlug)
     .maybeSingle();
 
-  if (existing) return existing.id as string;
+  if (existing) {
+    return {
+      id: existing.id as string,
+      slug: existing.slug as string,
+      tier: (existing.token_status as TokenTier) ?? "shadow",
+    };
+  }
 
-  // 2. Try Brave Search to find a better handle
-  let finalSlug = baseSlug;
+  // 2. Run tier scoring + handle search in parallel
   const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-  if (braveKey) {
-    try {
-      const searchText = await fetchBraveResults(
-        `${entityName} TikTok OR Instagram OR Twitter handle`,
-        braveKey
-      );
-      finalSlug = extractHandle(searchText, baseSlug);
-      // Verify uniqueness — fall back to baseSlug if handle is taken
-      if (finalSlug !== baseSlug) {
-        const { data: taken } = await supabase
-          .from("creators")
-          .select("id")
-          .eq("slug", finalSlug)
-          .maybeSingle();
-        if (taken) finalSlug = baseSlug;
-      }
-    } catch { /* use baseSlug */ }
+  const [{ tier, estimatedFollowers }, handleSearchText] = await Promise.all([
+    scoreEntityTier(entityName, braveKey),
+    braveKey
+      ? fetchBraveResults(`${entityName} TikTok OR Instagram OR Twitter handle`, braveKey).catch(() => "")
+      : Promise.resolve(""),
+  ]);
+
+  // 3. Derive final slug from handle search
+  let finalSlug = baseSlug;
+  if (handleSearchText) {
+    const candidate = extractHandle(handleSearchText, baseSlug);
+    if (candidate !== baseSlug) {
+      const { data: taken } = await supabase
+        .from("creators")
+        .select("id")
+        .eq("slug", candidate)
+        .maybeSingle();
+      if (!taken) finalSlug = candidate;
+    }
   }
 
   const sym = finalSlug.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20);
 
-  // 3. Create shadow profile
+  // 4. Create shadow profile
   const { data: creator, error } = await supabase
     .from("creators")
     .upsert(
@@ -429,7 +486,8 @@ export async function createShadowProfileIfNeeded(
         slug: finalSlug,
         name: entityName,
         creator_coin_symbol: sym,
-        token_status: "shadow",
+        token_status: tier,
+        estimated_followers: estimatedFollowers,
         creator_coin_price: 0,
         creator_coin_holders: 0,
         markets_count: 0,
@@ -444,7 +502,7 @@ export async function createShadowProfileIfNeeded(
     return null;
   }
 
-  // 4. Auto-generate a claim code (skip if one already exists for this slug)
+  // 5. Auto-generate a claim code (skip if one already exists for this slug)
   const { data: existingCode } = await supabase
     .from("claim_codes")
     .select("id")
@@ -459,8 +517,8 @@ export async function createShadowProfileIfNeeded(
       .insert({ slug: finalSlug, code, status: "pending" });
   }
 
-  console.log(`[createShadowProfile] Created shadow profile: ${finalSlug} (${entityName})`);
-  return creator.id as string;
+  console.log(`[createShadowProfile] Created ${tier} profile: ${finalSlug} (${entityName}, ~${estimatedFollowers.toLocaleString()} followers)`);
+  return { id: creator.id as string, slug: finalSlug, tier };
 }
 
 // ─── Step 3: Generate + insert markets ────────────────────────────────────────
@@ -471,8 +529,16 @@ async function insertMarkets(
   markets: GeneratedMarket[],
   supabase: SupabaseClient,
   creatorId?: string | null,
-  creatorSlug?: string | null
+  creatorSlug?: string | null,
+  tier: TokenTier = "shadow"
 ): Promise<number> {
+  if (tier === "hard_reserved") {
+    console.log(`[insertMarkets] Skipping — hard_reserved creator: ${creatorSlug}`);
+    return 0;
+  }
+
+  const isSpeculationPool = tier === "speculation_pool";
+
   let created = 0;
   for (const market of markets) {
     const slug = uniqueSlug(slugify(market.title));
@@ -485,13 +551,14 @@ async function insertMarkets(
       rules_text: market.resolution_criteria,
       resolve_at: market.resolve_at,
       status: "open",
-      yes_pool: 380,
-      no_pool: 620,
-      yes_price: 0.62,
-      no_price: 0.38,
-      liquidity: 1000,
+      yes_pool: isSpeculationPool ? 33 : 380,
+      no_pool: isSpeculationPool ? 33 : 620,
+      yes_price: 0.5,
+      no_price: 0.5,
+      liquidity: isSpeculationPool ? 33 : 1000,
       total_volume: 0,
     };
+    if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
     if (creatorSlug) row.creator_slug = creatorSlug;
     const { error } = await supabase.from("markets").insert(row);
@@ -512,23 +579,32 @@ export async function bulkGenerateAndInsert(
     const batch = entities.slice(i, i + BATCH_SIZE);
 
     // Create shadow profiles for each entity before generating markets
-    const creatorIds = await Promise.all(
+    const profileResults = await Promise.all(
       batch.map((entity) => createShadowProfileIfNeeded(entity, supabase))
     );
 
+    // Skip market generation for hard_reserved entities entirely
+    const entitiesToGenerate = batch.filter((_, j) => profileResults[j]?.tier !== "hard_reserved");
+
     const results = await Promise.allSettled(
-      batch.map((entity) => generateMarketsForTopic(entity, apiKey))
+      entitiesToGenerate.map((entity) => generateMarketsForTopic(entity, apiKey))
     );
 
     for (let j = 0; j < results.length; j++) {
       const result = results[j];
       if (result.status === "fulfilled" && result.value?.length > 0) {
-        const entity = batch[j];
-        const creatorId = creatorIds[j];
-        const creatorSlug = creatorId ? slugify(entity) : null;
+        const entity = entitiesToGenerate[j];
+        const batchIdx = batch.indexOf(entity);
+        const profile = profileResults[batchIdx];
         const filtered = await filterStaleMarkets(result.value, apiKey, entity);
         if (filtered.length > 0) {
-          created += await insertMarkets(filtered, supabase, creatorId, creatorSlug);
+          created += await insertMarkets(
+            filtered,
+            supabase,
+            profile?.id ?? null,
+            profile?.slug ?? null,
+            profile?.tier ?? "shadow"
+          );
         }
       }
     }
