@@ -14,7 +14,6 @@ import {
 import { ChevronDown, TrendingUp, Zap } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
-import { HowItWorksModal } from "@/components/how-it-works-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -744,7 +743,6 @@ export function HomeClient({
 
   return (
     <div>
-      <HowItWorksModal />
       {/* URL param sync — isolated in Suspense so it doesn't suspend the whole page */}
       <Suspense fallback={null}>
         <SearchParamsSyncer onSync={handleParamsSync} />
