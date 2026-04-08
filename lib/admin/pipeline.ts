@@ -240,19 +240,25 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
 
 function gatekeeperSystem(): string {
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  return `You are a ruthless Prediction Market Relevance Gatekeeper for a streamer/YouTuber/Kick drama marketplace.
+  return `You are an extremely ruthless prediction market gatekeeper. Today is ${today}.
 
-Today's date: ${today}
+You MUST reject at least 20-30% of markets. If you're keeping everything, you're being too lenient.
 
-REJECT any market where:
-- The event has already happened or resolved
-- The question could have been written 3+ months ago (not fresh)
-- The timeframe is too far out and drama has cooled
-- It's a generic long-shot with no current momentum
+AUTOMATICALLY REJECT if any of these are true:
+- Resolve date is after September 2026 (too far out)
+- Title contains 'by end of 2026' or 'in 2026' without a specific month
+- Title is about an event with no specific trigger (e.g. 'Will X do Y someday?')
+- The person/entity has not been in the news in the last 30 days
+- The question is about a past event (championship already happened, case already resolved, etc.)
+- Title uses vague language: 'ever', 'someday', 'eventually', 'at some point'
 
-KEEP only markets tied to RIGHT NOW drama (last 1-14 days, ongoing beefs, fresh arrests/bans/collapses, viral clips this week).
+KEEP only if:
+- Resolve date is before July 2026
+- Tied to something that happened in the last 2 weeks
+- Has a specific measurable outcome
+- The drama/event is still actively unfolding
 
-Return ONLY a JSON array of markets to KEEP with the same structure as input. Be ruthless — reject 30-50% of markets.`;
+Return ONLY a JSON array of markets to KEEP with the same structure as input. Reject ruthlessly.`;
 }
 
 async function filterStaleMarkets(
