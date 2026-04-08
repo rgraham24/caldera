@@ -157,50 +157,45 @@ export function TopNav() {
         }}
       >
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-          <div className="flex h-14 items-center gap-4">
+          {/* ROW 1 — Logo, Search, How it works, Connect */}
+        <div className="flex h-14 items-center gap-4">
 
-            {/* Logo — shrink-0 */}
+            {/* Logo */}
             <Link href="/" className="shrink-0">
               <span className="font-display text-lg font-semibold tracking-tight text-[var(--text-primary)]">
                 Caldera
               </span>
             </Link>
 
-            {/* Center tabs — hidden on mobile, scrollable on desktop */}
-            <div className="hidden flex-1 overflow-hidden md:block">
-              <Suspense fallback={<div className="h-14" />}>
-                <CenterTabs />
-              </Suspense>
+            {/* Search — takes up middle space */}
+            <div className="relative hidden flex-1 md:block max-w-xl">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search (/)"
+                className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
+                style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+              />
             </div>
 
-            {/* Right side — shrink-0 */}
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              {/* Search */}
-              <div className="relative hidden lg:block">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  placeholder="Search (/)"
-                  className="w-40 rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-all focus:outline-none focus:w-56"
-                  style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-                />
-              </div>
-
-              <NotificationBell />
+            {/* Right side */}
+            <div className="ml-auto flex shrink-0 items-center gap-3">
 
               {/* How it works */}
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent("show-hiw-modal"))}
-                className="hidden md:flex items-center gap-1.5 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors whitespace-nowrap mr-2"
+                className="hidden md:flex items-center gap-1.5 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors whitespace-nowrap"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1a6 6 0 1 1 0 12A6 6 0 0 1 8 2zm0 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM7.25 7a.75.75 0 0 1 .75-.75h.25a.75.75 0 0 1 .75.75v3.25h.25a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1 0-1.5h.25V7.75H8A.75.75 0 0 1 7.25 7z"/>
                 </svg>
                 How it works
               </button>
+
+              <NotificationBell />
 
               {isConnected ? (
                 <div className="relative flex items-center gap-1.5" ref={dropdownRef}>
@@ -260,7 +255,14 @@ export function TopNav() {
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
             </div>
-          </div>
+        </div>
+
+        {/* ROW 2 — Category tabs, hidden on mobile */}
+        <div className="hidden md:block border-t" style={{ borderColor: "var(--border-subtle)" }}>
+          <Suspense fallback={<div className="h-10" />}>
+            <CenterTabs />
+          </Suspense>
+        </div>
 
           {/* Mobile menu */}
           {mobileMenuOpen && (
