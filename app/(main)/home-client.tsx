@@ -379,7 +379,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
   const doubled = [...creators, ...creators];
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className="relative w-full overflow-hidden" style={{ width: '100%', minWidth: '100%' }}>
       {/* Header */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
         <div className="flex items-center gap-2">
