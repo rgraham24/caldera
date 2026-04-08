@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Market, Creator } from "@/types";
+import { useAppStore } from "@/store";
 import { CATEGORIES } from "@/types";
 import {
   formatCurrency,
@@ -625,6 +626,19 @@ export function HomeClient({
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const marketsRef = useRef<HTMLDivElement>(null);
+  const isConnected = useAppStore((s) => s.isConnected);
+  const desoPublicKey = useAppStore((s) => s.desoPublicKey);
+  const [followedCount, setFollowedCount] = useState<number | null>(null);
+
+  // When Following tab is active and user is connected, check if they follow anyone
+  useEffect(() => {
+    if (sort !== "following") { setFollowedCount(null); return; }
+    if (!isConnected || !desoPublicKey) { setFollowedCount(0); return; }
+    fetch(`/api/follows?desoPublicKey=${desoPublicKey}`)
+      .then((r) => r.json())
+      .then(({ data }) => setFollowedCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => setFollowedCount(0));
+  }, [sort, isConnected, desoPublicKey]);
 
   const fetchMarkets = useCallback(
     async (category: string, sortVal: string, off: number, append: boolean) => {
@@ -643,7 +657,7 @@ export function HomeClient({
         });
         const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal;
         params.set("sort", effectiveSort);
-        if (category !== "all" && category !== "resolving_soon") {
+        if (category !== "all" && category !== "resolving_soon" && category !== "breaking") {
           params.set("category", category);
         }
         // Following feed: send desoPublicKey so the API can filter by followed creators
@@ -694,8 +708,7 @@ export function HomeClient({
     if (cat) {
       newFilter = cat;
     } else if (sortParam === "breaking") {
-      newFilter = "resolving_soon";
-      newSort = "resolving_soon";
+      newSort = "breaking";
     } else if (sortParam === "new") {
       newSort = "newest";
     } else if (sortParam === "following") {
@@ -794,7 +807,33 @@ export function HomeClient({
         </div>
 
         {markets.length === 0 && !loading && (
-          <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets found</p>
+          sort === "following" ? (
+            !isConnected ? (
+              <div className="flex flex-col items-center gap-4 py-16 text-center">
+                <p className="text-sm text-[var(--text-tertiary)]">Connect your DeSo wallet to see markets from creators you follow</p>
+                <button
+                  onClick={() => import("@/lib/deso/auth").then(m => m.connectDeSoWallet())}
+                  className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
+                >
+                  Connect wallet
+                </button>
+              </div>
+            ) : followedCount === 0 ? (
+              <div className="flex flex-col items-center gap-4 py-16 text-center">
+                <p className="text-sm text-[var(--text-tertiary)]">You&apos;re not following anyone yet. Browse Tokens to follow creators and see their markets here.</p>
+                <Link
+                  href="/creators"
+                  className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
+                >
+                  Browse Tokens →
+                </Link>
+              </div>
+            ) : (
+              <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets yet for creators you follow. Check back soon.</p>
+            )
+          ) : (
+            <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets found</p>
+          )
         )}
 
         {hasMore && (

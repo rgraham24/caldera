@@ -13,14 +13,14 @@ import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
 // ─── Center tabs (Polymarket-style) ──────────────────────────────────────────
 
 type Tab =
-  | { id: string; label: string; href: string; icon?: React.ComponentType<{ className?: string }> }
+  | { id: string; label: string; href: string; icon?: React.ComponentType<{ className?: string }>; title?: string }
   | { divider: true };
 
 const CENTER_TABS: Tab[] = [
-  { id: "trending", label: "Trending", href: "/", icon: TrendingUp },
-  { id: "breaking", label: "Breaking", href: "/?sort=breaking", icon: Zap },
-  { id: "new", label: "New", href: "/?sort=new", icon: Clock },
-  { id: "following", label: "Following", href: "/?sort=following" },
+  { id: "trending", label: "Trending", href: "/", icon: TrendingUp, title: "Highest volume markets" },
+  { id: "breaking", label: "Breaking", href: "/?sort=breaking", icon: Zap, title: "Resolving within 7 days" },
+  { id: "new", label: "New", href: "/?sort=new", icon: Clock, title: "Recently created" },
+  { id: "following", label: "Following", href: "/?sort=following", title: "Markets for creators you follow" },
   { divider: true },
   { id: "tokens", label: "Tokens", href: "/creators" },
   { id: "creators", label: "Creators", href: "/?category=creators" },
@@ -65,6 +65,7 @@ function CenterTabs() {
           <Link
             key={tab.id}
             href={tab.href}
+            title={tab.title}
             className="flex shrink-0 items-center gap-1 border-b-2 px-3 py-4 text-sm font-medium whitespace-nowrap transition-colors"
             style={{
               borderColor: isActive ? "var(--accent)" : "transparent",

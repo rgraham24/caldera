@@ -60,6 +60,14 @@ export async function GET(req: NextRequest) {
     case "newest":
       query = query.order("created_at", { ascending: false });
       break;
+    case "breaking": {
+      const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      query = query
+        .gt("resolve_at", new Date().toISOString())
+        .lte("resolve_at", sevenDaysFromNow)
+        .order("resolve_at", { ascending: true });
+      break;
+    }
     case "resolving_soon":
       query = query.order("resolve_at", { ascending: true });
       break;

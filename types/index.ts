@@ -25,10 +25,10 @@ export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "
 
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "creators", label: "🎬 Creators" },
-  { value: "music", label: "🎵 Music" },
   { value: "sports", label: "⚽ Sports" },
-  { value: "tech", label: "💻 Tech" },
+  { value: "music", label: "🎵 Music" },
   { value: "politics", label: "👑 Politics" },
+  { value: "tech", label: "💻 Tech" },
   { value: "entertainment", label: "🎭 Entertainment" },
 ];
 
