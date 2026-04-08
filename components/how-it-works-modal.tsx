@@ -34,7 +34,14 @@ const STEPS = [
 
 export function HowItWorksModal() {
   const [show, setShow] = useState(false);
+  const [ready, setReady] = useState(false);
   const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const seen = localStorage.getItem("caldera_hiw_seen");
+    if (!seen) setShow(true);
+    setReady(true);
+  }, []);
 
   // Listen for manual trigger from nav
   useEffect(() => {
@@ -60,7 +67,7 @@ export function HowItWorksModal() {
     }
   };
 
-  if (!show) return null;
+  if (!ready || !show) return null;
 
   const current = STEPS[step];
 
