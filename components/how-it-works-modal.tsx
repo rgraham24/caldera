@@ -36,15 +36,6 @@ export function HowItWorksModal() {
   const [show, setShow] = useState(false);
   const [step, setStep] = useState(0);
 
-  useEffect(() => {
-    // Show to first-time visitors after 1.5s delay
-    const seen = localStorage.getItem("caldera_hiw_seen");
-    if (!seen) {
-      const timer = setTimeout(() => setShow(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
   // Listen for manual trigger from nav
   useEffect(() => {
     const handler = () => {

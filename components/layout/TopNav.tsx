@@ -175,6 +175,15 @@ export function TopNav() {
 
             {/* Right side — shrink-0 */}
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              {/* How it works */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("show-hiw-modal"))}
+                className="hidden md:flex items-center gap-1.5 text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors whitespace-nowrap"
+              >
+                <span className="text-base">ⓘ</span>
+                How it works
+              </button>
+
               {/* Search */}
               <div className="relative hidden lg:block">
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
