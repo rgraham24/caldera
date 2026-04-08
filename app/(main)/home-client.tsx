@@ -328,7 +328,7 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
   const doubled = [...creators, ...creators];
 
   return (
-    <div className="py-4">
+    <div className="bg-transparent py-6">
       {/* Header */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
         <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
@@ -339,13 +339,13 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
 
       {/* Scrolling strip — floating cards on transparent background */}
       <div
-        className="overflow-hidden"
+        className="overflow-hidden bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
         }}
       >
-        <div className="flex animate-[scroll-left_60s_linear_infinite] gap-3 px-4 hover:[animation-play-state:paused]">
+        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 px-4 pb-2 hover:[animation-play-state:paused]">
           {doubled.map((c, i) => {
             const rank = i % creators.length;
             const isTop3 = rank < 3;
