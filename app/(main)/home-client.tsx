@@ -71,7 +71,7 @@ function HeroSection({ markets }: { markets: Market[] }) {
   };
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex h-full flex-col gap-3 min-w-0 overflow-hidden">
       {/* ── Main hero card — stretches to fill sidebar height ── */}
       <div
         className="relative flex flex-1 flex-col overflow-hidden rounded-2xl p-7"
@@ -573,7 +573,7 @@ export function HomeClient({
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* Hero section */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
-          <div className="mb-8 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_340px]">
+          <div className="mb-8 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_340px] overflow-hidden">
             {heroMarkets.length > 0 && (
               <HeroSection markets={heroMarkets} />
             )}
