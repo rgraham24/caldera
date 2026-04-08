@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     if (marketsErr) return NextResponse.json({ error: marketsErr.message }, { status: 500 });
     if (!markets?.length) {
-      return NextResponse.json({ data: { deleted: 0, kept: 0, message: "No open markets found" } });
+      return NextResponse.json({ data: { archived: 0, kept: 0, message: "No open markets found" } });
     }
 
     // 2. Fetch market IDs with real activity (trades OR positions)
@@ -65,23 +65,25 @@ export async function POST(req: NextRequest) {
 
     if (toDeleteIds.length === 0) {
       return NextResponse.json({
-        data: { deleted: 0, kept: markets.length, message: "All markets passed — nothing to delete" },
+        data: { archived: 0, kept: markets.length, message: "All markets passed — nothing to archive" },
       });
     }
 
-    const { error: deleteErr } = await supabase
+    // Soft-delete: set status = 'archived' to avoid FK constraint violations
+    // (positions/trades/comments all have FK on market_id — hard DELETE fails)
+    const { error: archiveErr } = await supabase
       .from("markets")
-      .delete()
+      .update({ status: "archived" })
       .in("id", toDeleteIds);
 
-    if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+    if (archiveErr) return NextResponse.json({ error: archiveErr.message }, { status: 500 });
 
     const kept = markets.length - toDeleteIds.length;
     return NextResponse.json({
       data: {
-        deleted: toDeleteIds.length,
+        archived: toDeleteIds.length,
         kept,
-        message: `Deleted ${toDeleteIds.length} markets, kept ${kept}`,
+        message: `Archived ${toDeleteIds.length} stale markets, kept ${kept}`,
       },
     });
   } catch (err) {
