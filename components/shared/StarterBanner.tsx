@@ -7,7 +7,7 @@ export default function StarterBanner() {
   const [show, setShow] = useState(false)
   const { isConnected, desoBalanceDeso, desoUsername } = useAppStore()
 
-  const FUNDED_KEY = 'caldera_funded_v2'
+  const FUNDED_KEY = 'caldera_deso_funded_shown'
 
   useEffect(() => {
     if (!isConnected) return

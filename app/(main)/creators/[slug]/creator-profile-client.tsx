@@ -315,7 +315,7 @@ export function CreatorProfileClient({
               {openMarkets.map((m) => <MarketCard key={m.id} market={m} />)}
             </div>
           ) : (
-            creator.token_status === "claimed" || creator.token_status === "active_verified" ? (
+            {creator.token_status === "claimed" || creator.token_status === "active_verified" ? (
               <p className="text-sm text-text-muted">No active markets right now.</p>
             ) : (
               <div className="space-y-2">
@@ -330,7 +330,7 @@ export function CreatorProfileClient({
                   to start earning from prediction fees.
                 </p>
               </div>
-            )
+            )}
           )}
         </div>
 

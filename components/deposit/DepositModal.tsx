@@ -23,18 +23,10 @@ export function DepositModal({ onClose }: DepositModalProps) {
   const hasStarterDeso = desoBalanceDeso > 0 && desoBalanceDeso < 0.5;
   const hasRealDeso = desoBalanceDeso >= 0.5;
 
-  // Only show the "funded" celebration banner once ever
-  const [showFundedBanner, setShowFundedBanner] = useState(false);
-
   // Mark as welcomed so auto-open only fires once
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("caldera_welcomed", "true");
-      const key = "caldera_funded_v2";
-      if (!localStorage.getItem(key)) {
-        setShowFundedBanner(true);
-        localStorage.setItem(key, "1");
-      }
     }
   }, []);
 
@@ -84,8 +76,8 @@ export function DepositModal({ onClose }: DepositModalProps) {
         </div>
 
         <div className="p-5">
-          {/* Celebration banner — above tabs, only for starter DESO, shown once */}
-          {hasStarterDeso && showFundedBanner && (
+          {/* Celebration banner — above tabs, only for starter DESO */}
+          {hasStarterDeso && (
             <div className="mb-4 rounded-xl border border-green-700 bg-green-950 p-4">
               <p className="font-medium text-green-300">🎉 You&apos;re already funded!</p>
               <p className="mt-1 text-sm text-green-400">
@@ -319,8 +311,8 @@ export function DepositModal({ onClose }: DepositModalProps) {
                 </p>
               </div>
 
-              {/* Starter DESO state — shown once */}
-              {hasStarterDeso && showFundedBanner && (
+              {/* Starter DESO state */}
+              {hasStarterDeso && (
                 <div className="rounded-xl border border-green-700 bg-green-950 p-4">
                   <p className="mb-1 font-medium text-green-300">
                     🎉 DeSo gave you starter DESO!

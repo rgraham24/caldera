@@ -59,16 +59,9 @@ export function MarketCard({ market }: MarketCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="mb-1 flex-1 text-base font-semibold leading-snug text-[var(--text-primary)] line-clamp-2">
+        <h3 className="mb-2 flex-1 text-base font-semibold leading-snug text-[var(--text-primary)] line-clamp-2">
           {market.title}
         </h3>
-
-        {/* Description context */}
-        {market.description && (
-          <p className="mb-2 text-xs text-[var(--text-tertiary)] line-clamp-2 leading-relaxed">
-            {market.description}
-          </p>
-        )}
 
         {/* Speculation pool badge */}
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -106,29 +99,6 @@ export function MarketCard({ market }: MarketCardProps) {
               {formatCompactCurrency(market.total_volume)} Vol
             </span>
           </div>
-        </div>
-
-        {/* Time-left urgency + social proof */}
-        <div className="mt-1 mb-2 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-          {market.resolve_at && (() => {
-            const daysLeft = (new Date(market.resolve_at).getTime() - Date.now()) / 86_400_000;
-            if (daysLeft < 0) return null;
-            if (daysLeft < 7) return <span className="text-[10px] text-red-400">🔴 {Math.ceil(daysLeft)}d left</span>;
-            if (daysLeft < 14) return <span className="text-[10px] text-orange-400">🟠 {Math.ceil(daysLeft)}d left</span>;
-            if (daysLeft < 30) return <span className="text-[10px] text-yellow-400">⏰ {Math.ceil(daysLeft)}d left</span>;
-            return <span className="text-[10px] text-[var(--text-tertiary)]">{Math.ceil(daysLeft)}d left</span>;
-          })()}
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {(market as any).creator?.creator_coin_holders > 0 && (
-            <span className="text-[10px] text-[var(--text-tertiary)]">
-              👥 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {((market as any).creator.creator_coin_holders as number).toLocaleString()} holders
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {(market as any).creator.creator_coin_holders > 100 && (
-                <span className="ml-1 text-orange-400 font-medium">🔥</span>
-              )}
-            </span>
-          )}
         </div>
 
         {/* YES / NO quick-trade buttons */}

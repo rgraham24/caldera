@@ -23,7 +23,6 @@ type HomeClientProps = {
   trendingCreators: Creator[];
   tokenStripCreators: Creator[];
   initialMarkets: Market[];
-  hotCategories?: string[];
 };
 
 const PAGE_SIZE = 20;
@@ -126,30 +125,12 @@ function HeroSection({ markets }: { markets: Market[] }) {
             )}
           </div>
 
-          {/* Creator token link */}
-          {(m as any).creator_slug && (
-            <a
-              href={`/creators/${(m as any).creator_slug}`}
-              className="mb-2 inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              🪙 Holding ${(m as any).creator_coin_symbol ?? (m as any).creator_slug} earns from this market
-            </a>
-          )}
-
           {/* Title */}
           <Link href={`/markets/${m.slug}`}>
-            <h2 className="line-clamp-3 text-2xl font-bold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors sm:text-3xl">
+            <h2 className="mb-auto line-clamp-3 text-2xl font-bold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors sm:text-3xl">
               {m.title}
             </h2>
           </Link>
-
-          {/* Description */}
-          {m.description && (
-            <p className="mt-2 text-sm text-[var(--text-tertiary)] line-clamp-2 leading-relaxed">
-              {m.description}
-            </p>
-          )}
 
           {/* Spacer */}
           <div className="flex-1" />
@@ -187,20 +168,9 @@ function HeroSection({ markets }: { markets: Market[] }) {
             </Link>
           </div>
 
-          {/* Volume with urgency framing */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--text-tertiary)]">
-              {(m.total_volume ?? 0) > 1_000_000
-                ? `🔥 $${((m.total_volume ?? 0) / 1_000_000).toFixed(1)}M traded`
-                : (m.total_volume ?? 0) > 1_000
-                ? `📈 $${((m.total_volume ?? 0) / 1_000).toFixed(1)}k traded`
-                : "Be the first to trade"}
-            </span>
-            {m.resolve_at && (
-              <span className="text-xs text-[var(--text-tertiary)]">
-                Resolves {new Date(m.resolve_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
-            )}
+          {/* Volume */}
+          <div className="text-right font-mono text-xs text-[var(--text-tertiary)]">
+            {formatCompactCurrency(m.total_volume ?? 0)} vol
           </div>
         </div>
       </div>
@@ -432,7 +402,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
           WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
         }}
       >
-        <div className="flex bg-transparent animate-marquee gap-3 pb-3">
+        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 px-4 pb-3 hover:[animation-play-state:paused]">
           {doubled.map((c, i) => {
             const rank = i % creators.length;
             const isTop3 = rank < 3;
@@ -573,16 +543,10 @@ function MarketCard({ market }: { market: Market }) {
       </div>
 
       <Link href={`/markets/${market.slug}`} className="flex-1">
-        <p className="mb-1 line-clamp-2 text-sm font-medium leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
+        <p className="mb-3 line-clamp-2 text-sm font-medium leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
           {market.title}
         </p>
       </Link>
-
-      {market.description && (
-        <p className="mb-2 text-xs text-[var(--text-tertiary)] line-clamp-2 leading-relaxed">
-          {market.description}
-        </p>
-      )}
 
       <div className="mb-1 flex items-center justify-between">
         <span
@@ -612,14 +576,7 @@ function MarketCard({ market }: { market: Market }) {
 
       <div className="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
         <span className="font-mono">{formatCompactCurrency(market.total_volume ?? 0)} vol</span>
-        {market.resolve_at && (() => {
-          const daysLeft = (new Date(market.resolve_at).getTime() - Date.now()) / 86_400_000;
-          if (daysLeft < 0) return <span>{formatRelativeTime(market.resolve_at)}</span>;
-          if (daysLeft < 7) return <span className="text-red-400">🔴 {Math.ceil(daysLeft)}d left</span>;
-          if (daysLeft < 14) return <span className="text-orange-400">🟠 {Math.ceil(daysLeft)}d left</span>;
-          if (daysLeft < 30) return <span className="text-yellow-400">⏰ {Math.ceil(daysLeft)}d left</span>;
-          return <span>{Math.ceil(daysLeft)}d left</span>;
-        })()}
+        {market.resolve_at && <span>{formatRelativeTime(market.resolve_at)}</span>}
       </div>
     </div>
   );
@@ -684,11 +641,9 @@ export function HomeClient({
   trendingCreators,
   tokenStripCreators,
   initialMarkets,
-  hotCategories = [],
 }: HomeClientProps) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [sort, setSort] = useState("newest");
-  const [showExplainer, setShowExplainer] = useState(false);
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
   const [offset, setOffset] = useState(PAGE_SIZE);
   const [hasMore, setHasMore] = useState(initialMarkets.length === PAGE_SIZE);
@@ -701,13 +656,6 @@ export function HomeClient({
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const [followedCount, setFollowedCount] = useState<number | null>(null);
   const [commentaryMarkets, setCommentaryMarkets] = useState<Market[]>([]);
-
-  // Show explainer banner to first-time visitors
-  useEffect(() => {
-    if (!localStorage.getItem("caldera_explainer_dismissed")) {
-      setShowExplainer(true);
-    }
-  }, []);
 
   // Fetch Commentary / World Events markets on mount
   useEffect(() => {
@@ -800,42 +748,6 @@ export function HomeClient({
         <SearchParamsSyncer onSync={handleParamsSync} />
       </Suspense>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* How Caldera works — shown once to first-time / logged-out visitors */}
-        {showExplainer && (
-          <div className="relative mb-6 rounded-xl border border-orange-500/20 p-4" style={{ background: "linear-gradient(to right, rgba(249,115,22,0.08), rgba(168,85,247,0.08))" }}>
-            <button
-              onClick={() => { localStorage.setItem("caldera_explainer_dismissed", "1"); setShowExplainer(false); }}
-              className="absolute right-3 top-3 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
-            >✕</button>
-            <div className="flex items-start gap-4">
-              <div className="text-2xl">🔥</div>
-              <div className="flex-1">
-                <h3 className="mb-1 text-sm font-semibold text-[var(--text-primary)]">
-                  Every prediction auto-buys the creator&apos;s token
-                </h3>
-                <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">
-                  When you trade on a market about Logan Paul, 1% of every fee
-                  auto-buys $loganpaul on-chain. Hold the token early — before
-                  markets go live — and benefit from every future trade.
-                </p>
-                <div className="mt-2 flex gap-3">
-                  <a href="/creators" className="text-xs font-medium text-[var(--accent)] hover:underline">
-                    Browse tokens →
-                  </a>
-                  <a href="/how-it-works" className="text-xs text-[var(--text-tertiary)] hover:underline">
-                    Learn more
-                  </a>
-                </div>
-              </div>
-              <div className="hidden flex-col items-end gap-1 text-xs text-[var(--text-tertiary)] md:flex whitespace-nowrap">
-                <span>2% fee on buys</span>
-                <span className="text-[var(--accent)]">1% → token auto-buy</span>
-                <span>1% → platform</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Hero section */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
           <div className="mb-8 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_340px] overflow-hidden">
@@ -851,51 +763,6 @@ export function HomeClient({
           </div>
         )}
       </div>
-
-      {/* Trending Creators horizontal scroll */}
-      {trendingCreators.length > 0 && (
-        <div className="mx-auto max-w-7xl px-4 pb-6 md:px-6 lg:px-8">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[var(--text-primary)]">🔥 Trending Creators</span>
-            <Link href="/creators" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">View all →</Link>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-            {trendingCreators.map((c) => (
-              <Link
-                key={c.id}
-                href={`/creators/${c.slug}`}
-                className="shrink-0 flex flex-col gap-2 rounded-xl p-4 transition-all duration-200"
-                style={{ width: "160px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(249,115,22,0.4)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-              >
-                <div className="flex items-center gap-2">
-                  <CreatorAvatar creator={c} size="sm" />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{c.name}</p>
-                    <p className="truncate text-[10px] text-[var(--accent)]">${c.deso_username ?? c.creator_coin_symbol ?? c.slug}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">Price</p>
-                    <p className="font-mono text-xs font-semibold text-[var(--text-primary)]">
-                      {(c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : "—"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-[var(--text-tertiary)]">Holders</p>
-                    <p className="font-mono text-xs text-[var(--text-primary)]">{(c.creator_coin_holders ?? 0).toLocaleString()}</p>
-                  </div>
-                </div>
-                {(c as any).markets_count > 0 && (
-                  <p className="text-[10px] text-[var(--text-tertiary)]">{(c as any).markets_count} active markets</p>
-                )}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 3. Token strip */}
       <TokenStrip creators={tokenStripCreators} onBuy={setStakeCreator} />
@@ -958,24 +825,21 @@ export function HomeClient({
         </div>
 
         {/* Filter pills */}
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {FILTER_PILLS.map(({ id, label }) => {
-            const isHot = hotCategories.includes(id.toLowerCase());
-            return (
-              <button
-                key={id}
-                onClick={() => handleFilterChange(id)}
-                className="shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all"
-                style={
-                  activeFilter === id
-                    ? { background: "var(--text-primary)", color: "var(--bg-surface)", borderColor: "var(--text-primary)" }
-                    : { background: "transparent", color: "var(--text-secondary)", borderColor: "var(--border-subtle)" }
-                }
-              >
-                {isHot ? `🔥 ${label}` : label}
-              </button>
-            );
-          })}
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          {FILTER_PILLS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => handleFilterChange(id)}
+              className="shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all"
+              style={
+                activeFilter === id
+                  ? { background: "var(--text-primary)", color: "var(--bg-surface)", borderColor: "var(--text-primary)" }
+                  : { background: "transparent", color: "var(--text-secondary)", borderColor: "var(--border-subtle)" }
+              }
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Sort bar */}
