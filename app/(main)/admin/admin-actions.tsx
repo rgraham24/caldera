@@ -21,7 +21,7 @@ export function AdminActions() {
   const [validating, setValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<string | null>(null);
 
-  const [importSkip, setImportSkip] = useState(0);
+  const [importPrefixes, setImportPrefixes] = useState("a,b,c,d,e");
   const [importMinHolders, setImportMinHolders] = useState(2);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -147,22 +147,24 @@ export function AdminActions() {
     setImporting(true);
     setImportResult(null);
     try {
+      const prefixes = importPrefixes.split(",").map(p => p.trim()).filter(Boolean);
       const res = await fetch("/api/admin/bulk-import-deso", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          skip: importSkip,
-          limit: 500,
+          prefixes,
           minHolders: importMinHolders,
           adminPassword: ADMIN_PASSWORD,
         }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
-      // Auto-advance skip for the next run
-      if (data.nextSkip != null) setImportSkip(data.nextSkip);
+      // Auto-populate next batch of prefixes
+      if (data.nextBatch?.length > 0) {
+        setImportPrefixes(data.nextBatch.join(","));
+      }
       setImportResult(
-        `✅ Imported ${data.totalImported}, skipped ${data.totalSkipped} dupes/ghosts. Next skip: ${data.nextSkip ?? "end of list"}`
+        `✅ Imported ${data.totalImported} profiles from prefixes: ${data.completedPrefixes.join(", ")}. Next batch: ${data.nextBatch?.join(", ") ?? "all done"}`
       );
     } catch (err) {
       setImportResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
@@ -389,17 +391,17 @@ export function AdminActions() {
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">Import DeSo Profiles</h2>
         <p className="mb-4 text-xs text-text-muted">
-          Fetches 500 profiles at a time from DeSo ordered by coin price. Skip auto-advances after each run — just keep clicking Import to paginate through all of DeSo.
+          Sweeps DeSo by username prefix (a–z, 0–9), fetching up to 100 profiles per letter. After each run, the next batch is auto-populated — just keep clicking Import to cover all of DeSo.
         </p>
         <div className="mb-3 flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-wider text-text-muted">Skip (for pagination)</label>
+            <label className="text-[10px] uppercase tracking-wider text-text-muted">Letter prefixes (comma-separated)</label>
             <input
-              type="number"
-              min={0}
-              value={importSkip}
-              onChange={(e) => setImportSkip(Number(e.target.value))}
-              className="w-24 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary focus:border-caldera focus:outline-none"
+              type="text"
+              value={importPrefixes}
+              onChange={(e) => setImportPrefixes(e.target.value)}
+              placeholder="a,b,c,d,e"
+              className="w-56 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
             />
           </div>
           <div className="flex flex-col gap-1">

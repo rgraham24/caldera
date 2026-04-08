@@ -2,92 +2,74 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 
+// All prefixes to sweep — covers a-z and 0-9
+const ALL_PREFIXES = [
+  "a","b","c","d","e","f","g","h","i","j","k","l","m",
+  "n","o","p","q","r","s","t","u","v","w","x","y","z",
+  "0","1","2","3","4","5","6","7","8","9"
+];
+
 async function getDesoPriceUsd(): Promise<number> {
   try {
     const res = await fetch("https://api.deso.org/api/v0/get-exchange-rate");
     if (!res.ok) return 5;
     const data = await res.json();
-    // USDCentsPerDeSoExchangeRate is in cents — divide by 100
     const cents = data?.USDCentsPerDeSoExchangeRate ?? 0;
-    if (cents > 0) return cents / 100;
-    // Fallback to reserve price
-    const reserveCents = data?.USDCentsPerDeSoReserveExchangeRate ?? 500;
-    return reserveCents / 100;
-  } catch {
-    return 5;
-  }
+    return cents > 0 ? cents / 100 : 5;
+  } catch { return 5; }
 }
 
-export async function POST(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchProfilesForPrefix(
+  prefix: string,
+  desoPriceUsd: number,
+  minHolders: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<{ imported: number; skipped: number }> {
+  let imported = 0;
+  let skipped = 0;
+
   try {
-    const {
-      skip = 0,
-      limit = 500,
-      minHolders = 2,
-      desoPublicKey,
-      adminPassword,
-    } = await req.json();
-
-    const isAdmin =
-      ADMIN_KEYS.includes(desoPublicKey || "") ||
-      (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const skipN = Math.max(0, Number(skip));
-    const limitN = Math.min(Math.max(1, Number(limit)), 1000);
-    // Fetch enough profiles from DeSo to cover the skip offset + our limit
-    const numToFetch = Math.min(skipN + limitN, 2000);
-
-    const supabase = await createClient();
-    const desoPriceUsd = await getDesoPriceUsd();
-    console.log(`[bulk-import] Live DESO price: $${desoPriceUsd}, skip: ${skipN}, limit: ${limitN}`);
-
-    // Single large fetch from DeSo — ordered by coin price descending
-    const profilesRes = await fetch("https://node.deso.org/api/v0/get-profiles", {
+    const res = await fetch("https://node.deso.org/api/v0/get-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        NumToFetch: numToFetch,
+        NumToFetch: 100,
         OrderBy: "influencer_coin_price",
         NoErrorOnMissing: true,
+        UsernamePrefix: prefix,
       }),
     });
 
-    if (!profilesRes.ok) throw new Error(`DeSo API error: ${profilesRes.status}`);
+    if (!res.ok) {
+      console.warn(`[bulk-import] DeSo error for prefix "${prefix}": ${res.status}`);
+      return { imported: 0, skipped: 0 };
+    }
 
-    const profilesData = await profilesRes.json();
-    const allProfiles: Record<string, unknown>[] = profilesData.ProfilesFound ?? [];
-
-    // Apply skip offset to get our window
-    const batch = allProfiles.slice(skipN, skipN + limitN);
-    console.log(`[bulk-import] DeSo returned ${allProfiles.length} profiles, processing ${batch.length} (skip ${skipN})`);
-
-    let totalImported = 0;
-    let totalSkipped = 0;
+    const data = await res.json();
+    const profiles: Record<string, unknown>[] = data.ProfilesFound ?? [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows: Record<string, any>[] = [];
-
-    for (const p of batch) {
+    for (const p of profiles) {
       const username = p.Username as string;
-      if (!username) { totalSkipped++; continue; }
+      if (!username) { skipped++; continue; }
 
       const coinPriceNanos = (p.CoinPriceDeSoNanos as number) || 0;
-      const holders = ((p.CoinEntry as Record<string, unknown>)?.NumberOfHolders as number) || 0;
+      const coinEntry = p.CoinEntry as Record<string, unknown> | undefined;
+      const holders = (coinEntry?.NumberOfHolders as number) || 0;
 
-      // Skip zero-value ghost profiles
-      if (coinPriceNanos === 0 && holders === 0) { totalSkipped++; continue; }
+      // Skip ghosts
+      if (coinPriceNanos === 0 && holders === 0) { skipped++; continue; }
 
       // Apply minHolders filter
-      if (holders < minHolders) { totalSkipped++; continue; }
+      if (holders < minHolders) { skipped++; continue; }
 
       const coinPriceUSD = (coinPriceNanos / 1e9) * desoPriceUsd;
       const slug = username.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const publicKey = p.PublicKeyBase58Check as string;
-      const coinsNanos = ((p.CoinEntry as Record<string, unknown>)?.CoinsInCirculationNanos as number) || 0;
+      const coinsNanos = (coinEntry?.CoinsInCirculationNanos as number) || 0;
       const tokenStatus = holders > 10 && coinPriceUSD > 2 ? "active_unverified" : "shadow";
 
       rows.push({
@@ -105,31 +87,84 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Single batch upsert
     if (rows.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("creators")
         .upsert(rows, { onConflict: "slug", ignoreDuplicates: false });
-
       if (error) {
-        console.warn("[bulk-import] Batch upsert error:", error.message);
-        totalSkipped += rows.length;
+        console.warn(`[bulk-import] Upsert error for prefix "${prefix}":`, error.message);
+        skipped += rows.length;
       } else {
-        totalImported += rows.length;
+        imported += rows.length;
       }
     }
+  } catch (err) {
+    console.warn(`[bulk-import] Error for prefix "${prefix}":`, err);
+  }
 
-    const nextSkip = skipN + limitN;
-    const hasMore = allProfiles.length >= numToFetch;
+  return { imported, skipped };
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const {
+      prefixes,
+      minHolders = 2,
+      adminPassword,
+      desoPublicKey,
+    } = await req.json();
+
+    const isAdmin =
+      ADMIN_KEYS.includes(desoPublicKey || "") ||
+      (process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Default to first 5 letters if no prefixes specified
+    const toProcess: string[] = Array.isArray(prefixes) && prefixes.length > 0
+      ? prefixes
+      : ["a", "b", "c", "d", "e"];
+
+    const desoPriceUsd = await getDesoPriceUsd();
+    const supabase = await createClient();
+    const startTime = Date.now();
+
+    let totalImported = 0;
+    let totalSkipped = 0;
+    const completedPrefixes: string[] = [];
+
+    console.log(`[bulk-import] Live DESO price: $${desoPriceUsd}, sweeping prefixes: ${toProcess.join(", ")}`);
+
+    for (const prefix of toProcess) {
+      // Stop if approaching 50s Vercel timeout
+      if (Date.now() - startTime > 45000) {
+        console.log("[bulk-import] Stopping early — timeout approaching");
+        break;
+      }
+
+      const { imported, skipped } = await fetchProfilesForPrefix(
+        prefix, desoPriceUsd, minHolders, supabase
+      );
+      totalImported += imported;
+      totalSkipped += skipped;
+      completedPrefixes.push(prefix);
+      console.log(`[bulk-import] Prefix "${prefix}": +${imported} imported, ${skipped} skipped`);
+    }
+
+    // Calculate which prefixes remain from the full sweep set
+    const completedSet = new Set(completedPrefixes);
+    const remainingPrefixes = ALL_PREFIXES.filter(p => !completedSet.has(p));
 
     return NextResponse.json({
       data: {
         totalImported,
         totalSkipped,
-        processed: batch.length,
-        nextSkip: hasMore ? nextSkip : null,
+        completedPrefixes,
         desoPriceUsd,
+        remainingPrefixes,
+        nextBatch: remainingPrefixes.slice(0, 5),
       },
     });
   } catch (err) {
