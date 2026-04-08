@@ -37,6 +37,8 @@ function chipLabel(title: string): string {
 function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const chipContainerRef = useRef<HTMLDivElement>(null);
+
   // Auto-rotate every 6 seconds with crossfade
   useEffect(() => {
     if (markets.length <= 1) return;
@@ -49,6 +51,18 @@ function HeroSection({ markets }: { markets: Market[] }) {
     }, 6000);
     return () => clearInterval(interval);
   }, [markets.length]);
+
+  // Scroll active chip to center via querySelectorAll buttons
+  useEffect(() => {
+    const container = chipContainerRef.current;
+    if (!container) return;
+    const buttons = Array.from(container.querySelectorAll("button"));
+    const activeBtn = buttons[idx];
+    if (!activeBtn) return;
+    const containerCenter = container.offsetWidth / 2;
+    const btnCenter = activeBtn.offsetLeft + activeBtn.offsetWidth / 2;
+    container.scrollTo({ left: btnCenter - containerCenter, behavior: "smooth" });
+  }, [idx]);
 
   if (markets.length === 0) return null;
 
@@ -161,20 +175,36 @@ function HeroSection({ markets }: { markets: Market[] }) {
         </div>
       </div>
 
-      {/* ── Dot indicators ── */}
+      {/* ── Chip navigation ── */}
       {markets.length > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-2">
-          {markets.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => select(i)}
-              className={`rounded-full transition-all duration-300 ${
-                i === idx
-                  ? "h-2 w-6 bg-primary"
-                  : "h-2 w-2 bg-white/30 hover:bg-white/50"
-              }`}
-            />
-          ))}
+        <div className="relative overflow-hidden" style={{ marginTop: "12px" }}>
+          {/* Edge fades */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#0a0a0f] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#0a0a0f] to-transparent" />
+          {/* Scrollable chip track */}
+          <div
+            ref={chipContainerRef}
+            className="flex gap-2 overflow-x-scroll py-1"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          >
+            {/* Left spacer — lets first chip scroll to center */}
+            <div className="flex-shrink-0" style={{ width: "50%", minWidth: "50%" }} />
+            {markets.map((chip, i) => (
+              <button
+                key={chip.id}
+                onClick={() => select(i)}
+                className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-300 border ${
+                  i === idx
+                    ? "bg-primary/30 border-primary/60 text-white"
+                    : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {chip.title.length > 28 ? chip.title.substring(0, 28) + "…" : chip.title}
+              </button>
+            ))}
+            {/* Right spacer — lets last chip scroll to center */}
+            <div className="flex-shrink-0" style={{ width: "50%", minWidth: "50%" }} />
+          </div>
         </div>
       )}
     </div>
