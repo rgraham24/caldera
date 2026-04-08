@@ -47,47 +47,57 @@ async function fetchAndInsertPage(
   let imported = 0;
   let skipped = 0;
 
+  // Collect valid rows first, then batch upsert — much faster than one-by-one
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: Record<string, any>[] = [];
+
   for (const p of profiles) {
     const username = p.Username as string;
     if (!username) { skipped++; continue; }
 
-    const slug = username.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const publicKey = p.PublicKeyBase58Check as string;
     const coinPriceNanos = (p.CoinPriceDeSoNanos as number) || 0;
-    const coinPriceUSD = (coinPriceNanos / 1e9) * desoPriceUsd;
     const holders = ((p.CoinEntry as Record<string, unknown>)?.NumberOfHolders as number) || 0;
-    const coinsNanos = ((p.CoinEntry as Record<string, unknown>)?.CoinsInCirculationNanos as number) || 0;
-    const coinsInCirculation = coinsNanos / 1e9;
-    const profilePicUrl = `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`;
 
-    // FIX 3: skip zero-value ghost profiles
+    // Skip zero-value ghost profiles
     if (coinPriceNanos === 0 && holders === 0) { skipped++; continue; }
 
-    // FIX 4: skip below minHolders threshold
+    // Apply minHolders filter
     if (holders < minHolders) { skipped++; continue; }
 
-    // FIX 2: derive token_status from on-chain activity
-    const tokenStatus =
-      holders > 10 && coinPriceUSD > 5 ? "active_unverified" : "shadow";
+    const coinPriceUSD = (coinPriceNanos / 1e9) * desoPriceUsd;
+    const slug = username.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const publicKey = p.PublicKeyBase58Check as string;
+    const coinsNanos = ((p.CoinEntry as Record<string, unknown>)?.CoinsInCirculationNanos as number) || 0;
+    const tokenStatus = holders > 10 && coinPriceUSD > 2 ? "active_unverified" : "shadow";
 
-    const { error } = await supabase.from("creators").upsert(
-      {
-        name: username,
-        slug,
-        deso_username: username,
-        deso_public_key: publicKey,
-        image_url: profilePicUrl,
-        creator_coin_price: coinPriceUSD,
-        creator_coin_holders: holders,
-        creator_coin_market_cap: coinsInCirculation * coinPriceUSD,
-        token_status: tokenStatus,
-        creator_coin_symbol: username.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20),
-        estimated_followers: holders * 100,
-      },
-      { onConflict: "slug", ignoreDuplicates: false }
-    );
+    rows.push({
+      name: username,
+      slug,
+      deso_username: username,
+      deso_public_key: publicKey,
+      image_url: `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`,
+      creator_coin_price: coinPriceUSD,
+      creator_coin_holders: holders,
+      creator_coin_market_cap: (coinsNanos / 1e9) * coinPriceUSD,
+      creator_coin_symbol: username.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20),
+      token_status: tokenStatus,
+      estimated_followers: holders * 100,
+    });
+  }
 
-    if (error) { skipped++; } else { imported++; }
+  // Single batch upsert — one round-trip instead of up to 50
+  if (rows.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from("creators")
+      .upsert(rows, { onConflict: "slug", ignoreDuplicates: false });
+
+    if (error) {
+      console.warn("[bulk-import] Batch upsert error:", error.message);
+      skipped += rows.length;
+    } else {
+      imported += rows.length;
+    }
   }
 
   const lastProfile = profiles[profiles.length - 1];
@@ -122,24 +132,30 @@ export async function POST(req: NextRequest) {
     let completedPages = 0;
 
     const startTime = Date.now();
-    for (let i = 0; i < numPages; i++) {
+    while (completedPages < numPages) {
       // Stop if approaching 45 seconds to stay within Vercel's 60s timeout
       if (Date.now() - startTime > 45000) {
         console.log("[bulk-import] Stopping early to avoid timeout");
         break;
       }
+
       const { imported, skipped, nextCursor } = await fetchAndInsertPage(cursor, supabase, DESO_PRICE_USD, minHolders);
       totalImported += imported;
       totalSkipped += skipped;
       completedPages++;
       cursor = nextCursor;
 
-      // No more results
       if (!nextCursor) break;
     }
 
     return NextResponse.json({
-      data: { totalImported, totalSkipped, pages: completedPages, nextCursor: cursor },
+      data: {
+        totalImported,
+        totalSkipped,
+        pages: completedPages,
+        nextCursor: cursor,
+        desoPriceUsd: DESO_PRICE_USD,
+      },
     });
   } catch (err) {
     return NextResponse.json(
