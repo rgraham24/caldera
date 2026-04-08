@@ -699,6 +699,17 @@ function getStartingOdds(title: string): { yesPool: number; noPool: number; yesP
   return { yesPool: 1000 - yes, noPool: yes, yesPrice: yes / 1000, noPrice: (1000 - yes) / 1000 };
 }
 
+function fixMarketCategory(title: string, defaultCategory: string): string {
+  const lower = title.toLowerCase();
+  if (/nato|ukraine|russia|iran|israel|hamas|ceasefire|military|war|conflict|troops|sanctions|united nations|treaty|nuclear|hostage|missile|airstrike/.test(lower)) {
+    return "Commentary";
+  }
+  if (/congress|senate|vote|legislation|white house|supreme court|tariff|trade deal|impeach|election|ballot|democrat|republican/.test(lower)) {
+    return "Politics";
+  }
+  return defaultCategory;
+}
+
 async function insertMarkets(
   markets: GeneratedMarket[],
   supabase: SupabaseClient,
@@ -724,7 +735,7 @@ async function insertMarkets(
       title: market.title,
       slug,
       description: market.description,
-      category: market.category,
+      category: fixMarketCategory(market.title, market.category),
       rules_text: market.resolution_criteria,
       resolve_at: market.resolve_at,
       status: "open",
