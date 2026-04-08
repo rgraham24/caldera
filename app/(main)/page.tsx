@@ -45,12 +45,12 @@ export default async function HomePage() {
       .order("creator_coin_price", { ascending: false })
       .limit(20),
 
-    // Initial market grid — top 20 by volume
+    // Initial market grid — newest first (volume is seeded/zero until real trading)
     supabase
       .from("markets")
       .select("*")
       .eq("status", "open")
-      .order("total_volume", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(20),
   ]);
 

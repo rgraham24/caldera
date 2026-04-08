@@ -493,8 +493,8 @@ const FILTER_PILLS = [
 ];
 
 const SORT_OPTS = [
-  { id: "volume", label: "Volume" },
   { id: "newest", label: "Newest" },
+  { id: "volume", label: "Volume" },
   { id: "resolving_soon", label: "Ending Soon" },
 ];
 
@@ -508,7 +508,7 @@ export function HomeClient({
   initialMarkets,
 }: HomeClientProps) {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [sort, setSort] = useState("volume");
+  const [sort, setSort] = useState("newest");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
   const [offset, setOffset] = useState(PAGE_SIZE);
   const [hasMore, setHasMore] = useState(initialMarkets.length === PAGE_SIZE);
