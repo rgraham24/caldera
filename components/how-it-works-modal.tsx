@@ -74,12 +74,12 @@ export function HowItWorksModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl w-full max-w-[360px] overflow-hidden">
+      <div className="relative z-[201] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl w-full max-w-[360px] overflow-hidden">
         {/* Visual area */}
         <div className="bg-[var(--bg-elevated)] p-8 flex items-center justify-center min-h-[220px] relative">
 
