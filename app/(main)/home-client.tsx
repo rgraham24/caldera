@@ -9,7 +9,7 @@ import {
   formatCompactCurrency,
   formatRelativeTime,
 } from "@/lib/utils";
-import { ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
+import { ChevronDown, TrendingUp, Zap } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
 
@@ -23,64 +23,7 @@ type HomeClientProps = {
   initialMarkets: Market[];
 };
 
-type NavTab = "trending" | "breaking" | "new" | string;
-
 const PAGE_SIZE = 20;
-
-// ─── Second nav bar ───────────────────────────────────────────────────────────
-
-type NavItem =
-  | { divider: true }
-  | { id: string; label: string; icon?: React.ComponentType<{ className?: string }> };
-
-const NAV_TABS: NavItem[] = [
-  { id: "trending", label: "Trending", icon: TrendingUp },
-  { id: "breaking", label: "Breaking", icon: Zap },
-  { id: "new", label: "New", icon: Clock },
-  { divider: true },
-  ...CATEGORIES.map(({ value, label }) => ({ id: value, label })),
-];
-
-function SecondNav({ active, onChange }: { active: NavTab; onChange: (tab: NavTab) => void }) {
-  return (
-    <div
-      className="sticky top-[57px] z-30 border-b"
-      style={{ background: "var(--bg-elevated, #0d0d0d)", borderColor: "var(--border-subtle)" }}
-    >
-      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-        <div className="flex items-center overflow-x-auto">
-          {NAV_TABS.map((tab, i) => {
-            if ("divider" in tab) {
-              return (
-                <div
-                  key={`div-${i}`}
-                  className="mx-2 h-4 w-px shrink-0 self-center"
-                  style={{ background: "var(--border-subtle)" }}
-                />
-              );
-            }
-            const Icon = tab.icon;
-            const isActive = active === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onChange(tab.id)}
-                className="flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors"
-                style={{
-                  borderColor: isActive ? "var(--accent)" : "transparent",
-                  color: isActive ? "var(--accent)" : "var(--text-secondary)",
-                }}
-              >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Hero section (Polymarket-style: tall card + pill chip row) ──────────────
 
@@ -221,28 +164,29 @@ function HeroSection({ markets }: { markets: Market[] }) {
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
 
-          <div ref={chipRowRef} className="flex flex-1 gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
+          <div
+            ref={chipRowRef}
+            className="flex flex-1 gap-2 overflow-x-auto pb-0.5"
+            style={{
+              scrollbarWidth: "none",
+              maskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
+              WebkitMaskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
+            }}
+          >
             {markets.map((chip, i) => {
-              const chipYes = Math.round((chip.yes_price ?? 0.5) * 100);
               const isSelected = idx === i;
               return (
                 <button
                   key={chip.id}
                   onClick={() => select(i)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all"
+                  className="flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all"
                   style={{
                     background: isSelected ? "var(--text-primary)" : "var(--bg-surface)",
                     color: isSelected ? "var(--bg-surface)" : "var(--text-secondary)",
                     border: `1px solid ${isSelected ? "var(--text-primary)" : "var(--border-subtle)"}`,
                   }}
                 >
-                  <span className="max-w-[140px] truncate">{chipLabel(chip.title)}</span>
-                  <span
-                    className="shrink-0 font-mono font-bold"
-                    style={{ color: isSelected ? "inherit" : chipYes >= 50 ? "var(--yes)" : "var(--no)" }}
-                  >
-                    {chipYes}%
-                  </span>
+                  <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
                 </button>
               );
             })}
@@ -544,7 +488,6 @@ export function HomeClient({
   tokenStripCreators,
   initialMarkets,
 }: HomeClientProps) {
-  const [activeTab, setActiveTab] = useState<NavTab>("trending");
   const [activeFilter, setActiveFilter] = useState("all");
   const [sort, setSort] = useState("volume");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
@@ -594,19 +537,6 @@ export function HomeClient({
     []
   );
 
-  const handleTabChange = (tab: NavTab) => {
-    let newSort = "volume";
-    let newFilter = "all";
-    if (tab === "breaking") { newSort = "resolving_soon"; }
-    else if (tab === "new") { newSort = "newest"; }
-    else if (tab !== "trending") { newFilter = tab; }
-    setActiveTab(tab);
-    setSort(newSort);
-    setActiveFilter(newFilter);
-    setOffset(0);
-    fetchMarkets(newFilter, newSort, 0, false);
-  };
-
   const handleFilterChange = (f: string) => {
     setActiveFilter(f);
     setOffset(0);
@@ -621,19 +551,14 @@ export function HomeClient({
 
   return (
     <div>
-      {/* 1. Second nav */}
-      <SecondNav active={activeTab} onChange={handleTabChange} />
-
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* 2. Hero section */}
+        {/* Hero section */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
-          <div className="mb-8 flex flex-col items-stretch gap-4 lg:flex-row">
+          <div className="mb-8 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_340px]">
             {heroMarkets.length > 0 && (
-              <div className="flex flex-col lg:w-[65%]">
-                <HeroSection markets={heroMarkets} />
-              </div>
+              <HeroSection markets={heroMarkets} />
             )}
-            <div className="flex flex-col gap-4 lg:w-[35%]">
+            <div className="flex flex-col gap-4">
               {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
               {trendingCreators.length > 0 && (
                 <TrendingTokens creators={trendingCreators} onBuy={setStakeCreator} />
