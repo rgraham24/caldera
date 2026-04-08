@@ -19,13 +19,13 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // Fetch open markets created in the last 7 days (include total_volume for safety check)
+    // Fetch open markets created in the last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const FAR_FUTURE_CUTOFF = "2026-09-01T00:00:00Z";
+    const FAR_FUTURE_CUTOFF = "2026-10-01T00:00:00Z";
 
     const { data: markets, error } = await supabase
       .from("markets")
-      .select("id, title, description, category, resolve_at, total_volume")
+      .select("id, title, description, category, resolve_at")
       .eq("status", "open")
       .gte("created_at", sevenDaysAgo);
 
@@ -34,12 +34,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (!markets?.length) {
-      return NextResponse.json({ data: { deleted: 0, kept: 0, skipped_has_volume: 0, deleted_far_future: 0, message: "No recent markets to validate" } });
+      return NextResponse.json({
+        data: { deleted: 0, kept: 0, skipped_has_real_trades: 0, deleted_far_future: 0, message: "No recent markets to validate" },
+      });
     }
 
-    // Pass 1: delete zero-volume markets with resolve_at > Sept 2026 (too far out, no AI needed)
+    // Fetch all market IDs that have real trades in the trades table
+    const { data: tradeRows } = await supabase
+      .from("trades")
+      .select("market_id")
+      .in("market_id", markets.map((m) => m.id));
+
+    const hasRealTrades = new Set((tradeRows ?? []).map((r) => r.market_id));
+
+    // Helper: safe to delete = no real trades
+    const canDelete = (id: string) => !hasRealTrades.has(id);
+
+    // Pass 1 (no AI): always delete markets with resolve_at > Oct 2026 that have no real trades
     const farFutureIds = markets
-      .filter((m) => (m.total_volume ?? 0) === 0 && m.resolve_at && m.resolve_at > FAR_FUTURE_CUTOFF)
+      .filter((m) => m.resolve_at && m.resolve_at > FAR_FUTURE_CUTOFF && canDelete(m.id))
       .map((m) => m.id);
 
     let deletedFarFuture = 0;
@@ -47,20 +60,18 @@ export async function POST(req: NextRequest) {
       const { error: ffErr } = await supabase
         .from("markets")
         .delete()
-        .in("id", farFutureIds)
-        .eq("total_volume", 0)
-        .gt("resolve_at", FAR_FUTURE_CUTOFF);
+        .in("id", farFutureIds);
       if (!ffErr) deletedFarFuture = farFutureIds.length;
     }
 
-    // Pass 2: run remaining markets through the AI relevance gatekeeper
+    // Pass 2 (AI): run remaining markets through relevance gatekeeper
     const remaining = markets.filter((m) => !farFutureIds.includes(m.id));
     if (remaining.length === 0) {
       return NextResponse.json({
         data: {
           deleted: 0,
           kept: 0,
-          skipped_has_volume: 0,
+          skipped_has_real_trades: 0,
           deleted_far_future: deletedFarFuture,
           message: `Deleted ${deletedFarFuture} far-future markets — no remaining markets to validate`,
         },
@@ -71,16 +82,15 @@ export async function POST(req: NextRequest) {
     const keptSet = new Set(keptIds);
     const failed = remaining.filter((m) => !keptSet.has(m.id));
 
-    // Safety: never delete markets with trades (users may have positions)
-    const toDelete = failed.filter((m) => (m.total_volume ?? 0) === 0).map((m) => m.id);
-    const skippedHasVolume = failed.length - toDelete.length;
+    // Safety: never delete markets with real trades in the trades table
+    const toDelete = failed.filter((m) => canDelete(m.id)).map((m) => m.id);
+    const skippedHasRealTrades = failed.length - toDelete.length;
 
     if (toDelete.length > 0) {
       const { error: deleteError } = await supabase
         .from("markets")
         .delete()
-        .in("id", toDelete)
-        .eq("total_volume", 0);
+        .in("id", toDelete);
 
       if (deleteError) {
         return NextResponse.json({ error: deleteError.message }, { status: 500 });
@@ -91,14 +101,14 @@ export async function POST(req: NextRequest) {
     const parts = [
       `Deleted ${totalDeleted} markets (${toDelete.length} stale + ${deletedFarFuture} far-future)`,
       `kept ${keptIds.length}`,
-      skippedHasVolume > 0 ? `skipped ${skippedHasVolume} with trades` : null,
+      skippedHasRealTrades > 0 ? `skipped ${skippedHasRealTrades} with real trades` : null,
     ].filter(Boolean).join(", ");
 
     return NextResponse.json({
       data: {
         deleted: toDelete.length,
         kept: keptIds.length,
-        skipped_has_volume: skippedHasVolume,
+        skipped_has_real_trades: skippedHasRealTrades,
         deleted_far_future: deletedFarFuture,
         message: parts,
       },
