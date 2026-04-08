@@ -351,18 +351,133 @@ export async function filterStaleMarketsPublic(
   }
 }
 
+// ─── Shadow profile creation ──────────────────────────────────────────────────
+//
+// SQL required before this runs (add to Supabase if not present):
+//   ALTER TABLE creators ADD COLUMN IF NOT EXISTS token_symbol text;
+//   ALTER TABLE creators ADD COLUMN IF NOT EXISTS status text DEFAULT 'shadow';
+//   ALTER TABLE markets  ADD COLUMN IF NOT EXISTS creator_slug text;
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabase = any;
+
+function generateClaimCode(): string {
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "0123456789";
+  let p1 = "";
+  let p2 = "";
+  for (let i = 0; i < 4; i++) p1 += letters[Math.floor(Math.random() * letters.length)];
+  for (let i = 0; i < 4; i++) p2 += digits[Math.floor(Math.random() * digits.length)];
+  return `CALDERA-${p1}-${p2}`;
+}
+
+/** Extract the most likely social handle from Brave search text */
+function extractHandle(text: string, fallback: string): string {
+  // Look for @username patterns
+  const atMatch = text.match(/@([a-zA-Z0-9_]{3,30})/);
+  if (atMatch) {
+    const h = atMatch[1].toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (h.length >= 2) return h;
+  }
+  return fallback;
+}
+
+export async function createShadowProfileIfNeeded(
+  entityName: string,
+  supabase: AnySupabase
+): Promise<string | null> {
+  const baseSlug = slugify(entityName);
+
+  // 1. Check if creator already exists
+  const { data: existing } = await supabase
+    .from("creators")
+    .select("id, slug")
+    .eq("slug", baseSlug)
+    .maybeSingle();
+
+  if (existing) return existing.id as string;
+
+  // 2. Try Brave Search to find a better handle
+  let finalSlug = baseSlug;
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  if (braveKey) {
+    try {
+      const searchText = await fetchBraveResults(
+        `${entityName} TikTok OR Instagram OR Twitter handle`,
+        braveKey
+      );
+      finalSlug = extractHandle(searchText, baseSlug);
+      // Verify uniqueness — fall back to baseSlug if handle is taken
+      if (finalSlug !== baseSlug) {
+        const { data: taken } = await supabase
+          .from("creators")
+          .select("id")
+          .eq("slug", finalSlug)
+          .maybeSingle();
+        if (taken) finalSlug = baseSlug;
+      }
+    } catch { /* use baseSlug */ }
+  }
+
+  const sym = finalSlug.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20);
+
+  // 3. Create shadow profile
+  const { data: creator, error } = await supabase
+    .from("creators")
+    .upsert(
+      {
+        slug: finalSlug,
+        name: entityName,
+        creator_coin_symbol: sym,
+        token_status: "shadow",
+        creator_coin_price: 0,
+        creator_coin_holders: 0,
+        markets_count: 0,
+      },
+      { onConflict: "slug" }
+    )
+    .select("id")
+    .single();
+
+  if (error || !creator) {
+    console.warn(`[createShadowProfile] Failed for ${entityName}:`, error?.message);
+    return null;
+  }
+
+  // 4. Auto-generate a claim code (skip if one already exists for this slug)
+  const { data: existingCode } = await supabase
+    .from("claim_codes")
+    .select("id")
+    .eq("slug", finalSlug)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (!existingCode) {
+    const code = generateClaimCode();
+    await supabase
+      .from("claim_codes")
+      .insert({ slug: finalSlug, code, status: "pending" });
+  }
+
+  console.log(`[createShadowProfile] Created shadow profile: ${finalSlug} (${entityName})`);
+  return creator.id as string;
+}
+
 // ─── Step 3: Generate + insert markets ────────────────────────────────────────
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 async function insertMarkets(
   markets: GeneratedMarket[],
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  creatorId?: string | null,
+  creatorSlug?: string | null
 ): Promise<number> {
   let created = 0;
   for (const market of markets) {
     const slug = uniqueSlug(slugify(market.title));
-    const { error } = await supabase.from("markets").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row: any = {
       title: market.title,
       slug,
       description: market.description,
@@ -376,7 +491,10 @@ async function insertMarkets(
       no_price: 0.38,
       liquidity: 1000,
       total_volume: 0,
-    });
+    };
+    if (creatorId) row.creator_id = creatorId;
+    if (creatorSlug) row.creator_slug = creatorSlug;
+    const { error } = await supabase.from("markets").insert(row);
     if (!error) created++;
   }
   return created;
@@ -392,16 +510,25 @@ export async function bulkGenerateAndInsert(
 
   for (let i = 0; i < entities.length; i += BATCH_SIZE) {
     const batch = entities.slice(i, i + BATCH_SIZE);
+
+    // Create shadow profiles for each entity before generating markets
+    const creatorIds = await Promise.all(
+      batch.map((entity) => createShadowProfileIfNeeded(entity, supabase))
+    );
+
     const results = await Promise.allSettled(
       batch.map((entity) => generateMarketsForTopic(entity, apiKey))
     );
 
-    for (const result of results) {
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
       if (result.status === "fulfilled" && result.value?.length > 0) {
-        const entity = batch[results.indexOf(result)];
+        const entity = batch[j];
+        const creatorId = creatorIds[j];
+        const creatorSlug = creatorId ? slugify(entity) : null;
         const filtered = await filterStaleMarkets(result.value, apiKey, entity);
         if (filtered.length > 0) {
-          created += await insertMarkets(filtered, supabase);
+          created += await insertMarkets(filtered, supabase, creatorId, creatorSlug);
         }
       }
     }
