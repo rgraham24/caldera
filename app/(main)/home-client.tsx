@@ -328,7 +328,7 @@ function TokenStrip({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creat
   const doubled = [...creators, ...creators];
 
   return (
-    <div className="bg-transparent py-6">
+    <div className="relative w-full">
       {/* Header */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
         <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
