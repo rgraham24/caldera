@@ -918,3 +918,149 @@ export async function resolveExpiredMarkets(
   console.log(`[resolveExpiredMarkets] Resolved: ${resolved}, Flagged: ${flagged}`);
   return { resolved, flagged };
 }
+
+// ─── Marquee profile import (DeSo-first) ─────────────────────────────────────
+
+export type MarqueeProfile = {
+  name: string;
+  desoUsernames: string[];
+  team: string | null;
+  league: string | null;
+};
+
+export async function importMarqueeProfileDeSoFirst(
+  profile: MarqueeProfile,
+  supabase: AnySupabase
+): Promise<{ slug: string; status: string; source: "deso" | "shadow" } | null> {
+
+  // 1. Fetch live DESO price
+  let desoPriceUsd = 5;
+  try {
+    const pr = await fetch("https://api.deso.org/api/v0/get-exchange-rate");
+    const pd = await pr.json();
+    const cents = pd?.USDCentsPerDeSoExchangeRate ?? 0;
+    desoPriceUsd = cents > 0 ? cents / 100 : (pd?.USDCentsPerDeSoReserveExchangeRate ?? 500) / 100;
+  } catch { /* use fallback */ }
+
+  // 2. Try each DeSo username variant
+  let desoProfile: {
+    username: string;
+    publicKey: string;
+    coinPriceNanos: number;
+    holders: number;
+    isVerified: boolean;
+    description: string;
+    profilePicUrl: string;
+  } | null = null;
+
+  for (const username of profile.desoUsernames) {
+    try {
+      const res = await fetch("https://api.deso.org/api/v0/get-single-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Username: username }),
+      });
+      const data = await res.json();
+      if (data?.Profile?.Username) {
+        const p = data.Profile;
+        const coinPriceNanos = p.CoinPriceDeSoNanos ?? 0;
+        const holders = p.CoinEntry?.NumberOfHolders ?? 0;
+        if (coinPriceNanos === 0 && holders === 0) continue;
+        desoProfile = {
+          username: p.Username,
+          publicKey: p.PublicKeyBase58Check,
+          coinPriceNanos,
+          holders,
+          isVerified: p.IsVerified ?? false,
+          description: p.Description ?? "",
+          profilePicUrl: `https://node.deso.org/api/v0/get-single-profile-picture/${p.PublicKeyBase58Check}`,
+        };
+        break;
+      }
+    } catch { continue; }
+  }
+
+  // 3. Determine token_status
+  // IMPORTANT: active_unverified means real DeSo coin exists but person hasn't claimed.
+  // Per our fee policy, personal token auto-buy is BLOCKED for active_unverified —
+  // fees route to team/league only until they claim. This protects unclaimed celebrities.
+  let tokenStatus: string;
+  if (desoProfile) {
+    if (desoProfile.isVerified) tokenStatus = "active_verified";
+    else if (desoProfile.coinPriceNanos > 0 && desoProfile.holders > 0) tokenStatus = "active_unverified";
+    else tokenStatus = "shadow";
+  } else {
+    tokenStatus = "shadow";
+  }
+
+  const slug = desoProfile
+    ? desoProfile.username.toLowerCase()
+    : slugify(profile.name);
+
+  // 4. Check if already exists
+  const { data: existing } = await supabase
+    .from("creators")
+    .select("id, slug, token_status")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (existing) {
+    console.log(`[marqueeImport] Already exists: ${slug}`);
+    return { slug, status: "already_exists", source: desoProfile ? "deso" : "shadow" };
+  }
+
+  // 5. Upsert creator
+  const coinPriceUsd = desoProfile
+    ? (desoProfile.coinPriceNanos / 1e9) * desoPriceUsd
+    : 0;
+  const sym = slug.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20);
+
+  const { data: creator, error } = await supabase
+    .from("creators")
+    .upsert(
+      {
+        slug,
+        name: profile.name,
+        creator_coin_symbol: sym,
+        token_status: tokenStatus,
+        deso_public_key: desoProfile?.publicKey ?? null,
+        deso_username: desoProfile?.username ?? null,
+        creator_coin_price: coinPriceUsd,
+        creator_coin_holders: desoProfile?.holders ?? 0,
+        image_url: desoProfile?.profilePicUrl ?? null,
+        bio: desoProfile?.description ?? null,
+        markets_count: 0,
+        estimated_followers: tokenStatus === "active_unverified" ? 1_000_000 : 0,
+      },
+      { onConflict: "slug" }
+    )
+    .select("id, slug")
+    .single();
+
+  if (error || !creator) {
+    console.warn(`[marqueeImport] Failed: ${profile.name}:`, error?.message);
+    return null;
+  }
+
+  // 6. Generate claim code for unclaimed profiles
+  if (tokenStatus !== "active_verified") {
+    const { data: existingCode } = await supabase
+      .from("claim_codes")
+      .select("id")
+      .eq("slug", slug)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (!existingCode) {
+      const code = generateClaimCode();
+      await supabase.from("claim_codes").insert({ slug, code, status: "pending" });
+    }
+  }
+
+  // 7. Create team and league shadow profiles
+  if (profile.team) await createShadowProfileIfNeeded(profile.team, supabase);
+  if (profile.league) await createShadowProfileIfNeeded(profile.league, supabase);
+
+  const source = desoProfile ? "deso" : "shadow";
+  console.log(`[marqueeImport] ${profile.name} → ${slug} (${tokenStatus}, ${source}, $${coinPriceUsd.toFixed(2)})`);
+  return { slug, status: tokenStatus, source };
+}

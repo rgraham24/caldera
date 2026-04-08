@@ -25,6 +25,9 @@ export function AdminActions() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
+  const [marqueeImporting, setMarqueeImporting] = useState(false);
+  const [marqueeResult, setMarqueeResult] = useState<string | null>(null);
+
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedMarkets, setGeneratedMarkets] = useState<GeneratedMarket[]>([]);
@@ -115,6 +118,27 @@ export function AdminActions() {
       setSyncResult(`Error: ${err instanceof Error ? err.message : "Sync failed"}`);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleMarqueeImport = async () => {
+    setMarqueeImporting(true);
+    setMarqueeResult(null);
+    try {
+      const res = await fetch("/api/admin/import-marquee-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setMarqueeResult(
+        `✅ ${json.fromDeso} from DeSo · ${json.fromShadow} new shadows · ${json.alreadyExisted} already existed`
+      );
+    } catch (err) {
+      setMarqueeResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
+    } finally {
+      setMarqueeImporting(false);
     }
   };
 
@@ -326,6 +350,27 @@ export function AdminActions() {
         {syncResult && (
           <p className={`mt-3 text-xs ${syncResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {syncResult}
+          </p>
+        )}
+      </div>
+
+      {/* Import Marquee Profiles */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🌟 Import Marquee Profiles (DeSo-First)</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Imports ~90 marquee celebrities, athletes, pundits, and streamers. Tries each DeSo username variant first — real on-chain data if found, shadow profile otherwise. Creates team + league tokens automatically. Safe to re-run (idempotent). Takes ~60 seconds.
+        </p>
+        <Button
+          onClick={handleMarqueeImport}
+          disabled={marqueeImporting}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {marqueeImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {marqueeImporting ? "Importing (~60s)..." : "Import Marquee Profiles"}
+        </Button>
+        {marqueeResult && (
+          <p className={`mt-3 text-xs ${marqueeResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {marqueeResult}
           </p>
         )}
       </div>
