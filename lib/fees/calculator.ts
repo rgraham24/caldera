@@ -32,6 +32,7 @@ export type FeeBreakdown = {
   teamToken: number;
   leagueToken: number;
   communityPool: number;
+  personalTokenBlocked: boolean; // true when creator is active_unverified — auto-buy rerouted to team/league
   labels: {
     personal: string | null;
     team: string | null;
@@ -61,23 +62,47 @@ export function calculateMarketFees(
 
   const remainingPool = round(total - platform); // = 1% token auto-buy
 
-  // Only active tokens earn — shadow profiles go to community pool
-  const isActive = (c?: CreatorInfo | null) =>
+  // Personal token auto-buy requires explicit claim/verification to protect
+  // unclaimed celebrity identities from Caldera-driven price appreciation.
+  // Team and league tokens (outlets, orgs) are exempt from this restriction.
+  const isFullyActive = (c?: CreatorInfo | null) =>
+    c?.token_status === "active_verified" ||
+    c?.token_status === "claimed";
+
+  // Team and league tokens can receive auto-buys even if unverified —
+  // they represent outlets/organizations rather than individual people.
+  const isTeamEligible = (c?: CreatorInfo | null) =>
     c?.token_status === "active_unverified" ||
     c?.token_status === "active_verified" ||
     c?.token_status === "claimed";
 
-  const hasPersonal = isActive(creator) && (creator?.creator_coin_price ?? 0) > 0;
-  const hasTeam = isActive(teamCreator) && (teamCreator?.creator_coin_price ?? 0) > 0;
-  const hasLeague = isActive(leagueCreator) && (leagueCreator?.creator_coin_price ?? 0) > 0;
+  const personalBlocked =
+    creator?.token_status === "active_unverified" &&
+    (creator?.creator_coin_price ?? 0) > 0;
+
+  const hasPersonal = isFullyActive(creator) && (creator?.creator_coin_price ?? 0) > 0;
+  const hasTeam = isTeamEligible(teamCreator) && (teamCreator?.creator_coin_price ?? 0) > 0;
+  const hasLeague = isTeamEligible(leagueCreator) && (leagueCreator?.creator_coin_price ?? 0) > 0;
 
   const tierCount = [hasPersonal, hasTeam, hasLeague].filter(Boolean).length;
   const perTier = tierCount > 0 ? round(remainingPool / tierCount) : 0;
   const communityPool = tierCount === 0 ? remainingPool : 0;
 
-  const personalToken = hasPersonal ? perTier : 0;
-  const teamToken = hasTeam ? perTier : 0;
-  const leagueToken = hasLeague ? perTier : 0;
+  // Base allocation
+  let personalToken = hasPersonal ? perTier : 0;
+  let teamToken = hasTeam ? perTier : 0;
+  let leagueToken = hasLeague ? perTier : 0;
+
+  // When personalToken is blocked, reroute the personal share to team or league
+  if (personalBlocked && !hasPersonal) {
+    const blockedShare = round(remainingPool / (tierCount + 1)); // what personal would have gotten
+    if (hasTeam) {
+      teamToken = round(teamToken + blockedShare);
+    } else if (hasLeague) {
+      leagueToken = round(leagueToken + blockedShare);
+    }
+    // else it stays in communityPool (already captured above as tierCount === 0 path)
+  }
 
   return {
     total,
@@ -88,6 +113,7 @@ export function calculateMarketFees(
     teamToken,
     leagueToken,
     communityPool,
+    personalTokenBlocked: personalBlocked,
     labels: {
       personal: creator?.deso_username ? `$${creator.deso_username}` : null,
       team: teamCreator?.deso_username
