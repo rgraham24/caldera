@@ -37,10 +37,9 @@ function chipLabel(title: string): string {
 function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
-  const chipRowRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const chipContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-rotate every 6 seconds with crossfade + chip auto-scroll
+  // Auto-rotate every 6 seconds with crossfade + direct scroll control
   useEffect(() => {
     if (markets.length <= 1) return;
     const interval = setInterval(() => {
@@ -48,11 +47,15 @@ function HeroSection({ markets }: { markets: Market[] }) {
       setTimeout(() => {
         setIdx((prev) => {
           const newIdx = (prev + 1) % markets.length;
-          if (newIdx === 0) {
-            // Reset scroll instantly during the opacity-0 window so jump is invisible
-            if (chipRowRef.current) chipRowRef.current.scrollLeft = 0;
-          } else {
-            chipRefs.current[newIdx]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          const container = chipContainerRef.current;
+          if (container) {
+            if (newIdx === 0) {
+              container.scrollTo({ left: 0, behavior: "instant" });
+            } else {
+              const chipWidth = container.scrollWidth / markets.length;
+              const targetScroll = newIdx * chipWidth - container.clientWidth / 2 + chipWidth / 2;
+              container.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
+            }
           }
           return newIdx;
         });
@@ -79,7 +82,7 @@ function HeroSection({ markets }: { markets: Market[] }) {
   };
 
   const scrollChips = (dir: -1 | 1) => {
-    chipRowRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
+    chipContainerRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" });
   };
 
   return (
@@ -190,10 +193,9 @@ function HeroSection({ markets }: { markets: Market[] }) {
           </button>
 
           <div
-            ref={chipRowRef}
-            className="flex flex-1 gap-2 overflow-x-auto pb-0.5"
+            ref={chipContainerRef}
+            className="flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             style={{
-              scrollbarWidth: "none",
               maskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
               WebkitMaskImage: "linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent)",
             }}
@@ -201,7 +203,6 @@ function HeroSection({ markets }: { markets: Market[] }) {
             {markets.map((chip, i) => (
               <button
                 key={chip.id}
-                ref={(el) => { chipRefs.current[i] = el; }}
                 onClick={() => select(i)}
                 className={`flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all duration-300 ${
                   i === idx
