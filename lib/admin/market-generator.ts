@@ -91,20 +91,119 @@ function parseMarkets(text: string): GeneratedMarket[] {
   }
 }
 
+function classifyEntityType(name: string): "pundit" | "journalist" | "athlete" | "streamer" | "musician" | "politician" | "brand" | "general" {
+  const n = name.toLowerCase();
+  if (/tucker|shapiro|rogan|bari weiss|chamath|zeihan|bremmer|friedman|hannity|maddow|coulter|maher|limbaugh|podcast|show host/.test(n)) return "pundit";
+  if (/journalist|reporter|correspondent|times|post|reuters|ap |nyt|wsj|clarissa|arwa|woodward|bernstein/.test(n)) return "journalist";
+  if (/senator|rep\.|governor|president|mayor|congressman|congress|parliament|white house|secretary of/.test(n)) return "politician";
+  if (/nfl|nba|mlb|nhl|ufc|f1|mls|fc |united| city$| fc$|warriors|lakers|chiefs|yankees|patriots|athletic/.test(n)) return "athlete";
+  if (/xqc|ninja|pokimane|ac7ionman|ishowspeed|twitch|kick\.com|streamer|livestream/.test(n)) return "streamer";
+  if (/records|music|rapper|singer|band|artist|tour|album/.test(n)) return "musician";
+  if (/inc\.|llc|corp|brand|official|association|league|organization/.test(n)) return "brand";
+  return "general";
+}
+
+function buildMarketSystemPrompt(entityName: string, entityType: string, today: string): string {
+  const base = `Today is ${today}. You generate prediction markets for Caldera, a creator-focused prediction market platform. All markets must resolve via publicly verifiable events. Return ONLY a valid JSON array — no markdown, no explanation.`;
+
+  const schema = `Each item: { "title": string, "description": string, "category": string, "resolution_criteria": string, "resolve_at": ISO date string within 60 days }`;
+
+  if (entityType === "pundit") {
+    return `${base}
+
+You are generating markets about ${entityName}, a media commentator or pundit.
+
+Generate 4 markets about what ${entityName} will SAY, PUBLISH, or ARGUE about current world events in the next 30-60 days.
+
+Rules:
+- Every title starts with "Will ${entityName}..."
+- Markets resolve based on public statements: tweets, podcast episodes, articles, on-air segments
+- Reference real ongoing news events (conflicts, elections, economic news, culture wars)
+- category must be "Commentary"
+- resolution_criteria must cite a specific verifiable source (e.g. "Verified if ${entityName} tweets or publishes...")
+- NO markets about their personal life, career moves, or salary
+
+${schema}`;
+  }
+
+  if (entityType === "journalist") {
+    return `${base}
+
+You are generating markets about ${entityName}, a journalist or reporter.
+
+Generate 4 markets about what ${entityName} will REPORT, PUBLISH, or BREAK as news in the next 30-60 days.
+
+Rules:
+- Every title starts with "Will ${entityName}..."
+- Markets resolve based on published articles, on-air reports, or official social posts
+- Focus on their beat (conflict zone, politics, tech, finance — infer from their name/outlet)
+- category must be "Commentary"
+- resolution_criteria must cite their byline, Twitter/X post, or outlet publication
+
+${schema}`;
+  }
+
+  if (entityType === "politician") {
+    return `${base}
+
+You are generating markets about ${entityName}, a political figure.
+
+Generate 4 markets about what ${entityName} will DO, SAY, or VOTE ON in the next 30-60 days.
+
+Rules:
+- Every title starts with "Will ${entityName}..."
+- Markets resolve via official public record: Congressional record, press releases, C-SPAN, official social accounts
+- Focus on current legislative battles, political controversies, upcoming votes
+- category must be "Politics"
+- NO speculation about personal life or health
+
+${schema}`;
+  }
+
+  if (entityType === "streamer") {
+    return `${base}
+
+Generate 4 prediction markets about ${entityName}, a live streamer or content creator.
+Focus on: bans, drama, viral moments, subscriber milestones, beef with other creators.
+category must be "Streamers".
+${schema}`;
+  }
+
+  if (entityType === "athlete" || entityType === "brand") {
+    return `${base}
+
+Generate 4 prediction markets about ${entityName}.
+Focus on: game outcomes, trades, signings, performance milestones, championship odds.
+category must be "Sports".
+${schema}`;
+  }
+
+  return `${base}
+
+Generate 4 prediction markets about ${entityName}.
+Focus on the most interesting, timely, and resolvable questions about their public life.
+Pick the most appropriate category from: Sports, Music, Tech, Politics, Commentary, Streamers, Viral.
+${schema}`;
+}
+
 export async function generateMarketsForTopic(
   topic: string,
   apiKey: string
 ): Promise<GeneratedMarket[]> {
-  // Single Claude call — no research summary step
+  const entityType = classifyEntityType(topic);
+  const today = new Date().toISOString().split("T")[0];
+  const systemPrompt = buildMarketSystemPrompt(topic, entityType, today);
+  console.log(`[generateMarkets] ${topic} → type: ${entityType}`);
+
   const marketsText = await callClaude(
     apiKey,
     [
       {
         role: "user",
-        content: `Generate exactly 5 prediction markets for: ${topic}`,
+        content: `Generate prediction markets for: ${topic}`,
       },
     ],
-    SYSTEM_PROMPT,
+    systemPrompt,
     1024
   );
 
@@ -116,8 +215,8 @@ export async function generateMarketsForTopic(
     await new Promise((r) => setTimeout(r, 3000));
     const retryText = await callClaude(
       apiKey,
-      [{ role: "user", content: `Generate exactly 5 prediction markets for: ${topic}` }],
-      SYSTEM_PROMPT,
+      [{ role: "user", content: `Generate prediction markets for: ${topic}` }],
+      systemPrompt,
       1024
     );
     markets = parseMarkets(retryText);
