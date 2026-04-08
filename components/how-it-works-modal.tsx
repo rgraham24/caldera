@@ -33,11 +33,20 @@ export function HowItWorksModal() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const seen = localStorage.getItem("caldera_hiw_seen");
-    if (!seen) {
-      const timer = setTimeout(() => setShow(true), 1500);
-      return () => clearTimeout(timer);
+    const show = () => {
+      const seen = localStorage.getItem("caldera_hiw_seen");
+      if (!seen) {
+        setTimeout(() => setShow(true), 1500);
+      }
+    };
+
+    if (document.readyState === "complete") {
+      show();
+    } else {
+      window.addEventListener("load", show, { once: true });
     }
+
+    return () => window.removeEventListener("load", show);
   }, []);
 
   useEffect(() => {
