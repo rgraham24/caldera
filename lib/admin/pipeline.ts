@@ -811,3 +811,110 @@ export async function curateHomepage(
 
   return heroIds.length;
 }
+
+// ─── Step 6: Resolve expired markets ─────────────────────────────────────────
+
+const RESOLVER_SYSTEM = (dateLabel: string) =>
+  `You are a prediction market resolver. For each market, determine the most likely outcome based on the title and current date (${dateLabel}).
+
+Return ONLY a JSON array with this structure:
+[{ "id": "market_id", "outcome": "yes" | "no" | "void" | "needs_review", "reasoning": "one sentence" }]
+
+Rules:
+- "yes" if the event clearly happened based on public knowledge
+- "no" if the event clearly did not happen by the resolve date
+- "void" if the market is ambiguous, the event is ongoing, or you cannot determine outcome
+- "needs_review" if the market requires human judgment (legal cases, close calls)
+- When in doubt, use "needs_review" — do NOT guess on ambiguous markets
+- Creator coin price markets (e.g. "pumps 20%") — use "void" unless you have strong signal
+- Never resolve a market as "yes" unless you are highly confident it occurred`;
+
+export async function resolveExpiredMarkets(
+  apiKey: string,
+  supabase: SupabaseClient
+): Promise<{ resolved: number; flagged: number }> {
+  const now = new Date().toISOString();
+  const dateLabel = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  // Fetch all open markets past their resolve date
+  const { data: expired } = await supabase
+    .from("markets")
+    .select("id, title, description, category, yes_pool, no_pool, yes_price, no_price")
+    .eq("status", "open")
+    .lt("resolve_at", now)
+    .limit(50);
+
+  if (!expired?.length) return { resolved: 0, flagged: 0 };
+
+  console.log(`[resolveExpiredMarkets] Found ${expired.length} expired markets`);
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
+      system: RESOLVER_SYSTEM(dateLabel),
+      messages: [{
+        role: "user",
+        content: `Resolve these expired prediction markets:\n${JSON.stringify(
+          expired.map((m) => ({ id: m.id, title: m.title, category: m.category }))
+        )}`,
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("[resolveExpiredMarkets] Claude API error:", res.status);
+    return { resolved: 0, flagged: 0 };
+  }
+
+  const claudeData = await res.json();
+  const text: string = claudeData.content?.[0]?.text ?? "";
+
+  let resolutions: { id: string; outcome: string; reasoning: string }[];
+  try {
+    const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    resolutions = JSON.parse(clean.match(/\[[\s\S]*\]/)?.[0] ?? "[]");
+  } catch {
+    console.error("[resolveExpiredMarkets] Failed to parse resolutions");
+    return { resolved: 0, flagged: 0 };
+  }
+
+  let resolved = 0;
+  let flagged = 0;
+
+  for (const r of resolutions) {
+    if (r.outcome === "needs_review" || r.outcome === "void") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("markets")
+        .update({
+          status: r.outcome === "void" ? "voided" : "needs_review",
+          resolution_note: r.reasoning,
+          resolved_at: now,
+        })
+        .eq("id", r.id);
+      if (!error) flagged++;
+    } else if (r.outcome === "yes" || r.outcome === "no") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from("markets")
+        .update({
+          status: "resolved",
+          resolution_outcome: r.outcome,
+          resolution_note: r.reasoning,
+          resolved_at: now,
+        })
+        .eq("id", r.id);
+      if (!error) resolved++;
+    }
+  }
+
+  console.log(`[resolveExpiredMarkets] Resolved: ${resolved}, Flagged: ${flagged}`);
+  return { resolved, flagged };
+}

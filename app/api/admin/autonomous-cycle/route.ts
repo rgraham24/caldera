@@ -6,6 +6,7 @@ import {
   bulkGenerateAndInsert,
   fixStaleDates,
   curateHomepage,
+  resolveExpiredMarkets,
 } from "@/lib/admin/pipeline";
 
 export const maxDuration = 300;
@@ -24,10 +25,22 @@ async function runCycle() {
 
   const entities = await discoverEntities(apiKey);
   const marketsCreated = await bulkGenerateAndInsert(entities, apiKey, supabase);
+
+  // Resolve expired markets before fixing dates or curating
+  const { resolved, flagged } = await resolveExpiredMarkets(apiKey, supabase);
+  console.log(`[cycle] Resolution: ${resolved} resolved, ${flagged} flagged for review`);
+
   const datesFixed = await fixStaleDates(supabase);
   const featuredUpdated = await curateHomepage(apiKey, supabase);
 
-  return { entities: entities.length, markets_created: marketsCreated, dates_fixed: datesFixed, featured_updated: featuredUpdated };
+  return {
+    entities: entities.length,
+    markets_created: marketsCreated,
+    markets_resolved: resolved,
+    markets_flagged: flagged,
+    dates_fixed: datesFixed,
+    featured_updated: featuredUpdated,
+  };
 }
 
 // GET — called by Vercel cron
