@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 
 export function Footer() {
@@ -30,7 +31,6 @@ export function Footer() {
                 { href: "/markets", label: "Markets" },
                 { href: "/creators", label: "Tokens" },
                 { href: "/leaderboard", label: "Leaderboard" },
-                { href: "/how-it-works", label: "How It Works" },
               ].map((link) => (
                 <Link
                   key={link.href}
@@ -40,6 +40,15 @@ export function Footer() {
                   {link.label}
                 </Link>
               ))}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.dispatchEvent(new CustomEvent("show-hiw-modal"));
+                }}
+                className="block text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] text-left"
+              >
+                How It Works
+              </button>
             </div>
           </div>
 

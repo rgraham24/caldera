@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
 import StarterBanner from "@/components/shared/StarterBanner";
+import { HowItWorksModal } from "@/components/how-it-works-modal";
 export default function MainLayout({
   children,
 }: {
@@ -18,6 +19,7 @@ export default function MainLayout({
       <Footer />
       <MobileNav />
       <DepositModalRoot />
+      <HowItWorksModal />
     </>
   );
 }
