@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { Market, Creator } from "@/types";
 import { CATEGORIES } from "@/types";
 import {
@@ -194,9 +195,9 @@ function HeroSection({ markets }: { markets: Market[] }) {
                   onClick={() => select(i)}
                   className="flex shrink-0 items-center rounded-full px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all"
                   style={{
-                    background: isSelected ? "var(--text-primary)" : "var(--bg-surface)",
-                    color: isSelected ? "var(--bg-surface)" : "var(--text-secondary)",
-                    border: `1px solid ${isSelected ? "var(--text-primary)" : "var(--border-subtle)"}`,
+                    background: isSelected ? "rgba(249,115,22,0.15)" : "var(--bg-surface)",
+                    color: isSelected ? "#fff" : "var(--text-secondary)",
+                    border: `1px solid ${isSelected ? "rgba(249,115,22,0.5)" : "var(--border-subtle)"}`,
                   }}
                 >
                   <span className="max-w-[160px] truncate">{chipLabel(chip.title)}</span>
@@ -423,14 +424,23 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
             const flash = flashing[c.slug];
 
             return (
-              <div
+              <Link
                 key={`${c.id}-${i}`}
-                className="group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3.5 transition-all duration-200 hover:scale-[1.03]"
+                href={`/creators/${c.slug}`}
+                className="group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3.5 transition-all duration-200"
                 style={{
                   background: "var(--bg-surface)",
                   border: `1px solid ${isTop3 ? "rgba(249,115,22,0.25)" : "var(--border-subtle)"}`,
                   boxShadow: isTop3 ? "0 0 12px rgba(249,115,22,0.10)" : "none",
                   minWidth: "210px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(249,115,22,0.5)";
+                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(249,115,22,0.12)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = isTop3 ? "rgba(249,115,22,0.25)" : "var(--border-subtle)";
+                  e.currentTarget.style.boxShadow = isTop3 ? "0 0 12px rgba(249,115,22,0.10)" : "none";
                 }}
               >
                 {/* Row 1: rank + avatar + $symbol */}
@@ -489,7 +499,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
                   </span>
                   {c.deso_username && (
                     <button
-                      onClick={() => onBuy(c)}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBuy(c); }}
                       className="rounded-md px-2.5 py-1 text-[10px] font-semibold opacity-0 transition-all group-hover:opacity-100"
                       style={{ background: "var(--accent)", color: "#fff" }}
                     >
@@ -497,7 +507,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
                     </button>
                   )}
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -604,6 +614,7 @@ export function HomeClient({
   tokenStripCreators,
   initialMarkets,
 }: HomeClientProps) {
+  const searchParams = useSearchParams();
   const [activeFilter, setActiveFilter] = useState("all");
   const [sort, setSort] = useState("newest");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
@@ -613,6 +624,7 @@ export function HomeClient({
   const [loadingMore, setLoadingMore] = useState(false);
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const marketsRef = useRef<HTMLDivElement>(null);
 
   const fetchMarkets = useCallback(
     async (category: string, sortVal: string, off: number, append: boolean) => {
@@ -670,6 +682,40 @@ export function HomeClient({
     fetchMarkets(activeFilter, s, 0, false);
   };
 
+  // Sync URL params → market grid (nav tab clicks)
+  useEffect(() => {
+    const cat = searchParams.get("category");
+    const sortParam = searchParams.get("sort");
+    if (!cat && !sortParam) return; // default state covered by initialMarkets
+
+    let newFilter = "all";
+    let newSort = "newest";
+
+    if (cat) {
+      newFilter = cat;
+    } else if (sortParam === "breaking") {
+      newFilter = "resolving_soon";
+      newSort = "resolving_soon";
+    } else if (sortParam === "new") {
+      newSort = "newest";
+    } else if (sortParam === "following") {
+      newSort = "following";
+    } else {
+      // "trending" or unknown → volume sort
+      newSort = "volume";
+    }
+
+    setActiveFilter(newFilter);
+    setSort(newSort);
+    setOffset(0);
+    fetchMarkets(newFilter, newSort, 0, false);
+
+    // Scroll to the markets grid
+    setTimeout(() => {
+      marketsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
@@ -694,7 +740,7 @@ export function HomeClient({
 
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* 4. All markets */}
-        <div className="mb-4 flex items-center justify-between">
+        <div ref={marketsRef} className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>
           <Link href="/markets" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
             View all →

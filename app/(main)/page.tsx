@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { HomeClient } from "./home-client";
 import type { Market, Creator } from "@/types";
@@ -55,12 +56,14 @@ export default async function HomePage() {
   ]);
 
   return (
-    <HomeClient
-      heroMarkets={(heroMarkets ?? []) as Market[]}
-      breakingMarkets={(breakingMarkets ?? []) as Market[]}
-      trendingCreators={(trendingCreators ?? []) as Creator[]}
-      tokenStripCreators={(tokenStripCreators ?? []) as Creator[]}
-      initialMarkets={(initialMarkets ?? []) as Market[]}
-    />
+    <Suspense fallback={null}>
+      <HomeClient
+        heroMarkets={(heroMarkets ?? []) as Market[]}
+        breakingMarkets={(breakingMarkets ?? []) as Market[]}
+        trendingCreators={(trendingCreators ?? []) as Creator[]}
+        tokenStripCreators={(tokenStripCreators ?? []) as Creator[]}
+        initialMarkets={(initialMarkets ?? []) as Market[]}
+      />
+    </Suspense>
   );
 }
