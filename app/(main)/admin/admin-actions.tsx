@@ -18,6 +18,9 @@ export function AdminActions() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
+  const [validating, setValidating] = useState(false);
+  const [validateResult, setValidateResult] = useState<string | null>(null);
+
   const [importCount, setImportCount] = useState(100);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -69,6 +72,25 @@ export function AdminActions() {
       setCurateResult(`Error: ${err instanceof Error ? err.message : "Curation failed"}`);
     } finally {
       setCurating(false);
+    }
+  };
+
+  const handleValidate = async () => {
+    setValidating(true);
+    setValidateResult(null);
+    try {
+      const res = await fetch("/api/admin/validate-existing-markets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+      });
+      const { data, error } = await res.json();
+      if (error) throw new Error(error);
+      setValidateResult(data.message);
+    } catch (err) {
+      setValidateResult(`Error: ${err instanceof Error ? err.message : "Validation failed"}`);
+    } finally {
+      setValidating(false);
     }
   };
 
@@ -197,6 +219,27 @@ export function AdminActions() {
         {curateResult && (
           <p className={`mt-3 text-xs ${curateResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {curateResult}
+          </p>
+        )}
+      </div>
+
+      {/* Validate & Clean Stale Markets */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🧹 Validate & Clean Stale Markets</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Runs the relevance gatekeeper on all open markets created in the last 7 days. Markets that fail (already resolved, stale drama, too generic) are permanently deleted.
+        </p>
+        <Button
+          onClick={handleValidate}
+          disabled={validating}
+          className="bg-no/80 text-white font-semibold hover:bg-no"
+        >
+          {validating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {validating ? "Validating..." : "Validate & Clean Stale Markets"}
+        </Button>
+        {validateResult && (
+          <p className={`mt-3 text-xs ${validateResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {validateResult}
           </p>
         )}
       </div>

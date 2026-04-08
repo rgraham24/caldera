@@ -238,12 +238,27 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
 
 // ─── Step 2: Relevance gatekeeper ─────────────────────────────────────────────
 
-const GATEKEEPER_SYSTEM =
-  "You are a prediction market relevance gatekeeper. Today is April 7 2026. For each market, decide if it should be KEPT or REJECTED. Reject if: the event already happened, the question is stale (could have been written 3+ months ago), or the timeframe is too far out and drama has cooled. Return ONLY a JSON array of the markets to KEEP, with the same structure as input. Be ruthless — only keep markets tied to current drama from the last 14 days.";
+function gatekeeperSystem(): string {
+  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return `You are a ruthless Prediction Market Relevance Gatekeeper for a streamer/YouTuber/Kick drama marketplace.
+
+Today's date: ${today}
+
+REJECT any market where:
+- The event has already happened or resolved
+- The question could have been written 3+ months ago (not fresh)
+- The timeframe is too far out and drama has cooled
+- It's a generic long-shot with no current momentum
+
+KEEP only markets tied to RIGHT NOW drama (last 1-14 days, ongoing beefs, fresh arrests/bans/collapses, viral clips this week).
+
+Return ONLY a JSON array of markets to KEEP with the same structure as input. Be ruthless — reject 30-50% of markets.`;
+}
 
 async function filterStaleMarkets(
   markets: GeneratedMarket[],
-  apiKey: string
+  apiKey: string,
+  topic?: string
 ): Promise<GeneratedMarket[]> {
   if (markets.length === 0) return [];
 
@@ -258,7 +273,7 @@ async function filterStaleMarkets(
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
-        system: GATEKEEPER_SYSTEM,
+        system: gatekeeperSystem(),
         messages: [
           {
             role: "user",
@@ -276,11 +291,57 @@ async function filterStaleMarkets(
     const data = await res.json();
     const text: string = data.content?.[0]?.text ?? "";
     const kept = parseJsonArray(text) as GeneratedMarket[];
-    console.log(`[filterStaleMarkets] ${markets.length} in → ${kept.length} kept (${markets.length - kept.length} rejected)`);
+    const label = topic ? `for ${topic}` : "";
+    console.log(`[Relevance filter] kept ${kept.length}/${markets.length} markets ${label} (${markets.length - kept.length} rejected)`);
     return kept;
   } catch (err) {
     console.warn("[filterStaleMarkets] Failed, keeping all markets:", err);
     return markets;
+  }
+}
+
+// Exported version for the validate-existing-markets route
+export async function filterStaleMarketsPublic(
+  markets: { id: string; title: string; description: string | null; category: string; resolve_at: string | null }[],
+  apiKey: string
+): Promise<string[]> {
+  if (markets.length === 0) return [];
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 2048,
+        system: gatekeeperSystem(),
+        messages: [
+          {
+            role: "user",
+            content: `Filter these existing markets, returning ONLY the ones that are still relevant and should stay live. Return a JSON array of objects with only the "id" field for each market to KEEP: ${JSON.stringify(markets.map((m) => ({ id: m.id, title: m.title, description: m.description, category: m.category, resolve_at: m.resolve_at })))}`,
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn("[filterStaleMarketsPublic] API error:", res.status);
+      return markets.map((m) => m.id); // keep all on error
+    }
+
+    const data = await res.json();
+    const text: string = data.content?.[0]?.text ?? "";
+    const kept = parseJsonArray(text) as { id: string }[];
+    const keptIds = kept.map((k) => k.id).filter(Boolean);
+    console.log(`[Relevance filter] validate-existing: kept ${keptIds.length}/${markets.length} (${markets.length - keptIds.length} to delete)`);
+    return keptIds;
+  } catch (err) {
+    console.warn("[filterStaleMarketsPublic] Failed, keeping all:", err);
+    return markets.map((m) => m.id);
   }
 }
 
@@ -331,7 +392,8 @@ export async function bulkGenerateAndInsert(
 
     for (const result of results) {
       if (result.status === "fulfilled" && result.value?.length > 0) {
-        const filtered = await filterStaleMarkets(result.value, apiKey);
+        const entity = batch[results.indexOf(result)];
+        const filtered = await filterStaleMarkets(result.value, apiKey, entity);
         if (filtered.length > 0) {
           created += await insertMarkets(filtered, supabase);
         }
