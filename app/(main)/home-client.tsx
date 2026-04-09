@@ -553,7 +553,7 @@ function MarketCard({ market }: { market: Market }) {
           onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center gap-1 text-xs text-orange-400 hover:underline mb-2"
         >
-          🪙 {market.creator_slug}
+          ${market.creator_slug}
         </a>
       )}
 
