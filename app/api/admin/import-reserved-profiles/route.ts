@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 const DESO_PRICE_USD = 4.63;
+const CURSOR_KEY = 'reserved_import_cursor';
 
 export async function POST(req: NextRequest) {
   try {
-    const { adminPassword, pages = 20 } = await req.json();
+    const { adminPassword, pages = 50, resetCursor = false } = await req.json();
     if (adminPassword !== process.env.ADMIN_PASSWORD) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -13,7 +14,19 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     let imported = 0;
     let skipped = 0;
+
+    // Load saved cursor unless caller requests a fresh start
     let cursor: string | null = null;
+    if (!resetCursor) {
+      const { data: cursorData } = await supabase
+        .from('platform_config')
+        .select('value')
+        .eq('key', CURSOR_KEY)
+        .single();
+      cursor = cursorData?.value || null;
+    }
+
+    const startCursor = cursor;
 
     for (let i = 0; i < Math.min(pages, 50); i++) {
       const body: Record<string, unknown> = {
@@ -32,7 +45,11 @@ export async function POST(req: NextRequest) {
       if (!res.ok) break;
       const data = await res.json();
       const profiles: Record<string, unknown>[] = data.ProfilesFound ?? [];
-      if (!profiles.length) break;
+      if (!profiles.length) {
+        // Reached the end — reset cursor so next run starts over
+        cursor = null;
+        break;
+      }
 
       for (const p of profiles) {
         const username = p.Username as string;
@@ -74,7 +91,25 @@ export async function POST(req: NextRequest) {
       if (!cursor) break;
     }
 
-    return NextResponse.json({ imported, skipped, pages });
+    // Persist cursor for next run (empty string = start from beginning next time)
+    await supabase.from('platform_config').upsert({
+      key: CURSOR_KEY,
+      value: cursor ?? '',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'key' });
+
+    const reachedEnd = !cursor;
+
+    return NextResponse.json({
+      imported,
+      skipped,
+      pages,
+      resumedFrom: startCursor ? `${startCursor.substring(0, 12)}...` : 'beginning',
+      nextCursor: cursor ? `${cursor.substring(0, 12)}...` : null,
+      message: reachedEnd
+        ? 'Reached end of DeSo profiles — next run will start from beginning'
+        : 'Run again to import the next batch',
+    });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

@@ -161,11 +161,13 @@ export function AdminActions() {
       const res = await fetch("/api/admin/import-reserved-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, pages: 20 }),
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, pages: 50 }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setReservedResult(`✅ ${json.imported} imported · ${json.skipped} skipped · ${json.pages} pages fetched`);
+      setReservedResult(
+        `✅ ${json.imported} imported · ${json.skipped} skipped · resumed from: ${json.resumedFrom} · ${json.message}`
+      );
     } catch (err) {
       setReservedResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
     } finally {
