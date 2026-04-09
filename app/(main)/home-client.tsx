@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { Market, Creator, MarketWithOutcomes } from "@/types";
+import type { Market, Creator } from "@/types";
 import { useAppStore } from "@/store";
 import { CATEGORIES } from "@/types";
 import {
@@ -651,6 +651,17 @@ const SORT_OPTS = [
   { id: "resolving_soon", label: "Ending Soon" },
 ];
 
+const HOT_TOPICS = [
+  { label: "NBA Playoffs", icon: "🏀", category: "sports" },
+  { label: "The Masters", icon: "⛳", category: "sports" },
+  { label: "Politics", icon: "🇺🇸", category: "politics" },
+  { label: "Crypto", icon: "💰", category: "tech" },
+  { label: "Creators", icon: "🎥", category: "creators" },
+  { label: "Streamers", icon: "🎮", category: "streamers" },
+  { label: "Music", icon: "🎵", category: "music" },
+  { label: "Entertainment", icon: "🎬", category: "entertainment" },
+];
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 // SearchParamsSyncer is isolated so useSearchParams() only suspends this null-rendering
@@ -710,8 +721,9 @@ export function HomeClient({
   const isConnected = useAppStore((s) => s.isConnected);
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const [followedCount, setFollowedCount] = useState<number | null>(null);
-  const [commentaryMarkets, setCommentaryMarkets] = useState<Market[]>([]);
-  const [categoricalMarkets, setCategoricalMarkets] = useState<MarketWithOutcomes[]>([]);
+  const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
+  const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
+  const [sportsMarkets, setSportsMarkets] = useState<Market[]>([]);
 
   // Deduplicate trending tokens by slug
   const uniqueTrendingCreators = useMemo(
@@ -723,20 +735,33 @@ export function HomeClient({
     [tokenStripCreators]
   );
 
-  // Fetch Commentary / World Events markets on mount
+  // Fetch ending soon, featured, and sports markets in parallel on mount
   useEffect(() => {
-    fetch("/api/markets?category=commentary&status=open&sort=newest&limit=10")
-      .then((r) => r.json())
-      .then(({ data }) => { if (Array.isArray(data)) setCommentaryMarkets(data); })
-      .catch(() => {});
-  }, []);
+    Promise.all([
+      fetch("/api/markets?status=open&sort=resolving_soon&limit=14").then((r) => r.json()),
+      fetch("/api/markets?status=open&sort=volume&limit=12").then((r) => r.json()),
+      fetch("/api/markets?category=sports&status=open&sort=newest&limit=4").then((r) => r.json()),
+    ]).then(([endingData, volumeData, sportsData]) => {
+      const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      const endingSoon = (endingData.data ?? []).filter((m: Market) => {
+        if (!m.resolve_at) return false;
+        const t = new Date(m.resolve_at).getTime();
+        return t > Date.now() && t < sevenDaysFromNow;
+      });
+      setEndingSoonMarkets(endingSoon.slice(0, 10));
 
-  // Fetch categorical multi-outcome markets on mount
-  useEffect(() => {
-    fetch("/api/markets/categorical")
-      .then((r) => r.json())
-      .then(({ data }) => { if (Array.isArray(data)) setCategoricalMarkets(data); })
-      .catch(() => {});
+      const allVolume: Market[] = volumeData.data ?? [];
+      const withFeatured = allVolume.filter((m: Market) => (m.featured_score ?? 0) > 0);
+      if (withFeatured.length >= 6) {
+        setFeaturedMarkets(withFeatured.slice(0, 6));
+      } else {
+        const ids = new Set(withFeatured.map((m: Market) => m.id));
+        const fill = allVolume.filter((m: Market) => !ids.has(m.id));
+        setFeaturedMarkets([...withFeatured, ...fill].slice(0, 6));
+      }
+
+      setSportsMarkets(sportsData.data ?? []);
+    }).catch(() => {});
   }, []);
 
   // When Following tab is active and user is connected, check if they follow anyone
@@ -842,46 +867,64 @@ export function HomeClient({
       <TokenStrip creators={uniqueTokenStripCreators} onBuy={setStakeCreator} />
 
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* World Events featured row */}
-        {commentaryMarkets.length > 0 && (
+        {/* HOT TOPICS BAR */}
+        <div className="mb-8 mt-2">
+          <div
+            className="flex gap-2 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
+          >
+            {HOT_TOPICS.map(({ label, icon, category }) => (
+              <button
+                key={`${category}-${label}`}
+                onClick={() => handleFilterChange(category)}
+                className="shrink-0 flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-medium whitespace-nowrap transition-all hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                style={{ borderColor: "var(--border-subtle)", color: "var(--text-secondary)", background: "var(--bg-surface)" }}
+              >
+                <span>{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ENDING SOON */}
+        {endingSoonMarkets.length > 0 && (
           <div className="mb-8">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-lg">🌍</span>
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">World Events</h2>
-              <span className="text-xs text-[var(--text-tertiary)] ml-2">Bet on what pundits &amp; journalists will say</span>
-              <Link href="/markets?category=commentary" className="ml-auto text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors shrink-0">
-                See all →
-              </Link>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">⏰ Ending Soon</h2>
+                <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Markets resolving in the next 7 days</p>
+              </div>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-              {commentaryMarkets.map((m) => {
-                const yes = Math.round((m.yes_price ?? 0.5) * 100);
+            <div
+              className="flex gap-3 overflow-x-auto pb-2"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
+            >
+              {endingSoonMarkets.map((market) => {
+                const yes = Math.round((market.yes_price ?? 0.5) * 100);
+                const msLeft = market.resolve_at ? new Date(market.resolve_at).getTime() - Date.now() : 0;
+                const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+                const hoursLeft = Math.ceil(msLeft / (1000 * 60 * 60));
+                const isUrgent = daysLeft <= 2;
                 return (
                   <Link
-                    key={m.id}
-                    href={`/markets/${m.slug}`}
-                    className="shrink-0 flex flex-col rounded-xl p-4 transition-colors"
-                    style={{
-                      width: "240px",
-                      background: "var(--bg-surface)",
-                      border: "1px solid var(--border-subtle)",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    key={market.id}
+                    href={`/markets/${market.slug}`}
+                    className="flex w-60 shrink-0 flex-col rounded-xl p-3 transition-colors"
+                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(249,115,22,0.4)")}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
                   >
-                    <p className="mb-3 line-clamp-3 text-sm font-medium leading-snug text-[var(--text-primary)]">
-                      {m.title}
-                    </p>
-                    <div className="mt-auto flex items-center justify-between">
-                      <span
-                        className="font-display text-xl font-bold tabular-nums"
-                        style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
-                      >
-                        {yes}%
+                    <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-orange-400">{market.category}</div>
+                    <p className="mb-auto line-clamp-2 text-sm font-semibold leading-tight text-[var(--text-primary)]">{market.title}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className={`text-xs font-semibold ${isUrgent ? "text-red-400" : "text-amber-400"}`}>
+                        {hoursLeft < 24 ? `${hoursLeft}h left` : `${daysLeft}d left`}
                       </span>
-                      <span className="text-xs text-[var(--text-tertiary)]">
-                        {formatCompactCurrency(m.total_volume ?? 0)} vol
-                      </span>
+                      <span className="text-sm font-bold text-emerald-400">{yes}% YES</span>
+                    </div>
+                    <div className="mt-2 h-1 overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
+                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${yes}%` }} />
                     </div>
                   </Link>
                 );
@@ -890,128 +933,93 @@ export function HomeClient({
           </div>
         )}
 
-        {/* Featured Predictions — categorical multi-outcome markets */}
-        {categoricalMarkets.length > 0 && (
+        {/* FEATURED MARKETS */}
+        {featuredMarkets.length > 0 && (
           <div className="mb-8">
-            <div className="mb-4 flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Featured Predictions</h2>
-              <span className="text-xs text-[var(--text-tertiary)]">Multi-outcome markets</span>
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">⚡ Featured</h2>
+              <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Hand-picked by our AI</p>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {categoricalMarkets.map((market) => (
-                <div
-                  key={market.id}
-                  className="overflow-hidden rounded-xl"
-                  style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-                >
-                  <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <div>
-                      <Link href={`/markets/${market.slug}`} className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors line-clamp-1">
-                        {market.title}
-                      </Link>
-                      <span className="text-[10px] uppercase tracking-widest text-[var(--text-tertiary)]">{market.category}</span>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredMarkets.map((market) => {
+                const yes = Math.round((market.yes_price ?? 0.5) * 100);
+                return (
+                  <Link
+                    key={market.id}
+                    href={`/markets/${market.slug}`}
+                    className="flex flex-col rounded-xl p-4 transition-colors"
+                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-orange-400">{market.category}</span>
+                      {(market.total_volume ?? 0) > 0 && (
+                        <span className="ml-auto font-mono text-[10px] text-[var(--text-tertiary)]">
+                          {formatCompactCurrency(market.total_volume ?? 0)} vol
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div>
-                    {(market.market_outcomes ?? [])
-                      .sort((a, b) => b.probability - a.probability)
-                      .slice(0, 5)
-                      .map((outcome) => (
-                        <div
-                          key={outcome.id}
-                          className="flex items-center justify-between px-4 py-2.5"
-                          style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                        >
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {outcome.image_url && (
-                              <img
-                                src={outcome.image_url}
-                                alt={outcome.label}
-                                className="w-6 h-6 rounded-full object-cover shrink-0"
-                                onError={(e) => { e.currentTarget.style.display = "none"; }}
-                              />
-                            )}
-                            <span className="text-sm truncate text-[var(--text-primary)]">{outcome.label}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <span className={`text-sm font-semibold tabular-nums w-10 text-right ${outcome.probability >= 0.5 ? "text-emerald-400" : "text-[var(--text-primary)]"}`}>
-                              {Math.round(outcome.probability * 100)}%
-                            </span>
-                            <Link href={`/markets/${market.slug}`}>
-                              <button className="text-[10px] rounded px-2 py-0.5 font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-                                YES
-                              </button>
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))}
+                    <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
+                    {market.creator_slug && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-xs text-orange-400">${market.creator_slug}</span>
+                    )}
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="font-mono text-lg font-bold tabular-nums" style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}>{yes}%</span>
+                        <span className="text-xs text-[var(--text-tertiary)]">YES</span>
+                      </div>
+                      <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${yes}%` }} />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Grouped multi-outcome creator markets */}
-        {(() => {
-          const marketGroups = markets.reduce((acc, market) => {
-            if (!market.creator_slug) return acc;
-            if (!acc[market.creator_slug]) acc[market.creator_slug] = [];
-            acc[market.creator_slug].push(market);
-            return acc;
-          }, {} as Record<string, Market[]>);
-
-          const groupedCreators = Object.entries(marketGroups)
-            .filter(([, ms]) => ms.length >= 3)
-            .slice(0, 3);
-
-          if (groupedCreators.length === 0) return null;
-
-          return (
-            <div className="mb-8">
-              <div className="mb-4 flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Creator Markets</h2>
-                <span className="text-xs text-[var(--text-tertiary)]">Multiple active predictions</span>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {groupedCreators.map(([slug, creatorMarkets]) => (
-                  <div key={slug} className="rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <a href={`/creators/${slug}`} className="font-semibold text-sm text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
-                        ${slug}
-                      </a>
-                      <span className="text-xs text-[var(--text-tertiary)]">
-                        {creatorMarkets.length} active markets
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {creatorMarkets.slice(0, 4).map((market) => (
-                        <a
-                          key={market.id}
-                          href={`/markets/${market.slug}`}
-                          className="flex items-center justify-between rounded-lg p-2 transition-colors"
-                          style={{ background: "transparent" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--border-subtle)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <span className="text-sm line-clamp-1 flex-1 mr-3 text-[var(--text-primary)]">{market.title}</span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-sm font-semibold tabular-nums ${(market.yes_price ?? 0.5) > 0.5 ? "text-emerald-400" : "text-red-400"}`}>
-                              {Math.round((market.yes_price ?? 0.5) * 100)}%
-                            </span>
-                            <span className="text-[10px] text-[var(--text-tertiary)]">YES</span>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* SPORTS */}
+        {sportsMarkets.length > 0 && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">🏆 Sports</h2>
+              <Link href="/markets?category=sports" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
+                View all →
+              </Link>
             </div>
-          );
-        })()}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {sportsMarkets.map((market) => {
+                const yes = Math.round((market.yes_price ?? 0.5) * 100);
+                return (
+                  <Link
+                    key={market.id}
+                    href={`/markets/${market.slug}`}
+                    className="flex flex-col rounded-xl p-4 transition-colors"
+                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                  >
+                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-orange-400">{market.category}</div>
+                    <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="font-mono text-lg font-bold tabular-nums" style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}>{yes}%</span>
+                        <span className="text-xs text-[var(--text-tertiary)]">YES</span>
+                      </div>
+                      <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${yes}%` }} />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        {/* 4. All markets */}
+        {/* ALL MARKETS */}
         <div ref={marketsRef} className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>
           <Link href="/markets" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
