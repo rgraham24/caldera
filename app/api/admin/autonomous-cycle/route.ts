@@ -35,7 +35,7 @@ async function runCycle() {
   const marketsCreated = await bulkGenerateAndInsert(entities, apiKey, supabase);
 
   // Step 1a: Backfill creator slugs on existing markets that lack them
-  const backfilled = await backfillCreatorSlugs(supabase);
+  const backfilled = await backfillCreatorSlugs(supabase, 30);
   if (backfilled > 0) console.log(`[cycle] Backfilled creator slugs: ${backfilled}`);
 
   // Step 1b: Sports markets from real schedule data

@@ -38,6 +38,11 @@ function isGoodCreatorMatch(entityName: string, creatorSlug: string): boolean {
   return false;
 }
 
+// DeSo usernames never have hyphens — reject any slug with dashes (fake pipeline slugs)
+function isValidDesoSlug(slug: string): boolean {
+  return /^[a-zA-Z0-9_]{1,50}$/.test(slug);
+}
+
 // ─── Entity registry lookup ───────────────────────────────────────────────────
 // Primary source of truth for linking markets to creators.
 // Falls back to isGoodCreatorMatch only when registry has no verified match.
@@ -763,52 +768,65 @@ async function findCreatorSlug(
   supabase: SupabaseClient
 ): Promise<string | null> {
   const normalized = entityName.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .trim();
+    .replace(/['\-.]/g, '')
+    .replace(/\s+/g, '');
 
   const candidates = [
-    normalized.replace(/\s+/g, ''),
-    normalized.replace(/\s+/g, '_'),
-    normalized.split(' ')[0],
-    normalized.split(' ').slice(-1)[0],
-    normalized.split(' ').slice(0, 2).join(''),
-  ];
+    normalized,
+    entityName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, ''),
+    entityName.split(' ')[0].toLowerCase(),
+    entityName.split(' ').slice(-1)[0].toLowerCase(),
+  ].filter(c => c.length >= 3 && isValidDesoSlug(c));
 
-  // 1. Check entity_registry first (verified mappings)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: registryMatch } = await (supabase as any)
-    .from('entity_registry')
-    .select('creator_slug')
-    .ilike('canonical_name', `%${normalized}%`)
-    .eq('verified', true)
-    .single();
-
-  if (registryMatch?.creator_slug) return registryMatch.creator_slug;
-
-  // 2. Try exact slug matches in creators table
+  // 1. Check local DB first — only return slugs that have a real deso_username
   for (const candidate of candidates) {
-    if (!candidate || candidate.length < 3) continue;
     const { data } = await supabase
       .from('creators')
-      .select('slug')
+      .select('slug, deso_username')
       .eq('slug', candidate)
+      .not('deso_username', 'is', null)
       .single();
     if (data?.slug) return data.slug;
   }
 
-  // 3. Try partial name match in creators table
-  const lastName = normalized.split(' ').slice(-1)[0];
+  // 2. Check entity registry
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: registry } = await (supabase as any)
+    .from('entity_registry')
+    .select('creator_slug, deso_username')
+    .ilike('canonical_name', `%${entityName}%`)
+    .single();
+  if (registry?.creator_slug && isValidDesoSlug(registry.creator_slug)) {
+    return registry.creator_slug;
+  }
 
-  if (lastName && lastName.length > 3) {
-    const { data: nameMatch } = await supabase
-      .from('creators')
-      .select('slug, name')
-      .ilike('name', `%${lastName}%`)
-      .limit(3);
-
-    if (nameMatch && nameMatch.length === 1) {
-      return nameMatch[0].slug;
-    }
+  // 3. Live DeSo API lookup as last resort — auto-imports if found
+  for (const candidate of candidates.slice(0, 3)) {
+    try {
+      const res = await fetch('https://api.deso.org/api/v0/get-single-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Username: candidate }),
+      });
+      const desoData = await res.json();
+      if (desoData?.Profile?.Username) {
+        const username = desoData.Profile.Username;
+        const slug = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!isValidDesoSlug(slug)) continue;
+        // Auto-import this creator to our DB
+        await supabase.from('creators').upsert({
+          name: username,
+          slug,
+          deso_username: username,
+          deso_public_key: desoData.Profile.PublicKeyBase58Check,
+          creator_coin_price: (desoData.Profile.CoinPriceDeSoNanos / 1e9) * 4.63,
+          creator_coin_holders: desoData.Profile.CoinEntry?.NumberOfHolders ?? 0,
+          token_status: 'active_unverified',
+          is_reserved: desoData.Profile.IsReserved ?? false,
+        }, { onConflict: 'slug' });
+        return slug;
+      }
+    } catch { /* skip */ }
   }
 
   return null;
@@ -816,31 +834,33 @@ async function findCreatorSlug(
 
 // ─── Backfill creator slugs on existing markets ───────────────────────────────
 
-export async function backfillCreatorSlugs(supabase: SupabaseClient): Promise<number> {
+export async function backfillCreatorSlugs(
+  supabase: SupabaseClient,
+  limit = 50
+): Promise<number> {
   const { data: markets } = await supabase
     .from('markets')
     .select('id, title')
     .is('creator_slug', null)
     .eq('status', 'open')
-    .limit(50);
+    .limit(limit);
 
   if (!markets?.length) return 0;
 
   let updated = 0;
   for (const market of markets) {
-    // Strip common query words to get entity name
+    // Extract entity name — strip leading question words and trailing predicate
     const entityName = market.title
-      .replace(/^Will\s+/i, '')
+      .replace(/^Will (the |a |an )?/i, '')
+      .replace(/^Who will (win |be )?/i, '')
+      .split(/\s+(win|lose|sign|trade|retire|announce|beat|defeat|score|hit|make|reach|complete|be|have|get|go|do|say|post|tweet|play|stream|release|drop|sell|buy|leave|join|quit|fire|hire|ban|suspend|break|set|claim|take|become|earn|host|appear|attend|face|fight|challenge|top|lead|finish|end|start|open|close|launch|reveal|confirm|deny|admit|file)\b/i)[0]
       .replace(/\?.*$/, '')
-      .replace(/\s+(win|lose|sign|drop|release|announce|confirm|retire|beat|beat|get|be|hit|reach|make|earn|sell|buy)\b.*/i, '')
       .trim();
 
     if (!entityName || entityName.length < 3) continue;
 
     const slug = await findCreatorSlug(entityName, supabase);
-    if (!slug) continue;
-
-    if (isBlocklisted(slug, market.title)) continue;
+    if (!slug || !isValidDesoSlug(slug) || isBlocklisted(slug, market.title)) continue;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any)
@@ -849,6 +869,9 @@ export async function backfillCreatorSlugs(supabase: SupabaseClient): Promise<nu
       .eq('id', market.id);
 
     if (!error) updated++;
+
+    // Small delay to avoid hammering DeSo API
+    await new Promise(r => setTimeout(r, 200));
   }
 
   console.log(`[backfillCreatorSlugs] Updated ${updated}/${markets.length} markets`);
@@ -949,9 +972,11 @@ async function insertMarkets(
     if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
     const allowedCreatorSlug =
-      finalCreatorSlug && isBlocklisted(finalCreatorSlug, market.title)
-        ? null
-        : finalCreatorSlug;
+      finalCreatorSlug &&
+      isValidDesoSlug(finalCreatorSlug) &&
+      !isBlocklisted(finalCreatorSlug, market.title)
+        ? finalCreatorSlug
+        : null;
     if (allowedCreatorSlug) row.creator_slug = allowedCreatorSlug;
     if (teamSlug) row.team_creator_slug = teamSlug;
     if (effectiveLeagueSlug) row.league_creator_slug = effectiveLeagueSlug;

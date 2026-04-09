@@ -21,6 +21,9 @@ export function AdminActions() {
   const [validating, setValidating] = useState(false);
   const [validateResult, setValidateResult] = useState<string | null>(null);
 
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
+
   const [generatingForImported, setGeneratingForImported] = useState(false);
   const [generateForImportedResult, setGenerateForImportedResult] = useState<string | null>(null);
 
@@ -123,6 +126,25 @@ export function AdminActions() {
       setValidateResult(`Error: ${err instanceof Error ? err.message : "Validation failed"}`);
     } finally {
       setValidating(false);
+    }
+  };
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const res = await fetch("/api/admin/backfill-slugs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setBackfillResult(`✅ Fixed ${data.fixed} markets with creator tokens`);
+    } catch (err) {
+      setBackfillResult(`Error: ${err instanceof Error ? err.message : "Backfill failed"}`);
+    } finally {
+      setBackfilling(false);
     }
   };
 
@@ -612,6 +634,29 @@ export function AdminActions() {
         {validateResult && (
           <p className={`mt-3 text-xs ${validateResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {validateResult}
+          </p>
+        )}
+      </div>
+
+      {/* Fix Missing Tokens (Backfill) */}
+      <div className="rounded-2xl border border-orange-500/20 bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🔗 Fix Missing Tokens (Backfill)</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Scans up to 100 open markets with no creator token linked. Extracts entity names from titles,
+          queries local DB + entity registry + live DeSo API, and patches any matches found.
+          Safe to re-run — only updates markets that currently have no creator_slug.
+        </p>
+        <Button
+          onClick={handleBackfill}
+          disabled={backfilling}
+          className="bg-orange-500 text-white font-semibold hover:bg-orange-600"
+        >
+          {backfilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {backfilling ? "Backfilling (up to 2 min)..." : "🔗 Fix Missing Tokens (Backfill 100)"}
+        </Button>
+        {backfillResult && (
+          <p className={`mt-3 text-xs ${backfillResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {backfillResult}
           </p>
         )}
       </div>
