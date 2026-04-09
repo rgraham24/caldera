@@ -1,4 +1,5 @@
 export const ADMIN_KEYS = [
+  "BC1YLhCv5QSSghHoj41QtvdCD3gUUeQkRJa7nvp2WDbcuerugcbudDJ",
   "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7",
   "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
 ];
