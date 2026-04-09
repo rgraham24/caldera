@@ -173,7 +173,7 @@ export function TopNav() {
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Search (/)"
+                placeholder="Tokenize anything"
                 className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
                 style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
