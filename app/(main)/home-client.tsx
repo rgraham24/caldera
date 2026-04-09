@@ -827,6 +827,65 @@ export function HomeClient({
           </div>
         )}
 
+        {/* Grouped multi-outcome creator markets */}
+        {(() => {
+          const marketGroups = markets.reduce((acc, market) => {
+            if (!market.creator_slug) return acc;
+            if (!acc[market.creator_slug]) acc[market.creator_slug] = [];
+            acc[market.creator_slug].push(market);
+            return acc;
+          }, {} as Record<string, Market[]>);
+
+          const groupedCreators = Object.entries(marketGroups)
+            .filter(([, ms]) => ms.length >= 3)
+            .slice(0, 3);
+
+          if (groupedCreators.length === 0) return null;
+
+          return (
+            <div className="mb-8">
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Creator Markets</h2>
+                <span className="text-xs text-[var(--text-tertiary)]">Multiple active predictions</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {groupedCreators.map(([slug, creatorMarkets]) => (
+                  <div key={slug} className="rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <a href={`/creators/${slug}`} className="font-semibold text-sm text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
+                        ${slug}
+                      </a>
+                      <span className="text-xs text-[var(--text-tertiary)]">
+                        {creatorMarkets.length} active markets
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {creatorMarkets.slice(0, 4).map((market) => (
+                        <a
+                          key={market.id}
+                          href={`/markets/${market.slug}`}
+                          className="flex items-center justify-between rounded-lg p-2 transition-colors"
+                          style={{ background: "transparent" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--border-subtle)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <span className="text-sm line-clamp-1 flex-1 mr-3 text-[var(--text-primary)]">{market.title}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`text-sm font-semibold tabular-nums ${(market.yes_price ?? 0.5) > 0.5 ? "text-emerald-400" : "text-red-400"}`}>
+                              {Math.round((market.yes_price ?? 0.5) * 100)}%
+                            </span>
+                            <span className="text-[10px] text-[var(--text-tertiary)]">YES</span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* 4. All markets */}
         <div ref={marketsRef} className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>
@@ -936,6 +995,7 @@ export function HomeClient({
           isOpen
           onClose={() => setStakeCreator(null)}
           desoUsername={stakeCreator.deso_username}
+          profilePicUrl={stakeCreator.profile_pic_url ?? stakeCreator.image_url}
         />
       )}
     </div>

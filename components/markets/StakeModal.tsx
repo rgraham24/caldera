@@ -129,11 +129,12 @@ export function StakeModal({
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {profilePicUrl ? (
+            {(profilePicUrl ?? creator.image_url) ? (
               <img
-                src={profilePicUrl}
-                alt=""
+                src={(profilePicUrl ?? creator.image_url)!}
+                alt={creator.name}
                 className="h-10 w-10 rounded-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
               />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-caldera/20 text-sm font-bold text-caldera">
@@ -147,6 +148,12 @@ export function StakeModal({
               <p className="text-xs text-text-muted">
                 ${coinSymbol} · {formatCurrency(coinPrice)}
               </p>
+              <a
+                href={`/creators/${creator.slug}`}
+                className="text-xs text-orange-400 hover:underline"
+              >
+                View full profile →
+              </a>
             </div>
           </div>
           <button
