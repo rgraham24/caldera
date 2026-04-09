@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
-
-const rateLimitMap = new Map<string, number>();
 import {
   discoverEntities,
   bulkGenerateAndInsert,
@@ -12,6 +10,8 @@ import {
   generateMarketsForImportedCreators,
   checkPendingClaims,
 } from "@/lib/admin/pipeline";
+
+const rateLimitMap = new Map<string, number>();
 
 export const maxDuration = 300;
 

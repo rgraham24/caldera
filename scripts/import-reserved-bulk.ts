@@ -21,7 +21,7 @@ async function fetchPage(cursor: string | null): Promise<{ profiles: any[]; next
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await res.json() as any;
   const profiles = data.ProfilesFound ?? [];
   const nextCursor = profiles.length > 0 ? profiles[profiles.length - 1].PublicKeyBase58Check : null;
   return { profiles, nextCursor };
