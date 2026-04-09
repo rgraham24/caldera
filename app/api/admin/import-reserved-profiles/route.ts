@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { ADMIN_KEYS } from '@/lib/admin/market-generator';
 
 const DESO_PRICE_USD = 4.63;
 const CURSOR_KEY = 'reserved_import_cursor';
@@ -10,12 +11,17 @@ export async function POST(req: NextRequest) {
   try {
     const {
       adminPassword,
+      desoPublicKey,
       pages = VERCEL_PAGE_CAP,
       resetCursor = false,
       fullRun = false,
     } = await req.json();
 
-    if (adminPassword !== process.env.ADMIN_PASSWORD) {
+    const isAdmin =
+      ADMIN_KEYS.includes(desoPublicKey || '') ||
+      !!(process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
+
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
