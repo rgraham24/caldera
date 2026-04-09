@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Copy, Check } from "lucide-react";
 import { slugify } from "@/lib/utils";
 
-const ADMIN_PASSWORD = "caldera-admin-2026";
+const ADMIN_PASSWORD = "caldera2026";
 
 export function AdminActions() {
   const [cycling, setCycling] = useState(false);
