@@ -543,10 +543,19 @@ function MarketCard({ market }: { market: Market }) {
       </div>
 
       <Link href={`/markets/${market.slug}`} className="flex-1">
-        <p className="mb-3 line-clamp-2 text-sm font-medium leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
+        <p className="mb-1 line-clamp-2 text-sm font-medium leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
           {market.title}
         </p>
       </Link>
+      {market.creator_slug && (
+        <a
+          href={`/creators/${market.creator_slug}`}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 text-xs text-orange-400 hover:underline mb-2"
+        >
+          🪙 {market.creator_slug}
+        </a>
+      )}
 
       <div className="mb-1 flex items-center justify-between">
         <span

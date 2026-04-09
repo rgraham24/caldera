@@ -6,29 +6,29 @@ export default async function HomePage() {
   const supabase = await createClient();
 
   const [
-    { data: heroMarkets },
-    { data: breakingMarkets },
+    { data: heroRaw },
+    { data: breakingRaw },
     { data: trendingCreators },
     { data: tokenStripCreators },
-    { data: initialMarkets },
+    { data: initialRaw },
   ] = await Promise.all([
-    // Hero carousel — up to 8 is_hero markets
+    // FIX 4: Hero carousel — top 8 open markets by volume (is_hero flag OR has volume)
     supabase
       .from("markets")
       .select("*")
-      .eq("is_hero", true)
       .eq("status", "open")
+      .or("is_hero.eq.true,total_volume.gt.0")
       .order("total_volume", { ascending: false })
       .limit(8),
 
-    // Breaking — 3 markets resolving soonest
+    // Breaking — fetch 6 so dedup can still yield 3
     supabase
       .from("markets")
       .select("*")
       .eq("status", "open")
       .gt("resolve_at", new Date().toISOString())
       .order("resolve_at", { ascending: true })
-      .limit(3),
+      .limit(6),
 
     // Trending tokens sidebar — top 5 by creator coin price
     supabase
@@ -45,7 +45,7 @@ export default async function HomePage() {
       .order("creator_coin_price", { ascending: false })
       .limit(20),
 
-    // Initial market grid — newest first (volume is seeded/zero until real trading)
+    // Initial market grid — newest first
     supabase
       .from("markets")
       .select("*")
@@ -54,13 +54,40 @@ export default async function HomePage() {
       .limit(20),
   ]);
 
+  // FIX 1: Dedup breaking markets by id, keep first 3
+  const breakingMarkets = (breakingRaw ?? [])
+    .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i)
+    .slice(0, 3) as Market[];
+
+  // FIX 3: Look up creator slugs for markets that have a creator_id
+  const allRaw = [...(heroRaw ?? []), ...(initialRaw ?? [])];
+  const creatorIds = [
+    ...new Set(
+      allRaw.map((m) => m.creator_id).filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const creatorSlugMap: Record<string, string> = {};
+  if (creatorIds.length > 0) {
+    const { data: creatorRows } = await supabase
+      .from("creators")
+      .select("id, slug")
+      .in("id", creatorIds);
+    for (const c of creatorRows ?? []) {
+      creatorSlugMap[c.id] = c.slug;
+    }
+  }
+  const withSlug = (m: Market): Market => ({
+    ...m,
+    creator_slug: m.creator_id ? (creatorSlugMap[m.creator_id] ?? null) : null,
+  });
+
   return (
     <HomeClient
-      heroMarkets={(heroMarkets ?? []) as Market[]}
-      breakingMarkets={(breakingMarkets ?? []) as Market[]}
+      heroMarkets={(heroRaw ?? []).map(withSlug)}
+      breakingMarkets={breakingMarkets}
       trendingCreators={(trendingCreators ?? []) as Creator[]}
       tokenStripCreators={(tokenStripCreators ?? []) as Creator[]}
-      initialMarkets={(initialMarkets ?? []) as Market[]}
+      initialMarkets={(initialRaw ?? []).map(withSlug)}
     />
   );
 }

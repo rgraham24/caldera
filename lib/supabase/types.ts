@@ -188,6 +188,8 @@ export type Database = {
           resolution_source: string | null;
           created_at: string;
           updated_at: string;
+          /** Virtual field — populated server-side via creator join, not stored in DB */
+          creator_slug?: string | null;
         };
         Insert: {
           id?: string;
