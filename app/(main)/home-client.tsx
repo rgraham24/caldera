@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import type { Market, Creator } from "@/types";
-import { useAppStore } from "@/store";
 import {
   formatCurrency,
   formatCompactCurrency,
@@ -638,43 +636,6 @@ function MarketCard({ market }: { market: Market }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-// SearchParamsSyncer is isolated so useSearchParams() only suspends this null-rendering
-// component — the rest of HomeClient renders immediately with server-provided data.
-function SearchParamsSyncer({
-  onSync,
-}: {
-  onSync: (filter: string, sort: string) => void;
-}) {
-  const searchParams = useSearchParams();
-  const onSyncRef = useRef(onSync);
-  onSyncRef.current = onSync;
-
-  useEffect(() => {
-    const cat = searchParams.get("category");
-    const sortParam = searchParams.get("sort");
-    if (!cat && !sortParam) return;
-
-    let newFilter = "all";
-    let newSort = "newest";
-
-    if (cat) {
-      newFilter = cat;
-    } else if (sortParam === "breaking") {
-      newSort = "breaking";
-    } else if (sortParam === "new") {
-      newSort = "newest";
-    } else if (sortParam === "following") {
-      newSort = "following";
-    } else {
-      newSort = "volume";
-    }
-
-    onSyncRef.current(newFilter, newSort);
-  }, [searchParams]);
-
-  return null;
-}
-
 export function HomeClient({
   heroMarkets,
   breakingMarkets,
@@ -683,7 +644,7 @@ export function HomeClient({
   initialMarkets,
 }: HomeClientProps) {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState("volume");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
   const [offset, setOffset] = useState(PAGE_SIZE);
   const [hasMore, setHasMore] = useState(initialMarkets.length === PAGE_SIZE);
@@ -692,9 +653,6 @@ export function HomeClient({
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const marketsRef = useRef<HTMLDivElement>(null);
-  const isConnected = useAppStore((s) => s.isConnected);
-  const desoPublicKey = useAppStore((s) => s.desoPublicKey);
-  const [followedCount, setFollowedCount] = useState<number | null>(null);
   const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
   const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
   const [sportsMarkets, setSportsMarkets] = useState<Market[]>([]);
@@ -738,16 +696,6 @@ export function HomeClient({
     }).catch(() => {});
   }, []);
 
-  // When Following tab is active and user is connected, check if they follow anyone
-  useEffect(() => {
-    if (sort !== "following") { setFollowedCount(null); return; }
-    if (!isConnected || !desoPublicKey) { setFollowedCount(0); return; }
-    fetch(`/api/follows?desoPublicKey=${desoPublicKey}`)
-      .then((r) => r.json())
-      .then(({ data }) => setFollowedCount(Array.isArray(data) ? data.length : 0))
-      .catch(() => setFollowedCount(0));
-  }, [sort, isConnected, desoPublicKey]);
-
   const fetchMarkets = useCallback(
     async (category: string, sortVal: string, off: number, append: boolean) => {
       abortRef.current?.abort();
@@ -765,14 +713,8 @@ export function HomeClient({
         });
         const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal;
         params.set("sort", effectiveSort);
-        if (category !== "all" && category !== "resolving_soon" && category !== "breaking") {
+        if (category !== "all" && category !== "resolving_soon") {
           params.set("category", category);
-        }
-        // Following feed: send desoPublicKey so the API can filter by followed creators
-        if (effectiveSort === "following") {
-          const { useAppStore } = await import("@/store");
-          const key = useAppStore.getState().desoPublicKey;
-          if (key) params.set("desoPublicKey", key);
         }
 
         const res = await fetch(`/api/markets?${params}`, { signal: ctrl.signal });
@@ -792,34 +734,8 @@ export function HomeClient({
     []
   );
 
-  const handleFilterChange = (f: string) => {
-    setActiveFilter(f);
-    setOffset(0);
-    fetchMarkets(f, sort, 0, false);
-  };
-
-  const handleSortChange = (s: string) => {
-    setSort(s);
-    setOffset(0);
-    fetchMarkets(activeFilter, s, 0, false);
-  };
-
-  const handleParamsSync = useCallback((filter: string, sort: string) => {
-    setActiveFilter(filter);
-    setSort(sort);
-    setOffset(0);
-    fetchMarkets(filter, sort, 0, false);
-    setTimeout(() => {
-      marketsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
-  }, [fetchMarkets]);
-
   return (
     <div>
-      {/* URL param sync — isolated in Suspense so it doesn't suspend the whole page */}
-      <Suspense fallback={null}>
-        <SearchParamsSyncer onSync={handleParamsSync} />
-      </Suspense>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* Hero section */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
@@ -991,33 +907,7 @@ export function HomeClient({
         </div>
 
         {markets.length === 0 && !loading && (
-          sort === "following" ? (
-            !isConnected ? (
-              <div className="flex flex-col items-center gap-4 py-16 text-center">
-                <p className="text-sm text-[var(--text-tertiary)]">Connect your DeSo wallet to see markets from creators you follow</p>
-                <button
-                  onClick={() => import("@/lib/deso/auth").then(m => m.connectDeSoWallet())}
-                  className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
-                >
-                  Connect wallet
-                </button>
-              </div>
-            ) : followedCount === 0 ? (
-              <div className="flex flex-col items-center gap-4 py-16 text-center">
-                <p className="text-sm text-[var(--text-tertiary)]">You&apos;re not following anyone yet. Browse Tokens to follow creators and see their markets here.</p>
-                <Link
-                  href="/creators"
-                  className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
-                >
-                  Browse Tokens →
-                </Link>
-              </div>
-            ) : (
-              <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets yet for creators you follow. Check back soon.</p>
-            )
-          ) : (
-            <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets found</p>
-          )
+          <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets found</p>
         )}
 
         {hasMore && (

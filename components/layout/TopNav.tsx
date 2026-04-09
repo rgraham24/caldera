@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,9 @@ type Tab =
 
 const CENTER_TABS: Tab[] = [
   { id: "trending", label: "Trending", href: "/", icon: TrendingUp, title: "Highest volume markets" },
-  { id: "breaking", label: "Breaking", href: "/?sort=breaking", icon: Zap, title: "Resolving within 7 days" },
-  { id: "new", label: "New", href: "/?sort=new", icon: Clock, title: "Recently created" },
-  { id: "following", label: "Following", href: "/?sort=following", title: "Markets for creators you follow" },
+  { id: "breaking", label: "Breaking", href: "/breaking", icon: Zap, title: "Resolving within 7 days" },
+  { id: "new", label: "New", href: "/new", icon: Clock, title: "Recently created" },
+  { id: "following", label: "Following", href: "/following", title: "Markets for creators you follow" },
   { divider: true },
   { id: "tokens", label: "Tokens", href: "/tokens" },
   { id: "creators", label: "Creators", href: "/creators" },
@@ -34,7 +34,6 @@ const CENTER_TABS: Tab[] = [
 
 function CenterTabs() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const activeId = (() => {
     if (pathname === "/tokens") return "tokens";
@@ -44,12 +43,11 @@ function CenterTabs() {
     if (pathname === "/politics") return "politics";
     if (pathname === "/tech") return "tech";
     if (pathname === "/entertainment") return "entertainment";
-    if (pathname !== "/") return null;
-    const sort = searchParams.get("sort");
-    if (sort === "breaking") return "breaking";
-    if (sort === "new") return "new";
-    if (sort === "following") return "following";
-    return "trending";
+    if (pathname === "/breaking") return "breaking";
+    if (pathname === "/new") return "new";
+    if (pathname === "/following") return "following";
+    if (pathname === "/") return "trending";
+    return null;
   })();
 
   return (
