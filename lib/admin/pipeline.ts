@@ -1347,7 +1347,17 @@ export async function insertCategoricalMarket(
     return;
   }
 
-  const outcomesData = market.outcomes.map((outcome, i) => ({
+  const cleanedOutcomes = market.outcomes.filter(o =>
+    !/(other|field|someone|catch.all|tbd|unknown)/i.test(o.label)
+  );
+
+  const total = cleanedOutcomes.reduce((sum, o) => sum + o.probability, 0);
+  const normalized = cleanedOutcomes.map(o => ({
+    ...o,
+    probability: o.probability / total,
+  }));
+
+  const outcomesData = normalized.map((outcome, i) => ({
     market_id: marketRow.id,
     label: outcome.label,
     slug: outcome.slug,

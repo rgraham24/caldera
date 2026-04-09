@@ -217,7 +217,8 @@ Return JSON only:
     {"label": "Field/Other", "slug": "field", "probability": 0.10}
   ]
 }
-Probabilities must sum to exactly 1.0. Use real names and realistic odds.`,
+Probabilities must sum to exactly 1.0. Use real names and realistic odds.
+IMPORTANT: Do NOT include any 'Other', 'Field', 'Someone else', or catch-all outcomes. Only include real named people or teams. If you need to limit the list, just use fewer outcomes — maximum 8, minimum 3, all must be real named entities.`,
 
     politics: `Generate a categorical prediction market about: "${topic}"
 Return JSON only:
@@ -231,12 +232,14 @@ Return JSON only:
     {"label": "Other", "slug": "other", "probability": 0.10}
   ]
 }
-Use real candidate names and realistic current odds.`,
+Use real candidate names and realistic current odds.
+IMPORTANT: Do NOT include any 'Other', 'Field', 'Someone else', or catch-all outcomes. Only include real named people or teams. If you need to limit the list, just use fewer outcomes — maximum 8, minimum 3, all must be real named entities.`,
 
     entertainment: `Generate a categorical prediction market about: "${topic}"
 Return JSON only with title, description, category: "Entertainment",
 and outcomes array with label, slug, probability fields.
-Probabilities must sum to 1.0.`,
+Probabilities must sum to 1.0.
+IMPORTANT: Do NOT include any 'Other', 'Field', 'Someone else', or catch-all outcomes. Only include real named people or teams. If you need to limit the list, just use fewer outcomes — maximum 8, minimum 3, all must be real named entities.`,
   };
 
   try {
