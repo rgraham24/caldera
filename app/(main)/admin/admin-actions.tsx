@@ -38,8 +38,8 @@ export function AdminActions() {
   const [marqueeResult, setMarqueeResult] = useState<string | null>(null);
 
   const [reservedImporting, setReservedImporting] = useState(false);
-  const [reservedFullImporting, setReservedFullImporting] = useState(false);
   const [reservedResult, setReservedResult] = useState<string | null>(null);
+  const [reservedPass, setReservedPass] = useState<number | null>(null);
 
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -155,9 +155,8 @@ export function AdminActions() {
     }
   };
 
-  const handleReservedImport = async (opts: { resetCursor?: boolean; fullRun?: boolean } = {}) => {
-    const isFull = opts.fullRun === true;
-    if (isFull) { setReservedFullImporting(true); } else { setReservedImporting(true); }
+  const handleReservedImport = async (opts: { resetPass?: boolean } = {}) => {
+    setReservedImporting(true);
     setReservedResult(null);
     try {
       const res = await fetch("/api/admin/import-reserved-profiles", {
@@ -165,21 +164,19 @@ export function AdminActions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           adminPassword: ADMIN_PASSWORD,
-          pages: isFull ? 150 : 20,
-          resetCursor: opts.resetCursor ?? false,
-          fullRun: isFull,
+          resetPass: opts.resetPass ?? false,
         }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
+      setReservedPass(json.nextPass ?? null);
       setReservedResult(
-        `✅ ${json.imported} imported · ${json.skipped} skipped · from: ${json.resumedFrom} · ${json.message}`
+        `✅ ${json.imported} imported · ${json.skipped} skipped · ${json.profilesFetched} fetched · ${json.message}`
       );
     } catch (err) {
       setReservedResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
     } finally {
       setReservedImporting(false);
-      setReservedFullImporting(false);
     }
   };
 
@@ -515,35 +512,30 @@ export function AdminActions() {
 
       {/* Import Reserved Profiles */}
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">🔖 Import Reserved Profiles (DeSo On-Chain)</h2>
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🔖 Import Reserved Profiles (28-Pass Strategy)</h2>
         <p className="mb-3 text-xs text-text-muted">
-          Fetches DeSo profiles ordered by coin price, filters to IsReserved=true or &gt;50 holders. Cursor is saved between runs — each click advances to the next batch.
+          28 passes total: pass 1 = top by price, pass 2 = newest, passes 3–28 = username prefix a→z. Each click runs the next pass (~100 profiles). Click 28 times for full coverage.
         </p>
         <div className="flex flex-wrap gap-2 mb-3">
           <Button
             onClick={() => handleReservedImport()}
-            disabled={reservedImporting || reservedFullImporting}
+            disabled={reservedImporting}
             className="bg-caldera text-background font-semibold hover:bg-caldera/90"
           >
             {reservedImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {reservedImporting ? "Importing..." : "Next 2,000 Profiles (20 pages)"}
+            {reservedImporting
+              ? "Importing..."
+              : reservedPass
+              ? `Import Next Batch (Pass ${reservedPass} of 28)`
+              : "Import Next Batch (Pass 1 of 28)"}
           </Button>
           <Button
-            onClick={() => handleReservedImport({ fullRun: true })}
-            disabled={reservedImporting || reservedFullImporting}
+            onClick={() => handleReservedImport({ resetPass: true })}
+            disabled={reservedImporting}
             variant="outline"
             className="border-border-subtle text-text-muted hover:text-text-primary text-xs"
           >
-            {reservedFullImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {reservedFullImporting ? "Running..." : "Full Run — 150 pages (local only)"}
-          </Button>
-          <Button
-            onClick={() => handleReservedImport({ resetCursor: true })}
-            disabled={reservedImporting || reservedFullImporting}
-            variant="outline"
-            className="border-border-subtle text-text-muted hover:text-text-primary text-xs"
-          >
-            Restart from Beginning
+            Restart from Pass 1
           </Button>
         </div>
         {reservedResult && (
