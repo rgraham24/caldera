@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import-reserved": "npx ts-node --project tsconfig.json scripts/import-reserved-bulk.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
