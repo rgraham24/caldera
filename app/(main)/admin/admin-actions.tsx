@@ -38,6 +38,7 @@ export function AdminActions() {
   const [marqueeResult, setMarqueeResult] = useState<string | null>(null);
 
   const [reservedImporting, setReservedImporting] = useState(false);
+  const [reservedFullImporting, setReservedFullImporting] = useState(false);
   const [reservedResult, setReservedResult] = useState<string | null>(null);
 
   const [topic, setTopic] = useState("");
@@ -154,24 +155,31 @@ export function AdminActions() {
     }
   };
 
-  const handleReservedImport = async () => {
-    setReservedImporting(true);
+  const handleReservedImport = async (opts: { resetCursor?: boolean; fullRun?: boolean } = {}) => {
+    const isFull = opts.fullRun === true;
+    if (isFull) { setReservedFullImporting(true); } else { setReservedImporting(true); }
     setReservedResult(null);
     try {
       const res = await fetch("/api/admin/import-reserved-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, pages: 50 }),
+        body: JSON.stringify({
+          adminPassword: ADMIN_PASSWORD,
+          pages: isFull ? 150 : 20,
+          resetCursor: opts.resetCursor ?? false,
+          fullRun: isFull,
+        }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setReservedResult(
-        `✅ ${json.imported} imported · ${json.skipped} skipped · resumed from: ${json.resumedFrom} · ${json.message}`
+        `✅ ${json.imported} imported · ${json.skipped} skipped · from: ${json.resumedFrom} · ${json.message}`
       );
     } catch (err) {
       setReservedResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
     } finally {
       setReservedImporting(false);
+      setReservedFullImporting(false);
     }
   };
 
@@ -508,19 +516,38 @@ export function AdminActions() {
       {/* Import Reserved Profiles */}
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">🔖 Import Reserved Profiles (DeSo On-Chain)</h2>
-        <p className="mb-4 text-xs text-text-muted">
-          Fetches profiles from DeSo ordered by coin price, filters to IsReserved=true or &gt;50 holders, and imports up to 2,000 profiles (20 pages × 100). Safe to re-run (idempotent).
+        <p className="mb-3 text-xs text-text-muted">
+          Fetches DeSo profiles ordered by coin price, filters to IsReserved=true or &gt;50 holders. Cursor is saved between runs — each click advances to the next batch.
         </p>
-        <Button
-          onClick={handleReservedImport}
-          disabled={reservedImporting}
-          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
-        >
-          {reservedImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {reservedImporting ? "Importing Reserved Profiles..." : "Import Reserved Profiles"}
-        </Button>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <Button
+            onClick={() => handleReservedImport()}
+            disabled={reservedImporting || reservedFullImporting}
+            className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+          >
+            {reservedImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {reservedImporting ? "Importing..." : "Next 2,000 Profiles (20 pages)"}
+          </Button>
+          <Button
+            onClick={() => handleReservedImport({ fullRun: true })}
+            disabled={reservedImporting || reservedFullImporting}
+            variant="outline"
+            className="border-border-subtle text-text-muted hover:text-text-primary text-xs"
+          >
+            {reservedFullImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {reservedFullImporting ? "Running..." : "Full Run — 150 pages (local only)"}
+          </Button>
+          <Button
+            onClick={() => handleReservedImport({ resetCursor: true })}
+            disabled={reservedImporting || reservedFullImporting}
+            variant="outline"
+            className="border-border-subtle text-text-muted hover:text-text-primary text-xs"
+          >
+            Restart from Beginning
+          </Button>
+        </div>
         {reservedResult && (
-          <p className={`mt-3 text-xs ${reservedResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+          <p className={`mt-1 text-xs ${reservedResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {reservedResult}
           </p>
         )}

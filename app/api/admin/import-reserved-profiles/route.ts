@@ -3,10 +3,18 @@ import { createClient } from '@/lib/supabase/server';
 
 const DESO_PRICE_USD = 4.63;
 const CURSOR_KEY = 'reserved_import_cursor';
+// Vercel safe limit per run; fullRun bypasses this
+const VERCEL_PAGE_CAP = 20;
 
 export async function POST(req: NextRequest) {
   try {
-    const { adminPassword, pages = 50, resetCursor = false } = await req.json();
+    const {
+      adminPassword,
+      pages = VERCEL_PAGE_CAP,
+      resetCursor = false,
+      fullRun = false,
+    } = await req.json();
+
     if (adminPassword !== process.env.ADMIN_PASSWORD) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -15,20 +23,24 @@ export async function POST(req: NextRequest) {
     let imported = 0;
     let skipped = 0;
 
-    // Load saved cursor unless caller requests a fresh start
+    // Load saved cursor unless caller requests a fresh start.
+    // Use maybeSingle() — single() errors when no row exists yet.
     let cursor: string | null = null;
     if (!resetCursor) {
       const { data: cursorData } = await supabase
         .from('platform_config')
         .select('value')
         .eq('key', CURSOR_KEY)
-        .single();
+        .maybeSingle();
+      // Empty string means "start from beginning" (end-of-list sentinel)
       cursor = cursorData?.value || null;
     }
 
     const startCursor = cursor;
+    // fullRun allows up to 150 pages (15,000 profiles); will time out on Vercel
+    const pageLimit = fullRun ? Math.min(pages, 150) : Math.min(pages, VERCEL_PAGE_CAP);
 
-    for (let i = 0; i < Math.min(pages, 50); i++) {
+    for (let i = 0; i < pageLimit; i++) {
       const body: Record<string, unknown> = {
         NumToFetch: 100,
         OrderBy: 'influencer_coin_price',
@@ -46,7 +58,7 @@ export async function POST(req: NextRequest) {
       const data = await res.json();
       const profiles: Record<string, unknown>[] = data.ProfilesFound ?? [];
       if (!profiles.length) {
-        // Reached the end — reset cursor so next run starts over
+        // Reached end of DeSo — reset so next run starts over
         cursor = null;
         break;
       }
@@ -60,10 +72,9 @@ export async function POST(req: NextRequest) {
         const holders = (coinEntry?.NumberOfHolders as number) || 0;
         const founderReward = (coinEntry?.CreatorBasisPoints as number) || 0;
 
-        // Only import reserved profiles or high-holder profiles
         if (!isReserved && holders < 50) { skipped++; continue; }
 
-        const slug = (username as string).toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const slug = username.toLowerCase().replace(/[^a-z0-9]+/g, '');
         const publicKey = p.PublicKeyBase58Check as string;
         const coinPriceNanos = (p.CoinPriceDeSoNanos as number) || 0;
         const coinPriceUSD = (coinPriceNanos / 1e9) * DESO_PRICE_USD;
@@ -78,7 +89,7 @@ export async function POST(req: NextRequest) {
           creator_coin_price: coinPriceUSD,
           creator_coin_holders: holders,
           creator_coin_market_cap: coinPriceUSD * holders,
-          token_status: isReserved ? 'active_unverified' : 'active_unverified',
+          token_status: 'active_unverified',
           is_reserved: isReserved,
           founder_reward_basis_points: founderReward,
         }, { onConflict: 'slug', ignoreDuplicates: false });
@@ -91,24 +102,23 @@ export async function POST(req: NextRequest) {
       if (!cursor) break;
     }
 
-    // Persist cursor for next run (empty string = start from beginning next time)
-    await supabase.from('platform_config').upsert({
-      key: CURSOR_KEY,
-      value: cursor ?? '',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'key' });
+    // Persist cursor for next run. Empty string = restart from beginning next time.
+    await supabase.from('platform_config').upsert(
+      { key: CURSOR_KEY, value: cursor ?? '', updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
 
     const reachedEnd = !cursor;
 
     return NextResponse.json({
       imported,
       skipped,
-      pages,
-      resumedFrom: startCursor ? `${startCursor.substring(0, 12)}...` : 'beginning',
-      nextCursor: cursor ? `${cursor.substring(0, 12)}...` : null,
+      pagesRun: pageLimit,
+      resumedFrom: startCursor ? `${startCursor.substring(0, 16)}...` : 'beginning',
+      nextCursor: cursor ? `${cursor.substring(0, 16)}...` : null,
       message: reachedEnd
-        ? 'Reached end of DeSo profiles — next run will start from beginning'
-        : 'Run again to import the next batch',
+        ? 'Reached end of DeSo profiles — next run restarts from beginning'
+        : `Run again to import the next ${pageLimit * 100} profiles`,
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
