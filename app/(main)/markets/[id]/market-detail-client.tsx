@@ -170,11 +170,6 @@ export function MarketDetailClient({
                       </div>
                     ))}
                 </div>
-                {selectedOutcome && (
-                  <p className="mt-3 text-xs text-text-muted">
-                    Selected: <span className="font-semibold text-text-primary">{selectedOutcome.label}</span> — use the trading panel to confirm.
-                  </p>
-                )}
               </div>
             ) : isResolved ? (
               <div className="flex items-baseline gap-3">
@@ -312,7 +307,7 @@ export function MarketDetailClient({
         <div className="w-full lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
             {market.status === "open" && (
-              <TradeTicket market={market} feeConfig={feeConfig} onTradeComplete={refreshBalance} />
+              <TradeTicket market={market} feeConfig={feeConfig} onTradeComplete={refreshBalance} selectedOutcome={selectedOutcome} />
             )}
 
             <div className="flex items-center justify-center gap-3">

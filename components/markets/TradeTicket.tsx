@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { Market } from "@/types";
+import type { Market, MarketOutcome } from "@/types";
 import { getTradeQuote } from "@/lib/trading/amm";
 import { calculateFees, getMarketFeeType } from "@/lib/fees/calculator";
 import { formatCurrency, formatPercentDecimal, cn } from "@/lib/utils";
@@ -20,12 +20,14 @@ type TradeTicketProps = {
   market: Market;
   feeConfig: Record<string, string>;
   onTradeComplete?: () => void;
+  selectedOutcome?: MarketOutcome | null;
 };
 
 export function TradeTicket({
   market,
   feeConfig,
   onTradeComplete,
+  selectedOutcome,
 }: TradeTicketProps) {
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
@@ -100,9 +102,35 @@ export function TradeTicket({
     }
   };
 
+  const isCategorical = market.market_type === "categorical";
+  const yesPrice = isCategorical && selectedOutcome
+    ? selectedOutcome.probability
+    : market.yes_price;
+  const noPrice = isCategorical && selectedOutcome
+    ? 1 - selectedOutcome.probability
+    : market.no_price;
+
   return (
     <>
     <div className="relative trade-panel-glow rounded-2xl border border-cyan-500/20 bg-surface p-5">
+      {/* Categorical: no outcome selected yet */}
+      {isCategorical && !selectedOutcome ? (
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          ← Select an outcome to trade
+        </div>
+      ) : (
+      <>
+      {/* Categorical: selected outcome header */}
+      {isCategorical && selectedOutcome && (
+        <div className="mb-3 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+          <div className="text-xs text-orange-400 font-medium">Trading on</div>
+          <div className="text-sm font-semibold">{selectedOutcome.label}</div>
+          {selectedOutcome.creator_slug && (
+            <div className="text-xs text-muted-foreground">${selectedOutcome.creator_slug} gets auto-buyback</div>
+          )}
+        </div>
+      )}
+
       {/* Side toggle */}
       <div className="mb-5 flex gap-2">
         <button
@@ -114,7 +142,7 @@ export function TradeTicket({
               : "text-text-muted border border-transparent hover:text-text-primary hover:border-border-subtle"
           )}
         >
-          Yes {Math.round(market.yes_price * 100)}¢
+          Yes {Math.round(yesPrice * 100)}¢
         </button>
         <button
           onClick={() => setSide("no")}
@@ -125,7 +153,7 @@ export function TradeTicket({
               : "text-text-muted border border-transparent hover:text-text-primary hover:border-border-subtle"
           )}
         >
-          No {Math.round(market.no_price * 100)}¢
+          No {Math.round(noPrice * 100)}¢
         </button>
       </div>
 
@@ -290,6 +318,8 @@ export function TradeTicket({
           ? "Market Closed"
           : !isConnected
           ? "Connect to Trade"
+          : isCategorical && selectedOutcome && side === "yes"
+          ? `Buy YES — ${selectedOutcome.label}`
           : `Buy ${side.toUpperCase()}`}
       </Button>
 
@@ -340,6 +370,9 @@ export function TradeTicket({
             Got it, let me trade →
           </Button>
         </div>
+      )}
+
+      </>
       )}
 
     </div>
