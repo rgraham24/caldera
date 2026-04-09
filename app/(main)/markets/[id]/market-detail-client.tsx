@@ -37,6 +37,7 @@ export function MarketDetailClient({
   const [rulesOpen, setRulesOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
+  const [news, setNews] = useState<Array<{ title: string; url: string; source: string; age: string }>>([]);
   const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
 
   // Fetch categorical outcomes client-side when needed
@@ -51,6 +52,15 @@ export function MarketDetailClient({
       })
       .catch(() => {});
   }, [market.id, market.market_type]);
+
+  // Fetch related news headlines
+  useEffect(() => {
+    if (!market?.id) return;
+    fetch(`/api/markets/${market.id}/news`)
+      .then((r) => r.json())
+      .then((d: { articles?: Array<{ title: string; url: string; source: string; age: string }> }) => setNews(d.articles ?? []))
+      .catch(() => {});
+  }, [market?.id]);
 
   // Active balance polling (10s) on trade page — immediate refresh after trade
   const { refresh: refreshBalance } = useDesoBalance(
@@ -82,6 +92,35 @@ export function MarketDetailClient({
               </p>
             )}
           </div>
+
+          {/* Related news */}
+          {news.length > 0 && (
+            <div className="mt-4 mb-6 space-y-2">
+              <h3 className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                Related News
+              </h3>
+              {news.map((article, i) => (
+                <a
+                  key={i}
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-2 p-2.5 rounded-lg hover:bg-surface-2 transition-colors group"
+                  style={{ border: "1px solid var(--border-subtle)" }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium line-clamp-2 group-hover:text-caldera transition-colors">
+                      {article.title}
+                    </div>
+                    <div className="text-xs text-text-muted mt-0.5">
+                      {article.source}{article.age && ` · ${article.age}`}
+                    </div>
+                  </div>
+                  <div className="text-text-muted shrink-0 mt-0.5">→</div>
+                </a>
+              ))}
+            </div>
+          )}
 
           {/* Unclaimed token banner */}
           {creator && (creator.token_status === "shadow" || creator.token_status === "needs_review" || !creator.token_status) && (

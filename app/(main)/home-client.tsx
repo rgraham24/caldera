@@ -38,6 +38,7 @@ function HeroSection({ markets }: { markets: Market[] }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
   const chipContainerRef = useRef<HTMLDivElement>(null);
+  const [heroNews, setHeroNews] = useState<{ title: string; url: string; source: string; age: string } | null>(null);
 
   // Auto-rotate every 6 seconds with crossfade
   useEffect(() => {
@@ -63,6 +64,19 @@ function HeroSection({ markets }: { markets: Market[] }) {
     const btnCenter = activeBtn.offsetLeft + activeBtn.offsetWidth / 2;
     container.scrollTo({ left: btnCenter - containerCenter, behavior: "smooth" });
   }, [idx]);
+
+  // Fetch top news headline for current hero market
+  useEffect(() => {
+    const m = markets[idx];
+    if (!m?.id) return;
+    setHeroNews(null);
+    fetch(`/api/markets/${m.id}/news`)
+      .then((r) => r.json())
+      .then((d: { articles?: Array<{ title: string; url: string; source: string; age: string }> }) => {
+        setHeroNews(d.articles?.[0] ?? null);
+      })
+      .catch(() => {});
+  }, [idx, markets]);
 
   if (markets.length === 0) return null;
 
@@ -172,6 +186,19 @@ function HeroSection({ markets }: { markets: Market[] }) {
           <div className="text-right font-mono text-xs text-[var(--text-tertiary)]">
             {formatCompactCurrency(m.total_volume ?? 0)} vol
           </div>
+
+          {/* News teaser */}
+          {heroNews && (
+            <a
+              href={heroNews.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 mt-3 text-xs text-muted-foreground hover:text-orange-400 transition-colors"
+            >
+              <span className="font-medium text-orange-400 shrink-0">{heroNews.source}</span>
+              <span className="line-clamp-1 text-[var(--text-tertiary)]">{heroNews.title}</span>
+            </a>
+          )}
         </div>
       </div>
 
