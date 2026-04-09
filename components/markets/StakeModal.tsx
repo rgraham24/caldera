@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import type { Creator } from "@/types";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -128,7 +129,7 @@ export function StakeModal({
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border-subtle bg-surface-2 p-6 shadow-2xl">
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link href={`/creators/${creator.slug}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
             {(profilePicUrl ?? creator.image_url) ? (
               <img
                 src={(profilePicUrl ?? creator.image_url)!}
@@ -148,14 +149,8 @@ export function StakeModal({
               <p className="text-xs text-text-muted">
                 ${coinSymbol} · {formatCurrency(coinPrice)}
               </p>
-              <a
-                href={`/creators/${creator.slug}`}
-                className="text-xs text-orange-400 hover:underline"
-              >
-                View full profile →
-              </a>
             </div>
-          </div>
+          </Link>
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-text-muted hover:bg-surface hover:text-text-primary transition-colors"
