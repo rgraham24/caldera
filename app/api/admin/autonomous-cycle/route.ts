@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
+
+const rateLimitMap = new Map<string, number>();
 import {
   discoverEntities,
   bulkGenerateAndInsert,
@@ -119,6 +121,14 @@ export async function GET(req: NextRequest) {
 
 // POST — manual trigger from admin panel
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  const now = Date.now();
+  const last = rateLimitMap.get(ip) ?? 0;
+  if (now - last < 60000) {
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
+  }
+  rateLimitMap.set(ip, now);
+
   try {
     const { desoPublicKey, adminPassword } = await req.json();
 

@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Copy, Check } from "lucide-react";
 import { slugify } from "@/lib/utils";
-
-const ADMIN_PASSWORD = "caldera2026";
+import { useAppStore } from "@/store";
 
 export function AdminActions() {
+  const { desoPublicKey } = useAppStore();
   const [cycling, setCycling] = useState(false);
   const [cycleStep, setCycleStep] = useState<string | null>(null);
   const [cycleResult, setCycleResult] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/autonomous-cycle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -95,7 +95,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/curate-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -114,7 +114,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/validate-existing-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -148,7 +148,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/import-marquee-profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -170,7 +170,7 @@ export function AdminActions() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          adminPassword: ADMIN_PASSWORD,
+          desoPublicKey: desoPublicKey ?? "",
           resetPass: opts.resetPass ?? false,
         }),
       });
@@ -194,7 +194,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-for-imported", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: ADMIN_PASSWORD, limit: 20 }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "", limit: 20 }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -213,7 +213,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-categorical", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -232,7 +232,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/import-category-tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -256,7 +256,7 @@ export function AdminActions() {
         body: JSON.stringify({
           batchIndex,
           minHolders: 0,
-          adminPassword: ADMIN_PASSWORD,
+          desoPublicKey: desoPublicKey ?? "",
         }),
       });
       const { data, error } = await res.json();
@@ -291,7 +291,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ topic, desoPublicKey: desoPublicKey ?? "" }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -335,7 +335,7 @@ export function AdminActions() {
 
   const loadClaimCodes = async () => {
     try {
-      const res = await fetch(`/api/admin/generate-claim-code?adminPassword=${ADMIN_PASSWORD}`);
+      const res = await fetch(`/api/admin/generate-claim-code?desoPublicKey=${encodeURIComponent(desoPublicKey ?? "")}`);
       const { data } = await res.json();
       setClaimCodes(data ?? []);
       setClaimCodesLoaded(true);
@@ -349,7 +349,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-claim-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, bulk: true }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "", bulk: true }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -369,7 +369,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-claim-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, slug: singleSlug.trim() }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "", slug: singleSlug.trim() }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
@@ -408,7 +408,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/resolve-market", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ marketId, outcome, adminPassword: ADMIN_PASSWORD }),
+        body: JSON.stringify({ marketId, outcome, desoPublicKey: desoPublicKey ?? "" }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -427,7 +427,7 @@ export function AdminActions() {
       const res = await fetch("/api/admin/resolve-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);

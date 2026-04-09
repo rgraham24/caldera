@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const rateLimitMap = new Map<string, number>();
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  const now = Date.now();
+  const last = rateLimitMap.get(ip) ?? 0;
+  if (now - last < 60000) {
+    return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
+  }
+  rateLimitMap.set(ip, now);
+
   try {
     const { id } = await params;
     const { createClient } = await import('@/lib/supabase/server');
