@@ -255,6 +255,9 @@ export function CreatorProfileClient({
               coinPrice={livePrice}
               totalCoinsInCirculation={creator.total_coins_in_circulation}
               weeklyVolume={creator.weekly_volume_usd || 0}
+              marketCount={markets.length}
+              creatorName={creator.name}
+              creatorSlug={creator.slug}
             />
           </div>
         )}
