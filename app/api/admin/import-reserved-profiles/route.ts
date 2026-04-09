@@ -4,8 +4,17 @@ import { ADMIN_KEYS } from '@/lib/admin/market-generator';
 
 const DESO_PRICE_USD = 4.63;
 const CURSOR_KEY = 'reserved_import_cursor';
-// Vercel safe limit per run; fullRun bypasses this
 const VERCEL_PAGE_CAP = 20;
+
+async function saveCursor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cursor: string | null
+): Promise<void> {
+  await supabase.from('platform_config').upsert(
+    { key: CURSOR_KEY, value: cursor ?? '', updated_at: new Date().toISOString() },
+    { onConflict: 'key' }
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,21 +38,22 @@ export async function POST(req: NextRequest) {
     let imported = 0;
     let skipped = 0;
 
-    // Load saved cursor unless caller requests a fresh start.
-    // Use maybeSingle() — single() errors when no row exists yet.
-    let cursor: string | null = null;
-    if (!resetCursor) {
-      const { data: cursorData } = await supabase
-        .from('platform_config')
-        .select('value')
-        .eq('key', CURSOR_KEY)
-        .maybeSingle();
-      // Empty string means "start from beginning" (end-of-list sentinel)
-      cursor = cursorData?.value || null;
-    }
+    // Load saved cursor. maybeSingle() returns null (not an error) when no row exists.
+    const { data: cursorRow } = await supabase
+      .from('platform_config')
+      .select('value')
+      .eq('key', CURSOR_KEY)
+      .maybeSingle();
 
+    // Empty string in DB means "start from beginning" (end-of-list sentinel)
+    let cursor: string | null = cursorRow?.value || null;
+
+    // If caller requested a fresh start, ignore whatever was saved
+    if (resetCursor) cursor = null;
+
+    // Snapshot where THIS run started (shown in the response for debugging)
     const startCursor = cursor;
-    // fullRun allows up to 150 pages (15,000 profiles); will time out on Vercel
+
     const pageLimit = fullRun ? Math.min(pages, 150) : Math.min(pages, VERCEL_PAGE_CAP);
 
     for (let i = 0; i < pageLimit; i++) {
@@ -63,9 +73,11 @@ export async function POST(req: NextRequest) {
       if (!res.ok) break;
       const data = await res.json();
       const profiles: Record<string, unknown>[] = data.ProfilesFound ?? [];
+
       if (!profiles.length) {
-        // Reached end of DeSo — reset so next run starts over
+        // Reached the end of DeSo — clear cursor so next run restarts from beginning
         cursor = null;
+        await saveCursor(supabase, null);
         break;
       }
 
@@ -103,16 +115,14 @@ export async function POST(req: NextRequest) {
         if (error) { skipped++; } else { imported++; }
       }
 
+      // Advance cursor to the last profile on this page, then save immediately.
+      // Saving per-page means a Vercel timeout won't lose all progress.
       const last = profiles[profiles.length - 1];
       cursor = last ? (last.PublicKeyBase58Check as string) : null;
+      await saveCursor(supabase, cursor);
+
       if (!cursor) break;
     }
-
-    // Persist cursor for next run. Empty string = restart from beginning next time.
-    await supabase.from('platform_config').upsert(
-      { key: CURSOR_KEY, value: cursor ?? '', updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
 
     const reachedEnd = !cursor;
 
@@ -120,11 +130,11 @@ export async function POST(req: NextRequest) {
       imported,
       skipped,
       pagesRun: pageLimit,
-      resumedFrom: startCursor ? `${startCursor.substring(0, 16)}...` : 'beginning',
-      nextCursor: cursor ? `${cursor.substring(0, 16)}...` : null,
+      resumedFrom: startCursor ? `${startCursor.substring(0, 20)}...` : 'beginning',
+      nextCursor: cursor ? `${cursor.substring(0, 20)}...` : null,
       message: reachedEnd
         ? 'Reached end of DeSo profiles — next run restarts from beginning'
-        : `Run again to import the next ${pageLimit * 100} profiles`,
+        : `Run again to import the next batch`,
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
