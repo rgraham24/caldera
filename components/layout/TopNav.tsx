@@ -23,13 +23,13 @@ const CENTER_TABS: Tab[] = [
   { id: "new", label: "New", href: "/?sort=new", icon: Clock, title: "Recently created" },
   { id: "following", label: "Following", href: "/?sort=following", title: "Markets for creators you follow" },
   { divider: true },
-  { id: "tokens", label: "Tokens", href: "/creators" },
-  { id: "creators", label: "Creators", href: "/?category=creators" },
-  { id: "sports", label: "Sports", href: "/?category=sports" },
-  { id: "music", label: "Music", href: "/?category=music" },
-  { id: "politics", label: "Politics", href: "/?category=politics" },
-  { id: "tech", label: "Tech", href: "/?category=tech" },
-  { id: "entertainment", label: "Entertainment", href: "/?category=entertainment" },
+  { id: "tokens", label: "Tokens", href: "/tokens" },
+  { id: "creators", label: "Creators", href: "/creators" },
+  { id: "sports", label: "Sports", href: "/sports" },
+  { id: "music", label: "Music", href: "/music" },
+  { id: "politics", label: "Politics", href: "/politics" },
+  { id: "tech", label: "Tech", href: "/tech" },
+  { id: "entertainment", label: "Entertainment", href: "/entertainment" },
 ];
 
 function CenterTabs() {
@@ -37,11 +37,15 @@ function CenterTabs() {
   const searchParams = useSearchParams();
 
   const activeId = (() => {
-    if (pathname === "/creators") return "tokens";
+    if (pathname === "/tokens") return "tokens";
+    if (pathname === "/creators") return "creators";
+    if (pathname === "/sports") return "sports";
+    if (pathname === "/music") return "music";
+    if (pathname === "/politics") return "politics";
+    if (pathname === "/tech") return "tech";
+    if (pathname === "/entertainment") return "entertainment";
     if (pathname !== "/") return null;
-    const cat = searchParams.get("category");
     const sort = searchParams.get("sort");
-    if (cat) return cat;
     if (sort === "breaking") return "breaking";
     if (sort === "new") return "new";
     if (sort === "following") return "following";

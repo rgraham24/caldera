@@ -2,13 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import type { Market } from "@/types";
 
-export default async function CreatorsMarketsPage() {
+export default async function TechPage() {
   const supabase = await createClient();
   const { data: markets } = await supabase
     .from("markets")
     .select("*")
     .eq("status", "open")
-    .ilike("category", "creators")
+    .ilike("category", "tech")
     .order("total_volume", { ascending: false })
     .limit(50);
 
@@ -17,14 +17,14 @@ export default async function CreatorsMarketsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">🎥 Creator Markets</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">💻 Tech &amp; Crypto Markets</h1>
         <p className="mt-1 text-sm text-[var(--text-tertiary)]">
-          Predict what your favorite creators will do next
+          AI, blockchain, and tech industry predictions
         </p>
       </div>
 
       {items.length === 0 ? (
-        <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No creator markets open right now.</p>
+        <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No tech markets open right now.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((market) => {

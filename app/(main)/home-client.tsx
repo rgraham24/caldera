@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { Market, Creator } from "@/types";
 import { useAppStore } from "@/store";
-import { CATEGORIES } from "@/types";
 import {
   formatCurrency,
   formatCompactCurrency,
@@ -637,31 +636,6 @@ function MarketCard({ market }: { market: Market }) {
   );
 }
 
-// ─── Filter pills + sort ──────────────────────────────────────────────────────
-
-const FILTER_PILLS = [
-  { id: "all", label: "All" },
-  ...CATEGORIES.map(({ value, label }) => ({ id: value, label })),
-  { id: "resolving_soon", label: "⏰ Ending Soon" },
-];
-
-const SORT_OPTS = [
-  { id: "newest", label: "Newest" },
-  { id: "volume", label: "Volume" },
-  { id: "resolving_soon", label: "Ending Soon" },
-];
-
-const HOT_TOPICS = [
-  { label: "NBA Playoffs", icon: "🏀", category: "sports" },
-  { label: "The Masters", icon: "⛳", category: "sports" },
-  { label: "Politics", icon: "🇺🇸", category: "politics" },
-  { label: "Crypto", icon: "💰", category: "tech" },
-  { label: "Creators", icon: "🎥", category: "creators" },
-  { label: "Streamers", icon: "🎮", category: "streamers" },
-  { label: "Music", icon: "🎵", category: "music" },
-  { label: "Entertainment", icon: "🎬", category: "entertainment" },
-];
-
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 // SearchParamsSyncer is isolated so useSearchParams() only suspends this null-rendering
@@ -867,26 +841,6 @@ export function HomeClient({
       <TokenStrip creators={uniqueTokenStripCreators} onBuy={setStakeCreator} />
 
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* HOT TOPICS BAR */}
-        <div className="mb-8 mt-2">
-          <div
-            className="flex gap-2 overflow-x-auto pb-1"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
-          >
-            {HOT_TOPICS.map(({ label, icon, category }) => (
-              <button
-                key={`${category}-${label}`}
-                onClick={() => handleFilterChange(category)}
-                className="shrink-0 flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-medium whitespace-nowrap transition-all hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                style={{ borderColor: "var(--border-subtle)", color: "var(--text-secondary)", background: "var(--bg-surface)" }}
-              >
-                <span>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* ENDING SOON */}
         {endingSoonMarkets.length > 0 && (
           <div className="mb-8">
@@ -985,7 +939,7 @@ export function HomeClient({
           <div className="mb-8">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">🏆 Sports</h2>
-              <Link href="/markets?category=sports" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
+              <Link href="/sports" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
                 View all →
               </Link>
             </div>
@@ -1025,43 +979,6 @@ export function HomeClient({
           <Link href="/markets" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
             View all →
           </Link>
-        </div>
-
-        {/* Filter pills */}
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-          {FILTER_PILLS.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => handleFilterChange(id)}
-              className="shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all"
-              style={
-                activeFilter === id
-                  ? { background: "var(--text-primary)", color: "var(--bg-surface)", borderColor: "var(--text-primary)" }
-                  : { background: "transparent", color: "var(--text-secondary)", borderColor: "var(--border-subtle)" }
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Sort bar */}
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-xs text-[var(--text-tertiary)]">Sort:</span>
-          {SORT_OPTS.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => handleSortChange(s.id)}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-              style={
-                sort === s.id
-                  ? { background: "var(--bg-surface)", color: "var(--text-primary)", border: "1px solid var(--border-default)" }
-                  : { color: "var(--text-tertiary)", border: "1px solid transparent" }
-              }
-            >
-              {s.label}
-            </button>
-          ))}
         </div>
 
         {/* Grid */}
