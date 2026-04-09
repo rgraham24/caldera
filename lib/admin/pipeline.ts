@@ -756,6 +756,105 @@ export async function createShadowProfileIfNeeded(
   return { id: creator.id as string, slug: finalSlug, tier };
 }
 
+// ─── Fuzzy creator slug lookup ───────────────────────────────────────────────
+
+async function findCreatorSlug(
+  entityName: string,
+  supabase: SupabaseClient
+): Promise<string | null> {
+  const normalized = entityName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim();
+
+  const candidates = [
+    normalized.replace(/\s+/g, ''),
+    normalized.replace(/\s+/g, '_'),
+    normalized.split(' ')[0],
+    normalized.split(' ').slice(-1)[0],
+    normalized.split(' ').slice(0, 2).join(''),
+  ];
+
+  // 1. Check entity_registry first (verified mappings)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: registryMatch } = await (supabase as any)
+    .from('entity_registry')
+    .select('creator_slug')
+    .ilike('canonical_name', `%${normalized}%`)
+    .eq('verified', true)
+    .single();
+
+  if (registryMatch?.creator_slug) return registryMatch.creator_slug;
+
+  // 2. Try exact slug matches in creators table
+  for (const candidate of candidates) {
+    if (!candidate || candidate.length < 3) continue;
+    const { data } = await supabase
+      .from('creators')
+      .select('slug')
+      .eq('slug', candidate)
+      .single();
+    if (data?.slug) return data.slug;
+  }
+
+  // 3. Try partial name match in creators table
+  const lastName = normalized.split(' ').slice(-1)[0];
+
+  if (lastName && lastName.length > 3) {
+    const { data: nameMatch } = await supabase
+      .from('creators')
+      .select('slug, name')
+      .ilike('name', `%${lastName}%`)
+      .limit(3);
+
+    if (nameMatch && nameMatch.length === 1) {
+      return nameMatch[0].slug;
+    }
+  }
+
+  return null;
+}
+
+// ─── Backfill creator slugs on existing markets ───────────────────────────────
+
+export async function backfillCreatorSlugs(supabase: SupabaseClient): Promise<number> {
+  const { data: markets } = await supabase
+    .from('markets')
+    .select('id, title')
+    .is('creator_slug', null)
+    .eq('status', 'open')
+    .limit(50);
+
+  if (!markets?.length) return 0;
+
+  let updated = 0;
+  for (const market of markets) {
+    // Strip common query words to get entity name
+    const entityName = market.title
+      .replace(/^Will\s+/i, '')
+      .replace(/\?.*$/, '')
+      .replace(/\s+(win|lose|sign|drop|release|announce|confirm|retire|beat|beat|get|be|hit|reach|make|earn|sell|buy)\b.*/i, '')
+      .trim();
+
+    if (!entityName || entityName.length < 3) continue;
+
+    const slug = await findCreatorSlug(entityName, supabase);
+    if (!slug) continue;
+
+    if (isBlocklisted(slug, market.title)) continue;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from('markets')
+      .update({ creator_slug: slug })
+      .eq('id', market.id);
+
+    if (!error) updated++;
+  }
+
+  console.log(`[backfillCreatorSlugs] Updated ${updated}/${markets.length} markets`);
+  return updated;
+}
+
 // ─── Step 3: Generate + insert markets ────────────────────────────────────────
 
 /** Derive varied starting pools from market title so odds feel organic, not all 62/38. */
@@ -805,23 +904,19 @@ async function insertMarkets(
 
   const isSpeculationPool = tier === "speculation_pool";
 
-  // Look up entity registry first for accurate creator matching
+  // Look up entity registry for league fallback
   const entityLookup = entityName
     ? await lookupEntityRegistry(supabase, entityName)
     : { creatorSlug: null, leagueFallback: null };
 
-  // Registry match wins; fallback to passed-in slug only if it's a good match
-  const finalCreatorSlug =
-    entityLookup.creatorSlug ??
-    (creatorSlug && entityName && isGoodCreatorMatch(entityName, creatorSlug)
-      ? creatorSlug
-      : null);
+  // Use fuzzy findCreatorSlug for accurate creator matching
+  const finalCreatorSlug = entityName
+    ? await findCreatorSlug(entityName, supabase)
+    : null;
   const finalLeagueSlug = entityLookup.leagueFallback ?? leagueSlug ?? null;
 
-  if (entityName && entityLookup.creatorSlug) {
-    console.log(`[insertMarkets] Registry match: ${entityName} → ${entityLookup.creatorSlug}`);
-  } else if (entityName && finalCreatorSlug && finalCreatorSlug !== creatorSlug) {
-    console.log(`[insertMarkets] No registry match for "${entityName}", using slug fallback: ${finalCreatorSlug}`);
+  if (entityName && finalCreatorSlug) {
+    console.log(`[insertMarkets] Fuzzy match: ${entityName} → ${finalCreatorSlug}`);
   }
 
   let created = 0;

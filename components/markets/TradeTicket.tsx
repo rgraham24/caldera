@@ -190,9 +190,27 @@ export function TradeTicket({
             </button>
           ))}
         </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-text-muted">
-          1% to Caldera · 1% buys the token · Free to sell
-        </p>
+        <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 mt-2">
+          <div className="text-xs font-medium text-orange-400 mb-2">Fee Breakdown</div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-text-muted">Caldera platform</span>
+              <span className="text-white">1%</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-text-muted">
+                ${market.creator_slug ?? 'token'} auto-buyback
+              </span>
+              <span className="text-orange-400">1% 🔥</span>
+            </div>
+          </div>
+          {market.creator_slug && (
+            <a href={`/creators/${market.creator_slug}`}
+               className="mt-2 text-xs text-orange-400 hover:underline block">
+              View ${market.creator_slug} token →
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Quote details */}

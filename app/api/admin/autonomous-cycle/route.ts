@@ -9,6 +9,7 @@ import {
   resolveExpiredMarkets,
   generateMarketsForImportedCreators,
   checkPendingClaims,
+  backfillCreatorSlugs,
 } from "@/lib/admin/pipeline";
 import { getUpcomingGames, generateSportsMarkets } from "@/lib/admin/sports-feed";
 import { getTopStreamers } from "@/lib/admin/twitch-feed";
@@ -32,6 +33,10 @@ async function runCycle() {
   // Step 1: Discover trending entities and generate markets
   const entities = await discoverEntities(apiKey);
   const marketsCreated = await bulkGenerateAndInsert(entities, apiKey, supabase);
+
+  // Step 1a: Backfill creator slugs on existing markets that lack them
+  const backfilled = await backfillCreatorSlugs(supabase);
+  if (backfilled > 0) console.log(`[cycle] Backfilled creator slugs: ${backfilled}`);
 
   // Step 1b: Sports markets from real schedule data
   const upcomingGames = await getUpcomingGames();
@@ -137,6 +142,7 @@ async function runCycle() {
   return {
     entities: entities.length,
     markets_created: marketsCreated,
+    creator_slugs_backfilled: backfilled,
     sports_markets: sportsInserted,
     streamer_markets: streamerMarketsCreated,
     markets_resolved: resolved,

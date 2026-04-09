@@ -574,13 +574,16 @@ function MarketCard({ market }: { market: Market }) {
         </p>
       </Link>
       {market.creator_slug && (
-        <a
-          href={`/creators/${market.creator_slug}`}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1 text-xs text-orange-400 hover:underline mb-2"
-        >
-          ${market.creator_slug}
-        </a>
+        <div className="flex items-center gap-1 mt-1.5 mb-2">
+          <a
+            href={`/creators/${market.creator_slug}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs text-orange-400 font-medium hover:underline"
+          >
+            ${market.creator_slug}
+          </a>
+          <span className="text-xs text-muted-foreground">· 1% buyback</span>
+        </div>
       )}
 
       <div className="mb-1 flex items-center justify-between">
@@ -832,7 +835,10 @@ export function HomeClient({
                     </div>
                     <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
                     {market.creator_slug && (
-                      <span className="mt-1 inline-flex items-center gap-1 text-xs text-orange-400">${market.creator_slug}</span>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        <span className="text-xs text-orange-400 font-medium">${market.creator_slug}</span>
+                        <span className="text-xs text-muted-foreground">· 1% buyback</span>
+                      </div>
                     )}
                     <div className="mt-3">
                       <div className="mb-1 flex items-center justify-between">
