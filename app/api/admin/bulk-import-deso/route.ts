@@ -140,7 +140,19 @@ export async function POST(req: NextRequest) {
       const slug = username.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const publicKey = p.PublicKeyBase58Check as string;
       const coinsNanos = (coinEntry?.CoinsInCirculationNanos as number) || 0;
-      const tokenStatus = holders > 10 && coinPriceUSD > 2 ? "active_unverified" : "shadow";
+      const founderReward = (coinEntry?.CreatorBasisPoints as number) || 0;
+
+      const isReserved = p.IsReserved === true;
+      const hasSignificantHolders = holders > 50;
+
+      // Skip non-reserved profiles with few holders
+      if (!isReserved && !hasSignificantHolders) {
+        totalSkipped++;
+        continue;
+      }
+
+      const tokenStatus = isReserved ? "active_unverified" :
+                          holders > 100 ? "active_unverified" : "shadow";
 
       rows.push({
         name: username,
@@ -153,6 +165,8 @@ export async function POST(req: NextRequest) {
         creator_coin_market_cap: (coinsNanos / 1e9) * coinPriceUSD,
         creator_coin_symbol: username.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20),
         token_status: tokenStatus,
+        is_reserved: isReserved,
+        founder_reward_basis_points: founderReward,
         estimated_followers: holders * 100,
         bio: (p.Description as string) ?? null,
       });

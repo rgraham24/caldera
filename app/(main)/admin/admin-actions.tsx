@@ -37,6 +37,9 @@ export function AdminActions() {
   const [marqueeImporting, setMarqueeImporting] = useState(false);
   const [marqueeResult, setMarqueeResult] = useState<string | null>(null);
 
+  const [reservedImporting, setReservedImporting] = useState(false);
+  const [reservedResult, setReservedResult] = useState<string | null>(null);
+
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedMarkets, setGeneratedMarkets] = useState<GeneratedMarket[]>([]);
@@ -148,6 +151,25 @@ export function AdminActions() {
       setMarqueeResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
     } finally {
       setMarqueeImporting(false);
+    }
+  };
+
+  const handleReservedImport = async () => {
+    setReservedImporting(true);
+    setReservedResult(null);
+    try {
+      const res = await fetch("/api/admin/import-reserved-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD, pages: 20 }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setReservedResult(`✅ ${json.imported} imported · ${json.skipped} skipped · ${json.pages} pages fetched`);
+    } catch (err) {
+      setReservedResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
+    } finally {
+      setReservedImporting(false);
     }
   };
 
@@ -477,6 +499,27 @@ export function AdminActions() {
         {marqueeResult && (
           <p className={`mt-3 text-xs ${marqueeResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {marqueeResult}
+          </p>
+        )}
+      </div>
+
+      {/* Import Reserved Profiles */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🔖 Import Reserved Profiles (DeSo On-Chain)</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Fetches profiles from DeSo ordered by coin price, filters to IsReserved=true or &gt;50 holders, and imports up to 2,000 profiles (20 pages × 100). Safe to re-run (idempotent).
+        </p>
+        <Button
+          onClick={handleReservedImport}
+          disabled={reservedImporting}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {reservedImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {reservedImporting ? "Importing Reserved Profiles..." : "Import Reserved Profiles"}
+        </Button>
+        {reservedResult && (
+          <p className={`mt-3 text-xs ${reservedResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {reservedResult}
           </p>
         )}
       </div>

@@ -123,6 +123,26 @@ export function CreatorProfileClient({
                 </button>
               )}
             </div>
+            <div className="mt-3 pt-3 border-t border-orange-500/20">
+              <p className="text-xs text-muted-foreground mb-2">
+                Know {creator.name}? Tell them about their Caldera profile:
+              </p>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — you have a token on @CalderaMarket! ` +
+                  `${openMarkets.length} prediction markets about you are live and generating fees. ` +
+                  `Claim your profile at caldera.market/creators/${creator.slug} 🔥`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-400/30 text-xs text-blue-400 hover:bg-blue-400/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                Tweet at {creator.name} to claim →
+              </a>
+            </div>
           </div>
         )}
         {creator.token_status === "active_unverified" && (
