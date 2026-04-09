@@ -268,41 +268,43 @@ function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: C
           const momentum = holders > 1000 ? "🔥 Hot" : holders > 500 ? "↑ Rising" : null;
           return (
             <div key={c.id} className="flex items-center gap-2.5">
-              {rank ? (
-                <span
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                  style={{ background: rank.bg, color: rank.color }}
-                >
-                  {rank.label}
-                </span>
-              ) : (
-                <span className="w-5 shrink-0 text-center text-xs font-bold text-[var(--text-tertiary)]">{i + 1}</span>
-              )}
-              <CreatorAvatar creator={c} size="sm" />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                  ${c.deso_username ?? c.creator_coin_symbol ?? c.name}
-                </span>
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col gap-0">
-                    <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Price</span>
-                    <span className="font-mono text-xs font-semibold text-white tabular-nums">
-                      {(c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : "—"}
-                    </span>
-                  </div>
-                  {(c.creator_coin_market_cap ?? 0) > 0 && (
+              <Link href={`/creators/${c.slug}`} className="flex-1 flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer min-w-0">
+                {rank ? (
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                    style={{ background: rank.bg, color: rank.color }}
+                  >
+                    {rank.label}
+                  </span>
+                ) : (
+                  <span className="w-5 shrink-0 text-center text-xs font-bold text-[var(--text-tertiary)]">{i + 1}</span>
+                )}
+                <CreatorAvatar creator={c} size="sm" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                    ${c.deso_username ?? c.creator_coin_symbol ?? c.name}
+                  </span>
+                  <div className="flex items-center gap-3">
                     <div className="flex flex-col gap-0">
-                      <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Mkt Cap</span>
+                      <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Price</span>
                       <span className="font-mono text-xs font-semibold text-white tabular-nums">
-                        {formatCompactCurrency(c.creator_coin_market_cap ?? 0)}
+                        {(c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : "—"}
                       </span>
                     </div>
-                  )}
-                  {momentum && (
-                    <span className="text-[9px] text-[var(--accent)] self-end pb-px">{momentum}</span>
-                  )}
+                    {(c.creator_coin_market_cap ?? 0) > 0 && (
+                      <div className="flex flex-col gap-0">
+                        <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Mkt Cap</span>
+                        <span className="font-mono text-xs font-semibold text-white tabular-nums">
+                          {formatCompactCurrency(c.creator_coin_market_cap ?? 0)}
+                        </span>
+                      </div>
+                    )}
+                    {momentum && (
+                      <span className="text-[9px] text-[var(--accent)] self-end pb-px">{momentum}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Link>
               {c.deso_username && (
                 <button
                   onClick={() => onBuy(c)}
