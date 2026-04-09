@@ -1,6 +1,74 @@
 import { createClient } from "@/lib/supabase/server";
 import { generateMarketsForTopic, GeneratedMarket, classifyEntityType } from "./market-generator";
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+// ─── Creator match guard ──────────────────────────────────────────────────────
+// Prevents short/ambiguous slugs from matching unrelated entities.
+// E.g. "craig" must NOT match "Craig Counsell" when slug is only 5 chars.
+
+function isGoodCreatorMatch(entityName: string, creatorSlug: string): boolean {
+  const entity = entityName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const slug = creatorSlug.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (slug === entity) return true;
+  if (slug.includes(entity) && entity.length > 6) return true;
+  if (entity.includes(slug) && slug.length > 8) return true;
+  return false;
+}
+
+// ─── Entity registry lookup ───────────────────────────────────────────────────
+// Primary source of truth for linking markets to creators.
+// Falls back to isGoodCreatorMatch only when registry has no verified match.
+
+async function lookupEntityRegistry(
+  supabase: SupabaseClient,
+  entityName: string
+): Promise<{ creatorSlug: string | null; leagueFallback: string | null }> {
+  const name = entityName.toLowerCase();
+
+  // entity_registry is not yet in generated types — cast explicitly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawData } = await (supabase as any)
+    .from("entity_registry")
+    .select("creator_slug, canonical_name, entity_type")
+    .eq("verified", true);
+
+  const data = rawData as Array<{
+    canonical_name: string;
+    creator_slug: string | null;
+    entity_type: string | null;
+  }> | null;
+
+  if (!data) return { creatorSlug: null, leagueFallback: null };
+
+  const match = data.find((e) => {
+    const canonical = e.canonical_name.toLowerCase();
+    if (canonical === name) return true;
+    if (name.includes(canonical) && canonical.length > 6) return true;
+    if (canonical.includes(name) && name.length > 6) return true;
+    return false;
+  });
+
+  if (!match) return { creatorSlug: null, leagueFallback: null };
+
+  const leagueFallback = match.creator_slug
+    ? null
+    : match.entity_type === "athlete" || match.entity_type === "team"
+    ? "sportsmarkets"
+    : match.entity_type === "musician"
+    ? "entertainmentmarkets"
+    : match.entity_type === "streamer"
+    ? "viralmarkets"
+    : match.entity_type === "pundit" || match.entity_type === "brand"
+    ? "conflictmarkets"
+    : "viralmarkets";
+
+  return {
+    creatorSlug: match.creator_slug ?? null,
+    leagueFallback,
+  };
+}
+
 // ─── Slug helpers ────────────────────────────────────────────────────────────
 
 function slugify(text: string): string {
@@ -667,8 +735,6 @@ export async function createShadowProfileIfNeeded(
 
 // ─── Step 3: Generate + insert markets ────────────────────────────────────────
 
-type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
-
 /** Derive varied starting pools from market title so odds feel organic, not all 62/38. */
 function getStartingOdds(title: string): { yesPool: number; noPool: number; yesPrice: number; noPrice: number } {
   const lower = title.toLowerCase();
@@ -706,7 +772,8 @@ async function insertMarkets(
   creatorSlug?: string | null,
   tier: TokenTier = "shadow",
   teamSlug?: string | null,
-  leagueSlug?: string | null
+  leagueSlug?: string | null,
+  entityName?: string | null
 ): Promise<number> {
   if (tier === "hard_reserved") {
     console.log(`[insertMarkets] Skipping — hard_reserved creator: ${creatorSlug}`);
@@ -714,6 +781,25 @@ async function insertMarkets(
   }
 
   const isSpeculationPool = tier === "speculation_pool";
+
+  // Look up entity registry first for accurate creator matching
+  const entityLookup = entityName
+    ? await lookupEntityRegistry(supabase, entityName)
+    : { creatorSlug: null, leagueFallback: null };
+
+  // Registry match wins; fallback to passed-in slug only if it's a good match
+  const finalCreatorSlug =
+    entityLookup.creatorSlug ??
+    (creatorSlug && entityName && isGoodCreatorMatch(entityName, creatorSlug)
+      ? creatorSlug
+      : null);
+  const finalLeagueSlug = entityLookup.leagueFallback ?? leagueSlug ?? null;
+
+  if (entityName && entityLookup.creatorSlug) {
+    console.log(`[insertMarkets] Registry match: ${entityName} → ${entityLookup.creatorSlug}`);
+  } else if (entityName && finalCreatorSlug && finalCreatorSlug !== creatorSlug) {
+    console.log(`[insertMarkets] No registry match for "${entityName}", using slug fallback: ${finalCreatorSlug}`);
+  }
 
   let created = 0;
   for (const market of markets) {
@@ -737,14 +823,14 @@ async function insertMarkets(
     };
     // Use category token as league fallback if no specific league set
     const effectiveLeagueSlug =
-      leagueSlug ??
+      finalLeagueSlug ??
       CATEGORY_TOKENS[market.category] ??
       CATEGORY_TOKENS["Entertainment"] ??
       null;
 
     if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
-    if (creatorSlug) row.creator_slug = creatorSlug;
+    if (finalCreatorSlug) row.creator_slug = finalCreatorSlug;
     if (teamSlug) row.team_creator_slug = teamSlug;
     if (effectiveLeagueSlug) row.league_creator_slug = effectiveLeagueSlug;
     const { error } = await supabase.from("markets").insert(row);
@@ -806,7 +892,8 @@ export async function bulkGenerateAndInsert(
             profile?.slug ?? null,
             profile?.tier ?? "shadow",
             teamProfile?.slug ?? null,
-            leagueProfile?.slug ?? null
+            leagueProfile?.slug ?? null,
+            entity
           );
         }
       }
