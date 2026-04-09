@@ -50,3 +50,23 @@ export type CommentWithUser = MarketComment & {
 export type LeaderboardEntry = LeaderboardSnapshot & {
   user: Pick<User, "id" | "username" | "avatar_url" | "is_verified" | "reputation_score">;
 };
+
+// Categorical market outcome (market_outcomes table exists in Supabase but not in generated types)
+export type MarketOutcome = {
+  id: string;
+  market_id: string;
+  label: string;
+  slug: string;
+  creator_slug: string | null;
+  probability: number;
+  pool_size: number;
+  image_url: string | null;
+  display_order: number;
+  is_winner: boolean | null;
+  created_at: string;
+};
+
+// Market with outcomes joined (for categorical market queries)
+export type MarketWithOutcomes = Market & {
+  market_outcomes?: MarketOutcome[];
+};

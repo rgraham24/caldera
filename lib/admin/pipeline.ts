@@ -1,7 +1,29 @@
 import { createClient } from "@/lib/supabase/server";
-import { generateMarketsForTopic, GeneratedMarket, classifyEntityType } from "./market-generator";
+import { generateMarketsForTopic, GeneratedMarket, classifyEntityType, generateCategoricalMarket, CategoricalMarketDraft } from "./market-generator";
+export { generateCategoricalMarket } from "./market-generator";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+// ─── Creator slug blocklist ───────────────────────────────────────────────────
+// Hard-blocks specific slug→entity mismatches we've observed in production.
+// E.g. "craig" must never attach to Craig Bellamy, Craig Counsell, etc.
+// SQL to clear existing bad rows:
+// UPDATE markets SET creator_slug = NULL
+//   WHERE creator_slug = 'craig' AND id NOT IN (
+//     SELECT id FROM markets WHERE title ILIKE '%hubspot%'
+//       OR title ILIKE '%dharmesh%' OR title ILIKE '%shah%'
+//   );
+
+const CREATOR_SLUG_BLOCKLIST: Record<string, string[]> = {
+  craig: ["bellamy", "counsell", "wales", "chicago", "cubs", "football"],
+};
+
+function isBlocklisted(slug: string, marketTitle: string): boolean {
+  const blocked = CREATOR_SLUG_BLOCKLIST[slug];
+  if (!blocked) return false;
+  const lower = marketTitle.toLowerCase();
+  return blocked.some((term) => lower.includes(term));
+}
 
 // ─── Creator match guard ──────────────────────────────────────────────────────
 // Prevents short/ambiguous slugs from matching unrelated entities.
@@ -830,7 +852,11 @@ async function insertMarkets(
 
     if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
-    if (finalCreatorSlug) row.creator_slug = finalCreatorSlug;
+    const allowedCreatorSlug =
+      finalCreatorSlug && isBlocklisted(finalCreatorSlug, market.title)
+        ? null
+        : finalCreatorSlug;
+    if (allowedCreatorSlug) row.creator_slug = allowedCreatorSlug;
     if (teamSlug) row.team_creator_slug = teamSlug;
     if (effectiveLeagueSlug) row.league_creator_slug = effectiveLeagueSlug;
     const { error } = await supabase.from("markets").insert(row);
@@ -1284,6 +1310,56 @@ export async function importMarqueeProfileDeSoFirst(
   const source = desoProfile ? "deso" : "shadow";
   console.log(`[marqueeImport] ${profile.name} → ${slug} (${tokenStatus}, ${source}, $${coinPriceUsd.toFixed(2)})`);
   return { slug, status: tokenStatus, source };
+}
+
+// ─── Categorical market insertion ────────────────────────────────────────────
+
+export async function insertCategoricalMarket(
+  market: CategoricalMarketDraft,
+  supabase: SupabaseClient
+): Promise<void> {
+  const resolveAt = new Date();
+  resolveAt.setDate(resolveAt.getDate() + 60);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: marketRow, error } = await (supabase as any)
+    .from("markets")
+    .insert({
+      title: market.title,
+      description: market.description,
+      category: market.category,
+      market_type: "categorical",
+      status: "open",
+      slug: uniqueSlug(slugify(market.title)),
+      resolve_at: resolveAt.toISOString(),
+      yes_price: 0.5,
+      no_price: 0.5,
+      liquidity: 1000,
+      yes_pool: 500,
+      no_pool: 500,
+      total_volume: 0,
+    })
+    .select()
+    .single();
+
+  if (error || !marketRow) {
+    console.error("[insertCategoricalMarket] Insert failed:", error);
+    return;
+  }
+
+  const outcomesData = market.outcomes.map((outcome, i) => ({
+    market_id: marketRow.id,
+    label: outcome.label,
+    slug: outcome.slug,
+    creator_slug: outcome.slug,
+    probability: outcome.probability,
+    pool_size: Math.round(outcome.probability * 1000),
+    image_url: outcome.image_url ?? null,
+    display_order: i,
+  }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from("market_outcomes").insert(outcomesData);
 }
 
 // ─── Auto-claim verification ──────────────────────────────────────────────────

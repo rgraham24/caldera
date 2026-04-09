@@ -27,6 +27,9 @@ export function AdminActions() {
   const [categoryTokenImporting, setCategoryTokenImporting] = useState(false);
   const [categoryTokenResult, setCategoryTokenResult] = useState<string | null>(null);
 
+  const [generatingCategorical, setGeneratingCategorical] = useState(false);
+  const [categoricalResult, setCategoricalResult] = useState<string | null>(null);
+
   const [batchIndex, setBatchIndex] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
@@ -164,6 +167,25 @@ export function AdminActions() {
       setGenerateForImportedResult(`Error: ${err instanceof Error ? err.message : "Failed"}`);
     } finally {
       setGeneratingForImported(false);
+    }
+  };
+
+  const handleGenerateCategorical = async () => {
+    setGeneratingCategorical(true);
+    setCategoricalResult(null);
+    try {
+      const res = await fetch("/api/admin/generate-categorical", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: ADMIN_PASSWORD }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setCategoricalResult(`✅ Generated ${json.generated} categorical markets`);
+    } catch (err) {
+      setCategoricalResult(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    } finally {
+      setGeneratingCategorical(false);
     }
   };
 
@@ -350,6 +372,27 @@ export function AdminActions() {
         {cycleResult && (
           <p className={`mt-3 text-xs ${cycleResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {cycleResult}
+          </p>
+        )}
+      </div>
+
+      {/* Generate Categorical Markets */}
+      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">🎯 Generate Categorical Markets</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Generates multi-outcome prediction markets (NBA MVP, UFC champion, elections, etc.) with probability-weighted outcomes. Populates the market_outcomes table.
+        </p>
+        <Button
+          onClick={handleGenerateCategorical}
+          disabled={generatingCategorical}
+          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
+        >
+          {generatingCategorical && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {generatingCategorical ? "Generating..." : "Generate Categorical Markets"}
+        </Button>
+        {categoricalResult && (
+          <p className={`mt-3 text-xs ${categoricalResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {categoricalResult}
           </p>
         )}
       </div>

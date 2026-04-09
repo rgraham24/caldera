@@ -186,6 +186,83 @@ Pick the most appropriate category from: Sports, Music, Tech, Politics, Commenta
 ${schema}`;
 }
 
+export type CategoricalMarketDraft = {
+  title: string;
+  description: string;
+  category: string;
+  outcomes: Array<{
+    label: string;
+    slug: string;
+    probability: number;
+    image_url?: string;
+  }>;
+};
+
+export async function generateCategoricalMarket(
+  topic: string,
+  entityType: "sports" | "politics" | "entertainment",
+  anthropicKey: string
+): Promise<CategoricalMarketDraft | null> {
+  const prompts: Record<string, string> = {
+    sports: `Generate a categorical prediction market about: "${topic}"
+Return JSON only:
+{
+  "title": "Who will win [specific competition]?",
+  "description": "Brief description",
+  "category": "Sports",
+  "outcomes": [
+    {"label": "Person/Team Name", "slug": "personname", "probability": 0.45},
+    {"label": "Person/Team Name 2", "slug": "personname2", "probability": 0.30},
+    {"label": "Person/Team Name 3", "slug": "personname3", "probability": 0.15},
+    {"label": "Field/Other", "slug": "field", "probability": 0.10}
+  ]
+}
+Probabilities must sum to exactly 1.0. Use real names and realistic odds.`,
+
+    politics: `Generate a categorical prediction market about: "${topic}"
+Return JSON only:
+{
+  "title": "Who will win [specific race/position]?",
+  "description": "Brief description",
+  "category": "Politics",
+  "outcomes": [
+    {"label": "Candidate Name", "slug": "candidatename", "probability": 0.55},
+    {"label": "Candidate Name 2", "slug": "candidatename2", "probability": 0.35},
+    {"label": "Other", "slug": "other", "probability": 0.10}
+  ]
+}
+Use real candidate names and realistic current odds.`,
+
+    entertainment: `Generate a categorical prediction market about: "${topic}"
+Return JSON only with title, description, category: "Entertainment",
+and outcomes array with label, slug, probability fields.
+Probabilities must sum to 1.0.`,
+  };
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompts[entityType] }],
+      }),
+    });
+
+    const data = await response.json();
+    const text: string = data.content?.[0]?.text ?? "";
+    const json = text.replace(/```json|```/g, "").trim();
+    return JSON.parse(json) as CategoricalMarketDraft;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMarketsForTopic(
   topic: string,
   apiKey: string

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { Market, Creator } from "@/types";
+import type { Market, Creator, MarketWithOutcomes } from "@/types";
 import { useAppStore } from "@/store";
 import { CATEGORIES } from "@/types";
 import {
@@ -667,12 +667,31 @@ export function HomeClient({
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const [followedCount, setFollowedCount] = useState<number | null>(null);
   const [commentaryMarkets, setCommentaryMarkets] = useState<Market[]>([]);
+  const [categoricalMarkets, setCategoricalMarkets] = useState<MarketWithOutcomes[]>([]);
+
+  // Deduplicate trending tokens by slug
+  const uniqueTrendingCreators = useMemo(
+    () => trendingCreators.filter((t, i, arr) => arr.findIndex((x) => x.slug === t.slug) === i),
+    [trendingCreators]
+  );
+  const uniqueTokenStripCreators = useMemo(
+    () => tokenStripCreators.filter((t, i, arr) => arr.findIndex((x) => x.slug === t.slug) === i),
+    [tokenStripCreators]
+  );
 
   // Fetch Commentary / World Events markets on mount
   useEffect(() => {
     fetch("/api/markets?category=commentary&status=open&sort=newest&limit=10")
       .then((r) => r.json())
       .then(({ data }) => { if (Array.isArray(data)) setCommentaryMarkets(data); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch categorical multi-outcome markets on mount
+  useEffect(() => {
+    fetch("/api/markets/categorical")
+      .then((r) => r.json())
+      .then(({ data }) => { if (Array.isArray(data)) setCategoricalMarkets(data); })
       .catch(() => {});
   }, []);
 
@@ -767,8 +786,8 @@ export function HomeClient({
             )}
             <div className="flex flex-col gap-4">
               {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
-              {trendingCreators.length > 0 && (
-                <TrendingTokens creators={trendingCreators} onBuy={setStakeCreator} />
+              {uniqueTrendingCreators.length > 0 && (
+                <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
               )}
             </div>
           </div>
@@ -776,7 +795,7 @@ export function HomeClient({
       </div>
 
       {/* 3. Token strip */}
-      <TokenStrip creators={tokenStripCreators} onBuy={setStakeCreator} />
+      <TokenStrip creators={uniqueTokenStripCreators} onBuy={setStakeCreator} />
 
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* World Events featured row */}
@@ -823,6 +842,68 @@ export function HomeClient({
                   </Link>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Featured Predictions — categorical multi-outcome markets */}
+        {categoricalMarkets.length > 0 && (
+          <div className="mb-8">
+            <div className="mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Featured Predictions</h2>
+              <span className="text-xs text-[var(--text-tertiary)]">Multi-outcome markets</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {categoricalMarkets.map((market) => (
+                <div
+                  key={market.id}
+                  className="overflow-hidden rounded-xl"
+                  style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
+                >
+                  <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div>
+                      <Link href={`/markets/${market.slug}`} className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors line-clamp-1">
+                        {market.title}
+                      </Link>
+                      <span className="text-[10px] uppercase tracking-widest text-[var(--text-tertiary)]">{market.category}</span>
+                    </div>
+                  </div>
+                  <div>
+                    {(market.market_outcomes ?? [])
+                      .sort((a, b) => b.probability - a.probability)
+                      .slice(0, 5)
+                      .map((outcome) => (
+                        <div
+                          key={outcome.id}
+                          className="flex items-center justify-between px-4 py-2.5"
+                          style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                        >
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            {outcome.image_url && (
+                              <img
+                                src={outcome.image_url}
+                                alt={outcome.label}
+                                className="w-6 h-6 rounded-full object-cover shrink-0"
+                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              />
+                            )}
+                            <span className="text-sm truncate text-[var(--text-primary)]">{outcome.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className={`text-sm font-semibold tabular-nums w-10 text-right ${outcome.probability >= 0.5 ? "text-emerald-400" : "text-[var(--text-primary)]"}`}>
+                              {Math.round(outcome.probability * 100)}%
+                            </span>
+                            <Link href={`/markets/${market.slug}`}>
+                              <button className="text-[10px] rounded px-2 py-0.5 font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+                                YES
+                              </button>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

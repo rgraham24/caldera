@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { useDesoBalance } from "@/hooks/useDesoBalance";
-import type { Market, CommentWithUser, Creator } from "@/types";
+import type { Market, CommentWithUser, Creator, MarketOutcome } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
 import { MarketChart } from "@/components/markets/MarketChart";
@@ -35,7 +35,22 @@ export function MarketDetailClient({
   creator,
 }: MarketDetailClientProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
+  const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
   const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
+
+  // Fetch categorical outcomes client-side when needed
+  useEffect(() => {
+    if (market.market_type !== "categorical") return;
+    fetch(`/api/markets/categorical?market_id=${market.id}`)
+      .then((r) => r.json())
+      .then(({ data }) => {
+        if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0]?.market_outcomes)) {
+          setOutcomes(data[0].market_outcomes as MarketOutcome[]);
+        }
+      })
+      .catch(() => {});
+  }, [market.id, market.market_type]);
 
   // Active balance polling (10s) on trade page — immediate refresh after trade
   const { refresh: refreshBalance } = useDesoBalance(
@@ -98,15 +113,74 @@ export function MarketDetailClient({
             </div>
           )}
 
-          {/* Big probability */}
+          {/* Big probability / categorical outcomes */}
           <div className="mb-6">
-            {isResolved ? (
+            {market.market_type === "categorical" && outcomes.length > 0 ? (
+              <div>
+                <p className="mb-3 text-sm font-medium text-text-muted">Select an outcome to trade</p>
+                <div className="space-y-2">
+                  {[...outcomes]
+                    .sort((a, b) => b.probability - a.probability)
+                    .map((outcome) => (
+                      <div
+                        key={outcome.id}
+                        onClick={() => setSelectedOutcome(outcome)}
+                        className="flex items-center justify-between rounded-xl p-3 cursor-pointer transition-colors"
+                        style={{
+                          border: selectedOutcome?.id === outcome.id
+                            ? "1px solid var(--accent)"
+                            : "1px solid var(--border-subtle)",
+                          background: selectedOutcome?.id === outcome.id
+                            ? "rgba(249,115,22,0.05)"
+                            : "var(--bg-surface)",
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          {outcome.image_url && (
+                            <img
+                              src={outcome.image_url}
+                              alt={outcome.label}
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            />
+                          )}
+                          <div>
+                            <div className="text-sm font-medium text-text-primary">{outcome.label}</div>
+                            {outcome.creator_slug && (
+                              <div className="text-xs text-caldera">${outcome.creator_slug}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-text-primary">
+                              {Math.round(outcome.probability * 100)}%
+                            </div>
+                            <div className="text-[10px] text-text-muted">chance</div>
+                          </div>
+                          <div className="flex gap-1">
+                            <button className="text-[10px] font-semibold bg-yes text-white rounded-lg px-2 py-1 hover:bg-yes/90 transition-colors">
+                              YES {Math.round(outcome.probability * 100)}¢
+                            </button>
+                            <button className="text-[10px] font-semibold bg-no/20 text-no rounded-lg px-2 py-1 hover:bg-no/30 transition-colors">
+                              NO {Math.round((1 - outcome.probability) * 100)}¢
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+                {selectedOutcome && (
+                  <p className="mt-3 text-xs text-text-muted">
+                    Selected: <span className="font-semibold text-text-primary">{selectedOutcome.label}</span> — use the trading panel to confirm.
+                  </p>
+                )}
+              </div>
+            ) : isResolved ? (
               <div className="flex items-baseline gap-3">
                 <span
                   className={`font-display text-6xl font-bold tracking-tight ${
-                    market.resolution_outcome === "yes"
-                      ? "text-yes"
-                      : "text-no"
+                    market.resolution_outcome === "yes" ? "text-yes" : "text-no"
                   }`}
                 >
                   {market.resolution_outcome?.toUpperCase()}
