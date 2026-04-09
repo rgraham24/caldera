@@ -12,7 +12,6 @@ import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
 import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer";
-import { ShareCard } from "@/components/shared/ShareCard";
 import {
   formatCompactCurrency,
   formatRelativeTime,
@@ -38,6 +37,7 @@ export function MarketDetailClient({
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
   const [news, setNews] = useState<Array<{ title: string; url: string; source: string; age: string }>>([]);
+  const [copied, setCopied] = useState(false);
   const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
 
   // Fetch categorical outcomes client-side when needed
@@ -71,6 +71,18 @@ export function MarketDetailClient({
 
   const yesPercent = Math.round(market.yes_price * 100);
   const isResolved = market.status === "resolved";
+
+  const handleShare = () => {
+    const text = `${market.title}\n\n${yesPercent}% chance YES on @CalderaMarket\n\ncaldera.market/markets/${market.id}`;
+    const tweetUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text);
+    window.open(tweetUrl, '_blank', 'width=550,height=420');
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText('https://caldera.market/markets/' + market.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
@@ -351,7 +363,23 @@ export function MarketDetailClient({
 
             <div className="flex items-center justify-center gap-3">
               <WatchlistButton entityType="market" entityId={market.id} />
-              <ShareCard market={market} creatorName={creator?.name} />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors border border-border rounded-lg px-3 py-1.5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  Share
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors border border-border rounded-lg px-3 py-1.5"
+                >
+                  {copied ? '✓ Copied' : '🔗 Copy Link'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

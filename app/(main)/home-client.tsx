@@ -549,7 +549,7 @@ function MarketCard({ market }: { market: Market }) {
 
   return (
     <div
-      className="flex flex-col rounded-xl p-4 transition-colors"
+      className="group flex flex-col rounded-xl p-4 transition-colors"
       style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
       onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
@@ -614,7 +614,24 @@ function MarketCard({ market }: { market: Market }) {
 
       <div className="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
         <span className="font-mono">{formatCompactCurrency(market.total_volume ?? 0)} vol</span>
-        {market.resolve_at && <span>{formatRelativeTime(market.resolve_at)}</span>}
+        <div className="flex items-center gap-2">
+          {market.resolve_at && <span>{formatRelativeTime(market.resolve_at)}</span>}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const yesPrice = Math.round((market.yes_price || 0.5) * 100);
+              const text = market.title + '\n\n' + yesPrice + '% chance YES on @CalderaMarket\n\ncaldera.market/markets/' + market.id;
+              window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank', 'width=550,height=420');
+            }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-muted"
+            title="Share on X"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-muted-foreground">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
