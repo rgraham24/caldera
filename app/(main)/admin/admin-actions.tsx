@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Copy, Check } from "lucide-react";
 import { slugify } from "@/lib/utils";
@@ -40,6 +40,13 @@ export function AdminActions() {
   const [reservedImporting, setReservedImporting] = useState(false);
   const [reservedResult, setReservedResult] = useState<string | null>(null);
   const [reservedPass, setReservedPass] = useState<number | null>(null);
+
+  // Resolution queue
+  const [resolutionQueue, setResolutionQueue] = useState<ResolutionMarket[]>([]);
+  const [resolutionLoading, setResolutionLoading] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [autoResolving, setAutoResolving] = useState(false);
+  const [autoResolveResult, setAutoResolveResult] = useState<string | null>(null);
 
   const [topic, setTopic] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -382,6 +389,60 @@ export function AdminActions() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  const loadResolutionQueue = async () => {
+    setResolutionLoading(true);
+    try {
+      const res = await fetch("/api/admin/markets-to-resolve");
+      const json = await res.json();
+      setResolutionQueue(json.markets ?? []);
+    } catch {
+      setResolutionQueue([]);
+    } finally {
+      setResolutionLoading(false);
+    }
+  };
+
+  const resolveMarket = async (marketId: string, outcome: "yes" | "no" | "void") => {
+    setResolvingId(marketId);
+    try {
+      const res = await fetch("/api/admin/resolve-market", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ marketId, outcome, adminPassword: ADMIN_PASSWORD }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setResolutionQueue((q) => q.filter((m) => m.id !== marketId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Resolve failed");
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const handleAutoResolve = async () => {
+    setAutoResolving(true);
+    setAutoResolveResult(null);
+    try {
+      const res = await fetch("/api/admin/resolve-markets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setAutoResolveResult(`✅ AI resolved ${json.resolved} markets · ${json.flagged} flagged for review`);
+      loadResolutionQueue();
+    } catch (err) {
+      setAutoResolveResult(`Error: ${err instanceof Error ? err.message : "Auto-resolve failed"}`);
+    } finally {
+      setAutoResolving(false);
+    }
+  };
+
+  // Load resolution queue on mount
+  useEffect(() => { loadResolutionQueue(); }, []);
+
   return (
     <div className="space-y-6">
       {/* Autonomous Cycle */}
@@ -403,6 +464,93 @@ export function AdminActions() {
             {cycleResult}
           </p>
         )}
+      </div>
+
+      {/* Markets to Resolve */}
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-amber-400">⚖️ Markets to Resolve ({resolutionQueue.length})</h2>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleAutoResolve}
+              disabled={autoResolving || resolutionQueue.length === 0}
+              size="sm"
+              className="bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 text-xs font-semibold"
+            >
+              {autoResolving && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+              {autoResolving ? "Running AI..." : "Auto-Resolve with AI"}
+            </Button>
+            <Button
+              onClick={loadResolutionQueue}
+              disabled={resolutionLoading}
+              size="sm"
+              variant="outline"
+              className="text-xs border-border-subtle text-text-muted"
+            >
+              {resolutionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Refresh"}
+            </Button>
+          </div>
+        </div>
+
+        {autoResolveResult && (
+          <p className={`mb-3 text-xs ${autoResolveResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
+            {autoResolveResult}
+          </p>
+        )}
+
+        {resolutionLoading && resolutionQueue.length === 0 && (
+          <p className="text-xs text-text-muted">Loading...</p>
+        )}
+        {!resolutionLoading && resolutionQueue.length === 0 && (
+          <p className="text-xs text-text-muted">No markets pending resolution.</p>
+        )}
+
+        <div className="space-y-2 max-h-[500px] overflow-y-auto">
+          {resolutionQueue.map((market) => {
+            const daysOverdue = Math.floor(
+              (Date.now() - new Date(market.resolve_at).getTime()) / 86400000
+            );
+            const isResolving = resolvingId === market.id;
+            return (
+              <div
+                key={market.id}
+                className="flex items-center justify-between p-3 border border-border-subtle rounded-lg bg-surface"
+              >
+                <div className="flex-1 mr-4 min-w-0">
+                  <div className="text-sm font-medium text-text-primary line-clamp-1">{market.title}</div>
+                  <div className="text-xs text-text-muted mt-0.5">
+                    {market.category} · Expired {daysOverdue}d ago
+                    {market.creator_slug && ` · $${market.creator_slug}`}
+                    {" · "}{Math.round((market.yes_price ?? 0.5) * 100)}% YES
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => resolveMarket(market.id, "yes")}
+                    disabled={isResolving}
+                    className="text-xs bg-green-500/10 text-green-400 border border-green-500/30 rounded px-2 py-1 hover:bg-green-500/20 disabled:opacity-50 transition-colors"
+                  >
+                    YES
+                  </button>
+                  <button
+                    onClick={() => resolveMarket(market.id, "no")}
+                    disabled={isResolving}
+                    className="text-xs bg-red-500/10 text-red-400 border border-red-500/30 rounded px-2 py-1 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                  >
+                    NO
+                  </button>
+                  <button
+                    onClick={() => resolveMarket(market.id, "void")}
+                    disabled={isResolving}
+                    className="text-xs bg-zinc-500/10 text-zinc-400 border border-zinc-500/30 rounded px-2 py-1 hover:bg-zinc-500/20 disabled:opacity-50 transition-colors"
+                  >
+                    VOID
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Generate Categorical Markets */}
@@ -780,6 +928,16 @@ export function AdminActions() {
     </div>
   );
 }
+
+type ResolutionMarket = {
+  id: string;
+  title: string;
+  category: string;
+  creator_slug: string | null;
+  yes_price: number | null;
+  total_volume: number | null;
+  resolve_at: string;
+};
 
 type GeneratedMarket = {
   title: string;
