@@ -140,12 +140,13 @@ function withTimeout<T>(promise: Promise<T>, ms = 3000): Promise<T | null> {
   ]);
 }
 
-const BRAVE_QUERIES = [
-  "Kick streamer arrested banned drama controversy April 2026",
-  "YouTuber beef exposed drama meltdown this week 2026",
-  "IRL streamer viral fight arrest meltdown April 2026",
-  "LivestreamFail reddit controversy ban viral clip today",
-  "influencer scandal exposed arrested April 2026",
+const SEARCH_QUERIES = [
+  { query: 'breaking sports news today athletes', category: 'sports' },
+  { query: 'trending crypto blockchain news today', category: 'tech' },
+  { query: 'streamer drama twitch kick youtube today', category: 'streamers' },
+  { query: 'celebrity entertainment news scandal today', category: 'entertainment' },
+  { query: 'politics breaking news today', category: 'politics' },
+  { query: 'viral trending social media today', category: 'viral' },
 ];
 
 const ENTITY_SCOUT_SYSTEM =
@@ -295,7 +296,7 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
   if (braveKey) {
     const [braveResults, lsf, boxing, mma, ksi, loganpaul, youtube, kick, twitch, trends] =
       await Promise.all([
-        Promise.all(BRAVE_QUERIES.map((q) => fetchBraveResults(q, braveKey))),
+        Promise.all(SEARCH_QUERIES.map((sq) => fetchBraveResults(sq.query, braveKey))),
         fetchRedditHot("LivestreamFail", 10),
         fetchRedditHot("Boxing", 5),
         fetchRedditHot("MMA", 5),
@@ -315,7 +316,7 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
 
     return callClaudeForEntities(
       apiKey,
-      `Find the 10 hottest entities right now for a prediction market. Based on these real-time signals from Brave Search, Reddit (LivestreamFail/Boxing/MMA/KSI/LoganPaul), YouTube Trending, Kick.com, Twitch, and Google Trends, identify the most viral, dramatic, controversial people or entities. Return ONLY a JSON array like ["Entity Name", ...] with exactly 10 entries.\n\nFresh data:\n${rawData}`
+      `Here are trending news headlines across multiple categories.\nExtract the 15 most newsworthy distinct people, teams, or entities that would make great prediction markets. Include at least 2 from each category: sports, crypto/tech, streamers/creators, entertainment, politics, viral.\nReturn ONLY a JSON array of strings: ["Entity 1", "Entity 2", ...]\n\nFresh data:\n${rawData}`
     );
   }
 
