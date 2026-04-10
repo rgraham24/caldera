@@ -69,7 +69,7 @@ export function MarketDetailClient({
     true
   );
 
-  const yesPercent = Math.round(market.yes_price * 100);
+  const yesPercent = Math.round((market.yes_price ?? 0) * 100);
   const isResolved = market.status === "resolved";
 
   const handleShare = () => {
@@ -158,7 +158,7 @@ export function MarketDetailClient({
               />
               <div className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
                 <span className="text-xs text-caldera font-medium">
-                  Active holders: {creator.creator_coin_holders.toLocaleString()}
+                  Active holders: {(creator.creator_coin_holders ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -252,7 +252,7 @@ export function MarketDetailClient({
           {/* Chart */}
           {!isResolved && (
             <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
-              <MarketChart yesPrice={market.yes_price} />
+              <MarketChart yesPrice={market.yes_price ?? 0} />
             </div>
           )}
 
@@ -261,13 +261,13 @@ export function MarketDetailClient({
             <div className="rounded-xl border border-border-subtle bg-surface p-4 text-center">
               <p className="text-xs text-text-muted mb-1">Volume</p>
               <p className="font-mono text-lg font-semibold text-text-primary">
-                {formatCompactCurrency(market.total_volume)}
+                {formatCompactCurrency(market.total_volume ?? 0)}
               </p>
             </div>
             <div className="rounded-xl border border-border-subtle bg-surface p-4 text-center">
               <p className="text-xs text-text-muted mb-1">Liquidity</p>
               <p className="font-mono text-lg font-semibold text-text-primary">
-                {formatCompactCurrency(market.liquidity)}
+                {formatCompactCurrency(market.liquidity ?? 0)}
               </p>
             </div>
             <div className="rounded-xl border border-border-subtle bg-surface p-4 text-center">

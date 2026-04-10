@@ -116,9 +116,9 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                       {holders.toLocaleString()} holders
                     </p>
                   </div>
-                  {creator.total_holder_earnings > 0 && (
+                  {(creator.total_holder_earnings ?? 0) > 0 && (
                     <p className="mb-2 text-[10px] font-medium text-yes">
-                      {formatCompactCurrency(creator.total_holder_earnings)} earned by holders
+                      {formatCompactCurrency(creator.total_holder_earnings ?? 0)} earned by holders
                     </p>
                   )}
                 </>

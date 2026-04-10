@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     // Calculate trade quote with net amount (after fees)
     const quote = getTradeQuote(
-      { yesPool: market.yes_pool, noPool: market.no_pool },
+      { yesPool: market.yes_pool ?? 0, noPool: market.no_pool ?? 0 },
       side,
       fees.netAmount
     );
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
         no_pool: quote.newNoPool,
         yes_price: quote.newYesPrice,
         no_price: quote.newNoPrice,
-        total_volume: market.total_volume + amount,
+        total_volume: (market.total_volume ?? 0) + amount,
         updated_at: new Date().toISOString(),
       })
       .eq("id", marketId);
@@ -223,8 +223,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (existingPosition) {
-      const newQuantity = existingPosition.quantity + quote.sharesReceived;
-      const newTotalCost = existingPosition.total_cost + fees.netAmount;
+      const newQuantity = (existingPosition.quantity ?? 0) + quote.sharesReceived;
+      const newTotalCost = (existingPosition.total_cost ?? 0) + fees.netAmount;
       const newAvgEntry = newTotalCost / newQuantity;
 
       await supabase
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
           quantity: newQuantity,
           avg_entry_price: newAvgEntry,
           total_cost: newTotalCost,
-          fees_paid: existingPosition.fees_paid + fees.totalFee,
+          fees_paid: (existingPosition.fees_paid ?? 0) + fees.totalFee,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingPosition.id);

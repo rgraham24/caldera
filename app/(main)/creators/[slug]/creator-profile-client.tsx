@@ -241,7 +241,7 @@ export function CreatorProfileClient({
               <div className="mt-3 flex items-center gap-4">
                 <div>
                   <span className="font-display text-2xl font-bold tracking-normal text-text-primary">
-                    {desoUser ? formatCurrency(livePrice) : "—"}
+                    {desoUser ? formatCurrency(livePrice ?? 0) : "—"}
                   </span>
                   {isLive && (
                     <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-yes">
@@ -250,7 +250,7 @@ export function CreatorProfileClient({
                   )}
                 </div>
                 <span className="text-sm text-text-muted">
-                  {creator.creator_coin_holders.toLocaleString()} holders
+                  {(creator.creator_coin_holders ?? 0).toLocaleString()} holders
                 </span>
               </div>
             </div>
@@ -277,9 +277,9 @@ export function CreatorProfileClient({
         {/* Earnings Stats */}
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
-            { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings), show: creator.tier === "verified_creator" },
-            { label: "Holder Earnings", value: formatCompactCurrency(creator.total_holder_earnings), show: true, tip: "The total amount earned by people who hold this token from prediction activity on Caldera." },
-            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + m.total_volume, 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more earnings for token holders." },
+            { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
+            { label: "Holder Earnings", value: formatCompactCurrency(creator.total_holder_earnings ?? 0), show: true, tip: "The total amount earned by people who hold this token from prediction activity on Caldera." },
+            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more earnings for token holders." },
             { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
@@ -296,7 +296,7 @@ export function CreatorProfileClient({
         {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
             <h2 className="section-header mb-4">Token Price <InfoTooltip text="The current price to buy one token. Prices rise as more people buy — early buyers get the lowest price." /></h2>
-            <MarketChart yesPrice={livePrice / 200} />
+            <MarketChart yesPrice={(livePrice ?? 0) / 200} />
           </div>
         )}
 
@@ -316,8 +316,8 @@ export function CreatorProfileClient({
           <div className="mb-8">
             <HolderCalculator
               symbol={coinSymbol || creator.name}
-              coinPrice={livePrice}
-              totalCoinsInCirculation={creator.total_coins_in_circulation}
+              coinPrice={livePrice ?? 0}
+              totalCoinsInCirculation={creator.total_coins_in_circulation ?? 0}
               weeklyVolume={creator.weekly_volume_usd || 0}
               marketCount={openMarkets.length || markets.length || creator.markets_count || 0}
               creatorName={creator.name}
@@ -445,7 +445,7 @@ export function CreatorProfileClient({
         creator={creator}
         isOpen={showStakeModal}
         onClose={() => setShowStakeModal(false)}
-        livePrice={livePrice}
+        livePrice={livePrice ?? undefined}
         desoUsername={desoUser}
         profilePicUrl={livePic}
       />

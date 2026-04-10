@@ -18,8 +18,8 @@ export function MarketCard({ market }: MarketCardProps) {
   const isLive = hoursLeft < 24 && hoursLeft > 0;
   const resolvingSoon = hoursLeft < 72 && hoursLeft >= 24;
 
-  const yesPercent = Math.round(market.yes_price * 100);
-  const isYesLeading = market.yes_price >= 0.5;
+  const yesPercent = Math.round((market.yes_price ?? 0) * 100);
+  const isYesLeading = (market.yes_price ?? 0) >= 0.5;
 
   return (
     <Link href={`/markets/${market.slug}`}>
@@ -96,7 +96,7 @@ export function MarketCard({ market }: MarketCardProps) {
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <span className="text-sm font-medium tabular-nums text-[var(--text-tertiary)]">
-              {formatCompactCurrency(market.total_volume)} Vol
+              {formatCompactCurrency(market.total_volume ?? 0)} Vol
             </span>
           </div>
         </div>

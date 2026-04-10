@@ -46,7 +46,7 @@ export function TradeTicket({
       const feeType = getMarketFeeType(market);
       const fees = calculateFees(amountNum, feeType, feeConfig);
       const tradeQuote = getTradeQuote(
-        { yesPool: market.yes_pool, noPool: market.no_pool },
+        { yesPool: market.yes_pool ?? 0, noPool: market.no_pool ?? 0 },
         side,
         fees.netAmount
       );
@@ -143,10 +143,10 @@ export function TradeTicket({
   const isCategorical = market.market_type === "categorical";
   const yesPrice = isCategorical && selectedOutcome
     ? selectedOutcome.probability
-    : market.yes_price;
+    : market.yes_price ?? 0;
   const noPrice = isCategorical && selectedOutcome
     ? 1 - selectedOutcome.probability
-    : market.no_price;
+    : market.no_price ?? 0;
 
   return (
     <>
@@ -402,13 +402,13 @@ export function TradeTicket({
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Current odds</span>
               <span className={cn("font-mono font-bold", side === "yes" ? "text-yes" : "text-no")}>
-                {side === "yes" ? Math.round(market.yes_price * 100) : Math.round(market.no_price * 100)}% likely
+                {side === "yes" ? Math.round((market.yes_price ?? 0) * 100) : Math.round((market.no_price ?? 0) * 100)}% likely
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Cost per share</span>
               <span className="font-mono text-text-primary">
-                {side === "yes" ? Math.round(market.yes_price * 100) : Math.round(market.no_price * 100)}¢
+                {side === "yes" ? Math.round((market.yes_price ?? 0) * 100) : Math.round((market.no_price ?? 0) * 100)}¢
               </span>
             </div>
             <div className="flex justify-between text-sm">

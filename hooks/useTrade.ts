@@ -22,7 +22,7 @@ export function useTrade(
       const feeType = getMarketFeeType(market);
       const fees = calculateFees(amount, feeType, feeConfig);
       const quote = getTradeQuote(
-        { yesPool: market.yes_pool, noPool: market.no_pool },
+        { yesPool: market.yes_pool ?? 0, noPool: market.no_pool ?? 0 },
         side,
         fees.netAmount
       );

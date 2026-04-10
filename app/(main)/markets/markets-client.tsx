@@ -92,13 +92,13 @@ export function MarketsClient({ markets }: MarketsClientProps) {
 
     switch (sortBy) {
       case "trending":
-        result.sort((a, b) => b.trending_score - a.trending_score);
+        result.sort((a, b) => (b.trending_score ?? 0) - (a.trending_score ?? 0));
         break;
       case "volume":
-        result.sort((a, b) => b.total_volume - a.total_volume);
+        result.sort((a, b) => (b.total_volume ?? 0) - (a.total_volume ?? 0));
         break;
       case "newest":
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime());
         break;
       case "resolving_soon":
         result.sort((a, b) => {

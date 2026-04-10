@@ -73,17 +73,17 @@ export default function TokensPage() {
     }
     switch (sortBy) {
       case "price":
-        result.sort((a, b) => b.creator_coin_price - a.creator_coin_price);
+        result.sort((a, b) => (b.creator_coin_price ?? 0) - (a.creator_coin_price ?? 0));
         break;
       case "holders":
-        result.sort((a, b) => b.creator_coin_holders - a.creator_coin_holders);
+        result.sort((a, b) => (b.creator_coin_holders ?? 0) - (a.creator_coin_holders ?? 0));
         break;
       case "markets":
-        result.sort((a, b) => b.markets_count - a.markets_count);
+        result.sort((a, b) => (b.markets_count ?? 0) - (a.markets_count ?? 0));
         break;
       case "newest":
         result.sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          (a, b) => new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime()
         );
         break;
     }
@@ -173,9 +173,9 @@ export default function TokensPage() {
               const sym = c.deso_username || c.creator_coin_symbol;
               const hasToken = !!c.deso_username;
               const mcap =
-                c.creator_coin_market_cap > 0
-                  ? c.creator_coin_market_cap
-                  : c.creator_coin_price * Math.sqrt(c.creator_coin_holders || 1) * 1000;
+                (c.creator_coin_market_cap ?? 0) > 0
+                  ? c.creator_coin_market_cap ?? 0
+                  : (c.creator_coin_price ?? 0) * Math.sqrt(c.creator_coin_holders || 1) * 1000;
 
               return (
                 <div
@@ -206,20 +206,20 @@ export default function TokensPage() {
 
                   {/* Price */}
                   <span className="hidden font-mono text-sm font-semibold text-text-primary sm:block">
-                    {hasToken && c.creator_coin_price > 0.01
-                      ? formatCurrency(c.creator_coin_price)
+                    {hasToken && (c.creator_coin_price ?? 0) > 0.01
+                      ? formatCurrency(c.creator_coin_price ?? 0)
                       : "—"}
                   </span>
 
                   {/* Holders */}
                   <span className="hidden font-mono text-sm text-text-muted sm:block">
-                    {c.creator_coin_holders.toLocaleString()}
+                    {(c.creator_coin_holders ?? 0).toLocaleString()}
                   </span>
 
                   {/* Mkt cap + buy button */}
                   <div className="flex items-center gap-2">
                     <span className="hidden font-mono text-sm text-text-muted sm:block">
-                      {mcap > 0 ? formatCompactCurrency(mcap) : "—"}
+                      {mcap > 0 ? formatCompactCurrency(mcap ?? 0) : "—"}
                     </span>
                     <button
                       onClick={() => handleBuy(c)}

@@ -14,10 +14,10 @@ type EarningsPreviewProps = {
 export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPreviewProps) {
   const [copied, setCopied] = useState(false);
 
-  const totalVolume = markets.reduce((s, m) => s + m.total_volume, 0);
+  const totalVolume = markets.reduce((s, m) => s + (m.total_volume ?? 0), 0);
   const creatorShareIfClaimed = totalVolume * 0.01;
   const communityPool = totalVolume * 0.01;
-  const topMarket = markets.sort((a, b) => b.total_volume - a.total_volume)[0];
+  const topMarket = markets.sort((a, b) => (b.total_volume ?? 0) - (a.total_volume ?? 0))[0];
   const sym = creator.deso_username || creator.creator_coin_symbol || creator.name;
 
   const shareText = `Hey @${sym}, you have ${formatCurrency(creatorShareIfClaimed)} in potential earnings on @CalderaMarkets from prediction markets about you. Claim your profile → caldera.markets/creators/${creator.slug}`;
@@ -91,7 +91,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
       </p>
       {topMarket && (
         <p className="text-xs text-text-muted mb-4">
-          Most active: &ldquo;{topMarket.title.slice(0, 50)}...&rdquo; · {Math.round(topMarket.yes_price * 100)}% YES · {formatCompactCurrency(topMarket.total_volume)} vol
+          Most active: &ldquo;{topMarket.title.slice(0, 50)}...&rdquo; · {Math.round((topMarket.yes_price ?? 0) * 100)}% YES · {formatCompactCurrency(topMarket.total_volume ?? 0)} vol
         </p>
       )}
 

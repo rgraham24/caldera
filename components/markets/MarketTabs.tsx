@@ -89,7 +89,7 @@ export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
                     <span>·</span>
                     <span className="font-mono">{formatCurrency((parseInt(c.id.slice(-4), 16) % 180) + 20)}</span>
                     <span>·</span>
-                    <span>{formatRelativeTime(c.created_at)}</span>
+                    <span>{formatRelativeTime(c.created_at ?? "")}</span>
                   </div>
                 ))
               )}

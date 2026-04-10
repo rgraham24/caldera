@@ -34,7 +34,7 @@ export function StakeModal({
   const [error, setError] = useState<string | null>(null);
   const [desoPrice, setDesoPrice] = useState(0);
 
-  const coinPrice = livePrice ?? creator.creator_coin_price;
+  const coinPrice = livePrice ?? creator.creator_coin_price ?? 0;
   const coinSymbol = desoUsername || creator.creator_coin_symbol;
   const amountNum = parseFloat(amountUSD) || 0;
   const amountDesoNanos = desoPrice > 0 ? Math.floor((amountNum / desoPrice) * 1e9) : 0;

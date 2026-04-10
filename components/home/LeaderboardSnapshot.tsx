@@ -50,10 +50,10 @@ export function LeaderboardSnapshot({ entries }: LeaderboardSnapshotProps) {
               )}
             </div>
             <span className="font-mono text-sm text-text-muted">
-              {formatPercentDecimal(entry.roi_score / 100)} ROI
+              {formatPercentDecimal((entry.roi_score ?? 0) / 100)} ROI
             </span>
             <span className="font-mono text-sm font-semibold text-gold">
-              {entry.composite_score.toFixed(1)}
+              {(entry.composite_score ?? 0).toFixed(1)}
             </span>
           </Link>
         ))}

@@ -21,7 +21,7 @@ export async function GET(
 
   try {
     const [holders, desoPrice] = await Promise.all([
-      getTopHolders(creator.deso_public_key, creator.total_coins_in_circulation),
+      getTopHolders(creator.deso_public_key, creator.total_coins_in_circulation ?? 0),
       getDesoPrice(),
     ]);
 

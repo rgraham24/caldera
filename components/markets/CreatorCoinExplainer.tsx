@@ -86,10 +86,10 @@ export function CreatorCoinExplainer({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-display text-sm font-bold tracking-normal text-text-primary">
-                    {desoUser ? formatCurrency(livePrice) : "—"}
+                    {desoUser ? formatCurrency(livePrice ?? 0) : "—"}
                   </span>
                   <span className="text-xs text-text-muted">
-                    {liveHolders.toLocaleString()} holders
+                    {(liveHolders ?? 0).toLocaleString()} holders
                   </span>
                 </div>
               </div>
@@ -112,7 +112,7 @@ export function CreatorCoinExplainer({
         creator={creator}
         isOpen={showStakeModal}
         onClose={() => setShowStakeModal(false)}
-        livePrice={livePrice}
+        livePrice={livePrice ?? undefined}
         desoUsername={desoUser}
         profilePicUrl={livePic}
       />

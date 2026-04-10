@@ -12,9 +12,9 @@ import { connectDeSoWallet } from "@/lib/deso/auth";
 import { FollowButton } from "@/components/shared/FollowButton";
 
 function creatorMarketCap(c: Creator): number {
-  if (c.creator_coin_market_cap > 0) return c.creator_coin_market_cap;
+  if ((c.creator_coin_market_cap ?? 0) > 0) return c.creator_coin_market_cap ?? 0;
   // Fallback estimate: price × sqrt(holders) × 1000
-  return c.creator_coin_price * Math.sqrt(c.creator_coin_holders || 1) * 1000;
+  return (c.creator_coin_price ?? 0) * Math.sqrt(c.creator_coin_holders || 1) * 1000;
 }
 
 type CreatorsClientProps = {
@@ -83,10 +83,10 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
       );
     }
     switch (sortBy) {
-      case "price": result.sort((a, b) => b.creator_coin_price - a.creator_coin_price); break;
-      case "volume": result.sort((a, b) => (b.total_holder_earnings + b.total_creator_earnings) - (a.total_holder_earnings + a.total_creator_earnings)); break;
-      case "holders": result.sort((a, b) => b.creator_coin_holders - a.creator_coin_holders); break;
-      case "newest": result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+      case "price": result.sort((a, b) => (b.creator_coin_price ?? 0) - (a.creator_coin_price ?? 0)); break;
+      case "volume": result.sort((a, b) => ((b.total_holder_earnings ?? 0) + (b.total_creator_earnings ?? 0)) - ((a.total_holder_earnings ?? 0) + (a.total_creator_earnings ?? 0))); break;
+      case "holders": result.sort((a, b) => (b.creator_coin_holders ?? 0) - (a.creator_coin_holders ?? 0)); break;
+      case "newest": result.sort((a, b) => new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime()); break;
     }
     return result;
   }, [creators, tierFilter, sortBy, search]);
@@ -176,9 +176,9 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                 </div>
                 <div className="mb-3 flex items-baseline gap-3">
                   <span className="font-display text-xl font-bold tracking-normal text-text-primary">
-                    {hasToken && c.creator_coin_price > 0.01 ? formatCurrency(c.creator_coin_price) : hasToken ? "Not active" : "—"}
+                    {hasToken && (c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : hasToken ? "Not active" : "—"}
                   </span>
-                  <span className="text-xs text-text-muted">{c.creator_coin_holders.toLocaleString()} holders</span>
+                  <span className="text-xs text-text-muted">{(c.creator_coin_holders ?? 0).toLocaleString()} holders</span>
                 </div>
                 {hasToken && creatorMarketCap(c) > 0 && (
                   <div className="mb-1 flex items-center gap-2 text-xs">
@@ -194,7 +194,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                   ) : c.token_status === "active_unverified" ? (
                     <span className="text-caldera">🔵 Active · fees flow back into token on buys</span>
                   ) : (
-                    <span>{formatCompactCurrency(c.total_holder_earnings)} earned by holders</span>
+                    <span>{formatCompactCurrency(c.total_holder_earnings ?? 0)} earned by holders</span>
                   )}
                   <span>{c.markets_count} markets</span>
                 </div>

@@ -101,7 +101,7 @@ export function MarketComments({
                 <span className="text-xs text-caldera">✓</span>
               )}
               <span className="text-xs text-text-muted">
-                {formatRelativeTime(comment.created_at)}
+                {formatRelativeTime(comment.created_at ?? "")}
               </span>
             </div>
             <p className="text-sm text-text-primary leading-relaxed">

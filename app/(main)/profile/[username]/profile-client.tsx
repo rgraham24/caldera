@@ -74,13 +74,13 @@ export function ProfileClient({
           {
             label: "ROI",
             value: leaderboard
-              ? formatPercentDecimal(leaderboard.roi_score / 100)
+              ? formatPercentDecimal((leaderboard.roi_score ?? 0) / 100)
               : "-",
           },
           {
             label: "Accuracy",
             value: leaderboard
-              ? `${leaderboard.accuracy_score.toFixed(1)}%`
+              ? `${(leaderboard.accuracy_score ?? 0).toFixed(1)}%`
               : "-",
           },
           {
@@ -89,7 +89,7 @@ export function ProfileClient({
           },
           {
             label: "Reputation",
-            value: user.reputation_score.toFixed(1),
+            value: (user.reputation_score ?? 0).toFixed(1),
           },
           {
             label: "Rank",

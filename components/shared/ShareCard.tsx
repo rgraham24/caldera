@@ -16,7 +16,7 @@ export function ShareCard({ market, creatorName }: ShareCardProps) {
   const [copied, setCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const yesPercent = Math.round(market.yes_price * 100);
+  const yesPercent = Math.round((market.yes_price ?? 0) * 100);
   const shareText = `I think "${market.title}" → ${yesPercent}% likely. Trade it on @CalderaMarkets`;
   const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/markets/${market.slug}`;
 
@@ -60,14 +60,14 @@ export function ShareCard({ market, creatorName }: ShareCardProps) {
             </p>
             <div className="mb-3 flex items-baseline gap-2">
               <span className={`font-display text-3xl font-bold ${yesPercent >= 50 ? "text-yes" : "text-no"}`}>
-                {formatPercent(market.yes_price)} YES
+                {formatPercent(market.yes_price ?? 0)} YES
               </span>
             </div>
             {creatorName && (
               <p className="mb-2 text-xs text-caldera">{creatorName} · People Market</p>
             )}
             <div className="flex items-center justify-between text-[10px] text-text-muted">
-              <span>{formatCompactCurrency(market.total_volume)} volume</span>
+              <span>{formatCompactCurrency(market.total_volume ?? 0)} volume</span>
               <span>{market.resolve_at && formatRelativeTime(market.resolve_at)}</span>
             </div>
           </div>

@@ -86,7 +86,7 @@ export async function POST(
         for (const pos of positions) {
           const won = pos.side === winningSide;
           const payout = won ? pos.quantity : 0; // Each winning share pays $1
-          const realizedPnl = payout - pos.total_cost;
+          const realizedPnl = (payout ?? 0) - (pos.total_cost ?? 0);
 
           await supabase
             .from("positions")
