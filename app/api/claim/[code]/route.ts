@@ -8,7 +8,6 @@ export async function GET(
   const supabase = await createClient();
   const { code } = await params;
 
-  // Look up the claim code
   const { data: claimData } = await supabase
     .from("claim_codes")
     .select("code, slug, status")
@@ -19,13 +18,13 @@ export async function GET(
     return NextResponse.json({ error: "invalid" }, { status: 404 });
   }
 
-  const claim = claimData as { code: string; slug: string; status: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const claim = claimData as any;
 
   if (claim.status === "claimed") {
     return NextResponse.json({ error: "already_claimed" }, { status: 409 });
   }
 
-  // Get creator info
   const { data: creatorData } = await supabase
     .from("creators")
     .select("name, slug, creator_coin_symbol, markets_count, total_volume")
@@ -36,13 +35,8 @@ export async function GET(
     return NextResponse.json({ error: "invalid" }, { status: 404 });
   }
 
-  const creator = creatorData as {
-    name: string;
-    slug: string;
-    creator_coin_symbol: string;
-    markets_count: number;
-    total_volume: number;
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const creator = creatorData as any;
 
   return NextResponse.json({
     creator: {
