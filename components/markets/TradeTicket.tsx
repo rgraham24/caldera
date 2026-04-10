@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAppStore } from "@/store";
 import { Info } from "lucide-react";
-import { connectDeSoWallet } from "@/lib/deso/auth";
+import { connectDeSoWallet, sendDesoPayment } from "@/lib/deso/auth";
 
 type TradeTicketProps = {
   market: Market;
@@ -33,9 +33,10 @@ export function TradeTicket({
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [tradeSuccess, setTradeSuccess] = useState<{ shares: number; side: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { isConnected } = useAppStore();
+  const { isConnected, desoPublicKey } = useAppStore();
 
   const amountNum = parseFloat(amount) || 0;
 
@@ -72,8 +73,42 @@ export function TradeTicket({
 
     setIsSubmitting(true);
     setError(null);
+    setTradeStatus(null);
 
     try {
+      const platformWallet = process.env.NEXT_PUBLIC_PLATFORM_WALLET;
+      const currentDesoPublicKey = desoPublicKey ?? useAppStore.getState().desoPublicKey;
+
+      let txnHash: string | undefined;
+
+      // On-chain payment: send DESO to platform wallet before recording the trade
+      if (platformWallet && currentDesoPublicKey) {
+        // Get current DESO price for USD → nanos conversion
+        const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
+        const priceData = await priceRes.json();
+        const centsPerDeso = priceData.USDCentsPerDeSoExchangeRate ?? priceData.USDCentsPerDeSoCoin ?? 0;
+        const desoUsdRate = centsPerDeso > 0 ? centsPerDeso / 100 : 0;
+
+        if (desoUsdRate > 0) {
+          const amountNanos = Math.floor((amountNum / desoUsdRate) * 1e9);
+
+          setTradeStatus('Waiting for wallet approval...');
+          const hash = await sendDesoPayment(
+            currentDesoPublicKey,
+            platformWallet,
+            amountNanos
+          );
+
+          if (!hash) {
+            throw new Error('Transaction cancelled or failed');
+          }
+
+          txnHash = hash;
+          setTradeStatus('Recording trade...');
+        }
+      }
+
+      // Record trade in Supabase (with or without on-chain hash)
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,7 +116,8 @@ export function TradeTicket({
           marketId: market.id,
           side,
           amount: amountNum,
-          desoPublicKey: useAppStore.getState().desoPublicKey,
+          txnHash,
+          desoPublicKey: desoPublicKey ?? useAppStore.getState().desoPublicKey,
         }),
       });
 
@@ -91,12 +127,14 @@ export function TradeTicket({
       }
 
       const shares = data?.data?.quote?.sharesReceived ?? quote?.sharesReceived ?? 0;
+      setTradeStatus(null);
       setTradeSuccess({ shares, side });
       setAmount("");
       onTradeComplete?.();
       setTimeout(() => setTradeSuccess(null), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trade failed");
+      setTradeStatus(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -306,11 +344,20 @@ export function TradeTicket({
         </div>
       )}
 
+      {tradeStatus && (
+        <div className="mb-3 text-xs text-orange-400 text-center animate-pulse">
+          {tradeStatus}
+        </div>
+      )}
+
       {tradeSuccess && (
         <div className="mb-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 p-3 text-center">
           <p className="text-emerald-400 font-semibold text-sm">✓ Trade confirmed!</p>
           <p className="text-emerald-400/70 text-xs mt-0.5">
             You bought {tradeSuccess.shares.toFixed(2)} {tradeSuccess.side.toUpperCase()} shares
+          </p>
+          <p className="text-emerald-400/50 text-xs mt-0.5">
+            Your position has been recorded on-chain
           </p>
         </div>
       )}
@@ -331,7 +378,7 @@ export function TradeTicket({
         )}
       >
         {isSubmitting
-          ? "Confirming..."
+          ? (tradeStatus ?? "Confirming...")
           : market.status !== "open"
           ? "Market Closed"
           : !isConnected

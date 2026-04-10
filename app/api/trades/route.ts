@@ -4,6 +4,60 @@ import { getTradeQuote } from "@/lib/trading/amm";
 import { calculateFees, getMarketFeeType } from "@/lib/fees/calculator";
 import { z } from "zod";
 
+async function executeCreatorCoinBuyback(params: {
+  creatorSlug: string;
+  amountUSD: number;
+  platformPublicKey: string;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: creator } = await supabase
+      .from('creators')
+      .select('deso_public_key, deso_username')
+      .eq('slug', params.creatorSlug)
+      .single();
+
+    if (!creator?.deso_public_key) return;
+
+    // Get DESO price
+    const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
+    const priceData = await priceRes.json();
+    const centsPerDeso = priceData.USDCentsPerDeSoExchangeRate ?? priceData.USDCentsPerDeSoCoin ?? 0;
+    const desoUsdRate = centsPerDeso > 0 ? centsPerDeso / 100 : 0;
+    if (desoUsdRate <= 0) return;
+
+    const buyAmountNanos = Math.floor((params.amountUSD / desoUsdRate) * 1e9);
+    if (buyAmountNanos < 1000) return;
+
+    // Build buy-creator-coin transaction
+    const txRes = await fetch('https://api.deso.org/api/v0/buy-or-sell-creator-coin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        UpdaterPublicKeyBase58Check: params.platformPublicKey,
+        CreatorPublicKeyBase58Check: creator.deso_public_key,
+        OperationType: 'buy',
+        DeSoToSellNanos: buyAmountNanos,
+        CreatorCoinToSellNanos: 0,
+        MinDeSoExpectedNanos: 0,
+        MinCreatorCoinExpectedNanos: 0,
+        MinFeeRateNanosPerKB: 1000,
+      }),
+    });
+
+    if (!txRes.ok) return;
+    const txData = await txRes.json();
+    if (!txData.TransactionHex) return;
+
+    // TODO: Implement server-side signing once deso-protocol server-side
+    // signing is confirmed working. For now, log for manual processing.
+    console.log(`[buyback] Would buy $${params.amountUSD.toFixed(4)} of ${params.creatorSlug} (${buyAmountNanos} nanos)`);
+
+  } catch (err) {
+    console.error('[buyback]', err);
+  }
+}
+
 const tradeSchema = z.object({
   marketId: z.string().min(1),
   side: z.enum(["yes", "no"]),
@@ -248,6 +302,17 @@ export async function POST(req: NextRequest) {
         .from("creators")
         .update({ total_fees_distributed: prevDistributed + fees.coinHolderPoolFee })
         .eq("id", market.creator_id);
+    }
+
+    // Fire-and-forget creator coin buyback via platform wallet
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mktAny = market as any;
+    if (mktAny.creator_slug && fees.personalToken > 0) {
+      void executeCreatorCoinBuyback({
+        creatorSlug: mktAny.creator_slug,
+        amountUSD: fees.personalToken,
+        platformPublicKey: process.env.DESO_PLATFORM_PUBLIC_KEY ?? '',
+      });
     }
 
     return NextResponse.json({
