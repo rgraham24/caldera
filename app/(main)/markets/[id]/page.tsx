@@ -14,7 +14,7 @@ export default async function MarketDetailPage({
   const { data: market } = await supabase
     .from("markets")
     .select("*")
-    .eq("slug", slug)
+    .eq("id", slug)
     .single();
 
   if (!market) notFound();
