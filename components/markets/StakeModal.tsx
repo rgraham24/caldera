@@ -36,6 +36,7 @@ export function StakeModal({
 
   const coinPrice = livePrice ?? creator.creator_coin_price ?? 0;
   const coinSymbol = desoUsername || creator.creator_coin_symbol;
+  const founderReward = creator.founder_reward_basis_points ?? 0;
   const amountNum = parseFloat(amountUSD) || 0;
   const amountDesoNanos = desoPrice > 0 ? Math.floor((amountNum / desoPrice) * 1e9) : 0;
   const estimatedCoins = coinPrice > 0 ? amountNum / coinPrice : 0;
@@ -63,8 +64,8 @@ export function StakeModal({
     setError(null);
 
     try {
-      if (tab === "buy" && amountNum < 2) {
-        setError("Minimum buy is $2 to cover DeSo network fees.");
+      if (tab === "buy" && amountNum < 1) {
+        setError("Minimum purchase is $1.");
         setIsLoading(false);
         return;
       }
@@ -254,6 +255,14 @@ export function StakeModal({
                 ))}
               </div>
             </div>
+
+            {/* Founder reward warning */}
+            {tab === "buy" && founderReward > 0 && (
+              <div className="mb-3 rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 text-xs text-orange-400">
+                ⚠️ {founderReward / 100}% founder reward — creator receives this portion of every purchase.
+                {founderReward >= 9000 && " This token has a very high founder reward."}
+              </div>
+            )}
 
             {/* Preview */}
             {amountNum > 0 && (
