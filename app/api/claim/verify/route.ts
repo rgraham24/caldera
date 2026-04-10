@@ -9,30 +9,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  // Look up the claim code
-  const { data: claim } = await supabase
+  const { data: claimRaw } = await supabase
     .from("claim_codes")
     .select("*")
     .eq("code", code)
     .eq("status", "pending")
     .maybeSingle();
 
-  if (!claim) {
+  if (!claimRaw) {
     return NextResponse.json({ error: "Invalid or already claimed code" }, { status: 404 });
   }
 
-  // Get creator
-  const { data: creator } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const claim = claimRaw as any;
+
+  const { data: creatorRaw } = await supabase
     .from("creators")
     .select("id, name, slug, deso_username")
     .eq("slug", claim.slug)
-    .single();
+    .maybeSingle();
 
-  if (!creator) {
+  if (!creatorRaw) {
     return NextResponse.json({ error: "Creator not found" }, { status: 404 });
   }
 
-  // Basic handle match check (normalize — strip @, lowercase)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const creator = creatorRaw as any;
+
   const normalizedHandle = handle.replace(/^@/, "").toLowerCase().trim();
   const normalizedCreatorSlug = creator.slug.toLowerCase().trim();
   const normalizedDesoUsername = (creator.deso_username ?? "").toLowerCase().trim();
@@ -50,13 +53,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Mark code as claimed
   await supabase
     .from("claim_codes")
-    .update({ status: "claimed", claimed_at: new Date().toISOString(), claimed_by_deso_key: desoPublicKey })
+    .update({
+      status: "claimed",
+      claimed_at: new Date().toISOString(),
+      claimed_by_deso_key: desoPublicKey,
+    })
     .eq("code", code);
 
-  // Link DeSo public key to creator
   await supabase
     .from("creators")
     .update({
@@ -67,15 +72,17 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", creator.id);
 
-  // Upsert user record
   await supabase
     .from("users")
-    .upsert({
-      deso_public_key: desoPublicKey,
-      username: desoUsername || normalizedHandle,
-      is_creator: true,
-      creator_id: creator.id,
-    }, { onConflict: "deso_public_key" });
+    .upsert(
+      {
+        deso_public_key: desoPublicKey,
+        username: desoUsername || normalizedHandle,
+        is_creator: true,
+        creator_id: creator.id,
+      },
+      { onConflict: "deso_public_key" }
+    );
 
   return NextResponse.json({ success: true, slug: creator.slug });
 }

@@ -8,35 +8,35 @@ export async function GET(
   const supabase = await createClient();
   const { code } = await params;
 
-  const { data: claimData } = await supabase
+  const { data: claimRaw } = await supabase
     .from("claim_codes")
     .select("code, slug, status")
     .eq("code", code)
     .maybeSingle();
 
-  if (!claimData) {
+  if (!claimRaw) {
     return NextResponse.json({ error: "invalid" }, { status: 404 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const claim = claimData as any;
+  const claim = claimRaw as any;
 
   if (claim.status === "claimed") {
     return NextResponse.json({ error: "already_claimed" }, { status: 409 });
   }
 
-  const { data: creatorData } = await supabase
+  const { data: creatorRaw } = await supabase
     .from("creators")
     .select("name, slug, creator_coin_symbol, markets_count, total_volume")
     .eq("slug", claim.slug)
     .maybeSingle();
 
-  if (!creatorData) {
+  if (!creatorRaw) {
     return NextResponse.json({ error: "invalid" }, { status: 404 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const creator = creatorData as any;
+  const creator = creatorRaw as any;
 
   return NextResponse.json({
     creator: {
