@@ -331,6 +331,11 @@ function ClaimSlugPage({ slug }: { slug: string }) {
     }).catch(() => setLoading(false));
   }, [slug]);
 
+  const displayName = slug
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^./, c => c.toUpperCase())
+    .trim();
+
   const estimatedMonthlyEarnings = markets.length * 5000 * 0.01 * 4;
   const avatarUrl = creator?.profile_pic_url ?? creator?.image_url;
 
@@ -380,13 +385,13 @@ function ClaimSlugPage({ slug }: { slug: string }) {
           {avatarUrl ? (
             <img
               src={avatarUrl}
-              alt={creator?.name ?? slug}
+              alt={creator?.name ?? displayName}
               className="w-24 h-24 rounded-full mx-auto border-4 border-orange-500/30 object-cover"
             />
           ) : (
             <div className="w-24 h-24 rounded-full mx-auto bg-orange-500/20 flex items-center justify-center border-4 border-orange-500/30">
               <span className="text-3xl font-bold text-orange-400">
-                {(creator?.name ?? slug)[0]?.toUpperCase()}
+                {(creator?.name ?? displayName)[0]?.toUpperCase()}
               </span>
             </div>
           )}
@@ -394,7 +399,7 @@ function ClaimSlugPage({ slug }: { slug: string }) {
 
         {/* Headline */}
         <h1 className="text-3xl font-bold mb-3 text-[var(--color-text)]">
-          {creator?.name ?? slug}, you have a token on Caldera
+          {creator?.name ?? displayName}, you have a token on Caldera
         </h1>
         <p className="text-[var(--color-text-muted)] text-lg mb-8">
           Fans are making predictions about you.
@@ -420,6 +425,21 @@ function ClaimSlugPage({ slug }: { slug: string }) {
             <div className="text-xs text-[var(--color-text-muted)] mt-1">Token holders</div>
           </div>
         </div>
+
+        {/* Empty state */}
+        {markets.length === 0 && !creator && (
+          <div className="mb-8 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-center">
+            <p className="text-sm text-[var(--color-text-muted)] mb-2">
+              No markets yet — be the first to create one
+            </p>
+            <a
+              href={`/creators/${slug}`}
+              className="text-sm font-semibold text-orange-400 hover:text-orange-300 underline underline-offset-2"
+            >
+              View {displayName}&apos;s profile →
+            </a>
+          </div>
+        )}
 
         {/* Markets preview */}
         {markets.length > 0 && (
