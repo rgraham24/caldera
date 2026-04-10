@@ -12,6 +12,28 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
   const offset = parseInt(searchParams.get("offset") || "0");
   const desoPublicKey = searchParams.get("desoPublicKey");
+  const creatorSlug = searchParams.get("creatorSlug");
+
+  // Creator feed: fetch markets for a specific creator by slug
+  if (creatorSlug) {
+    const { data: creatorRow } = await supabase
+      .from("creators")
+      .select("id")
+      .eq("slug", creatorSlug)
+      .maybeSingle();
+
+    if (!creatorRow) return NextResponse.json({ data: [] });
+
+    const { data, error } = await supabase
+      .from("markets")
+      .select("*")
+      .eq("creator_id", creatorRow.id)
+      .order("trending_score", { ascending: false })
+      .limit(limit);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
+  }
 
   // Following feed: fetch followed slugs → get matching creator names → title-match markets
   if (sort === "following" && desoPublicKey) {

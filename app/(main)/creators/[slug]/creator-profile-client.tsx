@@ -169,9 +169,7 @@ export function CreatorProfileClient({
               </p>
               <a
                 href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — you have a token on @CalderaMarket! ` +
-                  `${openMarkets.length} prediction markets about you are live and generating fees. ` +
-                  `Claim your profile at caldera.market/creators/${creator.slug} 🔥`
+                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — fans are making predictions about you on @CalderaMarket and your token is earning fees right now. Claim it free at caldera.market/claim/${creator.slug} 🔥`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
