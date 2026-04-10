@@ -51,10 +51,10 @@ export async function POST(req: NextRequest) {
   await supabase
     .from("claim_codes")
     .update({
-      status: "claimed",
+      status: "claimed" as string,
       claimed_at: new Date().toISOString(),
       claimed_by_deso_key: desoPublicKey,
-    } as Partial<ClaimCode>)
+    })
     .eq("code", code);
 
   await supabase

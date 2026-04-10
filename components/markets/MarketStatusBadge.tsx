@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type { MarketStatus } from "@/types";
 
 type MarketStatusBadgeProps = {
-  status: MarketStatus | string;
+  status: MarketStatus | string | null;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -14,14 +14,15 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function MarketStatusBadge({ status }: MarketStatusBadgeProps) {
+  const resolvedStatus = status ?? "open";
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize",
-        STATUS_STYLES[status] || STATUS_STYLES.open
+        STATUS_STYLES[resolvedStatus] || STATUS_STYLES.open
       )}
     >
-      {status}
+      {resolvedStatus}
     </span>
   );
 }
