@@ -13,7 +13,7 @@ async function run() {
   console.log('Starting reserved-only DeSo profile import...');
   console.log('Using ModerationType: reserved — only officially reserved profiles will be fetched.\n');
 
-  while (page < 200) {
+  while (page < 500) {
     const body = {
       NumToFetch: 100,
       ModerationType: 'reserved',
