@@ -1613,3 +1613,71 @@ export async function checkPendingClaims(supabase: AnySupabase): Promise<number>
   }
   return claimed;
 }
+
+// ─── DeSo profile auto-creation ───────────────────────────────────────────────
+
+export async function processPendingDesoCreations(
+  supabase: SupabaseClient,
+  limit = 10
+): Promise<{ created: number; failed: number }> {
+  const { createDesoProfileForCreator } = await import('../deso/create-profile');
+
+  const { data: pending } = await supabase
+    .from('creators')
+    .select('slug, name, image_url')
+    .eq('token_status', 'pending_deso_creation')
+    .limit(limit);
+
+  if (!pending?.length) return { created: 0, failed: 0 };
+
+  let created = 0;
+  let failed = 0;
+
+  for (const creator of pending) {
+    const result = await createDesoProfileForCreator({
+      username: creator.slug,
+      description: `${creator.name} on Caldera — prediction markets and creator tokens. Claim at caldera.market/claim/${creator.slug}`,
+      profilePicUrl: creator.image_url ?? undefined,
+    });
+
+    if (result.success && result.publicKey) {
+      await supabase.from('creators').update({
+        deso_username: result.username ?? creator.slug,
+        deso_public_key: result.publicKey,
+        token_status: 'active_unverified',
+        image_url: result.publicKey
+          ? `https://node.deso.org/api/v0/get-single-profile-picture/${result.publicKey}`
+          : creator.image_url,
+      }).eq('slug', creator.slug);
+
+      created++;
+      console.log(`[deso-create] Created profile for ${creator.name} (${creator.slug})`);
+    } else {
+      await supabase.from('creators').update({
+        token_status: 'deso_creation_failed',
+      }).eq('slug', creator.slug);
+
+      failed++;
+      console.log(`[deso-create] Failed for ${creator.slug}: ${result.error}`);
+    }
+
+    // Rate limit — DeSo allows ~1 profile creation per 2 seconds
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  return { created, failed };
+}
+
+export async function queueAllCreatorsForDesoCreation(
+  supabase: SupabaseClient
+): Promise<number> {
+  const { data } = await supabase
+    .from('creators')
+    .update({ token_status: 'pending_deso_creation' })
+    .is('deso_username', null)
+    .not('token_status', 'eq', 'pending_deso_creation')
+    .not('token_status', 'eq', 'deso_creation_failed')
+    .select('slug');
+
+  return data?.length ?? 0;
+}

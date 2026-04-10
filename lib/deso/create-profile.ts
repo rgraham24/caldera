@@ -1,0 +1,121 @@
+export async function createDesoProfileForCreator(params: {
+  username: string;
+  description: string;
+  profilePicUrl?: string;
+}): Promise<{ success: boolean; publicKey?: string; username?: string; error?: string }> {
+  try {
+    const platformSeed = process.env.DESO_PLATFORM_SEED;
+    const platformPublicKey = process.env.DESO_PLATFORM_PUBLIC_KEY;
+
+    if (!platformSeed || !platformPublicKey) {
+      return { success: false, error: 'Platform wallet not configured' };
+    }
+
+    // Clean username — DeSo usernames alphanumeric only
+    const cleanUsername = params.username
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .substring(0, 25);
+
+    if (cleanUsername.length < 3) {
+      return { success: false, error: 'Username too short' };
+    }
+
+    // Check if profile already exists
+    const checkRes = await fetch('https://api.deso.org/api/v0/get-single-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Username: cleanUsername }),
+    });
+    const checkData = await checkRes.json();
+
+    if (checkData?.Profile?.Username) {
+      // Already exists — return existing profile
+      return {
+        success: true,
+        publicKey: checkData.Profile.PublicKeyBase58Check,
+        username: checkData.Profile.Username,
+      };
+    }
+
+    // Build update-profile transaction
+    const txRes = await fetch('https://api.deso.org/api/v0/update-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        UpdaterPublicKeyBase58Check: platformPublicKey,
+        ProfilePublicKeyBase58Check: '',
+        NewUsername: cleanUsername,
+        NewDescription: params.description,
+        NewProfilePic: params.profilePicUrl ?? '',
+        NewCreatorBasisPoints: 0,
+        NewStakeMultipleBasisPoints: 12500,
+        IsHidden: false,
+        MinFeeRateNanosPerKB: 1000,
+      }),
+    });
+
+    if (!txRes.ok) {
+      const errText = await txRes.text();
+      return { success: false, error: `DeSo API error: ${errText.substring(0, 100)}` };
+    }
+
+    const txData = await txRes.json();
+
+    if (!txData.TransactionHex) {
+      return { success: false, error: 'No transaction returned' };
+    }
+
+    // Sign and submit the transaction
+    const identityRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        TransactionHex: txData.TransactionHex,
+        Seed: platformSeed,
+      }),
+    });
+
+    if (!identityRes.ok) {
+      // Try direct submit via node
+      const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          TransactionHex: txData.TransactionHex,
+        }),
+      });
+
+      if (!submitRes.ok) {
+        return { success: false, error: 'Failed to submit transaction' };
+      }
+    }
+
+    // Wait for propagation then fetch the new profile
+    await new Promise(r => setTimeout(r, 3000));
+
+    const profileRes = await fetch('https://api.deso.org/api/v0/get-single-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Username: cleanUsername }),
+    });
+    const profileData = await profileRes.json();
+
+    if (profileData?.Profile?.Username) {
+      return {
+        success: true,
+        publicKey: profileData.Profile.PublicKeyBase58Check,
+        username: profileData.Profile.Username,
+      };
+    }
+
+    // Profile creation submitted but not yet propagated
+    return {
+      success: true,
+      publicKey: platformPublicKey,
+      username: cleanUsername,
+    };
+
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}

@@ -12,6 +12,11 @@ export function AdminActions() {
   const [cycleStep, setCycleStep] = useState<string | null>(null);
   const [cycleResult, setCycleResult] = useState<string | null>(null);
 
+  const [queueingDeso, setQueueingDeso] = useState(false);
+  const [queueDesoResult, setQueueDesoResult] = useState<string | null>(null);
+  const [processingDeso, setProcessingDeso] = useState(false);
+  const [processDesoResult, setProcessDesoResult] = useState<string | null>(null);
+
   const [curating, setCurating] = useState(false);
   const [curateResult, setCurateResult] = useState<string | null>(null);
 
@@ -459,6 +464,44 @@ export function AdminActions() {
       setAutoResolveResult(`Error: ${err instanceof Error ? err.message : "Auto-resolve failed"}`);
     } finally {
       setAutoResolving(false);
+    }
+  };
+
+  const handleQueueDeso = async () => {
+    setQueueingDeso(true);
+    setQueueDesoResult(null);
+    try {
+      const res = await fetch('/api/admin/queue-deso-creation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? '' }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setQueueDesoResult(`✅ Queued ${json.queued} creators for DeSo profile creation`);
+    } catch (err) {
+      setQueueDesoResult(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+    } finally {
+      setQueueingDeso(false);
+    }
+  };
+
+  const handleProcessDeso = async () => {
+    setProcessingDeso(true);
+    setProcessDesoResult(null);
+    try {
+      const res = await fetch('/api/admin/process-deso-creation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? '' }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setProcessDesoResult(`✅ ${json.created} profiles created · ${json.failed} failed`);
+    } catch (err) {
+      setProcessDesoResult(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+    } finally {
+      setProcessingDeso(false);
     }
   };
 
@@ -968,6 +1011,43 @@ export function AdminActions() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* DeSo Profile Creation */}
+      <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5">
+        <h2 className="mb-3 text-sm font-semibold text-purple-400">🪙 DeSo Profile Creation</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Auto-creates DeSo profiles for every creator using the Caldera platform wallet. Creators without a DeSo username get tokenized automatically — no manual intervention needed.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={handleQueueDeso}
+            disabled={queueingDeso}
+            className="bg-purple-600 text-white font-semibold hover:bg-purple-700"
+          >
+            {queueingDeso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {queueingDeso ? 'Queuing...' : 'Queue All Creators for DeSo Creation'}
+          </Button>
+          <Button
+            onClick={handleProcessDeso}
+            disabled={processingDeso}
+            variant="outline"
+            className="border-purple-500/40 text-purple-300 hover:bg-purple-500/10 font-semibold"
+          >
+            {processingDeso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {processingDeso ? 'Processing (~20s)...' : 'Process Now (10 profiles)'}
+          </Button>
+        </div>
+        {queueDesoResult && (
+          <p className={`mt-3 text-xs ${queueDesoResult.startsWith('Error') ? 'text-no' : 'text-yes'}`}>
+            {queueDesoResult}
+          </p>
+        )}
+        {processDesoResult && (
+          <p className={`mt-2 text-xs ${processDesoResult.startsWith('Error') ? 'text-no' : 'text-yes'}`}>
+            {processDesoResult}
+          </p>
         )}
       </div>
     </div>

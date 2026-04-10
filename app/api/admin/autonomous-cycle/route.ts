@@ -10,6 +10,7 @@ import {
   generateMarketsForImportedCreators,
   checkPendingClaims,
   backfillCreatorSlugs,
+  processPendingDesoCreations,
 } from "@/lib/admin/pipeline";
 import { getUpcomingGames, generateSportsMarkets } from "@/lib/admin/sports-feed";
 import { getTopStreamers } from "@/lib/admin/twitch-feed";
@@ -113,6 +114,11 @@ async function runCycle() {
   const autoClaimed = await checkPendingClaims(supabase);
   if (autoClaimed > 0) console.log(`[cycle] Auto-claimed ${autoClaimed} profiles`);
 
+  // Step 6b: Create DeSo profiles for pending creators
+  const { created: desoCreated, failed: desoFailed } =
+    await processPendingDesoCreations(supabase, 10);
+  console.log(`[cycle] DeSo profiles: ${desoCreated} created, ${desoFailed} failed`);
+
   // Step 7: Weekly DeSo profile sync (Mondays only)
   const dayOfWeek = new Date().getDay(); // 0=Sunday, 1=Monday
   if (dayOfWeek === 1) {
@@ -152,6 +158,7 @@ async function runCycle() {
     imported_markets_created: importedMarketsCreated,
     auto_voided: autoVoided,
     auto_claimed: autoClaimed,
+    deso_profiles_created: desoCreated,
   };
 }
 
