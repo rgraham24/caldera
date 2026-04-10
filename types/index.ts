@@ -70,3 +70,16 @@ export type MarketOutcome = {
 export type MarketWithOutcomes = Market & {
   market_outcomes?: MarketOutcome[];
 };
+
+// Claim codes (not in generated DB types)
+export type ClaimCode = {
+  id: string;
+  code: string;
+  slug: string;
+  status: string;
+  claimed_at: string | null;
+  claimed_by_deso_key: string | null;
+  created_at: string;
+};
+
+export type ClaimCodeInsert = Omit<ClaimCode, "id" | "created_at">;

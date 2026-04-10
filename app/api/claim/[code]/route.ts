@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import type { ClaimCode } from "@/types";
 
 export async function GET(
   _req: NextRequest,
@@ -8,35 +9,29 @@ export async function GET(
   const supabase = await createClient();
   const { code } = await params;
 
-  const { data: claimRaw } = await supabase
+  const { data: claim } = await supabase
     .from("claim_codes")
     .select("code, slug, status")
     .eq("code", code)
-    .maybeSingle();
+    .maybeSingle() as { data: Pick<ClaimCode, "code" | "slug" | "status"> | null };
 
-  if (!claimRaw) {
+  if (!claim) {
     return NextResponse.json({ error: "invalid" }, { status: 404 });
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const claim = claimRaw as any;
 
   if (claim.status === "claimed") {
     return NextResponse.json({ error: "already_claimed" }, { status: 409 });
   }
 
-  const { data: creatorRaw } = await supabase
+  const { data: creator } = await supabase
     .from("creators")
     .select("name, slug, creator_coin_symbol, markets_count, total_volume")
     .eq("slug", claim.slug)
     .maybeSingle();
 
-  if (!creatorRaw) {
+  if (!creator) {
     return NextResponse.json({ error: "invalid" }, { status: 404 });
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const creator = creatorRaw as any;
 
   return NextResponse.json({
     creator: {

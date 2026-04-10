@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import type { ClaimCode } from "@/types";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -9,32 +10,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { data: claimRaw } = await supabase
+  const { data: claim } = await supabase
     .from("claim_codes")
     .select("*")
     .eq("code", code)
     .eq("status", "pending")
-    .maybeSingle();
+    .maybeSingle() as { data: ClaimCode | null };
 
-  if (!claimRaw) {
+  if (!claim) {
     return NextResponse.json({ error: "Invalid or already claimed code" }, { status: 404 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const claim = claimRaw as any;
-
-  const { data: creatorRaw } = await supabase
+  const { data: creator } = await supabase
     .from("creators")
     .select("id, name, slug, deso_username")
     .eq("slug", claim.slug)
     .maybeSingle();
 
-  if (!creatorRaw) {
+  if (!creator) {
     return NextResponse.json({ error: "Creator not found" }, { status: 404 });
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const creator = creatorRaw as any;
 
   const normalizedHandle = handle.replace(/^@/, "").toLowerCase().trim();
   const normalizedCreatorSlug = creator.slug.toLowerCase().trim();
@@ -59,7 +54,7 @@ export async function POST(req: NextRequest) {
       status: "claimed",
       claimed_at: new Date().toISOString(),
       claimed_by_deso_key: desoPublicKey,
-    })
+    } as Partial<ClaimCode>)
     .eq("code", code);
 
   await supabase
