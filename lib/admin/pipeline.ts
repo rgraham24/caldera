@@ -801,15 +801,34 @@ async function findCreatorSlug(
     entityName.split(' ').slice(-1)[0].toLowerCase(),
   ].filter(c => c.length >= 3 && isValidDesoSlug(c));
 
-  // 1. Check local DB first — only return slugs that have a real deso_username
+  // 1. Check local DB first — only return if reserved OR 100+ holders (squatters rejected)
   for (const candidate of candidates) {
-    const { data } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
       .from('creators')
-      .select('slug, deso_username')
+      .select('slug, deso_username, is_reserved, creator_coin_holders')
       .eq('slug', candidate)
       .not('deso_username', 'is', null)
       .single();
-    if (data?.slug) return data.slug;
+
+    if (data?.slug) {
+      const isReserved = data.is_reserved === true;
+      const holders: number = data.creator_coin_holders ?? 0;
+
+      if (isReserved || holders >= 100) {
+        return data.slug;
+      }
+
+      // Squatter account — strip DeSo link and queue for platform wallet creation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from('creators').update({
+        deso_username: null,
+        deso_public_key: null,
+        token_status: 'pending_deso_creation',
+      }).eq('slug', data.slug);
+      console.log(`[findCreatorSlug] Squatter rejected: ${data.slug} (reserved:${isReserved}, holders:${holders})`);
+      // Fall through to live DeSo check
+    }
   }
 
   // 2. Check entity registry
@@ -1835,4 +1854,64 @@ export async function auditAndFixReservedProfiles(
   }
 
   return { fixed, removed };
+}
+
+// ─── Clean squatter profiles (one-time audit) ─────────────────────────────────
+// Fetches all creators where is_reserved=false AND creator_coin_holders < 100
+// AND deso_username IS NOT NULL. Verifies each against live DeSo API.
+// If still not reserved and < 100 holders: strips DeSo link and queues for
+// platform wallet creation. Returns count of profiles cleaned.
+
+export async function cleanSquatterProfiles(
+  supabase: SupabaseClient,
+  limit = 200
+): Promise<number> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
+  const { data: creators } = await db
+    .from('creators')
+    .select('slug, deso_username, is_reserved, creator_coin_holders')
+    .eq('is_reserved', false)
+    .not('deso_username', 'is', null)
+    .lt('creator_coin_holders', 100)
+    .limit(limit);
+
+  if (!creators?.length) return 0;
+
+  let cleaned = 0;
+
+  for (const creator of creators as Array<{
+    slug: string;
+    deso_username: string;
+    is_reserved: boolean;
+    creator_coin_holders: number;
+  }>) {
+    try {
+      const res = await fetch('https://api.deso.org/api/v0/get-single-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Username: creator.deso_username }),
+      });
+      const data = await res.json();
+      const profile = data?.Profile;
+
+      const isReserved = profile?.IsReserved === true;
+      const holders: number = profile?.CoinEntry?.NumberOfHolders ?? 0;
+
+      if (!isReserved && holders < 100) {
+        await db.from('creators').update({
+          deso_username: null,
+          deso_public_key: null,
+          token_status: 'pending_deso_creation',
+        }).eq('slug', creator.slug);
+        cleaned++;
+        console.log(`[cleanSquatterProfiles] Cleaned squatter: ${creator.slug} (${creator.deso_username}, reserved:${isReserved}, holders:${holders})`);
+      }
+
+      await new Promise(r => setTimeout(r, 300));
+    } catch { /* skip */ }
+  }
+
+  return cleaned;
 }

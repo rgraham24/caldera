@@ -20,6 +20,9 @@ export function AdminActions() {
   const [auditing, setAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<string | null>(null);
 
+  const [cleaningSquatters, setCleaningSquatters] = useState(false);
+  const [cleanSquattersResult, setCleanSquattersResult] = useState<string | null>(null);
+
   const [curating, setCurating] = useState(false);
   const [curateResult, setCurateResult] = useState<string | null>(null);
 
@@ -486,6 +489,25 @@ export function AdminActions() {
       setAuditResult(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
     } finally {
       setAuditing(false);
+    }
+  };
+
+  const handleCleanSquatters = async () => {
+    setCleaningSquatters(true);
+    setCleanSquattersResult(null);
+    try {
+      const res = await fetch('/api/admin/clean-squatters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? '' }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setCleanSquattersResult(`✅ ${json.cleaned} squatter profiles stripped & queued for platform wallet creation`);
+    } catch (err) {
+      setCleanSquattersResult(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+    } finally {
+      setCleaningSquatters(false);
     }
   };
 
@@ -1053,6 +1075,30 @@ export function AdminActions() {
         {auditResult && (
           <p className={`mt-3 text-xs ${auditResult.startsWith('Error') ? 'text-no' : 'text-yes'}`}>
             {auditResult}
+          </p>
+        )}
+      </div>
+
+      {/* Clean Squatter Profiles */}
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+        <h2 className="mb-3 text-sm font-semibold text-red-400">🧹 Clean Squatter Profiles</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Permanent enforcement of the reserved-only rule. Scans up to 200 creators with{' '}
+          <code className="text-red-400">is_reserved=false</code> and fewer than 100 holders. Verifies each
+          live on DeSo — squatter accounts get their DeSo link stripped and are queued for platform wallet
+          re-creation. A creator slug is only valid if the DeSo profile is reserved OR has 100+ coin holders.
+        </p>
+        <Button
+          onClick={handleCleanSquatters}
+          disabled={cleaningSquatters}
+          className="bg-red-600 text-white font-semibold hover:bg-red-700"
+        >
+          {cleaningSquatters && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {cleaningSquatters ? 'Cleaning (up to 2 min)...' : '🧹 Clean Squatter Profiles (200)'}
+        </Button>
+        {cleanSquattersResult && (
+          <p className={`mt-3 text-xs ${cleanSquattersResult.startsWith('Error') ? 'text-no' : 'text-yes'}`}>
+            {cleanSquattersResult}
           </p>
         )}
       </div>
