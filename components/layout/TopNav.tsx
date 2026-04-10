@@ -163,8 +163,15 @@ export function TopNav() {
         <div className="flex h-14 items-center gap-4">
 
             {/* Logo */}
-            <Link href="/" className="shrink-0">
-              <span className="font-display text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+            <Link href="/" className="shrink-0 flex items-center gap-2.5">
+              <svg width="38" height="28" viewBox="0 0 38 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="10" cy="14" r="8" stroke="white" strokeWidth="2" fill="none"/>
+                <line x1="17.5" y1="9.5" x2="26" y2="4" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                <line x1="17.5" y1="18.5" x2="26" y2="24" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeOpacity="0.18"/>
+                <circle cx="32" cy="2.5" r="5.5" fill="white" fillOpacity="0.9"/>
+                <circle cx="32" cy="25.5" r="3.5" fill="white" fillOpacity="0.15"/>
+              </svg>
+              <span style={{ fontFamily: "'Inter', -apple-system, sans-serif", fontWeight: 500, fontSize: '1.15rem', letterSpacing: '-0.03em', color: '#f0f0f0' }}>
                 Caldera
               </span>
             </Link>
