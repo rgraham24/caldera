@@ -80,7 +80,7 @@ export function AdminMarketsClient({ markets: initialMarkets }: AdminMarketsClie
                   <MarketStatusBadge status={market.status} />
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-text-muted">
-                  {formatCompactCurrency(market.total_volume)}
+                  {formatCompactCurrency(market.total_volume ?? 0)}
                 </td>
                 <td className="px-4 py-3 text-right text-text-muted text-xs">
                   {market.resolve_at
