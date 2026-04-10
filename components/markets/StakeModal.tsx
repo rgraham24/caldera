@@ -63,6 +63,11 @@ export function StakeModal({
     setError(null);
 
     try {
+      if (tab === "buy" && amountNum < 2) {
+        setError("Minimum buy is $2 to cover DeSo network fees.");
+        setIsLoading(false);
+        return;
+      }
       if (tab === "buy") {
         if (amountDesoNanos > desoBalanceNanos) {
           throw new Error(
@@ -166,10 +171,10 @@ export function StakeModal({
               <Check className="h-6 w-6 text-yes" />
             </div>
             <p className="text-lg font-semibold text-text-primary">
-              Stake confirmed
+              Purchase confirmed
             </p>
             <p className="mt-1 text-sm text-text-muted">
-              {creator.name} stake {tab === "buy" ? "purchased" : "sold"}
+              {creator.name} coins {tab === "buy" ? "purchased" : "sold"}
             </p>
             <p className="mt-3 font-mono text-xs text-text-muted break-all">
               Tx: {txHash.slice(0, 16)}...
@@ -203,7 +208,7 @@ export function StakeModal({
                     : "text-text-muted"
                 )}
               >
-                Buy Stake
+                Buy
               </button>
               <button
                 onClick={() => setTab("sell")}
@@ -214,7 +219,7 @@ export function StakeModal({
                     : "text-text-muted"
                 )}
               >
-                Sell Stake
+                Sell
               </button>
             </div>
 
@@ -238,7 +243,7 @@ export function StakeModal({
                 />
               </div>
               <div className="mt-2 flex gap-2">
-                {[5, 10, 25, 50].map((v) => (
+                {[2, 5, 10, 25].map((v) => (
                   <button
                     key={v}
                     onClick={() => setAmountUSD(String(v))}
@@ -312,7 +317,7 @@ export function StakeModal({
                 ? "Enter an amount"
                 : isLoading
                 ? "Confirming..."
-                : `Confirm ${tab === "buy" ? "Stake" : "Sale"}`}
+                : `Confirm ${tab === "buy" ? "Purchase" : "Sale"}`}
             </Button>
 
             {/* Balance */}
