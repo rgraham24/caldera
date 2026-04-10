@@ -164,8 +164,8 @@ export function TopNav() {
 
             {/* Logo */}
             <Link href="/" className="shrink-0">
-              <span className="font-display text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-                Caldera
+              <span style={{ fontFamily: "'Inter', -apple-system, sans-serif", fontWeight: 500, fontSize: '0.85rem', letterSpacing: '0.16em', color: '#f0f0f0', textTransform: 'uppercase' }}>
+                CALDERA
               </span>
             </Link>
 
