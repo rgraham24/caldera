@@ -35,6 +35,17 @@ async function runCycle() {
   const entities = await discoverEntities(apiKey);
   const marketsCreated = await bulkGenerateAndInsert(entities, apiKey, supabase);
 
+  // Step 1x: Remove exact-title duplicates (keep oldest), run after bulk insert
+  let dupesDeleted = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: dupeCheck } = await (supabase as any).rpc('delete_duplicate_markets');
+    dupesDeleted = typeof dupeCheck === 'number' ? dupeCheck : 0;
+    if (dupesDeleted > 0) console.log(`[cycle] Deleted ${dupesDeleted} duplicate markets`);
+  } catch (err) {
+    console.warn('[cycle] delete_duplicate_markets RPC not available:', err);
+  }
+
   // Step 1a: Backfill creator slugs on existing markets that lack them
   const backfilled = await backfillCreatorSlugs(supabase, 30);
   if (backfilled > 0) console.log(`[cycle] Backfilled creator slugs: ${backfilled}`);
@@ -148,6 +159,7 @@ async function runCycle() {
   return {
     entities: entities.length,
     markets_created: marketsCreated,
+    dupes_deleted: dupesDeleted,
     creator_slugs_backfilled: backfilled,
     sports_markets: sportsInserted,
     streamer_markets: streamerMarketsCreated,

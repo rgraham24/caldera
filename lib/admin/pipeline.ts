@@ -968,6 +968,55 @@ function getStartingOdds(title: string): { yesPool: number; noPool: number; yesP
   return { yesPool: 1000 - yes, noPool: yes, yesPrice: yes / 1000, noPrice: (1000 - yes) / 1000 };
 }
 
+async function isDuplicateMarket(
+  title: string,
+  supabase: SupabaseClient
+): Promise<boolean> {
+  const normalized = title.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim();
+
+  // Check exact title match
+  const { data: exact } = await supabase
+    .from('markets')
+    .select('id')
+    .ilike('title', title)
+    .eq('status', 'open')
+    .limit(1);
+
+  if (exact && exact.length > 0) return true;
+
+  // Check fuzzy match — if 70%+ of words match an existing title
+  const words = normalized.split(/\s+/).filter(w => w.length > 3);
+  if (words.length < 3) return false;
+
+  // Take first 5 significant words and search
+  const keyWords = words.slice(0, 5).join(' & ');
+  const { data: similar } = await supabase
+    .from('markets')
+    .select('id, title')
+    .textSearch('title', keyWords)
+    .eq('status', 'open')
+    .limit(3);
+
+  if (!similar || similar.length === 0) return false;
+
+  // Check word overlap ratio
+  for (const market of similar) {
+    const existingWords = market.title.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(/\s+/)
+      .filter((w: string) => w.length > 3);
+
+    const overlap = words.filter(w => existingWords.includes(w)).length;
+    const ratio = overlap / Math.max(words.length, existingWords.length);
+
+    if (ratio > 0.7) return true;
+  }
+
+  return false;
+}
+
 async function insertMarkets(
   markets: GeneratedMarket[],
   supabase: SupabaseClient,
@@ -1002,6 +1051,13 @@ async function insertMarkets(
 
   let created = 0;
   for (const market of markets) {
+    // ── Level 1: Duplicate prevention ─────────────────────────────────────────
+    const isDupe = await isDuplicateMarket(market.title, supabase);
+    if (isDupe) {
+      console.log(`[pipeline] Skipping duplicate: ${market.title}`);
+      continue;
+    }
+
     // ── VS markets → categorical ──────────────────────────────────────────────
     if (isVsMarket(market.title)) {
       const entities = extractVsEntities(market.title);
@@ -1520,6 +1576,12 @@ export async function insertCategoricalMarket(
   market: CategoricalMarketDraft,
   supabase: SupabaseClient
 ): Promise<void> {
+  const isDupe = await isDuplicateMarket(market.title, supabase);
+  if (isDupe) {
+    console.log(`[pipeline] Skipping duplicate categorical: ${market.title}`);
+    return;
+  }
+
   const resolveAt = new Date();
   resolveAt.setDate(resolveAt.getDate() + 60);
 
