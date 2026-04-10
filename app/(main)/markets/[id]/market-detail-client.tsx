@@ -73,13 +73,13 @@ export function MarketDetailClient({
   const isResolved = market.status === "resolved";
 
   const handleShare = () => {
-    const text = `${market.title}\n\n${yesPercent}% chance YES on @CalderaMarket\n\ncaldera.market/markets/${market.id}`;
+    const text = `${market.title}\n\n${yesPercent}% chance YES on @CalderaMarket\n\ncaldera.market/markets/${market.slug}`;
     const tweetUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text);
     window.open(tweetUrl, '_blank', 'width=550,height=420');
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText('https://caldera.market/markets/' + market.id);
+    navigator.clipboard.writeText('https://caldera.market/markets/' + market.slug);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
