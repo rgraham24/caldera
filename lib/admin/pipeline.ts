@@ -14,6 +14,29 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 //       OR title ILIKE '%dharmesh%' OR title ILIKE '%shah%'
 //   );
 
+// ─── Fix existing vs-slug markets ─────────────────────────────────────────────
+// Run this SQL in Supabase to link existing VS markets to their primary entity:
+//
+// UPDATE markets
+// SET creator_slug = 'steelovsky'
+// WHERE title ILIKE '%steelovsky%'
+//   AND (creator_slug IS NULL OR creator_slug LIKE '%vs%' OR creator_slug LIKE '%-%');
+//
+// UPDATE markets
+// SET creator_slug = 'notalbino'
+// WHERE (title ILIKE '%notalbino%' OR title ILIKE '%not albino%')
+//   AND (creator_slug IS NULL OR creator_slug LIKE '%-%');
+//
+// UPDATE markets
+// SET creator_slug = 'johnnysomali'
+// WHERE title ILIKE '%johnny somali%'
+//   AND (creator_slug IS NULL OR creator_slug LIKE '%-%');
+//
+// UPDATE markets
+// SET creator_slug = 'clavicular'
+// WHERE title ILIKE '%clavicular%'
+//   AND (creator_slug IS NULL OR creator_slug LIKE '%-%');
+
 const CREATOR_SLUG_BLOCKLIST: Record<string, string[]> = {
   craig: ["bellamy", "counsell", "wales", "chicago", "cubs", "football"],
 };
@@ -829,6 +852,27 @@ async function findCreatorSlug(
     } catch { /* skip */ }
   }
 
+  // 4. Local-only creator: known to Caldera but not yet on DeSo.
+  //    Queue for platform-wallet DeSo profile creation and return the slug
+  //    so the market still links to them.
+  for (const candidate of candidates) {
+    const { data: localCreator } = await supabase
+      .from('creators')
+      .select('slug, name, deso_username')
+      .eq('slug', candidate)
+      .single();
+
+    if (localCreator && !localCreator.deso_username) {
+      // Mark as needing a DeSo profile — the autonomous cycle will create it
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from('creators').update({
+        token_status: 'pending_deso_creation',
+      }).eq('slug', localCreator.slug);
+      console.log(`[findCreatorSlug] Queued for DeSo creation: ${localCreator.slug} (${localCreator.name})`);
+      return localCreator.slug;
+    }
+  }
+
   return null;
 }
 
@@ -879,6 +923,20 @@ export async function backfillCreatorSlugs(
 }
 
 // ─── Step 3: Generate + insert markets ────────────────────────────────────────
+
+// ─── VS market helpers ────────────────────────────────────────────────────────
+
+function isVsMarket(title: string): boolean {
+  return /\svs\.?\s|\sversus\s/i.test(title);
+}
+
+function extractVsEntities(title: string): [string, string] | null {
+  const match = title.match(
+    /(\w[\w\s]*?)\s+vs\.?\s+([\w][\w\s]*?)(?:\s+(?:fight|match|battle|event|game|bout|race|competition))?[?!.]?$/i
+  );
+  if (!match) return null;
+  return [match[1].trim(), match[2].trim()];
+}
 
 /** Derive varied starting pools from market title so odds feel organic, not all 62/38. */
 function getStartingOdds(title: string): { yesPool: number; noPool: number; yesPrice: number; noPrice: number } {
@@ -944,6 +1002,29 @@ async function insertMarkets(
 
   let created = 0;
   for (const market of markets) {
+    // ── VS markets → categorical ──────────────────────────────────────────────
+    if (isVsMarket(market.title)) {
+      const entities = extractVsEntities(market.title);
+      if (entities) {
+        const [entity1, entity2] = entities;
+        const slug1 = entity1.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const slug2 = entity2.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const draft: CategoricalMarketDraft = {
+          title: market.title,
+          description: market.description,
+          category: market.category,
+          outcomes: [
+            { label: entity1, slug: slug1, probability: 0.5 },
+            { label: entity2, slug: slug2, probability: 0.5 },
+          ],
+        };
+        await insertCategoricalMarket(draft, supabase);
+        created++;
+        console.log(`[insertMarkets] VS market → categorical: "${market.title}" (${entity1} vs ${entity2})`);
+        continue;
+      }
+    }
+
     const slug = uniqueSlug(slugify(market.title));
     const odds = isSpeculationPool ? null : getStartingOdds(market.title);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
