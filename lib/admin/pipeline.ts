@@ -823,7 +823,7 @@ async function findCreatorSlug(
     return registry.creator_slug;
   }
 
-  // 3. Live DeSo API lookup as last resort — auto-imports if found
+  // 3. Live DeSo API lookup as last resort — ONLY reserved or 100+ holder profiles
   for (const candidate of candidates.slice(0, 3)) {
     try {
       const res = await fetch('https://api.deso.org/api/v0/get-single-profile', {
@@ -833,19 +833,31 @@ async function findCreatorSlug(
       });
       const desoData = await res.json();
       if (desoData?.Profile?.Username) {
-        const username = desoData.Profile.Username;
-        const slug = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isReserved = desoData.Profile.IsReserved === true;
+        const holders = desoData.Profile.CoinEntry?.NumberOfHolders ?? 0;
+
+        // ONLY use this profile if it's reserved OR has significant holders
+        // Fan-created profiles are worthless — the real person can never claim them
+        if (!isReserved && holders < 100) {
+          console.log(`[pipeline] Skipping non-reserved low-holder profile: ${candidate} (${holders} holders)`);
+          continue;
+        }
+
+        // Use exact DeSo username (preserving case)
+        const desoUsername = desoData.Profile.Username;
+        const slug = desoUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (!isValidDesoSlug(slug)) continue;
-        // Auto-import this creator to our DB
+
         await supabase.from('creators').upsert({
-          name: username,
+          name: desoUsername,
           slug,
-          deso_username: username,
+          deso_username: desoUsername,
           deso_public_key: desoData.Profile.PublicKeyBase58Check,
           creator_coin_price: (desoData.Profile.CoinPriceDeSoNanos / 1e9) * 4.63,
-          creator_coin_holders: desoData.Profile.CoinEntry?.NumberOfHolders ?? 0,
+          creator_coin_holders: holders,
           token_status: 'active_unverified',
-          is_reserved: desoData.Profile.IsReserved ?? false,
+          is_reserved: isReserved,
+          founder_reward_basis_points: desoData.Profile.CoinEntry?.CreatorBasisPoints ?? 0,
         }, { onConflict: 'slug' });
         return slug;
       }
@@ -1742,4 +1754,85 @@ export async function queueAllCreatorsForDesoCreation(
     .select('slug');
 
   return data?.length ?? 0;
+}
+
+// ─── Audit and fix fan-account contamination ──────────────────────────────────
+// Removes DeSo links from profiles that are not IsReserved and have <100 holders.
+// Those are fan accounts — the real person can never claim them.
+// Marks them as pending_deso_creation so the platform wallet creates a real profile.
+
+export async function auditAndFixReservedProfiles(
+  supabase: SupabaseClient,
+  limit = 50
+): Promise<{ fixed: number; removed: number }> {
+  // Cast to any — is_reserved and founder_reward_basis_points not yet in generated types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
+  const { data: creators } = await db
+    .from('creators')
+    .select('slug, deso_username, is_reserved, creator_coin_holders')
+    .eq('is_reserved', false)
+    .not('deso_username', 'is', null)
+    .lt('creator_coin_holders', 100)
+    .limit(limit);
+
+  if (!creators?.length) return { fixed: 0, removed: 0 };
+
+  let fixed = 0;
+  let removed = 0;
+
+  for (const creator of creators as Array<{ slug: string; deso_username: string; is_reserved: boolean; creator_coin_holders: number }>) {
+    try {
+      const res = await fetch('https://api.deso.org/api/v0/get-single-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Username: creator.deso_username }),
+      });
+      const data = await res.json();
+      const profile = data?.Profile;
+
+      if (!profile) {
+        // Profile doesn't exist on DeSo — strip the link
+        await db.from('creators').update({
+          deso_username: null,
+          token_status: 'shadow',
+        }).eq('slug', creator.slug);
+        removed++;
+        console.log(`[audit] Stripped missing profile: ${creator.slug}`);
+        continue;
+      }
+
+      const isReserved = profile.IsReserved === true;
+      const holders = profile.CoinEntry?.NumberOfHolders ?? 0;
+
+      if (!isReserved && holders < 100) {
+        // Fan account with low holders — queue for platform wallet creation
+        await db.from('creators').update({
+          deso_username: null,
+          deso_public_key: null,
+          is_reserved: false,
+          token_status: 'pending_deso_creation',
+          creator_coin_price: 0,
+          creator_coin_holders: 0,
+        }).eq('slug', creator.slug);
+        removed++;
+        console.log(`[audit] Removed fan account link: ${creator.slug} (${creator.deso_username}, ${holders} holders)`);
+      } else {
+        // Legitimate profile — update with accurate data
+        await db.from('creators').update({
+          is_reserved: isReserved,
+          creator_coin_price: (profile.CoinPriceDeSoNanos / 1e9) * 4.63,
+          creator_coin_holders: holders,
+          founder_reward_basis_points: profile.CoinEntry?.CreatorBasisPoints ?? 0,
+        }).eq('slug', creator.slug);
+        fixed++;
+        console.log(`[audit] Confirmed legitimate: ${creator.slug} (reserved=${isReserved}, ${holders} holders)`);
+      }
+
+      await new Promise(r => setTimeout(r, 300));
+    } catch { /* skip */ }
+  }
+
+  return { fixed, removed };
 }

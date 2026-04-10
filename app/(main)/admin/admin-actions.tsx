@@ -17,6 +17,9 @@ export function AdminActions() {
   const [processingDeso, setProcessingDeso] = useState(false);
   const [processDesoResult, setProcessDesoResult] = useState<string | null>(null);
 
+  const [auditing, setAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<string | null>(null);
+
   const [curating, setCurating] = useState(false);
   const [curateResult, setCurateResult] = useState<string | null>(null);
 
@@ -464,6 +467,25 @@ export function AdminActions() {
       setAutoResolveResult(`Error: ${err instanceof Error ? err.message : "Auto-resolve failed"}`);
     } finally {
       setAutoResolving(false);
+    }
+  };
+
+  const handleAuditProfiles = async () => {
+    setAuditing(true);
+    setAuditResult(null);
+    try {
+      const res = await fetch('/api/admin/audit-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? '' }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setAuditResult(`✅ ${json.fixed} legitimate profiles confirmed · ${json.removed} fan accounts removed & queued for re-creation`);
+    } catch (err) {
+      setAuditResult(`Error: ${err instanceof Error ? err.message : 'Failed'}`);
+    } finally {
+      setAuditing(false);
     }
   };
 
@@ -1011,6 +1033,27 @@ export function AdminActions() {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* Audit Reserved Profiles */}
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+        <h2 className="mb-3 text-sm font-semibold text-red-400">🔍 Audit & Fix Reserved Profiles</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          Scans creators with <code className="text-red-400">is_reserved=false</code> and fewer than 100 holders. Verifies each against the live DeSo API — fan accounts get stripped and queued for platform wallet re-creation. Legitimate profiles get their data refreshed.
+        </p>
+        <Button
+          onClick={handleAuditProfiles}
+          disabled={auditing}
+          className="bg-red-600 text-white font-semibold hover:bg-red-700"
+        >
+          {auditing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {auditing ? 'Auditing (up to 2 min)...' : '🔍 Audit & Fix Reserved Profiles (100)'}
+        </Button>
+        {auditResult && (
+          <p className={`mt-3 text-xs ${auditResult.startsWith('Error') ? 'text-no' : 'text-yes'}`}>
+            {auditResult}
+          </p>
         )}
       </div>
 

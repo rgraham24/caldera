@@ -11,6 +11,7 @@ import {
   checkPendingClaims,
   backfillCreatorSlugs,
   processPendingDesoCreations,
+  auditAndFixReservedProfiles,
 } from "@/lib/admin/pipeline";
 import { getUpcomingGames, generateSportsMarkets } from "@/lib/admin/sports-feed";
 import { getTopStreamers } from "@/lib/admin/twitch-feed";
@@ -130,8 +131,10 @@ async function runCycle() {
     await processPendingDesoCreations(supabase, 10);
   console.log(`[cycle] DeSo profiles: ${desoCreated} created, ${desoFailed} failed`);
 
-  // Step 7: Weekly DeSo profile sync (Mondays only)
+  // Step 7: Weekly tasks (Mondays only)
   const dayOfWeek = new Date().getDay(); // 0=Sunday, 1=Monday
+  let profilesAudited = 0;
+  let profilesRemoved = 0;
   if (dayOfWeek === 1) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
@@ -154,6 +157,13 @@ async function runCycle() {
         console.warn(`[cycle] Weekly DeSo sync batch ${batchIndex} failed:`, err);
       }
     }
+
+    // Audit and fix fan-account contamination (reserved profiles check)
+    const { fixed: auditFixed, removed: auditRemoved } =
+      await auditAndFixReservedProfiles(supabase, 100);
+    profilesAudited = auditFixed;
+    profilesRemoved = auditRemoved;
+    console.log(`[cycle] Profile audit: ${auditFixed} confirmed, ${auditRemoved} fan accounts removed`);
   }
 
   return {
@@ -171,6 +181,8 @@ async function runCycle() {
     auto_voided: autoVoided,
     auto_claimed: autoClaimed,
     deso_profiles_created: desoCreated,
+    profiles_audited: profilesAudited,
+    fan_accounts_removed: profilesRemoved,
   };
 }
 
