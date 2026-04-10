@@ -29,10 +29,47 @@ export async function createDesoProfileForCreator(params: {
     const checkData = await checkRes.json();
 
     if (checkData?.Profile?.Username) {
-      // Already exists — return existing profile
+      // Already exists — zero out founder reward then return existing profile
+      const existingKey = checkData.Profile.PublicKeyBase58Check as string;
+      try {
+        const frTxRes = await fetch('https://api.deso.org/api/v0/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            UpdaterPublicKeyBase58Check: platformPublicKey,
+            ProfilePublicKeyBase58Check: existingKey,
+            NewUsername: checkData.Profile.Username,
+            NewDescription: checkData.Profile.Description ?? '',
+            NewProfilePic: '',
+            NewCreatorBasisPoints: 0,
+            NewStakeMultipleBasisPoints: 12500,
+            IsHidden: false,
+            MinFeeRateNanosPerKB: 1000,
+          }),
+        });
+        if (frTxRes.ok) {
+          const frTxData = await frTxRes.json();
+          if (frTxData.TransactionHex) {
+            const frSignRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ TransactionHex: frTxData.TransactionHex, Seed: platformSeed }),
+            });
+            if (!frSignRes.ok) {
+              await fetch('https://api.deso.org/api/v0/submit-transaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ TransactionHex: frTxData.TransactionHex }),
+              });
+            }
+          }
+        }
+      } catch {
+        // Non-fatal — profile still usable even if founder reward update fails
+      }
       return {
         success: true,
-        publicKey: checkData.Profile.PublicKeyBase58Check,
+        publicKey: existingKey,
         username: checkData.Profile.Username,
       };
     }
