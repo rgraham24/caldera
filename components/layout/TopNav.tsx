@@ -89,7 +89,7 @@ function CenterTabs() {
 const MOBILE_LINKS = [
   { href: "/", label: "Home" },
   { href: "/markets", label: "Markets" },
-  { href: "/creators", label: "Tokens" },
+  { href: "/tokens", label: "Tokens" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/portfolio", label: "Portfolio" },
 ];
@@ -175,11 +175,12 @@ export function TopNav() {
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Tokenize anything"
+                placeholder="Search markets, creators, tokens..."
                 className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
                 style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
                 onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                onKeyDown={(e) => { if (e.key === "Enter" && e.currentTarget.value.trim()) { router.push(`/markets?q=${encodeURIComponent(e.currentTarget.value.trim())}`); } }}
               />
             </div>
 
