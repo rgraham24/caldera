@@ -11,10 +11,13 @@ export default async function MarketDetailPage({
   const { id: slug } = await params;
   const supabase = await createClient();
 
+  // Try by UUID first, then fall back to slug
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+
   const { data: market } = await supabase
     .from("markets")
     .select("*")
-    .eq("id", slug)
+    .eq(isUuid ? "id" : "slug", slug)
     .single();
 
   if (!market) notFound();
