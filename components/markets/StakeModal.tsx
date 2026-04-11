@@ -63,7 +63,7 @@ export function StakeModal({
   }, [isOpen, fetchDesoPrice]);
 
   useEffect(() => {
-    if (tab !== "buy" || amountNum <= 0 || desoPrice <= 0 || !creator.deso_public_key || !desoPublicKey) {
+    if (tab !== "buy" || amountNum <= 0 || desoPrice <= 0 || !creator.deso_public_key) {
       setQuote(null);
       return;
     }
@@ -71,7 +71,7 @@ export function StakeModal({
     if (desoToSpendNanos <= 0) { setQuote(null); return; }
     setQuoteFetching(true);
     import("@/lib/deso/api").then(({ getCreatorCoinQuote }) =>
-      getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey)
+      getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey ?? "BC1YLjkz7RE4R9yZmKHFXKsCEQ4mmFbNGVuCnHaSFMoKFm9VumGBdL")
     ).then(q => {
       setQuote(q);
       setQuoteFetching(false);
@@ -338,6 +338,30 @@ export function StakeModal({
           </div>
         ) : (
           <>
+            {/* Stats bar */}
+            <div className="grid grid-cols-3 divide-x divide-border-subtle border-b border-border-subtle mb-5">
+              <div className="px-4 py-2.5">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Price</p>
+                <p className="text-sm font-semibold text-text-primary font-mono">{formatCurrency(coinPrice)}</p>
+              </div>
+              <div className="px-4 py-2.5">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Mkt Cap</p>
+                <p className="text-sm font-semibold text-text-primary font-mono">
+                  {creator.creator_coin_market_cap
+                    ? creator.creator_coin_market_cap >= 1_000_000
+                      ? `$${(creator.creator_coin_market_cap / 1_000_000).toFixed(1)}M`
+                      : creator.creator_coin_market_cap >= 1_000
+                        ? `$${(creator.creator_coin_market_cap / 1_000).toFixed(1)}K`
+                        : `$${creator.creator_coin_market_cap.toFixed(0)}`
+                    : '—'}
+                </p>
+              </div>
+              <div className="px-4 py-2.5">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Markets</p>
+                <p className="text-sm font-semibold text-yes font-mono">{creator.markets_count ?? 0} active</p>
+              </div>
+            </div>
+
             {/* Tabs */}
             <div className="mb-5 flex rounded-lg bg-background p-1">
               <button
@@ -406,39 +430,41 @@ export function StakeModal({
 
             {/* Preview */}
             {amountNum > 0 && (
-              <div className="mb-4 space-y-1.5 rounded-xl bg-background p-3 text-xs">
+              <div className="mb-3 rounded-xl bg-background border border-border-subtle p-3 space-y-1.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-text-muted">You&apos;ll receive approx.</span>
-                  <span className="font-mono text-text-primary">
-                    {tab === "buy"
-                      ? quoteFetching
-                        ? "Calculating..."
-                        : quote
-                          ? `${quote.coinsToReceive.toFixed(6)} $${coinSymbol}`
-                          : amountNum > 0
-                            ? "Enter amount to see quote"
-                            : "—"
-                      : `${estimatedCoins.toFixed(4)} $${coinSymbol}`
-                    }
+                  <span className="text-text-muted">You&apos;ll receive</span>
+                  <span className="font-mono text-caldera font-semibold">
+                    {quoteFetching ? "Calculating..." : quote ? `${quote.coinsToReceive.toFixed(6)} $${coinSymbol}` : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Current price</span>
-                  <span className="font-mono text-text-primary">
-                    {formatCurrency(coinPrice)} per coin
-                  </span>
+                  <span className="text-text-muted">Price per coin</span>
+                  <span className="font-mono text-text-primary">{formatCurrency(coinPrice)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-muted">DESO equivalent</span>
-                  <span className="font-mono text-text-primary">
-                    {(amountDesoNanos / 1e9).toFixed(4)} DESO
-                  </span>
+                  <span className="font-mono text-text-primary">{(amountDesoNanos / 1e9).toFixed(4)} DESO</span>
                 </div>
-                <div className="border-t border-border-subtle/50 pt-1.5 flex justify-between">
-                  <span className="text-text-muted">Fee</span>
-                  <span className="font-mono text-text-muted">
-                    {tab === "buy" ? "2% on buys" : "Free to sell"}
-                  </span>
+              </div>
+            )}
+
+            {/* Fee breakdown */}
+            {tab === "buy" && (
+              <div className="mb-4 rounded-xl border border-caldera/10 bg-caldera/5 p-3 text-xs">
+                <p className="text-[9px] uppercase tracking-widest text-caldera font-semibold mb-2">Where your 2% fee goes</p>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">Caldera platform</span>
+                    <span className="text-text-primary">1%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">${coinSymbol} buyback + burn</span>
+                    <span className="text-orange-400 font-semibold">1% burn</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">Token holders earn</span>
+                    <span className="text-caldera font-semibold">passive income</span>
+                  </div>
                 </div>
               </div>
             )}
