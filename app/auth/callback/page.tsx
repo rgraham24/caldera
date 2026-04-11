@@ -13,7 +13,15 @@ function AuthCallbackInner() {
     const handleCallback = async () => {
       console.log('[AUTH_CALLBACK] All search params:', Object.fromEntries(searchParams.entries()));
       console.log('[AUTH_CALLBACK] Full URL:', window.location.href);
+
+      // Try SDK snapshot first (set by popup-based login)
+      const sdkSnapshot = await import("@/lib/deso/identity")
+        .then(({ getDesoIdentity }) => getDesoIdentity().snapshot() as import("deso-protocol").IdentityState)
+        .catch(() => null);
+      const sdkPublicKey = sdkSnapshot?.currentUser?.publicKey ?? null;
+
       const publicKey =
+        sdkPublicKey ||
         searchParams.get("public_key") ||
         searchParams.get("publicKey") ||
         (() => {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { DesoIdentityIframe } from "@/components/providers/DesoIdentityIframe";
+import { DesoSDKProvider } from "@/components/providers/DesoSDKProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -39,8 +39,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
-        {children}
-        <DesoIdentityIframe />
+        <DesoSDKProvider>
+          {children}
+        </DesoSDKProvider>
       </body>
     </html>
   );
