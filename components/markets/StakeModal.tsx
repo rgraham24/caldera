@@ -71,6 +71,7 @@ export function StakeModal({
     const desoToSpendNanos = Math.floor((amountNum / effectiveDesoPrice) * 1e9);
     if (desoToSpendNanos <= 0) { setQuote(null); return; }
     setQuoteFetching(true);
+    console.log('[quote-debug] creator.deso_public_key:', creator.deso_public_key?.slice(0,15), 'amountNum:', amountNum, 'desoPrice:', desoPrice);
     import("@/lib/deso/api").then(({ getCreatorCoinQuote }) =>
       getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey ?? process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "BC1YLhyuDGeWVgHmh3UQEoKstda525T1LnonYWURBdpgWbFBfRuntP5")
     ).then(q => {
