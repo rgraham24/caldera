@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { DesoProvider } from "@/components/providers/DesoProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -38,9 +37,7 @@ export default function RootLayout({
           href="https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400&display=swap"
         />
       </head>
-      <body className="min-h-full flex flex-col">
-        <DesoProvider>{children}</DesoProvider>
-      </body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

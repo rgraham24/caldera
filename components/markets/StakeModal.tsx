@@ -41,6 +41,9 @@ export function StakeModal({
   const amountDesoNanos = desoPrice > 0 ? Math.floor((amountNum / desoPrice) * 1e9) : 0;
   const estimatedCoins = coinPrice > 0 ? amountNum / coinPrice : 0;
 
+  const [quote, setQuote] = useState<{ coinsToReceive: number; foundersRewardCoins: number } | null>(null);
+  const [quoteFetching, setQuoteFetching] = useState(false);
+
   const fetchDesoPrice = useCallback(async () => {
     try {
       const { getDesoPrice } = await import("@/lib/deso/api");
@@ -55,8 +58,25 @@ export function StakeModal({
       setTxHash(null);
       setError(null);
       setAmountUSD("");
+      setQuote(null);
     }
   }, [isOpen, fetchDesoPrice]);
+
+  useEffect(() => {
+    if (tab !== "buy" || amountNum <= 0 || desoPrice <= 0 || !creator.deso_public_key || !desoPublicKey) {
+      setQuote(null);
+      return;
+    }
+    const desoToSpendNanos = Math.floor((amountNum / desoPrice) * 1e9);
+    if (desoToSpendNanos <= 0) { setQuote(null); return; }
+    setQuoteFetching(true);
+    import("@/lib/deso/api").then(({ getCreatorCoinQuote }) =>
+      getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey)
+    ).then(q => {
+      setQuote(q);
+      setQuoteFetching(false);
+    }).catch(() => setQuoteFetching(false));
+  }, [amountNum, tab, desoPrice, creator.deso_public_key, desoPublicKey]);
 
   const handleConfirm = async () => {
     if (!desoPublicKey || !creator.deso_public_key) return;
@@ -268,11 +288,18 @@ export function StakeModal({
             {amountNum > 0 && (
               <div className="mb-4 space-y-1.5 rounded-xl bg-background p-3 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-text-muted">
-                    You&apos;ll receive approx.
-                  </span>
+                  <span className="text-text-muted">You&apos;ll receive approx.</span>
                   <span className="font-mono text-text-primary">
-                    {estimatedCoins.toFixed(4)} ${coinSymbol}
+                    {tab === "buy"
+                      ? quoteFetching
+                        ? "Calculating..."
+                        : quote
+                          ? `${quote.coinsToReceive.toFixed(6)} $${coinSymbol}`
+                          : amountNum > 0
+                            ? "Enter amount to see quote"
+                            : "—"
+                      : `${estimatedCoins.toFixed(4)} $${coinSymbol}`
+                    }
                   </span>
                 </div>
                 <div className="flex justify-between">

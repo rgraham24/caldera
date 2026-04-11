@@ -208,8 +208,9 @@ export async function buyCreatorCoin(
   const { TransactionHex } = await constructRes.json();
 
   // 2. Sign via DeSo Identity
-  const { identity } = await import("deso-protocol");
-  const signedTx = await identity.signTx(TransactionHex);
+  const { signWithDesoIdentity } = await import("@/lib/deso/auth");
+  const signedTx = await signWithDesoIdentity(TransactionHex);
+  if (!signedTx) throw new Error("Transaction signing cancelled or failed");
 
   // 3. Submit
   const submitRes = await fetch(`${DESO_API}/submit-transaction`, {
@@ -259,8 +260,9 @@ export async function sellCreatorCoin(
   }
 
   const { TransactionHex } = await constructRes.json();
-  const { identity } = await import("deso-protocol");
-  const signedTx = await identity.signTx(TransactionHex);
+  const { signWithDesoIdentity } = await import("@/lib/deso/auth");
+  const signedTx = await signWithDesoIdentity(TransactionHex);
+  if (!signedTx) throw new Error("Transaction signing cancelled or failed");
 
   const submitRes = await fetch(`${DESO_API}/submit-transaction`, {
     method: "POST",
@@ -276,4 +278,34 @@ export async function sellCreatorCoin(
       submitData.TxnHashHex ||
       "",
   };
+}
+
+export async function getCreatorCoinQuote(
+  creatorPublicKey: string,
+  desoToSpendNanos: number,
+  updaterPublicKey: string
+): Promise<{ coinsToReceive: number; foundersRewardCoins: number } | null> {
+  try {
+    const res = await fetch(`${DESO_API}/buy-or-sell-creator-coin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        UpdaterPublicKeyBase58Check: updaterPublicKey,
+        CreatorPublicKeyBase58Check: creatorPublicKey,
+        OperationType: "buy",
+        DeSoToSellNanos: desoToSpendNanos,
+        MinCreatorCoinExpectedNanos: 0,
+        MinFeeRateNanosPerKB: 1000,
+        Broadcast: false,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      coinsToReceive: (data.ExpectedCreatorCoinReturnedNanos ?? 0) / 1e9,
+      foundersRewardCoins: (data.FounderRewardGeneratedNanos ?? 0) / 1e9,
+    };
+  } catch {
+    return null;
+  }
 }
