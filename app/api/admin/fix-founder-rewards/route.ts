@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "caldera-admin-2026";
 const DESO_API = "https://api.deso.org/api/v0";
 const IDENTITY_API = "https://identity.deso.org/api/v0";
 
@@ -14,8 +14,11 @@ const CATEGORY_TOKENS = [
 ];
 
 export async function POST(req: NextRequest) {
-  const { adminPassword } = await req.json();
-  if (adminPassword !== ADMIN_PASSWORD) {
+  const { desoPublicKey, adminPassword } = await req.json();
+  const isAuthorized =
+    ADMIN_KEYS.includes(desoPublicKey || "") ||
+    !!(process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
