@@ -36,7 +36,7 @@ export default async function CreatorProfilePage({
     supabase
       .from("markets")
       .select("*")
-      .eq("creator_id", creator.id)
+      .eq("creator_slug", creator.slug)
       .order("trending_score", { ascending: false }),
 
     supabase
