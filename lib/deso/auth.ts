@@ -13,29 +13,11 @@ export type ConnectedUser = {
 export function connectDeSoWallet(): void {
   localStorage.setItem("caldera_auth_return", window.location.pathname);
   const callbackUrl = `${window.location.origin}/auth/callback`;
-
-  const spendingLimits = {
-    GlobalDESOLimit: 100000000, // 0.1 DESO max total
-    CreatorCoinOperationLimitMap: {
-      "": {
-        "buy": 10,
-        "sell": 10,
-      }
-    },
-    TransactionCountLimitMap: {
-      "BASIC_TRANSFER": 10,
-      "CREATOR_COIN": 10,
-    }
-  };
-
-  const identityUrl = "https://identity.deso.org/derive?" + new URLSearchParams({
-    callback: callbackUrl,
-    webview: "false",
-    transactionSpendingLimitResponse: JSON.stringify(spendingLimits),
-    deleteKey: "false",
-    expiration_days: "30",
+  const identityUrl = "https://identity.deso.org/log-in?" + new URLSearchParams({
+    accessLevelRequest: "2",
+    redirect_uri: callbackUrl,
+    derive: "false",
   }).toString();
-
   window.location.href = identityUrl;
 }
 
