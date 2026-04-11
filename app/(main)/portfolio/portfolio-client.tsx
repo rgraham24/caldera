@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
-import { CreatorHoldingCard } from "@/components/portfolio/CreatorHoldingCard";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 
@@ -39,33 +38,24 @@ type WatchlistItem = {
 
 type Tab = "open" | "settled" | "watchlist" | "holdings";
 
-const MOCK_HOLDINGS = [
-  {
-    creator: { name: "Tiger Woods", slug: "tiger-woods", deso_username: "tigerwoods", deso_public_key: null, creator_coin_price: 47.47, creator_coin_holders: 24, total_coins_in_circulation: 24 },
-    coinsHeld: 2.5, costBasis: 95, avgPurchasePrice: 38, activeMarkets: [
-      { title: "Will Tiger Woods be convicted of DUI?", slug: "tiger-woods-dui-conviction", yes_price: 0.62 },
-    ],
-    weeklyVolume: 42000,
-  },
-  {
-    creator: { name: "Elon Musk", slug: "elon-musk", deso_username: "elonmusk", deso_public_key: null, creator_coin_price: 188.79, creator_coin_holders: 9702, total_coins_in_circulation: 9702 },
-    coinsHeld: 0.5, costBasis: 85, avgPurchasePrice: 170, activeMarkets: [
-      { title: "Will Elon Musks X platform lose 20%?", slug: "x-platform-ad-revenue-drop", yes_price: 0.58 },
-    ],
-    weeklyVolume: 28000,
-  },
-  {
-    creator: { name: "dharmesh", slug: "dharmesh", deso_username: "dharmesh", deso_public_key: null, creator_coin_price: 665.14, creator_coin_holders: 2311, total_coins_in_circulation: 2311 },
-    coinsHeld: 0.3, costBasis: 180, avgPurchasePrice: 600, activeMarkets: [],
-    weeklyVolume: 0,
-  },
-];
+type CoinHolding = {
+  creatorPublicKey: string;
+  username: string;
+  displayName: string;
+  imageUrl: string | null;
+  balanceNanos: number;
+  coinPriceUSD: number;
+  hasPurchased: boolean;
+  creatorSlug?: string | null;
+};
 
 export function PortfolioClient() {
   const [tab, setTab] = useState<Tab>("open");
   const [positions, setPositions] = useState<Position[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [coinHoldings, setCoinHoldings] = useState<CoinHolding[]>([]);
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
   const { isConnected, desoPublicKey, desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
 
   useEffect(() => {
@@ -79,6 +69,48 @@ export function PortfolioClient() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [desoPublicKey]);
+
+  // Load coin holdings when tab is selected
+  useEffect(() => {
+    if (tab !== "holdings" || !desoPublicKey || coinHoldings.length > 0) return;
+
+    const loadHoldings = async () => {
+      setHoldingsLoading(true);
+      try {
+        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(desoPublicKey)}`);
+        const { holdings = [] } = await res.json() as { holdings: CoinHolding[] };
+
+        if (holdings.length === 0) {
+          setCoinHoldings([]);
+          return;
+        }
+
+        // Cross-reference with our DB to get creator slugs for linking
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const publicKeys = holdings.map((h) => h.creatorPublicKey);
+        const { data: creators } = await supabase
+          .from("creators")
+          .select("deso_public_key, slug")
+          .in("deso_public_key", publicKeys);
+
+        const slugMap = new Map((creators ?? []).map((c) => [c.deso_public_key, c.slug]));
+
+        setCoinHoldings(
+          holdings.map((h) => ({
+            ...h,
+            creatorSlug: slugMap.get(h.creatorPublicKey) ?? null,
+          }))
+        );
+      } catch {
+        setCoinHoldings([]);
+      } finally {
+        setHoldingsLoading(false);
+      }
+    };
+
+    loadHoldings();
+  }, [tab, desoPublicKey, coinHoldings.length]);
 
   const openPositions = positions.filter((p) => p.status === "open");
   const settledPositions = positions.filter((p) => p.status === "settled");
@@ -402,45 +434,92 @@ export function PortfolioClient() {
 
       {tab === "holdings" && (
         <div>
-          {/* Summary */}
-          <div className="mb-4 grid grid-cols-3 gap-4">
-            <div className="rounded-xl border border-border-subtle bg-surface p-4">
-              <p className="text-xs text-text-muted">Holdings Value</p>
-              <p className="mt-1 font-mono text-lg font-semibold text-text-primary">
-                {formatCurrency(MOCK_HOLDINGS.reduce((s, h) => s + h.coinsHeld * h.creator.creator_coin_price, 0))}
+          {holdingsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-24 rounded-xl bg-surface animate-pulse" />
+              ))}
+            </div>
+          ) : coinHoldings.length === 0 ? (
+            <div className="rounded-xl border border-border-subtle bg-surface px-5 py-10 text-center">
+              <p className="text-sm text-text-muted">No creator coin holdings found.</p>
+              <p className="mt-1 text-xs text-text-muted">
+                Buy creator coins on the Tokens page to see them here.
               </p>
             </div>
-            <div className="rounded-xl border border-border-subtle bg-surface p-4">
-              <p className="text-xs text-text-muted">Creators Held</p>
-              <p className="mt-1 font-mono text-lg font-semibold text-caldera">{MOCK_HOLDINGS.length}</p>
-            </div>
-            <div className="rounded-xl border border-border-subtle bg-surface p-4">
-              <p className="text-xs text-text-muted">Est. Weekly</p>
-              <p className="mt-1 font-mono text-lg font-semibold text-yes">
-                ~{formatCurrency(MOCK_HOLDINGS.reduce((s, h) => {
-                  const pct = h.creator.total_coins_in_circulation > 0 ? h.coinsHeld / h.creator.total_coins_in_circulation : 0;
-                  return s + pct * h.weeklyVolume * 0.01;
-                }, 0))}
-              </p>
-            </div>
-          </div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-border-subtle bg-surface p-4">
+                  <p className="text-xs text-text-muted">Holdings Value</p>
+                  <p className="mt-1 font-mono text-lg font-semibold text-text-primary">
+                    {formatCurrency(coinHoldings.reduce((s, h) => s + (h.balanceNanos / 1e9) * h.coinPriceUSD, 0))}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border-subtle bg-surface p-4">
+                  <p className="text-xs text-text-muted">Creators Held</p>
+                  <p className="mt-1 font-mono text-lg font-semibold text-caldera">
+                    {coinHoldings.filter((h) => h.hasPurchased).length}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border-subtle bg-surface p-4 col-span-2 md:col-span-1">
+                  <p className="text-xs text-text-muted">Total Coins</p>
+                  <p className="mt-1 font-mono text-lg font-semibold text-text-primary">
+                    {coinHoldings.length}
+                  </p>
+                </div>
+              </div>
 
-          {/* Creator cards */}
-          <div className="space-y-3">
-            {MOCK_HOLDINGS.map((h) => (
-              <CreatorHoldingCard
-                key={h.creator.slug}
-                holding={{
-                  creator: h.creator,
-                  coinsHeld: h.coinsHeld,
-                  costBasis: h.costBasis,
-                  avgPurchasePrice: h.avgPurchasePrice,
-                }}
-                weeklyVolume={h.weeklyVolume}
-                activeMarkets={h.activeMarkets}
-              />
-            ))}
-          </div>
+              {/* Holding cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {coinHoldings.map((h) => {
+                  const coinsHeld = h.balanceNanos / 1e9;
+                  const valueUSD = coinsHeld * h.coinPriceUSD;
+                  const card = (
+                    <div className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 hover:border-border-default transition-colors">
+                      {h.imageUrl ? (
+                        <img
+                          src={h.imageUrl}
+                          alt={h.displayName || h.username}
+                          className="h-10 w-10 rounded-full object-cover shrink-0"
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-caldera/20 flex items-center justify-center shrink-0 text-sm font-bold text-caldera">
+                          {(h.displayName || h.username || "?").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-text-primary truncate">
+                          {h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}
+                        </p>
+                        <p className="text-xs text-text-muted font-mono">
+                          {coinsHeld.toFixed(4)} coins
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold font-mono text-text-primary">
+                          {formatCurrency(valueUSD)}
+                        </p>
+                        <p className="text-xs text-text-muted font-mono">
+                          {formatCurrency(h.coinPriceUSD)}/coin
+                        </p>
+                      </div>
+                    </div>
+                  );
+
+                  return h.creatorSlug ? (
+                    <Link key={h.creatorPublicKey} href={`/creators/${h.creatorSlug}`}>
+                      {card}
+                    </Link>
+                  ) : (
+                    <div key={h.creatorPublicKey}>{card}</div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
