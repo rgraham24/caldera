@@ -43,6 +43,7 @@ export function StakeModal({
 
   const [quote, setQuote] = useState<{ coinsToReceive: number; foundersRewardCoins: number } | null>(null);
   const [quoteFetching, setQuoteFetching] = useState(false);
+  const [quoteIsEstimate, setQuoteIsEstimate] = useState(false);
 
   const fetchDesoPrice = useCallback(async () => {
     try {
@@ -63,22 +64,35 @@ export function StakeModal({
   }, [isOpen, fetchDesoPrice]);
 
   useEffect(() => {
-    if (tab !== "buy" || amountNum <= 0 || !creator.deso_public_key) {
+    if (tab !== "buy" || amountNum <= 0) {
       setQuote(null);
       return;
     }
+
+    // If no deso_public_key, show price-based estimate immediately
+    if (!creator.deso_public_key) {
+      setQuoteFetching(false);
+      setQuoteIsEstimate(true);
+      setQuote(coinPrice > 0 ? {
+        coinsToReceive: amountNum / coinPrice,
+        foundersRewardCoins: 0,
+      } : null);
+      return;
+    }
+
     const effectiveDesoPrice = desoPrice > 0 ? desoPrice : 4.7;
     const desoToSpendNanos = Math.floor((amountNum / effectiveDesoPrice) * 1e9);
     if (desoToSpendNanos <= 0) { setQuote(null); return; }
     setQuoteFetching(true);
-    console.log('[quote-debug] creator.deso_public_key:', creator.deso_public_key?.slice(0,15), 'amountNum:', amountNum, 'desoPrice:', desoPrice);
+    setQuoteIsEstimate(false);
     import("@/lib/deso/api").then(({ getCreatorCoinQuote }) =>
       getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey ?? process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "BC1YLhyuDGeWVgHmh3UQEoKstda525T1LnonYWURBdpgWbFBfRuntP5")
     ).then(q => {
       setQuote(q);
+      setQuoteIsEstimate(false);
       setQuoteFetching(false);
     }).catch(() => setQuoteFetching(false));
-  }, [amountNum, tab, desoPrice, creator.deso_public_key]);
+  }, [amountNum, tab, desoPrice, creator.deso_public_key, coinPrice]);
 
   const handleConfirm = async () => {
     if (!desoPublicKey || !creator.deso_public_key) return;
@@ -442,7 +456,11 @@ export function StakeModal({
                 <div className="flex justify-between">
                   <span className="text-text-muted">You&apos;ll receive</span>
                   <span className="font-mono text-caldera font-semibold">
-                    {quoteFetching ? "Calculating..." : quote ? `${quote.coinsToReceive.toFixed(6)} $${coinSymbol}` : "—"}
+                    {quoteFetching
+                      ? "Calculating..."
+                      : quote
+                        ? `${quoteIsEstimate ? '~' : ''}${quote.coinsToReceive.toFixed(6)} $${coinSymbol}`
+                        : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between">
