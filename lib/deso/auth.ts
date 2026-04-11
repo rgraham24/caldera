@@ -70,38 +70,16 @@ export async function sendDesoPayment(
   amountNanos: number
 ): Promise<string | null> {
   try {
-    // Build the transaction
-    const txRes = await fetch('https://api.deso.org/api/v0/send-deso', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        SenderPublicKeyBase58Check: senderPublicKey,
-        RecipientPublicKeyOrAddressBase58Check: recipientPublicKey,
-        AmountNanos: Math.floor(amountNanos),
-        MinFeeRateNanosPerKB: 1000,
-      }),
+    const { sendDeso } = await import("deso-protocol");
+    const result = await sendDeso({
+      SenderPublicKeyBase58Check: senderPublicKey,
+      RecipientPublicKeyOrUsername: recipientPublicKey,
+      AmountNanos: Math.floor(amountNanos),
+      MinFeeRateNanosPerKB: 1000,
     });
-
-    if (!txRes.ok) return null;
-    const txData = await txRes.json();
-    if (!txData.TransactionHex) return null;
-
-    // Sign via DeSo Identity popup
-    const signedTx = await signWithDesoIdentity(txData.TransactionHex);
-    if (!signedTx) return null;
-
-    // Submit signed transaction
-    const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ TransactionHex: signedTx }),
-    });
-
-    if (!submitRes.ok) return null;
-    const submitData = await submitRes.json();
-    return submitData.TxnHashHex ?? null;
-
-  } catch {
+    return result?.submittedTransactionResponse?.TxnHashHex ?? null;
+  } catch (err) {
+    console.error("[sendDesoPayment]", err);
     return null;
   }
 }

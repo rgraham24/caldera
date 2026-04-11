@@ -10,26 +10,28 @@ async function executeCreatorCoinBuyback(params: {
   platformPublicKey: string;
 }) {
   try {
+    const platformSeed = process.env.DESO_PLATFORM_SEED;
+    if (!platformSeed || !params.platformPublicKey) return;
+
     const supabase = await createClient();
     const { data: creator } = await supabase
       .from('creators')
-      .select('deso_public_key, deso_username')
+      .select('deso_public_key')
       .eq('slug', params.creatorSlug)
       .single();
 
     if (!creator?.deso_public_key) return;
 
-    // Get DESO price
     const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
     const priceData = await priceRes.json();
-    const centsPerDeso = priceData.USDCentsPerDeSoExchangeRate ?? priceData.USDCentsPerDeSoCoin ?? 0;
+    const centsPerDeso = priceData.USDCentsPerDeSoExchangeRate ?? 0;
     const desoUsdRate = centsPerDeso > 0 ? centsPerDeso / 100 : 0;
     if (desoUsdRate <= 0) return;
 
     const buyAmountNanos = Math.floor((params.amountUSD / desoUsdRate) * 1e9);
     if (buyAmountNanos < 1000) return;
 
-    // Build buy-creator-coin transaction
+    // Build transaction
     const txRes = await fetch('https://api.deso.org/api/v0/buy-or-sell-creator-coin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,15 +46,37 @@ async function executeCreatorCoinBuyback(params: {
         MinFeeRateNanosPerKB: 1000,
       }),
     });
-
     if (!txRes.ok) return;
     const txData = await txRes.json();
     if (!txData.TransactionHex) return;
 
-    // TODO: Implement server-side signing once deso-protocol server-side
-    // signing is confirmed working. For now, log for manual processing.
-    console.log(`[buyback] Would buy $${params.amountUSD.toFixed(4)} of ${params.creatorSlug} (${buyAmountNanos} nanos)`);
+    // Sign with platform seed via Identity API
+    const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        TransactionHex: txData.TransactionHex,
+        Seed: platformSeed,
+      }),
+    });
 
+    let signedHex = txData.TransactionHex;
+    if (signRes.ok) {
+      const signData = await signRes.json();
+      if (signData.SignedTransactionHex) signedHex = signData.SignedTransactionHex;
+    }
+
+    // Submit
+    const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ TransactionHex: signedHex }),
+    });
+
+    if (submitRes.ok) {
+      const submitData = await submitRes.json();
+      console.log(`[buyback] ✅ Bought $${params.amountUSD.toFixed(4)} of ${params.creatorSlug} — tx: ${submitData.TxnHashHex}`);
+    }
   } catch (err) {
     console.error('[buyback]', err);
   }
