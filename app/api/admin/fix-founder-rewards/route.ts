@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_KEYS } from "@/lib/admin/market-generator";
+import { isAdminAuthorized } from "@/lib/admin/auth";
 
 const DESO_API = "https://api.deso.org/api/v0";
 const IDENTITY_API = "https://identity.deso.org/api/v0";
@@ -15,10 +15,7 @@ const CATEGORY_TOKENS = [
 
 export async function POST(req: NextRequest) {
   const { desoPublicKey, adminPassword } = await req.json();
-  const isAuthorized =
-    ADMIN_KEYS.includes(desoPublicKey || "") ||
-    !!(process.env.ADMIN_PASSWORD && adminPassword === process.env.ADMIN_PASSWORD);
-  if (!isAuthorized) {
+  if (!isAdminAuthorized(adminPassword, desoPublicKey)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
