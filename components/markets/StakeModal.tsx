@@ -32,7 +32,7 @@ export function StakeModal({
   const [isLoading, setIsLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [desoPrice, setDesoPrice] = useState(0);
+  const [desoPrice, setDesoPrice] = useState(4.7);
 
   const coinPrice = livePrice ?? creator.creator_coin_price ?? 0;
   const coinSymbol = desoUsername || creator.creator_coin_symbol;
