@@ -210,8 +210,128 @@ export function StakeModal({
               <ExternalLink className="h-3 w-3" />
             </a>
             <Button
+              variant="outline"
+              className="mt-4 w-full border-border-subtle text-text-primary hover:bg-surface"
+              onClick={async () => {
+                try {
+                  // Generate fan card as image using canvas
+                  const canvas = document.createElement("canvas");
+                  canvas.width = 1080;
+                  canvas.height = 1920;
+                  const ctx = canvas.getContext("2d")!;
+
+                  // Background
+                  ctx.fillStyle = "#0a0a0f";
+                  ctx.fillRect(0, 0, 1080, 1920);
+
+                  // Card background
+                  ctx.fillStyle = "#111118";
+                  ctx.roundRect(80, 600, 920, 720, 32);
+                  ctx.fill();
+
+                  // Card border
+                  ctx.strokeStyle = "#ffffff1a";
+                  ctx.lineWidth = 1;
+                  ctx.roundRect(80, 600, 920, 720, 32);
+                  ctx.stroke();
+
+                  // Accent line top
+                  ctx.fillStyle = "#6366f1";
+                  ctx.fillRect(80, 600, 920, 3);
+
+                  // Creator name
+                  ctx.fillStyle = "#f0f0f5";
+                  ctx.font = "bold 72px -apple-system, sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillText(creator.name, 540, 760);
+
+                  // Symbol
+                  ctx.fillStyle = "#8888a0";
+                  ctx.font = "40px -apple-system, sans-serif";
+                  ctx.fillText(`$${coinSymbol} · ${formatCurrency(coinPrice)} per coin`, 540, 820);
+
+                  // Divider
+                  ctx.fillStyle = "#ffffff0f";
+                  ctx.fillRect(120, 860, 840, 1);
+
+                  // Stats
+                  ctx.fillStyle = "#55556a";
+                  ctx.font = "28px -apple-system, sans-serif";
+                  ctx.textAlign = "left";
+                  ctx.fillText("I INVESTED", 160, 930);
+                  ctx.textAlign = "right";
+                  ctx.fillText("I EARN FEES FROM", 920, 930);
+
+                  ctx.fillStyle = "#f0f0f5";
+                  ctx.font = "bold 64px -apple-system, sans-serif";
+                  ctx.textAlign = "left";
+                  ctx.fillText(formatCurrency(amountNum), 160, 1010);
+                  ctx.textAlign = "right";
+                  ctx.fillText(`${creator.markets_count ?? 0} markets`, 920, 1010);
+
+                  // Tagline
+                  ctx.fillStyle = "#8888a0";
+                  ctx.font = "36px -apple-system, sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillText(`Earn passive income from every prediction`, 540, 1100);
+                  ctx.fillStyle = "#f0f0f5";
+                  ctx.font = "bold 36px -apple-system, sans-serif";
+                  ctx.fillText(`about ${creator.name}`, 540, 1150);
+
+                  // Bottom branding
+                  ctx.fillStyle = "#6366f1";
+                  ctx.font = "bold 48px -apple-system, sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.fillText("CALDERA", 540, 1400);
+                  ctx.fillStyle = "#55556a";
+                  ctx.font = "32px -apple-system, sans-serif";
+                  ctx.fillText("caldera.market", 540, 1460);
+
+                  const shareText = `I just bought $${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\ncaldera.market/creators/${creator.slug}`;
+                  const shareUrl = `https://caldera.market/creators/${creator.slug}`;
+
+                  // Try native share with image (works for Instagram Stories on mobile)
+                  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
+                    canvas.toBlob(async (blob) => {
+                      if (!blob) return;
+                      const file = new File([blob], `caldera-${creator.slug}.png`, { type: "image/png" });
+                      const shareData = {
+                        title: `I bought $${coinSymbol} on Caldera`,
+                        text: shareText,
+                        url: shareUrl,
+                        files: [file],
+                      };
+                      if (navigator.canShare(shareData)) {
+                        try {
+                          await navigator.share(shareData);
+                          return;
+                        } catch {
+                          // User cancelled or error — fall through
+                        }
+                      }
+                      // Fallback: share without file
+                      try {
+                        await navigator.share({ title: `I bought $${coinSymbol} on Caldera`, text: shareText, url: shareUrl });
+                      } catch {
+                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+                      }
+                    }, "image/png");
+                  } else {
+                    // Desktop: open tweet
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+                  }
+                } catch {
+                  // Ultimate fallback
+                  const shareText = `I just bought $${coinSymbol} on Caldera 🔥\n\ncaldera.market/creators/${creator.slug}`;
+                  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+                }
+              }}
+            >
+              Share
+            </Button>
+            <Button
               onClick={onClose}
-              className="mt-6 w-full bg-caldera text-background font-semibold hover:bg-caldera/90"
+              className="mt-3 w-full bg-caldera text-background font-semibold hover:bg-caldera/90"
             >
               Done
             </Button>
