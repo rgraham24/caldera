@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthorized } from "@/lib/admin/auth";
 
+export const maxDuration = 60;
+
 const DESO_API = "https://node.deso.org/api/v0";
 const IDENTITY_API = "https://identity.deso.org/api/v0";
 
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Small delay between transactions
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 300));
 
     } catch (err) {
       results.push({ username, status: "error", error: String(err) });
