@@ -17,6 +17,9 @@ type AppState = {
   derivedKeyEncrypted: string | null;
   accessSignature: string | null;
   expirationBlock: number | null;
+  encryptedSeedHex: string | null;
+  accessLevelHmac: string | null;
+  accessLevel: number;
   isDepositModalOpen: boolean;
   openDepositModal: () => void;
   closeDepositModal: () => void;
@@ -45,6 +48,9 @@ export const useAppStore = create<AppState>()(
       derivedKeyEncrypted: null,
       accessSignature: null,
       expirationBlock: null,
+      encryptedSeedHex: null,
+      accessLevelHmac: null,
+      accessLevel: 2,
       isDepositModalOpen: false,
       openDepositModal: () => set({ isDepositModalOpen: true }),
       closeDepositModal: () => set({ isDepositModalOpen: false }),
@@ -66,6 +72,9 @@ export const useAppStore = create<AppState>()(
           derivedKeyEncrypted: userData.derivedKeyEncrypted ?? null,
           accessSignature: userData.accessSignature ?? null,
           expirationBlock: userData.expirationBlock ?? null,
+          encryptedSeedHex: userData.encryptedSeedHex ?? null,
+          accessLevelHmac: userData.accessLevelHmac ?? null,
+          accessLevel: userData.accessLevel ?? 2,
         }),
       setDisconnected: () =>
         set({
@@ -81,6 +90,9 @@ export const useAppStore = create<AppState>()(
           derivedKeyEncrypted: null,
           accessSignature: null,
           expirationBlock: null,
+          encryptedSeedHex: null,
+          accessLevelHmac: null,
+          accessLevel: 2,
         }),
       logout: () =>
         set({
@@ -97,6 +109,9 @@ export const useAppStore = create<AppState>()(
           derivedKeyEncrypted: null,
           accessSignature: null,
           expirationBlock: null,
+          encryptedSeedHex: null,
+          accessLevelHmac: null,
+          accessLevel: 2,
         }),
     }),
     {
@@ -120,6 +135,9 @@ export const useAppStore = create<AppState>()(
         derivedKeyEncrypted: state.derivedKeyEncrypted,
         accessSignature: state.accessSignature,
         expirationBlock: state.expirationBlock,
+        encryptedSeedHex: state.encryptedSeedHex,
+        accessLevelHmac: state.accessLevelHmac,
+        accessLevel: state.accessLevel,
       }),
     }
   )

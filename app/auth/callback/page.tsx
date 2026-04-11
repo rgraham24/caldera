@@ -82,8 +82,27 @@ function AuthCallbackInner() {
         const expirationBlockStr = searchParams.get("expirationBlock");
         const expirationBlock = expirationBlockStr ? parseInt(expirationBlockStr, 10) : undefined;
 
+        // Extract encryptedSeedHex / accessLevelHmac / accessLevel from the users payload
+        let encryptedSeedHex: string | undefined;
+        let accessLevelHmac: string | undefined;
+        let accessLevel: number | undefined;
+        try {
+          const rawPayload = searchParams.get("payload");
+          if (rawPayload) {
+            let decoded: Record<string, unknown>;
+            try { decoded = JSON.parse(decodeURIComponent(decodeURIComponent(rawPayload))); }
+            catch { decoded = JSON.parse(decodeURIComponent(rawPayload)); }
+            const users = decoded.users as Record<string, { encryptedSeedHex?: string; accessLevelHmac?: string; accessLevel?: number }> | undefined;
+            if (users && users[publicKey]) {
+              encryptedSeedHex = users[publicKey].encryptedSeedHex;
+              accessLevelHmac = users[publicKey].accessLevelHmac;
+              accessLevel = users[publicKey].accessLevel;
+            }
+          }
+        } catch { /* non-fatal */ }
+
         localStorage.removeItem("caldera_welcomed");
-        setConnected({ publicKey, username, profilePicUrl: avatarUrl, balanceUSD, balanceDeso, derivedPublicKey, derivedKeyEncrypted, accessSignature, expirationBlock });
+        setConnected({ publicKey, username, profilePicUrl: avatarUrl, balanceUSD, balanceDeso, derivedPublicKey, derivedKeyEncrypted, accessSignature, expirationBlock, encryptedSeedHex, accessLevelHmac, accessLevel });
       } catch (e) {
         console.error("[auth/callback] profile fetch failed:", e);
         localStorage.removeItem("caldera_welcomed");

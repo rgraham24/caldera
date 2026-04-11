@@ -8,13 +8,16 @@ export type ConnectedUser = {
   derivedKeyEncrypted?: string;
   accessSignature?: string;
   expirationBlock?: number;
+  encryptedSeedHex?: string;
+  accessLevelHmac?: string;
+  accessLevel?: number;
 };
 
 export function connectDeSoWallet(): void {
   localStorage.setItem("caldera_auth_return", window.location.pathname);
   const callbackUrl = `${window.location.origin}/auth/callback`;
   const identityUrl = "https://identity.deso.org/log-in?" + new URLSearchParams({
-    accessLevelRequest: "2",
+    accessLevelRequest: "4",
     redirect_uri: callbackUrl,
     derive: "false",
   }).toString();
@@ -25,56 +28,67 @@ export function disconnectDeSoWallet(): void {
   // Redirect-based auth — clearing the store is sufficient
 }
 
-// ─── DeSo transaction signing via Identity popup ──────────────────────────────
+// ─── DeSo transaction signing via Identity iframe ────────────────────────────
 
-export async function signWithDesoIdentity(
-  transactionHex: string
-): Promise<string | null> {
-  // Try derived key signing first (no popup needed)
-  const store = (await import('@/store')).useAppStore.getState();
-  if (store.derivedKeyEncrypted && store.derivedPublicKey) {
-    try {
-      const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          TransactionHex: transactionHex,
-          DerivedPublicKeyBase58Check: store.derivedPublicKey,
-          EncryptedDerivedPrivateKey: store.derivedKeyEncrypted,
-          AccessSignature: store.accessSignature,
-          ExpirationBlock: store.expirationBlock,
-        }),
-      });
-      if (signRes.ok) {
-        const data = await signRes.json();
-        if (data.SignedTransactionHex) return data.SignedTransactionHex;
+export async function signWithDesoIdentity(transactionHex: string): Promise<string | null> {
+  const store = (await import("@/store")).useAppStore.getState();
+
+  // Try silent iframe signing first
+  if (store.encryptedSeedHex && store.accessLevelHmac && window.__DESO_IFRAME__) {
+    return new Promise((resolve) => {
+      const msgId = Math.random().toString(36).slice(2);
+      const timeout = setTimeout(() => {
+        window.removeEventListener("message", handler);
+        resolve(null);
+      }, 10000);
+
+      function handler(event: MessageEvent) {
+        if (!event.origin.includes("identity.deso.org")) return;
+        if (event.data?.id !== msgId) return;
+        clearTimeout(timeout);
+        window.removeEventListener("message", handler);
+        if (event.data?.payload?.signedTransactionHex) {
+          resolve(event.data.payload.signedTransactionHex);
+        } else if (event.data?.payload?.approvalRequired) {
+          // Fall through to popup
+          resolve(null);
+        } else {
+          resolve(null);
+        }
       }
-    } catch { /* fall through to popup */ }
+
+      window.addEventListener("message", handler);
+
+      window.__DESO_IFRAME__?.postMessage({
+        id: msgId,
+        service: "identity",
+        method: "sign",
+        payload: {
+          accessLevel: store.accessLevel,
+          accessLevelHmac: store.accessLevelHmac,
+          encryptedSeedHex: store.encryptedSeedHex,
+          transactionHex,
+        },
+      }, "https://identity.deso.org");
+    });
   }
 
-  // Fallback: open Identity popup
+  // Fallback: approval popup for transactions outside access level
   return new Promise((resolve) => {
-    const identityUrl = 'https://identity.deso.org/sign-transaction';
-    const popup = window.open(identityUrl, 'DeSo Identity', 'width=800,height=600,scrollbars=yes');
+    const url = "https://identity.deso.org/approve?tx=" + transactionHex;
+    const popup = window.open(url, "DeSo Identity", "width=800,height=600,scrollbars=yes");
     if (!popup) { resolve(null); return; }
     const timeout = setTimeout(() => { resolve(null); popup.close(); }, 60000);
     function handler(event: MessageEvent) {
-      if (!event.origin.includes('identity.deso.org')) return;
-      if (event.data?.method === 'initialize' || event.data?.service === 'identity') {
-        popup?.postMessage({
-          id: '1', service: 'identity', method: 'sign',
-          payload: { transactionHex },
-        }, 'https://identity.deso.org');
-        return;
-      }
-      if (event.data?.id === '1' && event.data?.payload?.signedTransactionHex) {
+      if (!event.origin.includes("identity.deso.org")) return;
+      if (event.data?.payload?.signedTransactionHex) {
         clearTimeout(timeout);
-        window.removeEventListener('message', handler);
+        window.removeEventListener("message", handler);
         resolve(event.data.payload.signedTransactionHex);
         popup?.close();
       }
     }
-    window.addEventListener('message', handler);
+    window.addEventListener("message", handler);
   });
 }
 
