@@ -6,6 +6,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("creators")
     .select("*")
+    .not("token_status", "in", '("archived","speculation_pool")')
     .order("creator_coin_price", { ascending: false });
 
   if (error) {
