@@ -11,6 +11,8 @@ function AuthCallbackInner() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      console.log('[AUTH_CALLBACK] All search params:', Object.fromEntries(searchParams.entries()));
+      console.log('[AUTH_CALLBACK] Full URL:', window.location.href);
       const publicKey =
         searchParams.get("public_key") ||
         searchParams.get("publicKey") ||
