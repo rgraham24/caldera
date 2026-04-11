@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "username and updaterPublicKey required" }, { status: 400 });
   }
 
-  // Get profile
   const profileRes = await fetch("https://api.deso.org/api/v0/get-single-profile", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,7 +26,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  // Build update-profile tx
   const txRes = await fetch("https://api.deso.org/api/v0/update-profile", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -50,6 +48,10 @@ export async function POST(req: NextRequest) {
   }
 
   const txData = await txRes.json();
+
+  if (!txData.TransactionHex) {
+    return NextResponse.json({ error: "No transaction hex returned", raw: txData }, { status: 500 });
+  }
 
   return NextResponse.json({
     transactionHex: txData.TransactionHex,
