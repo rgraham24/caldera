@@ -456,10 +456,16 @@ export function StakeModal({
                 <div className="flex justify-between">
                   <span className="text-text-muted">You&apos;ll receive</span>
                   <span className="font-mono text-caldera font-semibold">
-                    {quoteFetching
-                      ? "Calculating..."
-                      : quote
-                        ? `${quoteIsEstimate ? '~' : ''}${quote.coinsToReceive.toFixed(6)} $${coinSymbol}`
+                    {tab === "buy"
+                      ? quoteFetching
+                        ? "Calculating..."
+                        : quote
+                          ? `${quoteIsEstimate ? '~' : ''}${quote.coinsToReceive.toFixed(6)} $${coinSymbol}`
+                          : coinPrice > 0 && amountNum > 0
+                            ? `~${(amountNum / coinPrice).toFixed(6)} $${coinSymbol}`
+                            : "—"
+                      : estimatedCoins > 0
+                        ? `${estimatedCoins.toFixed(4)} $${coinSymbol}`
                         : "—"}
                   </span>
                 </div>
