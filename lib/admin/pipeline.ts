@@ -695,21 +695,25 @@ function extractHandle(text: string, fallback: string): string {
   return fallback;
 }
 
-async function findExistingCreator(
-  supabase: AnySupabase,
-  entityName: string
-): Promise<string | null> {
-  // Fuzzy name match against active_unverified reserved profiles
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function findExistingCreator(supabase: any, entityName: string): Promise<string | null> {
+  const nameParts = entityName.trim().toLowerCase().split(/\s+/);
+  if (nameParts.length === 0) return null;
+
+  // Only do fuzzy match if we have a meaningful name (2+ chars)
+  if (entityName.length < 4) return null;
+
+  const { data } = await supabase
     .from("creators")
-    .select("id, slug")
+    .select("id, slug, name")
     .ilike("name", `%${entityName}%`)
-    .eq("token_status", "active_unverified")
+    .in("token_status", ["active_unverified", "active_verified"])
+    .limit(1)
     .maybeSingle();
+
   if (data) {
-    console.log(`[dedup] matched "${entityName}" → existing slug: ${data.slug}`);
-    return data.id as string;
+    console.log(`[pipeline-dedup] "${entityName}" matches existing "${data.name}" (${data.slug})`);
+    return data.id;
   }
   return null;
 }
