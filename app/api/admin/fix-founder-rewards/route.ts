@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthorized } from "@/lib/admin/auth";
 
-const DESO_API = "https://api.deso.org/api/v0";
+const DESO_API = "https://node.deso.org/api/v0";
 const IDENTITY_API = "https://identity.deso.org/api/v0";
 
 const CATEGORY_TOKENS = [
