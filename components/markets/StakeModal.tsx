@@ -63,11 +63,12 @@ export function StakeModal({
   }, [isOpen, fetchDesoPrice]);
 
   useEffect(() => {
-    if (tab !== "buy" || amountNum <= 0 || desoPrice <= 0 || !creator.deso_public_key) {
+    if (tab !== "buy" || amountNum <= 0 || !creator.deso_public_key) {
       setQuote(null);
       return;
     }
-    const desoToSpendNanos = Math.floor((amountNum / desoPrice) * 1e9);
+    const effectiveDesoPrice = desoPrice > 0 ? desoPrice : 4.7;
+    const desoToSpendNanos = Math.floor((amountNum / effectiveDesoPrice) * 1e9);
     if (desoToSpendNanos <= 0) { setQuote(null); return; }
     setQuoteFetching(true);
     import("@/lib/deso/api").then(({ getCreatorCoinQuote }) =>
@@ -76,7 +77,7 @@ export function StakeModal({
       setQuote(q);
       setQuoteFetching(false);
     }).catch(() => setQuoteFetching(false));
-  }, [amountNum, tab, desoPrice, creator.deso_public_key, desoPublicKey]);
+  }, [amountNum, tab, desoPrice, creator.deso_public_key]);
 
   const handleConfirm = async () => {
     if (!desoPublicKey || !creator.deso_public_key) return;
@@ -347,18 +348,20 @@ export function StakeModal({
               <div className="px-4 py-2.5">
                 <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Mkt Cap</p>
                 <p className="text-sm font-semibold text-text-primary font-mono">
-                  {creator.creator_coin_market_cap
-                    ? creator.creator_coin_market_cap >= 1_000_000
-                      ? `$${(creator.creator_coin_market_cap / 1_000_000).toFixed(1)}M`
-                      : creator.creator_coin_market_cap >= 1_000
-                        ? `$${(creator.creator_coin_market_cap / 1_000).toFixed(1)}K`
-                        : `$${creator.creator_coin_market_cap.toFixed(0)}`
-                    : '—'}
+                  {(() => {
+                    const mc = creator.creator_coin_market_cap;
+                    if (!mc || mc === 0) return '—';
+                    if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(1)}M`;
+                    if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
+                    return `$${mc.toFixed(0)}`;
+                  })()}
                 </p>
               </div>
               <div className="px-4 py-2.5">
                 <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Markets</p>
-                <p className="text-sm font-semibold text-yes font-mono">{creator.markets_count ?? 0} active</p>
+                <p className={`text-sm font-semibold font-mono ${(creator.markets_count ?? 0) > 0 ? 'text-yes' : 'text-text-muted'}`}>
+                  {(creator.markets_count ?? 0) > 0 ? `${creator.markets_count} active` : 'Coming soon'}
+                </p>
               </div>
             </div>
 

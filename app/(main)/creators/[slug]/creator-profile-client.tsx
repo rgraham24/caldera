@@ -386,15 +386,10 @@ export function CreatorProfileClient({
               <p className="text-sm text-text-muted">No active markets right now.</p>
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-text-muted">
-                  No markets yet — the autonomous pipeline generates markets every 6 hours.
-                </p>
-                <p className="text-xs text-text-muted">
-                  Check back soon, or{" "}
-                  <Link href="/how-it-works" className="text-caldera hover:underline">
-                    learn how to claim this profile
-                  </Link>{" "}
-                  to start earning from prediction fees.
+                <p className="text-sm text-text-muted">No active markets yet for {creator.name}.</p>
+                <p className="text-xs text-text-muted mt-1">
+                  Markets are generated automatically.
+                  {claimUrl && <span> <a href={claimUrl} className="text-caldera hover:underline">Claim this profile</a> to start earning fees.</span>}
                 </p>
               </div>
             )
