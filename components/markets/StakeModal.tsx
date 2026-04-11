@@ -72,7 +72,7 @@ export function StakeModal({
     if (desoToSpendNanos <= 0) { setQuote(null); return; }
     setQuoteFetching(true);
     import("@/lib/deso/api").then(({ getCreatorCoinQuote }) =>
-      getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey ?? "BC1YLjkz7RE4R9yZmKHFXKsCEQ4mmFbNGVuCnHaSFMoKFm9VumGBdL")
+      getCreatorCoinQuote(creator.deso_public_key!, desoToSpendNanos, desoPublicKey ?? process.env.NEXT_PUBLIC_PLATFORM_WALLET ?? "BC1YLhyuDGeWVgHmh3UQEoKstda525T1LnonYWURBdpgWbFBfRuntP5")
     ).then(q => {
       setQuote(q);
       setQuoteFetching(false);
@@ -350,10 +350,14 @@ export function StakeModal({
                 <p className="text-sm font-semibold text-text-primary font-mono">
                   {(() => {
                     const mc = creator.creator_coin_market_cap;
-                    if (!mc || mc === 0) return '—';
-                    if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(1)}M`;
-                    if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
-                    return `$${mc.toFixed(0)}`;
+                    const holders = creator.creator_coin_holders ?? 0;
+                    if (mc && mc > 0) {
+                      if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(1)}M`;
+                      if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
+                      return `$${mc.toFixed(0)}`;
+                    }
+                    if (holders > 0) return `${holders.toLocaleString()} holders`;
+                    return '—';
                   })()}
                 </p>
               </div>
