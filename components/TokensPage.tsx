@@ -241,6 +241,7 @@ export default function TokensPage() {
           isOpen={!!stakeCreator}
           onClose={() => setStakeCreator(null)}
           desoUsername={stakeCreator.deso_username}
+          livePrice={stakeCreator.creator_coin_price ?? undefined}
         />
       )}
     </div>
