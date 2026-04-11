@@ -4,6 +4,13 @@ export { generateCategoricalMarket } from "./market-generator";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
+export type DiscoveredEntity = {
+  name: string;
+  source: 'kick' | 'twitch' | 'youtube' | 'reddit' | 'google' | 'brave';
+  platformHandle?: string; // exact username if platform gives us one
+  context?: string; // the title/snippet this came from
+};
+
 // ─── Creator slug blocklist ───────────────────────────────────────────────────
 // Hard-blocks specific slug→entity mismatches we've observed in production.
 // E.g. "craig" must never attach to Craig Bellamy, Craig Counsell, etc.
@@ -219,26 +226,28 @@ async function fetchYouTubeTrending(): Promise<string> {
   return titles.length ? `YouTube Trending:\n${titles.join("\n")}` : "";
 }
 
-async function fetchKickFeatured(): Promise<string> {
+async function fetchKickFeatured(): Promise<DiscoveredEntity[]> {
   const result = await withTimeout(
     fetch("https://kick.com/api/v2/channels/featured", {
       headers: { "User-Agent": "CalderaMarkets/1.0", Accept: "application/json" },
     }).then((r) => (r.ok ? r.json() : null))
   );
-  if (!result) return "";
+  if (!result) return [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const channels: string[] = (Array.isArray(result) ? result : [])
+  return (Array.isArray(result) ? result : [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((c: any) => c?.channel?.user?.username ?? c?.slug ?? "")
+    .map((c: any) => {
+      const handle = c?.channel?.user?.username ?? c?.slug ?? "";
+      return handle ? { name: handle, source: 'kick' as const, platformHandle: handle } : null;
+    })
     .filter(Boolean)
-    .slice(0, 10);
-  return channels.length ? `Kick.com Featured Live Channels:\n${channels.join("\n")}` : "";
+    .slice(0, 10) as DiscoveredEntity[];
 }
 
-async function fetchTwitchTopStreams(): Promise<string> {
+async function fetchTwitchTopStreams(): Promise<DiscoveredEntity[]> {
   const clientId = process.env.TWITCH_CLIENT_ID;
   const clientSecret = process.env.TWITCH_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return "";
+  if (!clientId || !clientSecret) return [];
 
   // Get app access token
   const tokenRes = await withTimeout(
@@ -248,7 +257,7 @@ async function fetchTwitchTopStreams(): Promise<string> {
       body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
     }).then((r) => (r.ok ? r.json() : null))
   );
-  if (!tokenRes?.access_token) return "";
+  if (!tokenRes?.access_token) return [];
 
   const streamsRes = await withTimeout(
     fetch("https://api.twitch.tv/helix/streams?first=20", {
@@ -258,11 +267,13 @@ async function fetchTwitchTopStreams(): Promise<string> {
       },
     }).then((r) => (r.ok ? r.json() : null))
   );
-  if (!streamsRes) return "";
+  if (!streamsRes) return [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const names: string[] = (streamsRes.data ?? []).map((s: any) => s.user_name).filter(Boolean);
-  return names.length ? `Twitch Top Streamers:\n${names.join("\n")}` : "";
+  return (streamsRes.data ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((s: any) => s.user_name ? { name: s.user_name, source: 'twitch' as const, platformHandle: s.user_name } : null)
+    .filter(Boolean) as DiscoveredEntity[];
 }
 
 async function fetchGoogleTrends(): Promise<string> {
@@ -318,11 +329,11 @@ async function callClaudeForEntities(apiKey: string, userContent: string): Promi
   return parseEntityList(data.content?.[0]?.text ?? "");
 }
 
-export async function discoverEntities(apiKey: string): Promise<string[]> {
+export async function discoverEntities(apiKey: string): Promise<DiscoveredEntity[]> {
   const braveKey = process.env.BRAVE_SEARCH_API_KEY;
 
   if (braveKey) {
-    const [braveResults, lsf, boxing, mma, ksi, loganpaul, youtube, kick, twitch, trends] =
+    const [braveResults, lsf, boxing, mma, ksi, loganpaul, youtube, kickEntities, twitchEntities, trends] =
       await Promise.all([
         Promise.all(SEARCH_QUERIES.map((sq) => fetchBraveResults(sq.query, braveKey))),
         fetchRedditHot("LivestreamFail", 10),
@@ -331,28 +342,38 @@ export async function discoverEntities(apiKey: string): Promise<string[]> {
         fetchRedditHot("ksi", 5),
         fetchRedditHot("LoganPaul", 5),
         fetchYouTubeTrending(),
-        fetchKickFeatured(),
-        fetchTwitchTopStreams(),
+        fetchKickFeatured(),     // now DiscoveredEntity[]
+        fetchTwitchTopStreams(),  // now DiscoveredEntity[]
         fetchGoogleTrends(),
       ]);
 
+    // Text-based sources go to Claude for name extraction
     const rawData = [
       ...braveResults,
       lsf, boxing, mma, ksi, loganpaul,
-      youtube, kick, twitch, trends,
+      youtube, trends,
     ].filter(Boolean).join("\n\n");
 
-    return callClaudeForEntities(
+    const claudeNames = await callClaudeForEntities(
       apiKey,
       `Here are trending news headlines across multiple categories.\nExtract the 15 most newsworthy distinct people, teams, or entities that would make great prediction markets. Include at least 2 from each category: sports, crypto/tech, streamers/creators, entertainment, politics, viral.\nReturn ONLY a JSON array of strings: ["Entity 1", "Entity 2", ...]\n\nFresh data:\n${rawData}`
     );
+
+    const claudeEntities: DiscoveredEntity[] = claudeNames.map((name) => ({
+      name,
+      source: 'brave' as const,
+    }));
+
+    // Kick + Twitch entities have exact platform handles; merge with Claude-extracted
+    return [...kickEntities, ...twitchEntities, ...claudeEntities];
   }
 
   // Fallback: Claude knowledge only
-  return callClaudeForEntities(
+  const names = await callClaudeForEntities(
     apiKey,
     "List 10 trending public figures or entities with maximum drama and controversy in April 2026. Return ONLY a JSON array."
   );
+  return names.map((name) => ({ name, source: 'brave' as const }));
 }
 
 // ─── Step 2: Relevance gatekeeper ─────────────────────────────────────────────
@@ -693,6 +714,110 @@ function extractHandle(text: string, fallback: string): string {
     if (h.length >= 2) return h;
   }
   return fallback;
+}
+
+// ─── Entity enrichment ───────────────────────────────────────────────────────
+// Classifies entity type via Claude Haiku and checks for existing reserved profiles.
+// Returns null on error; returns { skip: true } for events/ambiguous entities.
+
+async function enrichEntity(
+  entity: DiscoveredEntity,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<{
+  type: 'person' | 'org' | 'event' | 'ambiguous';
+  twitterHandle?: string;
+  existingCreatorId?: string;
+  skip: boolean;
+} | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const classifyRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Classify this entity for a prediction market platform.
+Entity: "${entity.name}"
+Source: ${entity.source}
+Context: ${entity.context ?? 'none'}
+Platform handle: ${entity.platformHandle ?? 'none'}
+
+Reply with JSON only:
+{
+  "type": "person" | "org" | "event" | "ambiguous",
+  "reason": "one sentence",
+  "twitterHandle": "@handle or null"
+}
+
+Rules:
+- person = real individual human (streamer, athlete, politician, celebrity)
+- org = brand, team, subreddit, company, league, media outlet
+- event = a news story, scandal, or one-time occurrence (not a person or org)
+- ambiguous = cannot determine, too vague, or a generic term
+
+For events, set twitterHandle to null.
+For persons/orgs from Kick or Twitch, the platformHandle IS their Twitter equivalent — use it.
+For persons/orgs from other sources, infer the most likely Twitter handle from your knowledge.`,
+        }],
+      }),
+    });
+
+    const classifyData = await classifyRes.json();
+    const text: string = classifyData.content?.[0]?.text ?? '{}';
+    let classification: { type: string; reason: string; twitterHandle?: string | null };
+    try {
+      classification = JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch {
+      console.warn(`[enrich] Failed to parse classification for "${entity.name}":`, text.slice(0, 80));
+      return null;
+    }
+
+    if (classification.type === 'event' || classification.type === 'ambiguous') {
+      console.log(`[enrich] SKIP "${entity.name}" — type: ${classification.type} (${classification.reason})`);
+      return { type: classification.type as 'event' | 'ambiguous', skip: true };
+    }
+
+    const handle = (classification.twitterHandle ?? entity.platformHandle ?? '')
+      .replace('@', '').toLowerCase().trim();
+
+    if (handle) {
+      const { data: existing } = await supabase
+        .from('creators')
+        .select('id, slug, token_status')
+        .eq('deso_username', handle)
+        .in('token_status', ['active_unverified', 'active_verified'])
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`[enrich] MATCHED "${entity.name}" → existing reserved profile: ${existing.slug}`);
+        return {
+          type: classification.type as 'person' | 'org',
+          twitterHandle: handle,
+          existingCreatorId: existing.id as string,
+          skip: false,
+        };
+      }
+    }
+
+    return {
+      type: classification.type as 'person' | 'org',
+      twitterHandle: handle || undefined,
+      skip: false,
+    };
+  } catch (err) {
+    console.warn(`[enrich] Error enriching "${entity.name}":`, err);
+    return null;
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1196,26 +1321,59 @@ async function insertMarkets(
 }
 
 export async function bulkGenerateAndInsert(
-  entities: string[],
+  entities: Array<string | DiscoveredEntity>,
   apiKey: string,
   supabase: SupabaseClient
 ): Promise<number> {
   const BATCH_SIZE = 3;
   let created = 0;
 
-  for (let i = 0; i < entities.length; i += BATCH_SIZE) {
-    const batch = entities.slice(i, i + BATCH_SIZE);
+  // Normalize string[] | DiscoveredEntity[] to DiscoveredEntity[]
+  const normalized: DiscoveredEntity[] = entities.map((e) =>
+    typeof e === 'string' ? { name: e, source: 'brave' as const } : e
+  );
 
-    // Create shadow profiles for each entity before generating markets
+  for (let i = 0; i < normalized.length; i += BATCH_SIZE) {
+    const batch = normalized.slice(i, i + BATCH_SIZE);
+
+    // Enrich each entity (classify type, match reserved profiles) then create/find profile
     const profileResults = await Promise.all(
-      batch.map((entity) => createShadowProfileIfNeeded(entity, supabase))
+      batch.map(async (entity) => {
+        const enrichment = await enrichEntity(entity, supabase);
+
+        // Events and ambiguous entities: skip token creation; market can still be generated
+        if (enrichment?.skip) {
+          console.log(`[pipeline] Skipping token creation for: ${entity.name}`);
+          return null;
+        }
+
+        // If enrichment matched an existing reserved profile, reuse it
+        if (enrichment?.existingCreatorId) {
+          const { data: found } = await supabase
+            .from('creators')
+            .select('id, slug, token_status')
+            .eq('id', enrichment.existingCreatorId)
+            .single();
+          if (found) {
+            return {
+              id: found.id as string,
+              slug: found.slug as string,
+              tier: (found.token_status as TokenTier) ?? 'shadow',
+            };
+          }
+        }
+
+        // Otherwise create/find a shadow profile with the enriched handle or original name
+        const nameToUse = enrichment?.twitterHandle ?? entity.platformHandle ?? entity.name;
+        return createShadowProfileIfNeeded(nameToUse, supabase);
+      })
     );
 
     // Skip market generation for hard_reserved entities entirely
     const entitiesToGenerate = batch.filter((_, j) => profileResults[j]?.tier !== "hard_reserved");
 
     const results = await Promise.allSettled(
-      entitiesToGenerate.map((entity) => generateMarketsForTopic(entity, apiKey))
+      entitiesToGenerate.map((entity) => generateMarketsForTopic(entity.name, apiKey))
     );
 
     for (let j = 0; j < results.length; j++) {
@@ -1224,10 +1382,10 @@ export async function bulkGenerateAndInsert(
         const entity = entitiesToGenerate[j];
         const batchIdx = batch.indexOf(entity);
         const profile = profileResults[batchIdx];
-        const filtered = await filterStaleMarkets(result.value, apiKey, entity);
+        const filtered = await filterStaleMarkets(result.value, apiKey, entity.name);
         if (filtered.length > 0) {
-          const entityType = classifyEntityType(entity);
-          const ctx = getEntityContext(entity, entityType);
+          const entityType = classifyEntityType(entity.name);
+          const ctx = getEntityContext(entity.name, entityType);
 
           let teamProfile: { id: string; slug: string } | null = null;
           let leagueProfile: { id: string; slug: string } | null = null;
@@ -1249,13 +1407,13 @@ export async function bulkGenerateAndInsert(
             profile?.tier ?? "shadow",
             teamProfile?.slug ?? null,
             leagueProfile?.slug ?? null,
-            entity
+            entity.name
           );
         }
       }
     }
 
-    if (i + BATCH_SIZE < entities.length) {
+    if (i + BATCH_SIZE < normalized.length) {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }

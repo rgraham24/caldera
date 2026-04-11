@@ -7,6 +7,7 @@ export async function GET() {
     .from("creators")
     .select("*")
     .not("token_status", "in", '("archived","speculation_pool")')
+    .or('token_status.neq.shadow,markets_count.gt.0')
     .order("creator_coin_price", { ascending: false });
 
   if (error) {
