@@ -75,8 +75,15 @@ function AuthCallbackInner() {
           body: JSON.stringify({ publicKey, username, avatarUrl }),
         }).catch((e) => console.warn("[auth/callback] supabase upsert failed:", e));
 
+        // Extract derived key params if present
+        const derivedPublicKey = searchParams.get("derivedPublicKey") ?? undefined;
+        const derivedKeyEncrypted = searchParams.get("derivedKeyEncrypted") ?? undefined;
+        const accessSignature = searchParams.get("accessSignature") ?? undefined;
+        const expirationBlockStr = searchParams.get("expirationBlock");
+        const expirationBlock = expirationBlockStr ? parseInt(expirationBlockStr, 10) : undefined;
+
         localStorage.removeItem("caldera_welcomed");
-        setConnected({ publicKey, username, profilePicUrl: avatarUrl, balanceUSD, balanceDeso });
+        setConnected({ publicKey, username, profilePicUrl: avatarUrl, balanceUSD, balanceDeso, derivedPublicKey, derivedKeyEncrypted, accessSignature, expirationBlock });
       } catch (e) {
         console.error("[auth/callback] profile fetch failed:", e);
         localStorage.removeItem("caldera_welcomed");

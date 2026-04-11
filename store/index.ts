@@ -13,6 +13,10 @@ type AppState = {
   desoBalanceNanos: number;
   desoBalanceUSD: number;
   desoBalanceDeso: number;
+  derivedPublicKey: string | null;
+  derivedKeyEncrypted: string | null;
+  accessSignature: string | null;
+  expirationBlock: number | null;
   isDepositModalOpen: boolean;
   openDepositModal: () => void;
   closeDepositModal: () => void;
@@ -37,6 +41,10 @@ export const useAppStore = create<AppState>()(
       desoBalanceNanos: 0,
       desoBalanceUSD: 0,
       desoBalanceDeso: 0,
+      derivedPublicKey: null,
+      derivedKeyEncrypted: null,
+      accessSignature: null,
+      expirationBlock: null,
       isDepositModalOpen: false,
       openDepositModal: () => set({ isDepositModalOpen: true }),
       closeDepositModal: () => set({ isDepositModalOpen: false }),
@@ -54,6 +62,10 @@ export const useAppStore = create<AppState>()(
           desoProfilePicUrl: userData.profilePicUrl,
           desoBalanceUSD: userData.balanceUSD,
           desoBalanceDeso: userData.balanceDeso,
+          derivedPublicKey: userData.derivedPublicKey ?? null,
+          derivedKeyEncrypted: userData.derivedKeyEncrypted ?? null,
+          accessSignature: userData.accessSignature ?? null,
+          expirationBlock: userData.expirationBlock ?? null,
         }),
       setDisconnected: () =>
         set({
@@ -65,6 +77,10 @@ export const useAppStore = create<AppState>()(
           desoBalanceUSD: 0,
           desoBalanceDeso: 0,
           desoBalanceNanos: 0,
+          derivedPublicKey: null,
+          derivedKeyEncrypted: null,
+          accessSignature: null,
+          expirationBlock: null,
         }),
       logout: () =>
         set({
@@ -77,6 +93,10 @@ export const useAppStore = create<AppState>()(
           desoBalanceNanos: 0,
           desoBalanceUSD: 0,
           desoBalanceDeso: 0,
+          derivedPublicKey: null,
+          derivedKeyEncrypted: null,
+          accessSignature: null,
+          expirationBlock: null,
         }),
     }),
     {
@@ -96,6 +116,10 @@ export const useAppStore = create<AppState>()(
         desoProfilePicUrl: state.desoProfilePicUrl,
         desoBalanceUSD: state.desoBalanceUSD,
         desoBalanceDeso: state.desoBalanceDeso,
+        derivedPublicKey: state.derivedPublicKey,
+        derivedKeyEncrypted: state.derivedKeyEncrypted,
+        accessSignature: state.accessSignature,
+        expirationBlock: state.expirationBlock,
       }),
     }
   )
