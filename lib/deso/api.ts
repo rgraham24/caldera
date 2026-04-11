@@ -174,110 +174,74 @@ export async function getCreatorCoinHoldings(
   return { balanceNanos, balanceUSD };
 }
 
-/**
- * Construct, sign, and submit a buy-creator-coin transaction.
- * This runs client-side — calls DeSo API directly + DeSo Identity for signing.
- */
-export async function buyCreatorCoin(
-  creatorPublicKey: string,
-  desoToSpendNanos: number,
-  updaterPublicKey: string
-): Promise<{ txHash: string }> {
-  // 1. Construct transaction
-  const constructRes = await fetch(
-    `${DESO_API}/buy-or-sell-creator-coin`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        UpdaterPublicKeyBase58Check: updaterPublicKey,
-        CreatorPublicKeyBase58Check: creatorPublicKey,
-        OperationType: "buy",
-        DeSoToSellNanos: desoToSpendNanos,
-        MinCreatorCoinExpectedNanos: 0,
-        MinFeeRateNanosPerKB: 1000,
-      }),
-    }
-  );
+import {
+  buyCreatorCoin as desoBuyCreatorCoin,
+  sellCreatorCoin as desoSellCreatorCoin,
+} from "deso-protocol";
 
-  if (!constructRes.ok) {
-    const err = await constructRes.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to construct transaction");
-  }
+const CREATOR_COIN_PERMISSIONS = {
+  GlobalDESOLimit: 10 * 1e9,
+  TransactionCountLimitMap: {
+    AUTHORIZE_DERIVED_KEY: 1,
+    CREATOR_COIN: 1000,
+  } as Record<string, number>,
+  CreatorCoinOperationLimitMap: {
+    "": { buy: 1e9, sell: 1e9 },
+  },
+};
 
-  const { TransactionHex } = await constructRes.json();
-
-  // 2. Sign via DeSo Identity
-  const { signWithDesoIdentity } = await import("@/lib/deso/auth");
-  const signedTx = await signWithDesoIdentity(TransactionHex);
-  if (!signedTx) throw new Error("Transaction signing cancelled or failed");
-
-  // 3. Submit
-  const submitRes = await fetch(`${DESO_API}/submit-transaction`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      TransactionHex: signedTx,
-    }),
+async function ensureCreatorCoinPermissions() {
+  const { getDesoIdentity } = await import("@/lib/deso/identity");
+  const id = getDesoIdentity();
+  const hasPermission = id.hasPermissions({
+    TransactionCountLimitMap: { CREATOR_COIN: 1 } as Record<string, number>,
   });
-
-  if (!submitRes.ok) {
-    throw new Error("Failed to submit transaction");
+  if (!hasPermission) {
+    await id.requestPermissions(CREATOR_COIN_PERMISSIONS);
   }
+}
 
-  const submitData = await submitRes.json();
-  return {
-    txHash:
-      submitData.Transaction?.TransactionIDBase58Check ||
-      submitData.TxnHashHex ||
-      "",
-  };
+export async function buyCreatorCoin(
+  updaterPublicKey: string,
+  creatorPublicKey: string,
+  desoToSellNanos: number
+): Promise<{ txnHash: string } | null> {
+  try {
+    await ensureCreatorCoinPermissions();
+    // SDK handles construct + sign (via derived key) + submit — no popup
+    const result = await desoBuyCreatorCoin({
+      UpdaterPublicKeyBase58Check: updaterPublicKey,
+      CreatorPublicKeyBase58Check: creatorPublicKey,
+      DeSoToSellNanos: desoToSellNanos,
+      MinCreatorCoinExpectedNanos: 0,
+      MinFeeRateNanosPerKB: 1000,
+    });
+    return { txnHash: result.submittedTransactionResponse?.TxnHashHex ?? "" };
+  } catch (err) {
+    console.error("[buyCreatorCoin]", err);
+    throw err;
+  }
 }
 
 export async function sellCreatorCoin(
+  updaterPublicKey: string,
   creatorPublicKey: string,
-  creatorCoinToSellNanos: number,
-  updaterPublicKey: string
-): Promise<{ txHash: string }> {
-  const constructRes = await fetch(
-    `${DESO_API}/buy-or-sell-creator-coin`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        UpdaterPublicKeyBase58Check: updaterPublicKey,
-        CreatorPublicKeyBase58Check: creatorPublicKey,
-        OperationType: "sell",
-        CreatorCoinToSellNanos: creatorCoinToSellNanos,
-        MinFeeRateNanosPerKB: 1000,
-      }),
-    }
-  );
-
-  if (!constructRes.ok) {
-    const err = await constructRes.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to construct transaction");
+  creatorCoinToSellNanos: number
+): Promise<{ txnHash: string } | null> {
+  try {
+    await ensureCreatorCoinPermissions();
+    const result = await desoSellCreatorCoin({
+      UpdaterPublicKeyBase58Check: updaterPublicKey,
+      CreatorPublicKeyBase58Check: creatorPublicKey,
+      CreatorCoinToSellNanos: creatorCoinToSellNanos,
+      MinDeSoExpectedNanos: 0,
+      MinFeeRateNanosPerKB: 1000,
+    });
+    return { txnHash: result.submittedTransactionResponse?.TxnHashHex ?? "" };
+  } catch (err) {
+    console.error("[sellCreatorCoin]", err);
+    throw err;
   }
-
-  const { TransactionHex } = await constructRes.json();
-  const { signWithDesoIdentity } = await import("@/lib/deso/auth");
-  const signedTx = await signWithDesoIdentity(TransactionHex);
-  if (!signedTx) throw new Error("Transaction signing cancelled or failed");
-
-  const submitRes = await fetch(`${DESO_API}/submit-transaction`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ TransactionHex: signedTx }),
-  });
-
-  if (!submitRes.ok) throw new Error("Failed to submit transaction");
-  const submitData = await submitRes.json();
-  return {
-    txHash:
-      submitData.Transaction?.TransactionIDBase58Check ||
-      submitData.TxnHashHex ||
-      "",
-  };
 }
 
 export async function getCreatorCoinQuote(

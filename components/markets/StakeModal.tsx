@@ -97,11 +97,11 @@ export function StakeModal({
         }
         const { buyCreatorCoin } = await import("@/lib/deso/api");
         const result = await buyCreatorCoin(
+          desoPublicKey,
           creator.deso_public_key,
-          amountDesoNanos,
-          desoPublicKey
+          amountDesoNanos
         );
-        setTxHash(result.txHash);
+        setTxHash(result?.txnHash ?? "");
         // Record purchase for cost basis tracking
         fetch("/api/portfolio/coin-purchases", {
           method: "POST",
@@ -112,18 +112,18 @@ export function StakeModal({
             coinsPurchased: estimatedCoins,
             pricePerCoinUsd: coinPrice,
             desoPriceAtPurchase: desoPrice,
-            txHash: result.txHash,
+            txHash: result?.txnHash ?? "",
           }),
         }).catch(() => {});
       } else {
         const coinsToSellNanos = Math.floor(estimatedCoins * 1e9);
         const { sellCreatorCoin } = await import("@/lib/deso/api");
         const result = await sellCreatorCoin(
+          desoPublicKey,
           creator.deso_public_key,
-          coinsToSellNanos,
-          desoPublicKey
+          coinsToSellNanos
         );
-        setTxHash(result.txHash);
+        setTxHash(result?.txnHash ?? "");
       }
 
       // Refresh balance

@@ -8,16 +8,18 @@ export function getDesoIdentity() {
   if (!configured && typeof window !== "undefined") {
     configure({
       spendingLimitOptions: {
-        IsUnlimited: false,
         GlobalDESOLimit: 10 * 1e9,
-        CreatorCoinOperationLimitMap: { "": { buy: 1e9, sell: 1e9 } },
         TransactionCountLimitMap: {
-          BASIC_TRANSFER: 100,
-          CREATOR_COIN: 1000,
           AUTHORIZE_DERIVED_KEY: 1,
+          CREATOR_COIN: 1000,
+          BASIC_TRANSFER: 100,
+        } as Record<string, number>,
+        CreatorCoinOperationLimitMap: {
+          "": { buy: 1e9, sell: 1e9 },
         },
       },
       nodeURI: "https://node.deso.org",
+      appName: "Caldera",
     });
     configured = true;
   }
