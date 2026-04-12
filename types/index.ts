@@ -2,7 +2,11 @@ import type { Database } from "@/lib/supabase/types";
 
 // Row types from database
 export type User = Database["public"]["Tables"]["users"]["Row"];
-export type Creator = Database["public"]["Tables"]["creators"]["Row"];
+// Creator augmented with fields added after initial type generation
+export type Creator = Database["public"]["Tables"]["creators"]["Row"] & {
+  is_reserved?: boolean | null;       // Tier 1 — DeSo reserved profile (gold badge)
+  is_caldera_verified?: boolean | null; // Tier 2 — manually verified by Caldera (blue badge)
+};
 export type Market = Database["public"]["Tables"]["markets"]["Row"];
 export type Position = Database["public"]["Tables"]["positions"]["Row"];
 export type Trade = Database["public"]["Tables"]["trades"]["Row"];

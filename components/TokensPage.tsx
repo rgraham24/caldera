@@ -7,6 +7,7 @@ import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { Search } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { useLivePrices } from "@/hooks/useLivePrices";
@@ -197,12 +198,17 @@ export default function TokensPage() {
                   <Link href={`/creators/${c.slug}`} className="flex min-w-0 items-center gap-3">
                     <CreatorAvatar creator={c} size="md" />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-text-primary">{c.name}</p>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <p className="truncate text-sm font-semibold text-text-primary">
+                          {c.category === "Crypto" ? `${c.name} Markets` : c.name}
+                        </p>
+                        <VerificationBadge
+                          isReserved={c.is_reserved ?? false}
+                          isCalderaVerified={c.is_caldera_verified ?? false}
+                        />
+                      </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] tracking-widest text-text-muted">${sym}</span>
-                        {c.tier === "verified_creator" && (
-                          <span className="text-[10px] text-caldera">✓</span>
-                        )}
                         {c.league && (
                           <span className="rounded-full bg-caldera/10 px-1 py-0.5 text-[9px] font-semibold text-caldera">
                             {c.league}

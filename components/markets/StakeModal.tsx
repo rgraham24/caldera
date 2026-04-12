@@ -7,6 +7,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { X, Check, Loader2, ExternalLink } from "lucide-react";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 type StakeModalProps = {
   creator: Creator;
@@ -185,9 +186,15 @@ export function StakeModal({
               </div>
             )}
             <div>
-              <p className="text-sm font-semibold text-text-primary">
-                {creator.name}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-sm font-semibold text-text-primary">
+                  {creator.name}
+                </p>
+                <VerificationBadge
+                  isReserved={creator.is_reserved ?? false}
+                  isCalderaVerified={creator.is_caldera_verified ?? false}
+                />
+              </div>
               <p className="text-xs text-text-muted">
                 ${coinSymbol} · {formatCurrency(coinPrice)}
               </p>

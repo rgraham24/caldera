@@ -11,12 +11,15 @@ import {
 import { ChevronDown, TrendingUp, Zap } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Topic = {
   slug: string;
   name: string;
+  isReserved?: boolean;
+  isCalderaVerified?: boolean;
   totalVolume: number;
   volumeFormatted: string;
   marketCount: number;
@@ -312,15 +315,16 @@ function HotTopicsStrip({
           <button
             key={t.slug}
             onClick={() => onSelect(isActive ? "all" : t.slug)}
-            className={`flex-none rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-1 flex-none rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
               isActive
                 ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
                 : "border-border-subtle bg-surface text-text-muted hover:text-text-primary hover:border-caldera/40"
             }`}
           >
             {t.name}
+            <VerificationBadge isReserved={t.isReserved} isCalderaVerified={t.isCalderaVerified} />
             {t.volumeFormatted && (
-              <span className="ml-1 opacity-50">{t.volumeFormatted}</span>
+              <span className="opacity-50">{t.volumeFormatted}</span>
             )}
           </button>
         );

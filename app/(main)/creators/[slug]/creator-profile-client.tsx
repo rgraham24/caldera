@@ -13,6 +13,7 @@ import { HolderCalculator } from "@/components/shared/HolderCalculator";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
 import { FollowButton } from "@/components/shared/FollowButton";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 type BuybackEvent = {
   id: string;
@@ -229,13 +230,14 @@ export function CreatorProfileClient({
           <div className="flex items-start gap-5">
             <CreatorAvatar creator={creator} size="lg" className="h-20 w-20" />
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
                   {creator.name}
                 </h1>
-                {creator.tier === "verified_creator" && (
-                  <span className="text-caldera text-sm" title="Verified">✓</span>
-                )}
+                <VerificationBadge
+                  isReserved={creator.is_reserved ?? false}
+                  isCalderaVerified={creator.is_caldera_verified ?? false}
+                />
               </div>
               <p className="mt-1 text-sm text-text-muted">${coinSymbol}</p>
               <div className="mt-3 flex items-center gap-4">

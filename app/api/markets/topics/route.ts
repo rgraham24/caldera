@@ -25,13 +25,18 @@ export async function GET() {
   const creatorSlugs = [...new Set(markets.map((m) => m.creator_slug).filter(Boolean))] as string[];
 
   const creatorNameMap = new Map<string, string>();
+  const creatorReservedMap = new Map<string, boolean>();
+  const creatorCalderaVerifiedMap = new Map<string, boolean>();
   if (creatorSlugs.length > 0) {
-    const { data: creatorsData } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: creatorsData } = await (supabase as any)
       .from("creators")
-      .select("slug, name")
+      .select("slug, name, is_reserved, is_caldera_verified")
       .in("slug", creatorSlugs);
     for (const c of creatorsData ?? []) {
       creatorNameMap.set(c.slug, c.name);
+      if (c.is_reserved) creatorReservedMap.set(c.slug, true);
+      if (c.is_caldera_verified) creatorCalderaVerifiedMap.set(c.slug, true);
     }
   }
 
@@ -39,6 +44,8 @@ export async function GET() {
   const topicMap = new Map<string, {
     slug: string;
     name: string;
+    isReserved: boolean;
+    isCalderaVerified: boolean;
     totalVolume: number;
     marketCount: number;
     topTrendingScore: number;
@@ -64,6 +71,8 @@ export async function GET() {
       topicMap.set(key, {
         slug: key,
         name: displayName,
+        isReserved: m.creator_slug ? (creatorReservedMap.get(m.creator_slug) ?? false) : false,
+        isCalderaVerified: m.creator_slug ? (creatorCalderaVerifiedMap.get(m.creator_slug) ?? false) : false,
         totalVolume: m.total_volume ?? 0,
         marketCount: 1,
         topTrendingScore: m.trending_score ?? 0,
