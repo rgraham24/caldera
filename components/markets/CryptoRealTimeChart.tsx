@@ -23,18 +23,15 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
   const onPriceUpdateRef = useRef(onPriceUpdate);
   onPriceUpdateRef.current = onPriceUpdate;
 
-  // Poll via proxy every 3 seconds
+  // SSE subscription — 1-second updates via /api/crypto/stream
   useEffect(() => {
     if (!SUPPORTED_TICKERS.has(ticker)) return;
 
-    async function fetchPrice() {
+    const es = new EventSource(`/api/crypto/stream?ticker=${ticker}`);
+
+    es.onmessage = (e) => {
       try {
-        const res = await fetch(
-          `/api/crypto/prices?ticker=${ticker}`,
-          { cache: 'no-store' }
-        );
-        const json = await res.json();
-        const price: number = json.price;
+        const { price } = JSON.parse(e.data) as { ticker: string; price: number; t: number };
         if (!price) return;
 
         const change: 'up' | 'down' | null =
@@ -46,21 +43,22 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
         // Detect target line crossing
         const isAboveNow = price > targetPrice;
         if (prevAboveRef.current !== null && prevAboveRef.current !== isAboveNow) {
-          const flashSide = isAboveNow ? 'above' : 'below';
-          setCrossFlash(flashSide);
+          setCrossFlash(isAboveNow ? 'above' : 'below');
           setTimeout(() => setCrossFlash(null), 700);
         }
         prevAboveRef.current = isAboveNow;
 
         onPriceUpdateRef.current?.(price, change);
-        // (b) Rolling 300-point window
-        setData(prev => [...prev, { time: new Date(), price }].slice(-300));
+        setData(prev => {
+          const next = [...prev, { time: new Date(), price }];
+          return next.length > 300 ? next.slice(-300) : next;
+        });
       } catch { /* ignore */ }
-    }
+    };
 
-    fetchPrice();
-    const interval = setInterval(fetchPrice, 3000);
-    return () => clearInterval(interval);
+    es.onerror = () => { /* auto-reconnects */ };
+
+    return () => es.close();
   }, [ticker, targetPrice]);
 
   // D3 render on data change

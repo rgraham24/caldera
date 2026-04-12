@@ -16,31 +16,25 @@ export function CryptoLivePriceBar({ ticker, targetPrice, resolvesAt }: Props) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
+    if (!SUPPORTED_TICKERS.has(ticker)) return;
+
     let prevPrice: number | null = null;
+    const es = new EventSource(`/api/crypto/stream?ticker=${ticker}`);
 
-    async function fetchPrice() {
+    es.onmessage = (e) => {
       try {
-        if (!SUPPORTED_TICKERS.has(ticker)) return;
-        const res = await fetch(
-          `/api/crypto/prices?ticker=${ticker}`,
-          { cache: 'no-store' }
-        );
-        const data = await res.json();
-        const price = data.price as number;
-        if (price) {
-          if (prevPrice !== null) {
-            setPriceChange(price > prevPrice ? 'up' : price < prevPrice ? 'down' : null);
-          }
-          prevPrice = price;
-          setCurrentPrice(price);
-          setLastUpdated(new Date());
-        }
+        const { price } = JSON.parse(e.data) as { price: number };
+        if (!price) return;
+        setPriceChange(prevPrice !== null ? (price > prevPrice ? 'up' : price < prevPrice ? 'down' : null) : null);
+        prevPrice = price;
+        setCurrentPrice(price);
+        setLastUpdated(new Date());
       } catch {}
-    }
+    };
 
-    fetchPrice();
-    const interval = setInterval(fetchPrice, 15000); // every 15s
-    return () => clearInterval(interval);
+    es.onerror = () => { /* auto-reconnects */ };
+
+    return () => es.close();
   }, [ticker]);
 
   useEffect(() => {
