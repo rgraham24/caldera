@@ -15,6 +15,14 @@
     {
       "path": "/api/cron/snapshot-prices",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/generate-crypto-markets",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/resolve-crypto-markets",
+      "schedule": "* * * * *"
     }
   ]
 }

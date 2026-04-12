@@ -163,13 +163,12 @@ export default function TokensPage() {
       ) : (
         <>
           {/* Header row */}
-          <div className="mb-1 grid grid-cols-[2rem_1fr_7rem_5rem_5rem_7rem_4rem] items-center gap-4 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint">
-            <span className="text-center">#</span>
+          <div className="mb-1 grid grid-cols-[1fr_80px_80px_100px_80px_80px] items-center gap-4 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint">
             <span>Token</span>
             <span className="hidden text-right sm:block">Price</span>
             <span className="hidden text-right sm:block">Holders</span>
-            <span className="hidden text-right sm:block">Markets</span>
             <span className="hidden text-right sm:block">Mkt Cap</span>
+            <span className="hidden text-right sm:block">Markets</span>
             <span />
           </div>
           <div className="space-y-2">
@@ -192,11 +191,8 @@ export default function TokensPage() {
               return (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[2rem_1fr_7rem_5rem_5rem_7rem_4rem] items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20"
+                  className="grid grid-cols-[1fr_80px_80px_100px_80px_80px] items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20"
                 >
-                  {/* Rank */}
-                  <span className="text-center font-mono text-sm text-text-faint">{i + 1}</span>
-
                   {/* Creator info */}
                   <Link href={`/creators/${c.slug}`} className="flex min-w-0 items-center gap-3">
                     <CreatorAvatar creator={c} size="md" />
@@ -231,14 +227,14 @@ export default function TokensPage() {
                     {displayHolders.toLocaleString()}
                   </span>
 
-                  {/* Markets */}
-                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
-                    {(c.markets_count ?? 0) > 0 ? (c.markets_count ?? 0) : "—"}
-                  </span>
-
                   {/* Mkt cap */}
                   <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
                     {displayMcap > 0 ? formatCompactCurrency(displayMcap) : "—"}
+                  </span>
+
+                  {/* Markets */}
+                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
+                    {(c.markets_count ?? 0) > 0 ? (c.markets_count ?? 0) : "—"}
                   </span>
 
                   {/* Buy button */}

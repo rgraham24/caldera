@@ -305,22 +305,23 @@ function HotTopicsStrip({
   if (topics.length === 0) return null;
 
   return (
-    <div className="mb-6 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-      <span className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)]">🔥</span>
-      {topics.slice(0, 5).map((t) => {
+    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-4" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
+      {topics.slice(0, 12).map((t) => {
         const isActive = activeFilter === t.slug;
         return (
           <button
             key={t.slug}
             onClick={() => onSelect(isActive ? "all" : t.slug)}
-            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
-            style={{
-              background: isActive ? "var(--caldera-muted, #f9731615)" : "var(--bg-surface)",
-              border: `1px solid ${isActive ? "var(--accent, #f97316)" : "var(--border-subtle)"}`,
-              color: isActive ? "var(--accent, #f97316)" : "var(--text-secondary)",
-            }}
+            className={`flex-none rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+              isActive
+                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                : "border-border-subtle bg-surface text-text-muted hover:text-text-primary hover:border-caldera/40"
+            }`}
           >
-            {t.name} <span className="font-normal opacity-60">{t.volumeFormatted} vol</span>
+            {t.name}
+            {t.volumeFormatted && (
+              <span className="ml-1 opacity-50">{t.volumeFormatted}</span>
+            )}
           </button>
         );
       })}
