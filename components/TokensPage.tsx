@@ -9,6 +9,7 @@ import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 const CATEGORIES = [
   { value: "all", label: "All" },
@@ -35,6 +36,7 @@ export default function TokensPage() {
   const [search, setSearch] = useState("");
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
   const { isConnected } = useAppStore();
+  const { prices: livePrices, lastUpdated } = useLivePrices();
 
   useEffect(() => {
     setLoading(true);
@@ -43,15 +45,6 @@ export default function TokensPage() {
       .then(({ data }) => setCreators(Array.isArray(data) ? data : []))
       .catch(() => setCreators([]))
       .finally(() => setLoading(false));
-
-    // Poll for live prices every 30 seconds
-    const id = setInterval(() => {
-      fetch("/api/creators/list")
-        .then((r) => r.json())
-        .then(({ data }) => { if (Array.isArray(data)) setCreators(data); })
-        .catch(() => {});
-    }, 30_000);
-    return () => clearInterval(id);
   }, []);
 
   const filtered = useMemo(() => {
@@ -111,9 +104,9 @@ export default function TokensPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold text-text-primary">💰 Tokens</h1>
-        <p className="mt-1 flex items-center gap-2 text-sm text-text-muted">
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-yes" />
-          Prices update every 30s from DeSo
+          Live on DeSo
         </p>
       </div>
 
@@ -183,10 +176,18 @@ export default function TokensPage() {
             {filtered.map((c, i) => {
               const sym = c.deso_username || c.creator_coin_symbol;
               const hasToken = !!c.deso_username;
-              const mcap =
-                (c.creator_coin_market_cap ?? 0) > 0
-                  ? c.creator_coin_market_cap ?? 0
-                  : (c.creator_coin_price ?? 0) * Math.sqrt(c.creator_coin_holders || 1) * 1000;
+
+              // Merge live SSE prices over static DB values
+              const live = livePrices.get(c.slug);
+              const displayPrice = live?.creator_coin_price ?? c.creator_coin_price ?? 0;
+              const displayHolders = live?.creator_coin_holders ?? c.creator_coin_holders ?? 0;
+              const rawMcap = live?.creator_coin_market_cap ?? c.creator_coin_market_cap ?? 0;
+              const displayMcap = rawMcap > 0
+                ? rawMcap
+                : displayPrice * Math.sqrt(displayHolders || 1) * 1000;
+
+              const updatedAt = lastUpdated.get(c.slug);
+              const isFlashing = !!updatedAt && Date.now() - updatedAt < 1000;
 
               return (
                 <div
@@ -215,16 +216,19 @@ export default function TokensPage() {
                     </div>
                   </Link>
 
-                  {/* Price */}
-                  <span className="hidden text-right font-mono text-sm font-semibold text-text-primary sm:block">
-                    {hasToken && (c.creator_coin_price ?? 0) > 0.01
-                      ? formatCurrency(c.creator_coin_price ?? 0)
-                      : "—"}
+                  {/* Price — flashes green on live update */}
+                  <span
+                    className={cn(
+                      "hidden text-right font-mono text-sm font-semibold transition-colors duration-500 sm:block",
+                      isFlashing ? "text-yes" : "text-text-primary"
+                    )}
+                  >
+                    {hasToken && displayPrice > 0.01 ? formatCurrency(displayPrice) : "—"}
                   </span>
 
                   {/* Holders */}
                   <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
-                    {(c.creator_coin_holders ?? 0).toLocaleString()}
+                    {displayHolders.toLocaleString()}
                   </span>
 
                   {/* Markets */}
@@ -234,7 +238,7 @@ export default function TokensPage() {
 
                   {/* Mkt cap */}
                   <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
-                    {mcap > 0 ? formatCompactCurrency(mcap) : "—"}
+                    {displayMcap > 0 ? formatCompactCurrency(displayMcap) : "—"}
                   </span>
 
                   {/* Buy button */}
