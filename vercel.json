@@ -7,6 +7,10 @@
     {
       "path": "/api/admin/curate-markets",
       "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/update-trending",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

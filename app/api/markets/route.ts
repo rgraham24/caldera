@@ -103,7 +103,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const enriched = (data ?? []).map((m) => ({
+    ...m,
+    is_breaking: (m.created_at ?? "") > twoHoursAgo && (m.trending_score ?? 0) > 20,
+  }));
+
+  return NextResponse.json({ data: enriched });
 }
 
 const createMarketSchema = z.object({
