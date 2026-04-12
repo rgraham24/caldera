@@ -227,7 +227,7 @@ export function CreatorProfileClient({
         {/* Profile Header */}
         <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start">
           <div className="flex items-start gap-5">
-            <CreatorAvatar creator={creator} size="lg" />
+            <CreatorAvatar creator={creator} size="lg" className="h-20 w-20" />
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
@@ -278,7 +278,7 @@ export function CreatorProfileClient({
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
-            { label: "Holder Earnings", value: formatCompactCurrency(creator.total_holder_earnings ?? 0), show: true, tip: "The total amount earned by people who hold this token from prediction activity on Caldera." },
+            { label: "Holder Earnings", value: (creator.total_holder_earnings ?? 0) > 0 ? formatCompactCurrency(creator.total_holder_earnings ?? 0) : "—", show: true, tip: "The total amount earned by people who hold this token from prediction activity on Caldera." },
             { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more earnings for token holders." },
             { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (

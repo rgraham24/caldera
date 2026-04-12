@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 import-deso.js
 .env.local
+.env*.local

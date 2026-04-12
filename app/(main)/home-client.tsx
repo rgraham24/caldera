@@ -14,6 +14,16 @@ import { StakeModal } from "@/components/markets/StakeModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type Topic = {
+  slug: string;
+  name: string;
+  totalVolume: number;
+  volumeFormatted: string;
+  marketCount: number;
+  topTrendingScore: number;
+  topMarket: { title: string; category: string };
+};
+
 type HomeClientProps = {
   heroMarkets: Market[];
   breakingMarkets: Market[];
@@ -93,11 +103,12 @@ function HeroSection({ markets }: { markets: Market[] }) {
 
   return (
     <div className="flex h-full flex-col gap-3 min-w-0 overflow-hidden">
-      {/* ── Main hero card — stretches to fill sidebar height ── */}
+      {/* ── Main hero card — fixed height ── */}
       <div
-        className="relative flex flex-1 flex-col overflow-hidden rounded-2xl p-7"
+        className="relative flex flex-col overflow-hidden rounded-2xl p-7"
         style={{
           minHeight: "420px",
+          maxHeight: "440px",
           background: "linear-gradient(160deg, #13131c 0%, #1a1a28 55%, #1e1830 100%)",
           border: "1px solid var(--border-subtle)",
           opacity: visible ? 1 : 0,
@@ -168,12 +179,12 @@ function HeroSection({ markets }: { markets: Market[] }) {
           {/* YES / NO buttons */}
           <div className="mb-3 flex gap-3">
             <Link href={`/markets/${m.slug}`} className="flex-1">
-              <button className="w-full rounded-xl py-4 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
+              <button className="flex-1 w-full rounded-lg bg-yes/10 border border-yes/20 text-yes text-sm font-semibold py-2 hover:bg-yes/20 transition-colors">
                 YES {yes}¢
               </button>
             </Link>
             <Link href={`/markets/${m.slug}`} className="flex-1">
-              <button className="w-full rounded-xl py-4 text-sm font-bold text-white bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/20 transition-all active:scale-[0.98]">
+              <button className="flex-1 w-full rounded-lg bg-no/10 border border-no/20 text-no text-sm font-semibold py-2 hover:bg-no/20 transition-colors">
                 NO {no}¢
               </button>
             </Link>
@@ -254,7 +265,7 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ background: yes >= 50 ? "var(--yes)" : "var(--no)" }}
               />
-              <p className="flex-1 line-clamp-2 text-xs font-medium leading-snug text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
+              <p className="flex-1 truncate text-xs font-medium leading-snug text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
                 {m.title}
               </p>
               <span
@@ -271,17 +282,17 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
   );
 }
 
-// ─── Hot Topics sidebar ───────────────────────────────────────────────────────
+// ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
-type Topic = {
-  slug: string;
-  totalVolume: number;
-  marketCount: number;
-  topTrendingScore: number;
-  topMarket: { title: string; category: string };
-};
+const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto"];
 
-function HotTopics() {
+function HotTopicsStrip({
+  activeFilter,
+  onSelect,
+}: {
+  activeFilter: string;
+  onSelect: (slug: string) => void;
+}) {
   const [topics, setTopics] = useState<Topic[]>([]);
 
   useEffect(() => {
@@ -293,41 +304,26 @@ function HotTopics() {
 
   if (topics.length === 0) return null;
 
-  const maxScore = topics[0]?.topTrendingScore ?? 1;
-
   return (
-    <div className="flex flex-col rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
-      <div className="mb-3 flex items-center gap-1.5">
-        <span className="text-sm">🔥</span>
-        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">Hot Topics</h3>
-      </div>
-      <div className="flex flex-col gap-3">
-        {topics.slice(0, 5).map((t) => {
-          const barPct = Math.max(4, Math.round(((t.topTrendingScore ?? 0) / maxScore) * 100));
-          const CATEGORY_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto"];
-          const isCategory = CATEGORY_SLUGS.includes(t.slug);
-          const href = isCategory ? `/?category=${t.slug}` : `/creators/${t.slug}`;
-          const displayName = t.slug.charAt(0).toUpperCase() + t.slug.slice(1).replace(/-/g, " ");
-          return (
-            <Link key={t.slug} href={href} className="group flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <span className="truncate text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
-                  {displayName}
-                </span>
-                <span className="ml-2 shrink-0 text-[10px] text-[var(--text-tertiary)]">
-                  {t.marketCount} mkt{t.marketCount !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${barPct}%`, background: "var(--accent, #f97316)" }}
-                />
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+    <div className="mb-6 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+      <span className="shrink-0 text-xs font-semibold text-[var(--text-tertiary)]">🔥</span>
+      {topics.slice(0, 5).map((t) => {
+        const isActive = activeFilter === t.slug;
+        return (
+          <button
+            key={t.slug}
+            onClick={() => onSelect(isActive ? "all" : t.slug)}
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
+            style={{
+              background: isActive ? "var(--caldera-muted, #f9731615)" : "var(--bg-surface)",
+              border: `1px solid ${isActive ? "var(--accent, #f97316)" : "var(--border-subtle)"}`,
+              color: isActive ? "var(--accent, #f97316)" : "var(--text-secondary)",
+            }}
+          >
+            {t.name} <span className="font-normal opacity-60">{t.volumeFormatted} vol</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -779,11 +775,14 @@ export function HomeClient({
           offset: String(off),
           status: "open",
         });
+        const isCreatorFilter = category !== "all" && category !== "resolving_soon" && category !== "breaking" && !CATEGORY_FILTER_SLUGS.includes(category);
         const effectiveSort = category === "resolving_soon" ? "resolving_soon"
           : category === "breaking" ? "breaking"
           : sortVal;
         params.set("sort", effectiveSort);
-        if (category !== "all" && category !== "resolving_soon" && category !== "breaking") {
+        if (isCreatorFilter) {
+          params.set("creator_slug", category);
+        } else if (category !== "all" && category !== "resolving_soon" && category !== "breaking") {
           params.set("category", category);
         }
 
@@ -815,13 +814,12 @@ export function HomeClient({
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* Hero section */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
-          <div className="mb-8 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_340px] overflow-hidden">
+          <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
             {heroMarkets.length > 0 && (
               <HeroSection markets={heroMarkets} />
             )}
             <div className="flex flex-col gap-4">
               {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
-              <HotTopics />
               {uniqueTrendingCreators.length > 0 && (
                 <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
               )}
@@ -968,6 +966,9 @@ export function HomeClient({
             </div>
           </div>
         )}
+
+        {/* HOT TOPICS STRIP */}
+        <HotTopicsStrip activeFilter={activeFilter} onSelect={(slug) => { setActiveFilter(slug); setOffset(0); }} />
 
         {/* ALL MARKETS */}
         <div ref={marketsRef} className="mb-4 flex flex-wrap items-center gap-3">

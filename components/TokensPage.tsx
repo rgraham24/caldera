@@ -43,6 +43,15 @@ export default function TokensPage() {
       .then(({ data }) => setCreators(Array.isArray(data) ? data : []))
       .catch(() => setCreators([]))
       .finally(() => setLoading(false));
+
+    // Poll for live prices every 30 seconds
+    const id = setInterval(() => {
+      fetch("/api/creators/list")
+        .then((r) => r.json())
+        .then(({ data }) => { if (Array.isArray(data)) setCreators(data); })
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const filtered = useMemo(() => {
@@ -104,7 +113,7 @@ export default function TokensPage() {
         <h1 className="font-display text-3xl font-bold text-text-primary">💰 Tokens</h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-text-muted">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-yes" />
-          Creator tokens — live prices from on-chain data
+          Prices update every 30s from DeSo
         </p>
       </div>
 
@@ -161,12 +170,14 @@ export default function TokensPage() {
       ) : (
         <>
           {/* Header row */}
-          <div className="mb-1 grid grid-cols-[auto_1fr_repeat(3,auto)] items-center gap-4 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint">
-            <span className="w-6 text-center">#</span>
+          <div className="mb-1 grid grid-cols-[2rem_1fr_7rem_5rem_5rem_7rem_4rem] items-center gap-4 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint">
+            <span className="text-center">#</span>
             <span>Token</span>
-            <span className="hidden sm:block">Price</span>
-            <span className="hidden sm:block">Holders</span>
-            <span className="hidden sm:block">Mkt Cap</span>
+            <span className="hidden text-right sm:block">Price</span>
+            <span className="hidden text-right sm:block">Holders</span>
+            <span className="hidden text-right sm:block">Markets</span>
+            <span className="hidden text-right sm:block">Mkt Cap</span>
+            <span />
           </div>
           <div className="space-y-2">
             {filtered.map((c, i) => {
@@ -180,10 +191,10 @@ export default function TokensPage() {
               return (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[auto_1fr_repeat(3,auto)] items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20"
+                  className="grid grid-cols-[2rem_1fr_7rem_5rem_5rem_7rem_4rem] items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20"
                 >
                   {/* Rank */}
-                  <span className="w-6 text-center font-mono text-sm text-text-faint">{i + 1}</span>
+                  <span className="text-center font-mono text-sm text-text-faint">{i + 1}</span>
 
                   {/* Creator info */}
                   <Link href={`/creators/${c.slug}`} className="flex min-w-0 items-center gap-3">
@@ -205,29 +216,34 @@ export default function TokensPage() {
                   </Link>
 
                   {/* Price */}
-                  <span className="hidden font-mono text-sm font-semibold text-text-primary sm:block">
+                  <span className="hidden text-right font-mono text-sm font-semibold text-text-primary sm:block">
                     {hasToken && (c.creator_coin_price ?? 0) > 0.01
                       ? formatCurrency(c.creator_coin_price ?? 0)
                       : "—"}
                   </span>
 
                   {/* Holders */}
-                  <span className="hidden font-mono text-sm text-text-muted sm:block">
+                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
                     {(c.creator_coin_holders ?? 0).toLocaleString()}
                   </span>
 
-                  {/* Mkt cap + buy button */}
-                  <div className="flex items-center gap-2">
-                    <span className="hidden font-mono text-sm text-text-muted sm:block">
-                      {mcap > 0 ? formatCompactCurrency(mcap ?? 0) : "—"}
-                    </span>
-                    <button
-                      onClick={() => handleBuy(c)}
-                      className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-500"
-                    >
-                      Buy
-                    </button>
-                  </div>
+                  {/* Markets */}
+                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
+                    {(c.markets_count ?? 0) > 0 ? (c.markets_count ?? 0) : "—"}
+                  </span>
+
+                  {/* Mkt cap */}
+                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
+                    {mcap > 0 ? formatCompactCurrency(mcap) : "—"}
+                  </span>
+
+                  {/* Buy button */}
+                  <button
+                    onClick={() => handleBuy(c)}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-500"
+                  >
+                    Buy
+                  </button>
                 </div>
               );
             })}
