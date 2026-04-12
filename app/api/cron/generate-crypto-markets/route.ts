@@ -19,13 +19,27 @@ export async function GET(req: Request) {
 
   const supabase = await createClient();
 
-  // Fetch current prices from CoinGecko
-  const ids = COINS.map((c) => c.id).join(",");
-  const priceRes = await fetch(
-    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
-    { headers: { Accept: "application/json" } }
+  // Fetch current prices from Binance.US (free, no rate limits, no API key)
+  const BINANCE_SYMBOLS: Record<string, string> = {
+    bitcoin: "BTCUSDT",
+    ethereum: "ETHUSDT",
+    solana: "SOLUSDT",
+    chainlink: "LINKUSDT",
+    "matic-network": "MATICUSDT",
+  };
+  const rawPrices: Record<string, number> = {};
+  await Promise.all(
+    COINS.map(async (coin) => {
+      const symbol = BINANCE_SYMBOLS[coin.id];
+      if (!symbol) return;
+      const res = await fetch(`https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`);
+      const data = await res.json();
+      rawPrices[coin.id] = parseFloat(data.price);
+    })
   );
-  const prices = await priceRes.json();
+  // Normalise to same shape the rest of the route expects
+  const prices: Record<string, { usd: number }> = {};
+  for (const [id, usd] of Object.entries(rawPrices)) prices[id] = { usd };
 
   const now = new Date();
   const resolveAt = new Date(now.getTime() + 5 * 60 * 1000); // +5 minutes

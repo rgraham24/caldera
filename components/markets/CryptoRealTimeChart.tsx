@@ -4,9 +4,9 @@ import * as d3 from 'd3';
 
 type DataPoint = { time: Date; price: number };
 
-const COIN_IDS: Record<string, string> = {
-  BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana',
-  LINK: 'chainlink', MATIC: 'matic-network',
+const BINANCE_SYMBOLS: Record<string, string> = {
+  BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT',
+  LINK: 'LINKUSDT', MATIC: 'MATICUSDT',
 };
 
 type Props = {
@@ -28,17 +28,18 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
 
   // Poll CoinGecko every 3 seconds
   useEffect(() => {
-    const id = COIN_IDS[ticker];
-    if (!id) return;
+    if (!BINANCE_SYMBOLS[ticker]) return;
 
     async function fetchPrice() {
       try {
+        const symbol = BINANCE_SYMBOLS[ticker];
+        if (!symbol) return;
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`,
+          `https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`,
           { cache: 'no-store' }
         );
         const json = await res.json();
-        const price: number = json[id]?.usd;
+        const price: number = parseFloat(json.price);
         if (!price) return;
 
         const change: 'up' | 'down' | null =

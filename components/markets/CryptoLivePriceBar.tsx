@@ -7,9 +7,9 @@ type Props = {
   resolvesAt: string;
 };
 
-const COIN_IDS: Record<string, string> = {
-  BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana',
-  LINK: 'chainlink', MATIC: 'matic-network',
+const BINANCE_SYMBOLS: Record<string, string> = {
+  BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT',
+  LINK: 'LINKUSDT', MATIC: 'MATICUSDT',
 };
 
 export function CryptoLivePriceBar({ ticker, targetPrice, resolvesAt }: Props) {
@@ -23,14 +23,14 @@ export function CryptoLivePriceBar({ ticker, targetPrice, resolvesAt }: Props) {
 
     async function fetchPrice() {
       try {
-        const id = COIN_IDS[ticker];
-        if (!id) return;
+        const symbol = BINANCE_SYMBOLS[ticker];
+        if (!symbol) return;
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`,
+          `https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`,
           { cache: 'no-store' }
         );
         const data = await res.json();
-        const price = data[id]?.usd;
+        const price = parseFloat(data.price);
         if (price) {
           if (prevPrice !== null) {
             setPriceChange(price > prevPrice ? 'up' : price < prevPrice ? 'down' : null);

@@ -68,7 +68,7 @@ export async function GET() {
           clearInterval(interval);
           controller.close();
         }
-      }, 5000);
+      }, 2000);
 
       // Cleanup on client disconnect
       return () => clearInterval(interval);

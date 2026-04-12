@@ -24,27 +24,22 @@ export async function GET(req: Request) {
 
   if (!markets?.length) return NextResponse.json({ resolved: 0 });
 
-  // Fetch current prices
+  // Fetch current prices from Binance.US (free, no rate limits, no API key)
+  const BINANCE_SYMBOLS: Record<string, string> = {
+    BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT",
+    LINK: "LINKUSDT", MATIC: "MATICUSDT",
+  };
   const tickers = [...new Set((markets as Array<{ crypto_ticker: string }>).map((m) => m.crypto_ticker))];
-  const coinIds: Record<string, string> = {
-    BTC: "bitcoin",
-    SOL: "solana",
-    LINK: "chainlink",
-    MATIC: "matic-network",
-  };
-  const ids = tickers.map((t) => coinIds[t]).filter(Boolean).join(",");
-
-  const priceRes = await fetch(
-    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`
+  const tickerToPrice: Record<string, number> = {};
+  await Promise.all(
+    tickers.map(async (ticker) => {
+      const symbol = BINANCE_SYMBOLS[ticker];
+      if (!symbol) return;
+      const res = await fetch(`https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`);
+      const data = await res.json();
+      tickerToPrice[ticker] = parseFloat(data.price);
+    })
   );
-  const prices = await priceRes.json();
-
-  const tickerToPrice: Record<string, number> = {
-    BTC: prices["bitcoin"]?.usd,
-    SOL: prices["solana"]?.usd,
-    LINK: prices["chainlink"]?.usd,
-    MATIC: prices["matic-network"]?.usd,
-  };
 
   let resolved = 0;
   for (const market of markets as Array<{
