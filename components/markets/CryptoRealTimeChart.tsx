@@ -19,7 +19,10 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<DataPoint[]>([]);
+  // Flash state: 'above' | 'below' | null — triggered when price crosses target
+  const [crossFlash, setCrossFlash] = useState<'above' | 'below' | null>(null);
   const prevPriceRef = useRef<number | null>(null);
+  const prevAboveRef = useRef<boolean | null>(null);
   const onPriceUpdateRef = useRef(onPriceUpdate);
   onPriceUpdateRef.current = onPriceUpdate;
 
@@ -44,15 +47,25 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
             : null;
         prevPriceRef.current = price;
 
+        // Detect target line crossing
+        const isAboveNow = price > targetPrice;
+        if (prevAboveRef.current !== null && prevAboveRef.current !== isAboveNow) {
+          const flashSide = isAboveNow ? 'above' : 'below';
+          setCrossFlash(flashSide);
+          setTimeout(() => setCrossFlash(null), 700);
+        }
+        prevAboveRef.current = isAboveNow;
+
         onPriceUpdateRef.current?.(price, change);
-        setData(prev => [...prev, { time: new Date(), price }].slice(-100));
+        // (b) Rolling 300-point window
+        setData(prev => [...prev, { time: new Date(), price }].slice(-300));
       } catch { /* ignore */ }
     }
 
     fetchPrice();
     const interval = setInterval(fetchPrice, 3000);
     return () => clearInterval(interval);
-  }, [ticker]);
+  }, [ticker, targetPrice]);
 
   // D3 render on data change
   useEffect(() => {
@@ -61,7 +74,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     const svg = d3.select(svgRef.current);
     const totalWidth = containerRef.current.clientWidth || 600;
     const totalHeight = 300;
-    const margin = { top: 16, right: 80, bottom: 28, left: 8 };
+    const margin = { top: 16, right: 84, bottom: 28, left: 8 };
     const W = totalWidth - margin.left - margin.right;
     const H = totalHeight - margin.top - margin.bottom;
 
@@ -71,16 +84,33 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     const last = data[data.length - 1];
     const isAbove = last.price > targetPrice;
 
-    // Background tint
+    // Background tint (regular) + cross-flash handled via CSS class on container
     svg.append('rect')
       .attr('width', totalWidth).attr('height', totalHeight)
       .attr('rx', 12)
-      .attr('fill', isAbove ? 'rgba(34,197,94,0.035)' : 'rgba(239,68,68,0.035)');
+      .attr('fill', isAbove ? 'rgba(34,197,94,0.04)' : 'rgba(239,68,68,0.04)');
+
+    // (a) Inject CSS keyframe for pulse animation
+    svg.append('defs').append('style').text(`
+      @keyframes pulse-ring {
+        0%   { r: 6px;  opacity: 0.75; }
+        100% { r: 15px; opacity: 0; }
+      }
+      .pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
+      @keyframes cross-flash-above {
+        0%   { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      @keyframes cross-flash-below {
+        0%   { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    `);
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Scales
-    const yPad = targetPrice * 0.012;
+    // (c) Tight Y scale: ±0.5% around target
+    const yPad = targetPrice * 0.005;
     const prices = data.map(d => d.price);
     const yMin = Math.min(d3.min(prices) as number, targetPrice - yPad);
     const yMax = Math.max(d3.max(prices) as number, targetPrice + yPad);
@@ -88,7 +118,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     const xExtent = d3.extent(data, d => d.time) as [Date, Date];
     const xScale = d3.scaleTime().domain(xExtent).range([0, W]);
 
-    const defs = svg.append('defs');
+    const defs = svg.select('defs');
 
     // Gradient fill
     const gradId = `cg-${ticker}`;
@@ -98,8 +128,10 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     grad.append('stop').attr('offset', '0%').attr('stop-color', '#f59e0b').attr('stop-opacity', 0.22);
     grad.append('stop').attr('offset', '100%').attr('stop-color', '#f59e0b').attr('stop-opacity', 0);
 
-    // Glow filter for the dot
-    const filter = defs.append('filter').attr('id', `glow-${ticker}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+    // Glow filter
+    const filter = defs.append('filter')
+      .attr('id', `glow-${ticker}`)
+      .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
     filter.append('feGaussianBlur').attr('stdDeviation', 3.5).attr('result', 'coloredBlur');
     const merge = filter.append('feMerge');
     merge.append('feMergeNode').attr('in', 'coloredBlur');
@@ -113,12 +145,26 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
       .attr('y1', d => yScale(d)).attr('y2', d => yScale(d))
       .attr('stroke', 'rgba(255,255,255,0.05)').attr('stroke-width', 1);
 
+    // (f) ±0.1% band around target price
+    const bandHigh = targetPrice * 1.001;
+    const bandLow  = targetPrice * 0.999;
+    const bandY1 = yScale(bandHigh);
+    const bandY2 = yScale(bandLow);
+    if (bandY1 < H && bandY2 > 0) {
+      g.append('rect')
+        .attr('x', 0).attr('y', Math.max(0, bandY1))
+        .attr('width', W)
+        .attr('height', Math.min(H, bandY2) - Math.max(0, bandY1))
+        .attr('fill', 'rgba(255,255,255,0.04)')
+        .attr('stroke', 'none');
+    }
+
     // Target price dashed line
     const targetY = yScale(targetPrice);
     g.append('line')
       .attr('x1', 0).attr('x2', W)
       .attr('y1', targetY).attr('y2', targetY)
-      .attr('stroke', 'rgba(255,255,255,0.35)')
+      .attr('stroke', 'rgba(255,255,255,0.4)')
       .attr('stroke-width', 1.5)
       .attr('stroke-dasharray', '6,4');
 
@@ -129,13 +175,13 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
       .attr('font-size', 10).attr('font-family', 'monospace')
       .text(`$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
 
-    // Area
+    // Area fill
     const area = d3.area<DataPoint>()
       .x(d => xScale(d.time)).y0(H).y1(d => yScale(d.price))
       .curve(d3.curveMonotoneX);
     g.append('path').datum(data).attr('fill', `url(#${gradId})`).attr('d', area);
 
-    // Line
+    // Price line
     const line = d3.line<DataPoint>()
       .x(d => xScale(d.time)).y(d => yScale(d.price))
       .curve(d3.curveMonotoneX);
@@ -147,16 +193,24 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
       .attr('stroke-linejoin', 'round')
       .attr('d', line);
 
-    // Dot at current price
+    // (a) Dot at current price with pulsing ring
     const dotX = xScale(last.time);
     const dotY = yScale(last.price);
 
-    // Outer glow ring
+    // Animated pulse ring (uses CSS @keyframes injected above)
+    g.append('circle')
+      .attr('class', 'pulse-ring')
+      .attr('cx', dotX).attr('cy', dotY)
+      .attr('r', 6)
+      .attr('fill', 'none')
+      .attr('stroke', '#f59e0b')
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0.7);
+
+    // Static glow halo
     g.append('circle')
       .attr('cx', dotX).attr('cy', dotY).attr('r', 9)
-      .attr('fill', 'rgba(245,158,11,0.18)')
-      .attr('stroke', 'rgba(245,158,11,0.4)')
-      .attr('stroke-width', 1);
+      .attr('fill', 'rgba(245,158,11,0.15)');
 
     // Core dot
     g.append('circle')
@@ -178,12 +232,16 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
       .attr('font-size', 11).attr('font-weight', 700).attr('font-family', 'monospace')
       .text(priceTxt);
 
-    // X axis — time labels
+    // (d) X axis — tick every 30 seconds, HH:MM:SS format
     const xAxis = d3.axisBottom(xScale)
-      .ticks(5)
+      .ticks(d3.timeSecond.every(30))
       .tickFormat(d => {
         const date = d as Date;
-        return `${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+        return [
+          date.getHours().toString().padStart(2, '0'),
+          date.getMinutes().toString().padStart(2, '0'),
+          date.getSeconds().toString().padStart(2, '0'),
+        ].join(':');
       });
     g.append('g')
       .attr('transform', `translate(0,${H})`)
@@ -192,13 +250,25 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
       .call(ax => ax.selectAll('line').attr('stroke', 'rgba(255,255,255,0.08)'))
       .call(ax => ax.selectAll('text')
         .attr('fill', 'rgba(255,255,255,0.3)')
-        .attr('font-size', 10)
+        .attr('font-size', 9)
         .attr('font-family', 'monospace'));
 
   }, [data, targetPrice, ticker]);
 
+  // (e) Cross-flash overlay color
+  const flashBg = crossFlash === 'above'
+    ? 'rgba(34,197,94,0.18)'
+    : crossFlash === 'below'
+    ? 'rgba(239,68,68,0.18)'
+    : 'transparent';
+
   return (
-    <div ref={containerRef} className="w-full" style={{ height: 300 }}>
+    <div ref={containerRef} className="relative w-full" style={{ height: 300 }}>
+      {/* (e) Flash overlay on target crossing */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl transition-colors duration-700"
+        style={{ background: flashBg }}
+      />
       {data.length < 2 ? (
         <div className="flex h-full items-center justify-center text-text-muted text-sm">
           <span className="animate-pulse">Fetching live price data…</span>
