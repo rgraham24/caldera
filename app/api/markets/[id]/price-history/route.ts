@@ -34,16 +34,19 @@ export async function GET(
     if (market) {
       const start = new Date(market.created_at ?? Date.now()).getTime();
       const end = Date.now();
-      const step = (end - start) / 20;
+      const step = (end - start) / 50;
       const basePrice = market.yes_price ?? 0.5;
-      const synthetic = Array.from({ length: 20 }, (_, i) => {
+      const synthetic = Array.from({ length: 50 }, (_, i) => {
         const t = start + step * i;
-        const noise = (Math.random() - 0.5) * 0.08;
-        const price = Math.max(0.05, Math.min(0.95, basePrice + noise * (i / 20)));
+        // Seeded random walk using market id for consistency
+        const seed = id.charCodeAt(i % id.length) / 255;
+        const drift = (seed - 0.5) * 0.06 * (i / 50);
+        const noise = (Math.sin(i * 2.7) * 0.02) + (Math.cos(i * 1.3) * 0.015);
+        const price = Math.max(0.05, Math.min(0.95, basePrice + drift + noise));
         return {
-          yes_price: i === 19 ? market.yes_price : price,
-          no_price: i === 19 ? market.no_price : 1 - price,
-          total_volume: (market.total_volume ?? 0) * (i / 19),
+          yes_price: i === 49 ? market.yes_price : price,
+          no_price: i === 49 ? market.no_price : 1 - price,
+          total_volume: (market.total_volume ?? 0) * (i / 49),
           recorded_at: new Date(t).toISOString(),
         };
       });

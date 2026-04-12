@@ -142,11 +142,24 @@ export function MarketDetailClient({
                 <span className="text-xs font-bold uppercase tracking-wider text-text-muted">Live Price Chart</span>
                 <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
               </div>
-              <CryptoRealTimeChart
-                ticker={cryptoTicker}
-                targetPrice={cryptoTargetPrice}
-                onPriceUpdate={handleCryptoPriceUpdate}
-              />
+              <div className="relative">
+                <CryptoRealTimeChart
+                  ticker={cryptoTicker}
+                  targetPrice={cryptoTargetPrice}
+                  onPriceUpdate={handleCryptoPriceUpdate}
+                />
+                {market.status === 'resolved' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/70 backdrop-blur-sm rounded-xl z-10">
+                    <span className="text-4xl mb-2">
+                      {market.resolution_outcome === 'yes' ? '✅' : '❌'}
+                    </span>
+                    <p className="text-base font-bold text-text-primary">
+                      Resolved {market.resolution_outcome?.toUpperCase()}
+                    </p>
+                    <p className="text-xs text-text-muted mt-1">Market closed</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Stats row */}

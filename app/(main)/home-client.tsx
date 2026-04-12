@@ -287,7 +287,7 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
 
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
-const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto"];
+const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto", "companies", "climate"];
 
 function HotTopicsStrip({
   activeFilter,
@@ -983,9 +983,13 @@ export function HomeClient({
               { value: "all", label: "All" },
               { value: "breaking", label: "⚡ Breaking" },
               { value: "crypto", label: "🪙 Crypto" },
+              { value: "companies", label: "🏢 Companies" },
               { value: "sports", label: "⚽ Sports" },
               { value: "politics", label: "👑 Politics" },
+              { value: "climate", label: "🌍 Climate" },
+              { value: "tech", label: "💻 Tech" },
               { value: "entertainment", label: "🎭 Entertainment" },
+              { value: "music", label: "🎵 Music" },
             ].map((f) => (
               <button
                 key={f.value}
