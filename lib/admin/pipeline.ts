@@ -843,7 +843,7 @@ For persons/orgs from other sources, infer the most likely Twitter handle from y
     }
 
     // Step 2: Look up real social handle via Brave Search
-    const braveApiKey = process.env.BRAVE_API_KEY ?? '';
+    const braveApiKey = process.env.BRAVE_SEARCH_API_KEY ?? process.env.BRAVE_API_KEY ?? '';
     const socialHandle = braveApiKey
       ? await lookupSocialHandle(entity.name, braveApiKey)
       : null;
