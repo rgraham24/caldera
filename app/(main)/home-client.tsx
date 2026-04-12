@@ -287,7 +287,7 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
 
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
-const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto", "companies", "climate"];
+const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto", "companies", "climate", "tokens", "new", "following"];
 
 function HotTopicsStrip({
   activeFilter,
@@ -780,14 +780,16 @@ export function HomeClient({
           offset: String(off),
           status: "open",
         });
+        const SPECIAL_FILTERS = ["all", "resolving_soon", "breaking", "new", "following", "tokens"];
         const isCreatorFilter = category !== "all" && category !== "resolving_soon" && category !== "breaking" && !CATEGORY_FILTER_SLUGS.includes(category);
         const effectiveSort = category === "resolving_soon" ? "resolving_soon"
           : category === "breaking" ? "breaking"
+          : category === "new" ? "newest"
           : sortVal;
         params.set("sort", effectiveSort);
         if (isCreatorFilter) {
           params.set("creator_slug", category);
-        } else if (category !== "all" && category !== "resolving_soon" && category !== "breaking") {
+        } else if (!SPECIAL_FILTERS.includes(category)) {
           params.set("category", category);
         }
 
@@ -976,25 +978,35 @@ export function HomeClient({
         <HotTopicsStrip activeFilter={activeFilter} onSelect={(slug) => { setActiveFilter(slug); setOffset(0); }} />
 
         {/* ALL MARKETS */}
-        <div ref={marketsRef} className="mb-4 flex flex-wrap items-center gap-3">
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>
-          <div className="flex gap-1 overflow-x-auto">
+        <div ref={marketsRef} className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>
+            <Link href="/markets" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
+              View all →
+            </Link>
+          </div>
+          {/* Category filter strip */}
+          <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
             {[
-              { value: "all", label: "All" },
+              { value: "all", label: "📈 Trending" },
               { value: "breaking", label: "⚡ Breaking" },
-              { value: "crypto", label: "🪙 Crypto" },
-              { value: "companies", label: "🏢 Companies" },
-              { value: "sports", label: "⚽ Sports" },
-              { value: "politics", label: "👑 Politics" },
-              { value: "climate", label: "🌍 Climate" },
-              { value: "tech", label: "💻 Tech" },
-              { value: "entertainment", label: "🎭 Entertainment" },
-              { value: "music", label: "🎵 Music" },
+              { value: "new", label: "🕐 New" },
+              { value: "following", label: "Following" },
+              { value: "tokens", label: "Tokens" },
+              { value: "creators", label: "Creators" },
+              { value: "politics", label: "Politics" },
+              { value: "sports", label: "Sports" },
+              { value: "crypto", label: "Crypto" },
+              { value: "music", label: "Music" },
+              { value: "climate", label: "Climate" },
+              { value: "companies", label: "Companies" },
+              { value: "tech", label: "Tech" },
+              { value: "entertainment", label: "Entertainment" },
             ].map((f) => (
               <button
                 key={f.value}
-                onClick={() => setActiveFilter(f.value)}
-                className="shrink-0 rounded-lg px-3 py-1 text-xs font-medium transition-colors"
+                onClick={() => { setActiveFilter(f.value); setOffset(0); }}
+                className="shrink-0 rounded-lg px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap"
                 style={{
                   background: activeFilter === f.value ? "var(--caldera-muted, #f9731615)" : "transparent",
                   color: activeFilter === f.value ? "var(--accent, #f97316)" : "var(--text-secondary)",
@@ -1005,9 +1017,6 @@ export function HomeClient({
               </button>
             ))}
           </div>
-          <Link href="/markets" className="ml-auto text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
-            View all →
-          </Link>
         </div>
 
         {/* Grid */}
