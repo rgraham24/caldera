@@ -248,8 +248,12 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
         {markets.map((m, i) => {
           const yes = Math.round((m.yes_price ?? 0.5) * 100);
           return (
-            <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-3 group">
+            <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-2 group">
               <span className="w-4 shrink-0 text-center text-xs font-bold text-[var(--text-tertiary)]">{i + 1}</span>
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: yes >= 50 ? "var(--yes)" : "var(--no)" }}
+              />
               <p className="flex-1 line-clamp-2 text-xs font-medium leading-snug text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
                 {m.title}
               </p>
@@ -299,14 +303,16 @@ function HotTopics() {
       </div>
       <div className="flex flex-col gap-3">
         {topics.slice(0, 5).map((t) => {
-          const barPct = Math.round(((t.topTrendingScore ?? 0) / maxScore) * 100);
-          const isCategory = !t.slug.match(/^[a-z0-9]+$/i) || t.slug.length > 20;
-          const href = isCategory ? `/markets?category=${t.slug}` : `/creators/${t.slug}`;
+          const barPct = Math.max(4, Math.round(((t.topTrendingScore ?? 0) / maxScore) * 100));
+          const CATEGORY_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto"];
+          const isCategory = CATEGORY_SLUGS.includes(t.slug);
+          const href = isCategory ? `/?category=${t.slug}` : `/creators/${t.slug}`;
+          const displayName = t.slug.charAt(0).toUpperCase() + t.slug.slice(1).replace(/-/g, " ");
           return (
             <Link key={t.slug} href={href} className="group flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <span className="truncate text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
-                  {t.slug}
+                  {displayName}
                 </span>
                 <span className="ml-2 shrink-0 text-[10px] text-[var(--text-tertiary)]">
                   {t.marketCount} mkt{t.marketCount !== 1 ? "s" : ""}
