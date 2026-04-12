@@ -12,21 +12,35 @@ type Props = {
   onPriceUpdate?: (price: number, change: 'up' | 'down' | null) => void;
 };
 
+const M = { top: 16, right: 84, bottom: 28, left: 8 };
+
 export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<DataPoint[]>([]);
-  // Flash state: 'above' | 'below' | null — triggered when price crosses target
   const [crossFlash, setCrossFlash] = useState<'above' | 'below' | null>(null);
+
+  // D3 element refs — persistent across renders
+  const pathRef      = useRef<SVGPathElement | null>(null);
+  const areaRef      = useRef<SVGPathElement | null>(null);
+  const dotRef       = useRef<SVGCircleElement | null>(null);
+  const pulseRef     = useRef<SVGCircleElement | null>(null);
+  const badgeGroupRef = useRef<SVGGElement | null>(null);
+  const targetLineRef = useRef<SVGLineElement | null>(null);
+  const targetLabelRef = useRef<SVGTextElement | null>(null);
+  const xAxisRef     = useRef<SVGGElement | null>(null);
+  const gridRef      = useRef<SVGGElement | null>(null);
+  const initialized  = useRef(false);
+
+  // Upstream callbacks via ref (stable across renders)
   const prevPriceRef = useRef<number | null>(null);
   const prevAboveRef = useRef<boolean | null>(null);
   const onPriceUpdateRef = useRef(onPriceUpdate);
   onPriceUpdateRef.current = onPriceUpdate;
 
-  // SSE subscription — 1-second updates via /api/crypto/stream
+  // ── SSE subscription ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!SUPPORTED_TICKERS.has(ticker)) return;
-
     const es = new EventSource(`/api/crypto/stream?ticker=${ticker}`);
 
     es.onmessage = (e) => {
@@ -41,7 +55,6 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
             : null;
         prevPriceRef.current = price;
 
-        // Detect target line crossing
         const isAboveNow = price > targetPrice;
         if (prevAboveRef.current !== null && prevAboveRef.current !== isAboveNow) {
           setCrossFlash(isAboveNow ? 'above' : 'below');
@@ -60,208 +73,242 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     };
 
     es.onerror = () => { /* auto-reconnects */ };
-
     return () => es.close();
   }, [ticker, targetPrice]);
 
-  // D3 render on data change
+  // ── SETUP EFFECT — runs once per ticker (creates persistent SVG structure) ──
   useEffect(() => {
-    if (!svgRef.current || !containerRef.current || data.length < 1) return;
+    if (!svgRef.current || !containerRef.current) return;
+    // Reset when ticker changes
+    initialized.current = false;
+    setData([]);
+    prevPriceRef.current = null;
+    prevAboveRef.current = null;
 
-    const svg = d3.select(svgRef.current);
+    const el = svgRef.current;
     const totalWidth = containerRef.current.clientWidth || 600;
-    const totalHeight = containerRef.current.clientHeight || 240;
-    const margin = { top: 16, right: 84, bottom: 28, left: 8 };
-    const W = totalWidth - margin.left - margin.right;
-    const H = totalHeight - margin.top - margin.bottom;
+    const totalHeight = containerRef.current.clientHeight || 280;
+    const W = totalWidth - M.left - M.right;
+    const H = totalHeight - M.top - M.bottom;
 
-    svg.attr('width', totalWidth).attr('height', totalHeight);
-    svg.selectAll('*').remove();
+    d3.select(el).selectAll('*').remove();
+    d3.select(el).attr('width', totalWidth).attr('height', totalHeight);
 
-    const last = data[data.length - 1];
-    const isAbove = last.price > targetPrice;
-
-    // Background tint (regular) + cross-flash handled via CSS class on container
-    svg.append('rect')
-      .attr('width', totalWidth).attr('height', totalHeight)
-      .attr('rx', 12)
-      .attr('fill', isAbove ? 'rgba(34,197,94,0.04)' : 'rgba(239,68,68,0.04)');
-
-    // (a) Inject CSS keyframe for pulse animation
-    svg.append('defs').append('style').text(`
+    // Defs: gradient + glow filter + pulse keyframe
+    const defs = d3.select(el).append('defs');
+    defs.append('style').text(`
       @keyframes pulse-ring {
-        0%   { r: 6px;  opacity: 0.75; }
-        100% { r: 15px; opacity: 0; }
+        0%   { r: 6px;  opacity: 0.7; }
+        100% { r: 14px; opacity: 0; }
       }
       .pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
-      @keyframes cross-flash-above {
-        0%   { opacity: 1; }
-        100% { opacity: 0; }
-      }
-      @keyframes cross-flash-below {
-        0%   { opacity: 1; }
-        100% { opacity: 0; }
-      }
     `);
-
-    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-
-    // Auto-scale Y to actual data range with 30% padding, min range = 0.1% of target
-    const prices = data.map(d => d.price);
-    const dataMin = Math.min(...prices, targetPrice);
-    const dataMax = Math.max(...prices, targetPrice);
-    const dataRange = dataMax - dataMin;
-    const minRange = targetPrice * 0.001;
-    const paddedRange = Math.max(dataRange * 1.3, minRange);
-    const midpoint = (dataMax + dataMin) / 2;
-    const yMin = midpoint - paddedRange / 2;
-    const yMax = midpoint + paddedRange / 2;
-    const yScale = d3.scaleLinear().domain([yMin, yMax]).range([H, 0]).nice();
-    // With a single point d3.extent returns [t, t] — degenerate scale. Use a 2-min window instead.
-    const xDomain: [Date, Date] = data.length < 2
-      ? [new Date(data[0].time.getTime() - 120_000), new Date(data[0].time.getTime() + 60_000)]
-      : d3.extent(data, d => d.time) as [Date, Date];
-    const xScale = d3.scaleTime().domain(xDomain).range([0, W]);
-
-    const defs = svg.select('defs');
-
-    // Gradient fill
     const gradId = `cg-${ticker}`;
     const grad = defs.append('linearGradient')
       .attr('id', gradId).attr('gradientUnits', 'userSpaceOnUse')
       .attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', H);
     grad.append('stop').attr('offset', '0%').attr('stop-color', '#f59e0b').attr('stop-opacity', 0.22);
     grad.append('stop').attr('offset', '100%').attr('stop-color', '#f59e0b').attr('stop-opacity', 0);
-
-    // Glow filter
-    const filter = defs.append('filter')
-      .attr('id', `glow-${ticker}`)
+    const filter = defs.append('filter').attr('id', `glow-${ticker}`)
       .attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
     filter.append('feGaussianBlur').attr('stdDeviation', 3.5).attr('result', 'coloredBlur');
     const merge = filter.append('feMerge');
     merge.append('feMergeNode').attr('in', 'coloredBlur');
     merge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-    // Subtle grid
-    g.selectAll('.grid-line')
-      .data(yScale.ticks(4))
-      .join('line')
-      .attr('x1', 0).attr('x2', W)
-      .attr('y1', d => yScale(d)).attr('y2', d => yScale(d))
-      .attr('stroke', 'rgba(255,255,255,0.05)').attr('stroke-width', 1);
+    // Background tint rect (updated by data effect)
+    d3.select(el).append('rect').attr('class', 'bg-tint')
+      .attr('width', totalWidth).attr('height', totalHeight).attr('rx', 12)
+      .attr('fill', 'rgba(239,68,68,0.04)');
 
-    // (f) ±0.1% band around target price
-    const bandHigh = targetPrice * 1.001;
-    const bandLow  = targetPrice * 0.999;
-    const bandY1 = yScale(bandHigh);
-    const bandY2 = yScale(bandLow);
-    if (bandY1 < H && bandY2 > 0) {
-      g.append('rect')
-        .attr('x', 0).attr('y', Math.max(0, bandY1))
-        .attr('width', W)
-        .attr('height', Math.min(H, bandY2) - Math.max(0, bandY1))
-        .attr('fill', 'rgba(255,255,255,0.04)')
-        .attr('stroke', 'none');
-    }
+    const g = d3.select(el).append('g').attr('transform', `translate(${M.left},${M.top})`);
 
-    // Target price dashed line
-    const targetY = yScale(targetPrice);
-    g.append('line')
+    // Grid
+    gridRef.current = g.append('g').attr('class', 'grid').node();
+
+    // ±0.1% target band
+    g.append('rect').attr('class', 'target-band')
+      .attr('x', 0).attr('width', W)
+      .attr('fill', 'rgba(255,255,255,0.04)').attr('stroke', 'none');
+
+    // Target dashed line
+    targetLineRef.current = g.append('line').attr('class', 'target-line')
       .attr('x1', 0).attr('x2', W)
-      .attr('y1', targetY).attr('y2', targetY)
-      .attr('stroke', 'rgba(255,255,255,0.4)')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '6,4');
+      .attr('stroke', 'rgba(255,255,255,0.4)').attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '6,4').node();
 
     // Target label
-    g.append('text')
-      .attr('x', W + 8).attr('y', targetY + 4)
-      .attr('fill', 'rgba(255,255,255,0.4)')
-      .attr('font-size', 10).attr('font-family', 'monospace')
-      .text(`$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+    targetLabelRef.current = g.append('text').attr('class', 'target-label')
+      .attr('x', W + 8).attr('fill', 'rgba(255,255,255,0.4)')
+      .attr('font-size', 10).attr('font-family', 'monospace').node();
 
-    // Area fill
-    const area = d3.area<DataPoint>()
-      .x(d => xScale(d.time)).y0(H).y1(d => yScale(d.price))
-      .curve(d3.curveMonotoneX);
-    g.append('path').datum(data).attr('fill', `url(#${gradId})`).attr('d', area);
+    // Area fill path
+    areaRef.current = g.append('path').attr('class', 'area-path')
+      .attr('fill', `url(#${gradId})`).node();
 
-    // Price line
-    const line = d3.line<DataPoint>()
-      .x(d => xScale(d.time)).y(d => yScale(d.price))
-      .curve(d3.curveMonotoneX);
-    g.append('path')
-      .datum(data)
-      .attr('fill', 'none')
-      .attr('stroke', '#f59e0b')
-      .attr('stroke-width', 2.5)
-      .attr('stroke-linejoin', 'round')
-      .attr('d', line)
-      .style('transition', 'd 0.3s ease-out');
+    // Price line path
+    pathRef.current = g.append('path').attr('class', 'price-path')
+      .attr('fill', 'none').attr('stroke', '#f59e0b')
+      .attr('stroke-width', 2.5).attr('stroke-linejoin', 'round').node();
 
-    // (a) Dot at current price with pulsing ring
-    const dotX = xScale(last.time);
-    const dotY = yScale(last.price);
+    // Pulse ring (CSS animated)
+    pulseRef.current = g.append('circle').attr('class', 'pulse-ring')
+      .attr('r', 6).attr('fill', 'none')
+      .attr('stroke', '#f59e0b').attr('stroke-width', 1.5).attr('opacity', 0).node();
 
-    // Animated pulse ring (uses CSS @keyframes injected above)
-    g.append('circle')
-      .attr('class', 'pulse-ring')
-      .attr('cx', dotX).attr('cy', dotY)
-      .attr('r', 6)
-      .attr('fill', 'none')
-      .attr('stroke', '#f59e0b')
-      .attr('stroke-width', 1.5)
-      .attr('opacity', 0.7);
-
-    // Static glow halo
-    g.append('circle')
-      .attr('cx', dotX).attr('cy', dotY).attr('r', 9)
-      .attr('fill', 'rgba(245,158,11,0.15)');
+    // Glow halo
+    g.append('circle').attr('class', 'dot-halo')
+      .attr('r', 9).attr('fill', 'rgba(245,158,11,0.15)');
 
     // Core dot
-    g.append('circle')
-      .attr('cx', dotX).attr('cy', dotY).attr('r', 5)
-      .attr('fill', '#f59e0b')
+    dotRef.current = g.append('circle').attr('class', 'dot-core')
+      .attr('r', 5).attr('fill', '#f59e0b')
       .attr('stroke', '#0a0a0a').attr('stroke-width', 2)
-      .attr('filter', `url(#glow-${ticker})`);
+      .attr('filter', `url(#glow-${ticker})`).node();
 
-    // Current price label badge
-    const priceTxt = `$${last.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const badgeW = priceTxt.length * 7.8 + 10;
-    g.append('rect')
-      .attr('x', W + 6).attr('y', dotY - 11)
-      .attr('width', badgeW).attr('height', 22)
-      .attr('rx', 4).attr('fill', '#f59e0b');
-    g.append('text')
-      .attr('x', W + 11).attr('y', dotY + 4)
-      .attr('fill', '#0a0a0a')
-      .attr('font-size', 11).attr('font-weight', 700).attr('font-family', 'monospace')
-      .text(priceTxt);
+    // Price badge group
+    badgeGroupRef.current = g.append('g').attr('class', 'price-badge').node();
+    const bg = d3.select(badgeGroupRef.current);
+    bg.append('rect').attr('rx', 4).attr('fill', '#f59e0b');
+    bg.append('text').attr('fill', '#0a0a0a')
+      .attr('font-size', 11).attr('font-weight', 700).attr('font-family', 'monospace');
 
-    // (d) X axis — tick every 30 seconds, HH:MM:SS format
-    const xAxis = d3.axisBottom(xScale)
-      .ticks(d3.timeSecond.every(30))
-      .tickFormat(d => {
-        const date = d as Date;
-        return [
-          date.getHours().toString().padStart(2, '0'),
-          date.getMinutes().toString().padStart(2, '0'),
-          date.getSeconds().toString().padStart(2, '0'),
-        ].join(':');
-      });
-    g.append('g')
-      .attr('transform', `translate(0,${H})`)
-      .call(xAxis)
-      .call(ax => ax.select('.domain').remove())
-      .call(ax => ax.selectAll('line').attr('stroke', 'rgba(255,255,255,0.08)'))
-      .call(ax => ax.selectAll('text')
-        .attr('fill', 'rgba(255,255,255,0.3)')
-        .attr('font-size', 9)
-        .attr('font-family', 'monospace'));
+    // X axis
+    xAxisRef.current = g.append('g').attr('class', 'x-axis')
+      .attr('transform', `translate(0,${H})`).node();
 
-  }, [data, targetPrice, ticker]);
+    initialized.current = true;
+  }, [ticker]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // (e) Cross-flash overlay color
+  // ── DATA UPDATE EFFECT — animates path/dot/axes on every new point ──────────
+  useEffect(() => {
+    if (!svgRef.current || !containerRef.current || !initialized.current || data.length < 1) return;
+
+    const el = svgRef.current;
+    const totalWidth = containerRef.current.clientWidth || 600;
+    const totalHeight = containerRef.current.clientHeight || 280;
+    const W = totalWidth - M.left - M.right;
+    const H = totalHeight - M.top - M.bottom;
+
+    const last = data[data.length - 1];
+    const isAbove = last.price > targetPrice;
+
+    // Background tint
+    d3.select(el).select('.bg-tint')
+      .attr('fill', isAbove ? 'rgba(34,197,94,0.04)' : 'rgba(239,68,68,0.04)');
+
+    // Y scale — auto-range from data
+    const prices = data.map(d => d.price);
+    const dataMin = Math.min(...prices, targetPrice);
+    const dataMax = Math.max(...prices, targetPrice);
+    const dataRange = Math.max(dataMax - dataMin, targetPrice * 0.001);
+    const pad = dataRange * 0.4;
+    const yScale = d3.scaleLinear().domain([dataMin - pad, dataMax + pad]).range([H, 0]);
+
+    // X scale
+    const xDomain: [Date, Date] = data.length < 2
+      ? [new Date(data[0].time.getTime() - 120_000), new Date(data[0].time.getTime() + 60_000)]
+      : d3.extent(data, d => d.time) as [Date, Date];
+    const xScale = d3.scaleTime().domain(xDomain).range([0, W]);
+
+    // Grid
+    if (gridRef.current) {
+      d3.select(gridRef.current).selectAll('line')
+        .data(yScale.ticks(4)).join('line')
+        .attr('x1', 0).attr('x2', W)
+        .attr('y1', d => yScale(d)).attr('y2', d => yScale(d))
+        .attr('stroke', 'rgba(255,255,255,0.05)').attr('stroke-width', 1);
+    }
+
+    // Target band
+    const bandY1 = yScale(targetPrice * 1.001);
+    const bandY2 = yScale(targetPrice * 0.999);
+    const g = d3.select(el).select<SVGGElement>('g');
+    g.select('.target-band')
+      .attr('y', Math.max(0, bandY1))
+      .attr('height', Math.max(0, Math.min(H, bandY2) - Math.max(0, bandY1)));
+
+    // Target line + label
+    const targetY = yScale(targetPrice);
+    if (targetLineRef.current) {
+      d3.select(targetLineRef.current).attr('y1', targetY).attr('y2', targetY);
+    }
+    if (targetLabelRef.current) {
+      const fmt = targetPrice < 1
+        ? targetPrice.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+        : targetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      d3.select(targetLabelRef.current).attr('y', targetY + 4).text(`$${fmt}`);
+    }
+
+    // Line + area generators
+    const lineGen = d3.line<DataPoint>()
+      .x(d => xScale(d.time)).y(d => yScale(d.price)).curve(d3.curveMonotoneX);
+    const areaGen = d3.area<DataPoint>()
+      .x(d => xScale(d.time)).y0(H).y1(d => yScale(d.price)).curve(d3.curveMonotoneX);
+
+    // Animate path update
+    if (pathRef.current) {
+      d3.select(pathRef.current)
+        .transition().duration(250).ease(d3.easeLinear)
+        .attr('d', lineGen(data) ?? '');
+    }
+    if (areaRef.current) {
+      d3.select(areaRef.current)
+        .transition().duration(250).ease(d3.easeLinear)
+        .attr('d', areaGen(data) ?? '');
+    }
+
+    // Animate dot
+    const cx = xScale(last.time);
+    const cy = yScale(last.price);
+    if (dotRef.current) {
+      d3.select(dotRef.current)
+        .transition().duration(250).ease(d3.easeLinear)
+        .attr('cx', cx).attr('cy', cy);
+    }
+    // Halo (no transition needed — follows dot)
+    g.select('.dot-halo').attr('cx', cx).attr('cy', cy);
+
+    // Pulse ring
+    if (pulseRef.current) {
+      d3.select(pulseRef.current)
+        .attr('cx', cx).attr('cy', cy).attr('opacity', 0.7);
+    }
+
+    // Price badge
+    if (badgeGroupRef.current) {
+      const priceTxt = `$${last.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const badgeW = priceTxt.length * 7.8 + 10;
+      const bx = W + 6;
+      const by = cy - 11;
+      d3.select(badgeGroupRef.current).select('rect')
+        .attr('x', bx).attr('y', by).attr('width', badgeW).attr('height', 22);
+      d3.select(badgeGroupRef.current).select('text')
+        .attr('x', bx + 5).attr('y', by + 14).text(priceTxt);
+    }
+
+    // X axis
+    if (xAxisRef.current) {
+      const xAxis = d3.axisBottom(xScale)
+        .ticks(d3.timeSecond.every(30))
+        .tickFormat(d => {
+          const date = d as Date;
+          return [
+            date.getHours().toString().padStart(2, '0'),
+            date.getMinutes().toString().padStart(2, '0'),
+            date.getSeconds().toString().padStart(2, '0'),
+          ].join(':');
+        });
+      d3.select(xAxisRef.current).call(xAxis)
+        .call(ax => ax.select('.domain').remove())
+        .call(ax => ax.selectAll('line').attr('stroke', 'rgba(255,255,255,0.08)'))
+        .call(ax => ax.selectAll('text')
+          .attr('fill', 'rgba(255,255,255,0.3)')
+          .attr('font-size', 9).attr('font-family', 'monospace'));
+    }
+  }, [data, targetPrice]);
+
+  // Flash overlay
   const flashBg = crossFlash === 'above'
     ? 'rgba(34,197,94,0.18)'
     : crossFlash === 'below'
@@ -270,7 +317,6 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
 
   return (
     <div ref={containerRef} className="relative w-full" style={{ height: 280 }}>
-      {/* (e) Flash overlay on target crossing */}
       <div
         className="pointer-events-none absolute inset-0 rounded-xl transition-colors duration-700"
         style={{ background: flashBg }}
