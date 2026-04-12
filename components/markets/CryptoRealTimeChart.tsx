@@ -106,11 +106,16 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // (c) Tight Y scale: ±0.5% around target
-    const yPad = targetPrice * 0.005;
+    // Auto-scale Y to actual data range with 30% padding, min range = 0.1% of target
     const prices = data.map(d => d.price);
-    const yMin = Math.min(d3.min(prices) as number, targetPrice - yPad);
-    const yMax = Math.max(d3.max(prices) as number, targetPrice + yPad);
+    const dataMin = Math.min(...prices, targetPrice);
+    const dataMax = Math.max(...prices, targetPrice);
+    const dataRange = dataMax - dataMin;
+    const minRange = targetPrice * 0.001;
+    const paddedRange = Math.max(dataRange * 1.3, minRange);
+    const midpoint = (dataMax + dataMin) / 2;
+    const yMin = midpoint - paddedRange / 2;
+    const yMax = midpoint + paddedRange / 2;
     const yScale = d3.scaleLinear().domain([yMin, yMax]).range([H, 0]).nice();
     // With a single point d3.extent returns [t, t] — degenerate scale. Use a 2-min window instead.
     const xDomain: [Date, Date] = data.length < 2
@@ -191,7 +196,8 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
       .attr('stroke', '#f59e0b')
       .attr('stroke-width', 2.5)
       .attr('stroke-linejoin', 'round')
-      .attr('d', line);
+      .attr('d', line)
+      .style('transition', 'd 0.3s ease-out');
 
     // (a) Dot at current price with pulsing ring
     const dotX = xScale(last.time);
@@ -263,7 +269,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     : 'transparent';
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ height: 240 }}>
+    <div ref={containerRef} className="relative w-full" style={{ height: 280 }}>
       {/* (e) Flash overlay on target crossing */}
       <div
         className="pointer-events-none absolute inset-0 rounded-xl transition-colors duration-700"

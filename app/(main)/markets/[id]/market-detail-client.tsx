@@ -129,7 +129,7 @@ export function MarketDetailClient({
 
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           {/* Left — title + chart card with price header inside */}
           <div className="flex-1 min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -211,8 +211,8 @@ export function MarketDetailClient({
           </div>
 
           {/* Right — trade panel only */}
-          <div className="w-full lg:w-80 shrink-0">
-            <div className="sticky top-20 space-y-4">
+          <div className="w-full lg:w-80 shrink-0 sticky top-20">
+            <div className="space-y-4">
               {market.status === 'open' && (
                 <TradeTicket
                   market={market}
