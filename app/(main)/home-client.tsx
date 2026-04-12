@@ -267,6 +267,65 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
   );
 }
 
+// ─── Hot Topics sidebar ───────────────────────────────────────────────────────
+
+type Topic = {
+  slug: string;
+  totalVolume: number;
+  marketCount: number;
+  topTrendingScore: number;
+  topMarket: { title: string; category: string };
+};
+
+function HotTopics() {
+  const [topics, setTopics] = useState<Topic[]>([]);
+
+  useEffect(() => {
+    fetch("/api/markets/topics")
+      .then((r) => r.json())
+      .then(({ topics: t }) => setTopics(Array.isArray(t) ? t : []))
+      .catch(() => {});
+  }, []);
+
+  if (topics.length === 0) return null;
+
+  const maxScore = topics[0]?.topTrendingScore ?? 1;
+
+  return (
+    <div className="flex flex-col rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
+      <div className="mb-3 flex items-center gap-1.5">
+        <span className="text-sm">🔥</span>
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">Hot Topics</h3>
+      </div>
+      <div className="flex flex-col gap-3">
+        {topics.slice(0, 5).map((t) => {
+          const barPct = Math.round(((t.topTrendingScore ?? 0) / maxScore) * 100);
+          const isCategory = !t.slug.match(/^[a-z0-9]+$/i) || t.slug.length > 20;
+          const href = isCategory ? `/markets?category=${t.slug}` : `/creators/${t.slug}`;
+          return (
+            <Link key={t.slug} href={href} className="group flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <span className="truncate text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
+                  {t.slug}
+                </span>
+                <span className="ml-2 shrink-0 text-[10px] text-[var(--text-tertiary)]">
+                  {t.marketCount} mkt{t.marketCount !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${barPct}%`, background: "var(--accent, #f97316)" }}
+                />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Trending tokens sidebar ──────────────────────────────────────────────────
 
 const RANK_STYLE = [
@@ -714,9 +773,11 @@ export function HomeClient({
           offset: String(off),
           status: "open",
         });
-        const effectiveSort = category === "resolving_soon" ? "resolving_soon" : sortVal;
+        const effectiveSort = category === "resolving_soon" ? "resolving_soon"
+          : category === "breaking" ? "breaking"
+          : sortVal;
         params.set("sort", effectiveSort);
-        if (category !== "all" && category !== "resolving_soon") {
+        if (category !== "all" && category !== "resolving_soon" && category !== "breaking") {
           params.set("category", category);
         }
 
@@ -737,6 +798,12 @@ export function HomeClient({
     []
   );
 
+  // Fetch markets when filter/sort changes
+  useEffect(() => {
+    setOffset(0);
+    fetchMarkets(activeFilter, sort, 0, false);
+  }, [activeFilter, sort, fetchMarkets]);
+
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
@@ -748,6 +815,7 @@ export function HomeClient({
             )}
             <div className="flex flex-col gap-4">
               {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
+              <HotTopics />
               {uniqueTrendingCreators.length > 0 && (
                 <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
               )}
@@ -896,9 +964,32 @@ export function HomeClient({
         )}
 
         {/* ALL MARKETS */}
-        <div ref={marketsRef} className="mb-4 flex items-center justify-between">
+        <div ref={marketsRef} className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">All markets</h2>
-          <Link href="/markets" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
+          <div className="flex gap-1 overflow-x-auto">
+            {[
+              { value: "all", label: "All" },
+              { value: "breaking", label: "⚡ Breaking" },
+              { value: "crypto", label: "🪙 Crypto" },
+              { value: "sports", label: "⚽ Sports" },
+              { value: "politics", label: "👑 Politics" },
+              { value: "entertainment", label: "🎭 Entertainment" },
+            ].map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setActiveFilter(f.value)}
+                className="shrink-0 rounded-lg px-3 py-1 text-xs font-medium transition-colors"
+                style={{
+                  background: activeFilter === f.value ? "var(--caldera-muted, #f9731615)" : "transparent",
+                  color: activeFilter === f.value ? "var(--accent, #f97316)" : "var(--text-secondary)",
+                  border: `1px solid ${activeFilter === f.value ? "var(--accent, #f97316)" : "var(--border-subtle)"}`,
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <Link href="/markets" className="ml-auto text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
             View all →
           </Link>
         </div>

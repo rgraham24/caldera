@@ -83,11 +83,11 @@ export async function GET(req: NextRequest) {
       query = query.order("created_at", { ascending: false });
       break;
     case "breaking": {
-      const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      // Breaking = recently created markets (last 48h) ordered by trending score
+      const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
       query = query
-        .gt("resolve_at", new Date().toISOString())
-        .lte("resolve_at", sevenDaysFromNow)
-        .order("resolve_at", { ascending: true });
+        .gte("created_at", fortyEightHoursAgo)
+        .order("trending_score", { ascending: false });
       break;
     }
     case "resolving_soon":
