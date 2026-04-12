@@ -7,7 +7,7 @@ type Props = {
   resolvesAt: string;
 };
 
-const SUPPORTED_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'LINK', 'MATIC']);
+const SUPPORTED_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'LINK', 'DOGE']);
 
 export function CryptoLivePriceBar({ ticker, targetPrice, resolvesAt }: Props) {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);

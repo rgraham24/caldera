@@ -5,7 +5,7 @@ const CACHE_TTL = 2000;
 
 const BINANCE_SYMBOLS: Record<string, string> = {
   BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT",
-  LINK: "LINKUSDT", MATIC: "MATICUSDT",
+  LINK: "LINKUSDT", DOGE: "DOGEUSDT",
 };
 
 export const dynamic = "force-dynamic";

@@ -8,7 +8,7 @@ const COINS = [
   { id: "ethereum", ticker: "ETH", slug: "caldera-eth" },
   { id: "solana", ticker: "SOL", slug: "solana" },
   { id: "chainlink", ticker: "LINK", slug: "chainlink" },
-  { id: "matic-network", ticker: "MATIC", slug: "polygon" },
+  { id: "dogecoin", ticker: "DOGE", slug: "dogecoin" },
 ];
 
 export async function GET(req: Request) {
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     ethereum: "ETHUSDT",
     solana: "SOLUSDT",
     chainlink: "LINKUSDT",
-    "matic-network": "MATICUSDT",
+    dogecoin: "DOGEUSDT",
   };
   const rawPrices: Record<string, number> = {};
   await Promise.all(

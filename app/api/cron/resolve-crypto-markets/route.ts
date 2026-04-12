@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   // Fetch current prices from Binance.US (free, no rate limits, no API key)
   const BINANCE_SYMBOLS: Record<string, string> = {
     BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT",
-    LINK: "LINKUSDT", MATIC: "MATICUSDT",
+    LINK: "LINKUSDT", DOGE: "DOGEUSDT",
   };
   const tickers = [...new Set((markets as Array<{ crypto_ticker: string }>).map((m) => m.crypto_ticker))];
   const tickerToPrice: Record<string, number> = {};

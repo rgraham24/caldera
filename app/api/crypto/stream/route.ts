@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 const SYMBOLS: Record<string, string> = {
   BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT",
-  LINK: "LINKUSDT", MATIC: "MATICUSDT",
+  LINK: "LINKUSDT", DOGE: "DOGEUSDT",
 };
 
 export async function GET(req: Request) {

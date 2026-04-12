@@ -4,7 +4,7 @@ import * as d3 from 'd3';
 
 type DataPoint = { time: Date; price: number };
 
-const SUPPORTED_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'LINK', 'MATIC']);
+const SUPPORTED_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'LINK', 'DOGE']);
 
 type Props = {
   ticker: string;
