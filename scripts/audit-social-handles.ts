@@ -4,10 +4,16 @@ import path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  process.exit(1);
+}
+
+console.log(`DB: ${SUPABASE_URL.slice(0, 30)}... key: ${SUPABASE_KEY.length} chars`);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY ?? process.env.BRAVE_API_KEY ?? "";
 const CAP = 50;
@@ -40,7 +46,7 @@ async function desoLookup(
 // ── Brave handle extraction ──────────────────────────────────────────────────
 
 async function braveLookup(name: string): Promise<string | null> {
-  if (!BRAVE_API_KEY) return null;
+  if (!BRAVE_API_KEY || !BRAVE_ACTIVE) return null;
   try {
     const query = encodeURIComponent(
       `"${name}" twitter.com OR x.com OR instagram.com`
@@ -101,7 +107,7 @@ async function braveLookup(name: string): Promise<string | null> {
 
 // ── Result types ─────────────────────────────────────────────────────────────
 
-type AuditStatus = "CORRECT" | "MISMATCH" | "NODESO" | "UNVERIFIED";
+type AuditStatus = "CORRECT" | "MISMATCH" | "NODESO" | "UNVERIFIED" | "DESO_OK";
 
 interface AuditRow {
   slug: string;
@@ -116,7 +122,21 @@ interface AuditRow {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
+let BRAVE_ACTIVE = false;
+
 async function main() {
+  // Pre-flight: confirm Brave is actually working (not just key present)
+  if (BRAVE_API_KEY) {
+    try {
+      const testRes = await fetch(
+        "https://api.search.brave.com/res/v1/web/search?q=test&count=1",
+        { headers: { "X-Subscription-Token": BRAVE_API_KEY, Accept: "application/json" } }
+      );
+      BRAVE_ACTIVE = testRes.status === 200;
+    } catch { BRAVE_ACTIVE = false; }
+  }
+  console.log(BRAVE_ACTIVE ? "✓ Brave Search active\n" : "⚠ Brave unavailable (quota/key) — DeSo-only mode\n");
+
   console.log("Fetching creators from Supabase...");
 
   const { data: creators, error } = await supabase
@@ -172,7 +192,8 @@ async function main() {
             }
           }
         } else if (!braveHandle) {
-          status = "UNVERIFIED";
+          // DeSo confirmed but Brave unavailable — DESO_OK if Brave disabled, UNVERIFIED if it ran but found nothing
+          status = BRAVE_ACTIVE ? "UNVERIFIED" : "DESO_OK";
         } else if (braveHandle === storedHandle.toLowerCase()) {
           status = "CORRECT";
         } else {
@@ -207,7 +228,7 @@ async function main() {
 
   // ── Print report ────────────────────────────────────────────────────────────
 
-  const STATUS_ORDER: AuditStatus[] = ["NODESO", "MISMATCH", "UNVERIFIED", "CORRECT"];
+  const STATUS_ORDER: AuditStatus[] = ["NODESO", "MISMATCH", "UNVERIFIED", "DESO_OK", "CORRECT"];
   rows.sort(
     (a, b) =>
       STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
@@ -236,6 +257,7 @@ async function main() {
       r.status === "CORRECT"    ? "✓ CORRECT"   :
       r.status === "MISMATCH"   ? "⚠ MISMATCH"  :
       r.status === "NODESO"     ? "✗ NODESO"    :
+      r.status === "DESO_OK"    ? "~ DESO_OK"   :
                                   "? UNVERIFIED";
 
     console.log(
@@ -256,8 +278,15 @@ async function main() {
     CORRECT:    rows.filter((r) => r.status === "CORRECT").length,
     MISMATCH:   rows.filter((r) => r.status === "MISMATCH").length,
     NODESO:     rows.filter((r) => r.status === "NODESO").length,
+    DESO_OK:    rows.filter((r) => r.status === "DESO_OK").length,
     UNVERIFIED: rows.filter((r) => r.status === "UNVERIFIED").length,
   };
+
+  const braveNote = !BRAVE_API_KEY
+    ? "\n  Note: Brave key missing — DESO_OK = DeSo confirmed, Brave cross-check skipped"
+    : counts.DESO_OK > 0
+    ? "\n  Note: DESO_OK = DeSo confirmed but Brave quota exhausted"
+    : "";
 
   console.log(`
 ── Summary ──────────────────────
@@ -265,7 +294,8 @@ async function main() {
   ✓ CORRECT     : ${counts.CORRECT}
   ⚠ MISMATCH    : ${counts.MISMATCH}
   ✗ NODESO      : ${counts.NODESO}
-  ? UNVERIFIED  : ${counts.UNVERIFIED}
+  ~ DESO_OK     : ${counts.DESO_OK}
+  ? UNVERIFIED  : ${counts.UNVERIFIED}${braveNote}
 `);
 
   // ── SQL for NODESO with known fixes ────────────────────────────────────────
