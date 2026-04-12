@@ -1,51 +1,80 @@
+import WebSocket from "ws";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYMBOLS: Record<string, string> = {
-  BTC: "BTCUSDT", ETH: "ETHUSDT", SOL: "SOLUSDT",
-  LINK: "LINKUSDT", DOGE: "DOGEUSDT",
+// Kraken v2 WebSocket — public, no auth, no geo-restrictions
+// Binance.US WS connects but delivers no messages; Binance.com is US geo-blocked (451)
+const KRAKEN_SYMBOLS: Record<string, string> = {
+  BTC: "BTC/USD",
+  ETH: "ETH/USD",
+  SOL: "SOL/USD",
+  LINK: "LINK/USD",
+  DOGE: "DOGE/USD",
 };
 
 export async function GET(req: Request) {
   const ticker = new URL(req.url).searchParams.get("ticker")?.toUpperCase();
-  if (!ticker || !SYMBOLS[ticker]) {
+  if (!ticker || !KRAKEN_SYMBOLS[ticker]) {
     return new Response(JSON.stringify({ error: "Unknown ticker" }), { status: 400 });
   }
 
   const resolvedTicker = ticker;
+  const krakenSymbol = KRAKEN_SYMBOLS[resolvedTicker];
   const encoder = new TextEncoder();
+
   const stream = new ReadableStream({
-    async start(controller) {
-      let lastPrice = 0;
+    start(controller) {
+      const ws = new WebSocket("wss://ws.kraken.com/v2");
+      let frameCount = 0;
 
-      async function tick() {
+      ws.on("open", () => {
+        console.log(`[crypto-stream] Kraken WS connected for ${resolvedTicker}`);
+        ws.send(JSON.stringify({
+          method: "subscribe",
+          params: { channel: "ticker", symbol: [krakenSymbol] },
+        }));
+      });
+
+      ws.on("message", (data: Buffer) => {
         try {
-          const symbol = SYMBOLS[resolvedTicker];
-          const res = await fetch(
-            `https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`,
-            { cache: "no-store" }
+          const msg = JSON.parse(data.toString());
+          // Only handle ticker update events
+          if (msg.channel !== "ticker" || msg.type !== "update") return;
+          const tick = msg.data?.[0];
+          if (!tick?.last) return;
+
+          const price = parseFloat(tick.last);
+          if (!price) return;
+
+          frameCount++;
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                ticker: resolvedTicker,
+                price,
+                bid: parseFloat(tick.bid),
+                ask: parseFloat(tick.ask),
+                t: Date.now(),
+              })}\n\n`
+            )
           );
-          const data = await res.json();
-          const price = parseFloat(data.price);
-          if (price && price !== lastPrice) {
-            lastPrice = price;
-            const msg = `data: ${JSON.stringify({ ticker: resolvedTicker, price, t: Date.now() })}\n\n`;
-            controller.enqueue(encoder.encode(msg));
-          }
-          // Heartbeat
-          controller.enqueue(encoder.encode(": ping\n\n"));
-        } catch {
-          clearInterval(interval);
-          controller.close();
-        }
-      }
+        } catch { /* ignore parse errors */ }
+      });
 
-      // Send immediately
-      await tick();
-      // Then every 1 second
-      const interval = setInterval(tick, 1000);
+      ws.on("error", (err) => {
+        console.error(`[crypto-stream] Kraken WS error for ${resolvedTicker}:`, err.message);
+        controller.close();
+      });
 
-      return () => clearInterval(interval);
+      ws.on("close", () => {
+        console.log(`[crypto-stream] Kraken WS closed for ${resolvedTicker} after ${frameCount} frames`);
+        controller.close();
+      });
+
+      return () => {
+        ws.close();
+      };
     },
   });
 
