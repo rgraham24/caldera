@@ -239,8 +239,14 @@ export default function TokensPage() {
                   </span>
 
                   {/* Markets */}
-                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
+                  <span className="hidden items-center justify-end gap-1 font-mono text-sm text-text-muted sm:flex">
                     {(c.markets_count ?? 0) > 0 ? (c.markets_count ?? 0) : "—"}
+                    {(c.markets_count ?? 0) > 0 && !c.deso_is_reserved && !c.is_caldera_verified && (
+                      <span
+                        title="Unverified — handle may be squatted. Creator can claim this market."
+                        className="text-[11px] text-orange-400 cursor-help"
+                      >⚠</span>
+                    )}
                   </span>
 
                   {/* Buy button */}
