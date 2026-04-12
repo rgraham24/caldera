@@ -37,16 +37,19 @@ export async function GET(req: Request) {
     return { id: m.id, trending_score: Math.round(trendingScore) };
   });
 
-  // Batch update in chunks of 100
-  const chunkSize = 100;
+  // Batch UPDATE in chunks of 50 concurrent calls (upsert fails on NOT NULL columns)
+  const chunkSize = 50;
   let totalUpdated = 0;
   for (let i = 0; i < updates.length; i += chunkSize) {
     const chunk = updates.slice(i, i + chunkSize);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("markets")
-      .upsert(chunk, { onConflict: "id" });
-    if (!error) totalUpdated += chunk.length;
+    const results = await Promise.allSettled(
+      chunk.map(({ id, trending_score }) =>
+        supabase.from("markets").update({ trending_score }).eq("id", id)
+      )
+    );
+    totalUpdated += results.filter(
+      (r) => r.status === "fulfilled" && !(r.value as { error: unknown }).error
+    ).length;
   }
 
   console.log(`[update-trending] Updated ${totalUpdated} markets`);
