@@ -7,10 +7,7 @@ type Props = {
   resolvesAt: string;
 };
 
-const BINANCE_SYMBOLS: Record<string, string> = {
-  BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT',
-  LINK: 'LINKUSDT', MATIC: 'MATICUSDT',
-};
+const SUPPORTED_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'LINK', 'MATIC']);
 
 export function CryptoLivePriceBar({ ticker, targetPrice, resolvesAt }: Props) {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
@@ -23,14 +20,13 @@ export function CryptoLivePriceBar({ ticker, targetPrice, resolvesAt }: Props) {
 
     async function fetchPrice() {
       try {
-        const symbol = BINANCE_SYMBOLS[ticker];
-        if (!symbol) return;
+        if (!SUPPORTED_TICKERS.has(ticker)) return;
         const res = await fetch(
-          `https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`,
+          `/api/crypto/prices?ticker=${ticker}`,
           { cache: 'no-store' }
         );
         const data = await res.json();
-        const price = parseFloat(data.price);
+        const price = data.price as number;
         if (price) {
           if (prevPrice !== null) {
             setPriceChange(price > prevPrice ? 'up' : price < prevPrice ? 'down' : null);

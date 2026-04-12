@@ -4,10 +4,7 @@ import * as d3 from 'd3';
 
 type DataPoint = { time: Date; price: number };
 
-const BINANCE_SYMBOLS: Record<string, string> = {
-  BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT',
-  LINK: 'LINKUSDT', MATIC: 'MATICUSDT',
-};
+const SUPPORTED_TICKERS = new Set(['BTC', 'ETH', 'SOL', 'LINK', 'MATIC']);
 
 type Props = {
   ticker: string;
@@ -26,20 +23,18 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
   const onPriceUpdateRef = useRef(onPriceUpdate);
   onPriceUpdateRef.current = onPriceUpdate;
 
-  // Poll CoinGecko every 3 seconds
+  // Poll via proxy every 3 seconds
   useEffect(() => {
-    if (!BINANCE_SYMBOLS[ticker]) return;
+    if (!SUPPORTED_TICKERS.has(ticker)) return;
 
     async function fetchPrice() {
       try {
-        const symbol = BINANCE_SYMBOLS[ticker];
-        if (!symbol) return;
         const res = await fetch(
-          `https://api.binance.us/api/v3/ticker/price?symbol=${symbol}`,
+          `/api/crypto/prices?ticker=${ticker}`,
           { cache: 'no-store' }
         );
         const json = await res.json();
-        const price: number = parseFloat(json.price);
+        const price: number = json.price;
         if (!price) return;
 
         const change: 'up' | 'down' | null =
