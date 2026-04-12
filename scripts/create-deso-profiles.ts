@@ -15,13 +15,25 @@
 import * as dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import path from "path";
+import { ethers } from "ethers";
+// @ts-ignore — no types shipped with this version
+import { signTx, publicKeyToBase58Check } from "deso-protocol";
+// @ts-ignore
+import { getPublicKey } from "@noble/secp256k1";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const PLATFORM_PUBLIC_KEY = process.env.NEXT_PUBLIC_DESO_PLATFORM_PUBLIC_KEY ?? process.env.DESO_PLATFORM_PUBLIC_KEY ?? "";
-const PLATFORM_SEED = process.env.DESO_PLATFORM_SEED ?? "";
+const PLATFORM_MNEMONIC = process.env.DESO_PLATFORM_SEED ?? "";
+
+// Derive private key from BIP39 mnemonic using DeSo's canonical path m/44'/0'/0'/0/0
+function derivePrivateKeyHex(mnemonic: string): string {
+  const root = ethers.utils.HDNode.fromMnemonic(mnemonic);
+  const node = root.derivePath("m/44'/0'/0'/0/0");
+  return node.privateKey.slice(2); // strip 0x prefix
+}
 
 const LIMIT = 10;
 const BETWEEN_CREATORS_DELAY_MS = 3_000;
@@ -31,10 +43,12 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   process.exit(1);
 }
-if (!PLATFORM_PUBLIC_KEY || !PLATFORM_SEED) {
+if (!PLATFORM_PUBLIC_KEY || !PLATFORM_MNEMONIC) {
   console.error("Missing DESO_PLATFORM_PUBLIC_KEY or DESO_PLATFORM_SEED");
   process.exit(1);
 }
+
+const PLATFORM_PRIVATE_KEY_HEX = derivePrivateKeyHex(PLATFORM_MNEMONIC);
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -101,17 +115,11 @@ async function buildUpdateProfileTx(params: {
   }
 }
 
-async function signTx(transactionHex: string): Promise<string> {
+async function signTransaction(transactionHex: string): Promise<string> {
   try {
-    const res = await fetch("https://identity.deso.org/api/v0/sign-transaction", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ TransactionHex: transactionHex, Seed: PLATFORM_SEED }),
-    });
-    if (!res.ok) return transactionHex; // fall back to unsigned
-    const data = await res.json();
-    return data.SignedTransactionHex ?? transactionHex;
-  } catch {
+    return await signTx(transactionHex, PLATFORM_PRIVATE_KEY_HEX);
+  } catch (err) {
+    console.error("  signTransaction error:", err);
     return transactionHex;
   }
 }
@@ -205,7 +213,7 @@ async function main() {
         failed++;
       } else {
         // Step 3: Sign
-        const signedHex = await signTx(tx.TransactionHex);
+        const signedHex = await signTransaction(tx.TransactionHex);
 
         // Step 4: Submit
         const txHash = await submitTx(signedHex);
