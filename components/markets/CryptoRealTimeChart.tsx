@@ -70,7 +70,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
 
     const svg = d3.select(svgRef.current);
     const totalWidth = containerRef.current.clientWidth || 600;
-    const totalHeight = 300;
+    const totalHeight = containerRef.current.clientHeight || 240;
     const margin = { top: 16, right: 84, bottom: 28, left: 8 };
     const W = totalWidth - margin.left - margin.right;
     const H = totalHeight - margin.top - margin.bottom;
@@ -263,7 +263,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     : 'transparent';
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ height: 300 }}>
+    <div ref={containerRef} className="relative w-full" style={{ height: 240 }}>
       {/* (e) Flash overlay on target crossing */}
       <div
         className="pointer-events-none absolute inset-0 rounded-xl transition-colors duration-700"

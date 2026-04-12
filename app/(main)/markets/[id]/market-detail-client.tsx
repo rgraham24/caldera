@@ -123,10 +123,14 @@ export function MarketDetailClient({
   // ── Polymarket-style crypto 5-min layout ─────────────────────────────────────
   if (cryptoTicker && cryptoTargetPrice && autoResolveAt) {
     const isAbove = (cryptoPrice ?? 0) > cryptoTargetPrice;
+    const diffPct = cryptoPrice
+      ? ((cryptoPrice - cryptoTargetPrice) / cryptoTargetPrice) * 100
+      : 0;
+
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row">
-          {/* Left — title + live chart */}
+          {/* Left — title + chart card with price header inside */}
           <div className="flex-1 min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <CategoryPill category={market.category} />
@@ -136,12 +140,53 @@ export function MarketDetailClient({
               {market.title}
             </h1>
 
-            {/* Live chart */}
+            {/* Chart card — price header + chart in one card */}
             <div className="rounded-xl border border-border-subtle bg-surface p-4 mb-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-muted">Live Price Chart</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+              {/* Price header */}
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                      {cryptoTicker} / USD
+                    </span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className={`text-4xl font-bold font-mono transition-colors duration-300 ${
+                      cryptoPriceChange === 'up' ? 'text-yes' :
+                      cryptoPriceChange === 'down' ? 'text-no' : 'text-text-primary'
+                    }`}>
+                      {cryptoPrice
+                        ? `$${cryptoPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : <span className="text-2xl text-text-muted animate-pulse">Loading…</span>}
+                    </span>
+                    {cryptoPrice && (
+                      <span className={`text-sm font-semibold ${isAbove ? 'text-yes' : 'text-no'}`}>
+                        {isAbove ? '▲' : '▼'} {Math.abs(diffPct).toFixed(3)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs text-text-muted">
+                      Target:{' '}
+                      <span className="text-text-primary font-medium font-mono">
+                        ${cryptoTargetPrice.toLocaleString('en-US', { minimumFractionDigits: cryptoTargetPrice < 1 ? 4 : 2, maximumFractionDigits: cryptoTargetPrice < 1 ? 4 : 2 })}
+                      </span>
+                    </span>
+                    {cryptoPrice && (
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isAbove ? 'bg-yes/10 text-yes' : 'bg-no/10 text-no'}`}>
+                        {isAbove ? '▲ ABOVE' : '▼ BELOW'} TARGET
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-2xl font-mono font-bold text-text-primary">{cryptoTimeLeft || '—'}</div>
+                  <div className="text-xs text-text-muted">remaining</div>
+                </div>
               </div>
+
+              {/* Chart */}
               <div className="relative">
                 <CryptoRealTimeChart
                   ticker={cryptoTicker}
@@ -162,80 +207,12 @@ export function MarketDetailClient({
               </div>
             </div>
 
-            {/* Stats row */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="rounded-xl border border-border-subtle bg-surface p-3 text-center">
-                <p className="text-xs text-text-muted mb-1">Volume</p>
-                <p className="font-mono text-base font-semibold text-text-primary">
-                  {formatCompactCurrency(market.total_volume ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border-subtle bg-surface p-3 text-center">
-                <p className="text-xs text-text-muted mb-1">Liquidity</p>
-                <p className="font-mono text-base font-semibold text-text-primary">
-                  {formatCompactCurrency(market.liquidity ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border-subtle bg-surface p-3 text-center">
-                <p className="text-xs text-text-muted mb-1">Target</p>
-                <p className="font-mono text-base font-semibold text-text-primary">
-                  ${cryptoTargetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </p>
-              </div>
-            </div>
-
             <MarketTabs marketId={market.id} comments={comments} creator={creator} />
           </div>
 
-          {/* Right — live price + trade panel */}
+          {/* Right — trade panel only */}
           <div className="w-full lg:w-80 shrink-0">
             <div className="sticky top-20 space-y-4">
-              {/* Live price card */}
-              <div className="rounded-xl border border-border-subtle bg-surface p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                      {cryptoTicker} / USD
-                    </span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
-                  </div>
-                  {cryptoTimeLeft && (
-                    <span className="font-mono text-sm font-bold text-text-muted">{cryptoTimeLeft}</span>
-                  )}
-                </div>
-
-                <div className={`font-mono text-4xl font-bold transition-colors duration-300 mb-3 ${
-                  cryptoPriceChange === 'up' ? 'text-yes' :
-                  cryptoPriceChange === 'down' ? 'text-no' : 'text-text-primary'
-                }`}>
-                  {cryptoPrice
-                    ? `$${cryptoPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : <span className="animate-pulse text-text-muted text-2xl">Loading…</span>}
-                </div>
-
-                {cryptoPrice && (
-                  <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold ${
-                    isAbove ? 'bg-yes/15 text-yes' : 'bg-no/15 text-no'
-                  }`}>
-                    {isAbove ? '▲' : '▼'} {isAbove ? 'ABOVE' : 'BELOW'} TARGET
-                  </div>
-                )}
-
-                <div className="mt-3 text-xs text-text-muted">
-                  Target: <span className="font-mono font-medium text-text-primary">
-                    ${cryptoTargetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-                {cryptoPrice && (
-                  <div className="mt-1 text-xs text-text-muted">
-                    Diff:{' '}
-                    <span className={`font-mono font-medium ${isAbove ? 'text-yes' : 'text-no'}`}>
-                      {isAbove ? '+' : ''}{((cryptoPrice - cryptoTargetPrice) / cryptoTargetPrice * 100).toFixed(3)}%
-                    </span>
-                  </div>
-                )}
-              </div>
-
               {market.status === 'open' && (
                 <TradeTicket
                   market={market}
@@ -243,6 +220,17 @@ export function MarketDetailClient({
                   onTradeComplete={refreshBalance}
                   selectedOutcome={null}
                 />
+              )}
+
+              {market.creator_slug && (
+                <div className="text-center">
+                  <a
+                    href={`/creators/${market.creator_slug}`}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
+                    View ${market.creator_slug} token →
+                  </a>
+                </div>
               )}
 
               <div className="flex items-center justify-center gap-3">
