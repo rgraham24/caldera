@@ -30,6 +30,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     const es = new EventSource(`/api/crypto/stream?ticker=${ticker}`);
 
     es.onmessage = (e) => {
+      console.log('[SSE] raw message:', e.data.slice(0, 100));
       try {
         const { price } = JSON.parse(e.data) as { ticker: string; price: number; t: number };
         if (!price) return;
@@ -51,7 +52,9 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
         onPriceUpdateRef.current?.(price, change);
         setData(prev => {
           const next = [...prev, { time: new Date(), price }];
-          return next.length > 300 ? next.slice(-300) : next;
+          const trimmed = next.length > 300 ? next.slice(-300) : next;
+          console.log('[chart] received price:', price, 'data points:', trimmed.length);
+          return trimmed;
         });
       } catch { /* ignore */ }
     };
@@ -63,7 +66,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
 
   // D3 render on data change
   useEffect(() => {
-    if (!svgRef.current || !containerRef.current || data.length < 2) return;
+    if (!svgRef.current || !containerRef.current || data.length < 1) return;
 
     const svg = d3.select(svgRef.current);
     const totalWidth = containerRef.current.clientWidth || 600;
@@ -109,8 +112,11 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     const yMin = Math.min(d3.min(prices) as number, targetPrice - yPad);
     const yMax = Math.max(d3.max(prices) as number, targetPrice + yPad);
     const yScale = d3.scaleLinear().domain([yMin, yMax]).range([H, 0]).nice();
-    const xExtent = d3.extent(data, d => d.time) as [Date, Date];
-    const xScale = d3.scaleTime().domain(xExtent).range([0, W]);
+    // With a single point d3.extent returns [t, t] — degenerate scale. Use a 2-min window instead.
+    const xDomain: [Date, Date] = data.length < 2
+      ? [new Date(data[0].time.getTime() - 120_000), new Date(data[0].time.getTime() + 60_000)]
+      : d3.extent(data, d => d.time) as [Date, Date];
+    const xScale = d3.scaleTime().domain(xDomain).range([0, W]);
 
     const defs = svg.select('defs');
 
@@ -263,7 +269,7 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
         className="pointer-events-none absolute inset-0 rounded-xl transition-colors duration-700"
         style={{ background: flashBg }}
       />
-      {data.length < 2 ? (
+      {data.length < 1 ? (
         <div className="flex h-full items-center justify-center text-text-muted text-sm">
           <span className="animate-pulse">Fetching live price data…</span>
         </div>
