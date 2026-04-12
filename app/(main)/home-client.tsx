@@ -986,36 +986,43 @@ export function HomeClient({
             </Link>
           </div>
           {/* Category filter strip */}
-          <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
-            {[
-              { value: "all", label: "📈 Trending" },
-              { value: "breaking", label: "⚡ Breaking" },
-              { value: "new", label: "🕐 New" },
-              { value: "following", label: "Following" },
-              { value: "tokens", label: "Tokens" },
-              { value: "creators", label: "Creators" },
-              { value: "politics", label: "Politics" },
-              { value: "sports", label: "Sports" },
-              { value: "crypto", label: "Crypto" },
-              { value: "music", label: "Music" },
-              { value: "climate", label: "Climate" },
-              { value: "companies", label: "Companies" },
-              { value: "tech", label: "Tech" },
-              { value: "entertainment", label: "Entertainment" },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => { setActiveFilter(f.value); setOffset(0); }}
-                className="shrink-0 rounded-lg px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap"
-                style={{
-                  background: activeFilter === f.value ? "var(--caldera-muted, #f9731615)" : "transparent",
-                  color: activeFilter === f.value ? "var(--accent, #f97316)" : "var(--text-secondary)",
-                  border: `1px solid ${activeFilter === f.value ? "var(--accent, #f97316)" : "var(--border-subtle)"}`,
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className="relative -mx-4 md:-mx-6 lg:-mx-8">
+            <div
+              className="flex gap-1 overflow-x-auto pb-1 px-4 md:px-6 lg:px-8"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
+            >
+              {[
+                { value: "all", label: "📈 Trending" },
+                { value: "breaking", label: "⚡ Breaking" },
+                { value: "new", label: "🕐 New" },
+                { value: "following", label: "Following" },
+                { value: "tokens", label: "Tokens" },
+                { value: "creators", label: "Creators" },
+                { value: "politics", label: "Politics" },
+                { value: "sports", label: "Sports" },
+                { value: "crypto", label: "Crypto" },
+                { value: "music", label: "Music" },
+                { value: "climate", label: "Climate" },
+                { value: "companies", label: "Companies" },
+                { value: "tech", label: "Tech" },
+                { value: "entertainment", label: "Entertainment" },
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => { setActiveFilter(f.value); setOffset(0); }}
+                  className="shrink-0 rounded-lg px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap"
+                  style={{
+                    background: activeFilter === f.value ? "var(--caldera-muted, #f9731615)" : "transparent",
+                    color: activeFilter === f.value ? "var(--accent, #f97316)" : "var(--text-secondary)",
+                    border: `1px solid ${activeFilter === f.value ? "var(--accent, #f97316)" : "var(--border-subtle)"}`,
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {/* Right fade — indicates more items */}
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[var(--bg)] to-transparent" />
           </div>
         </div>
 
