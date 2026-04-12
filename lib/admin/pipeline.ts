@@ -1286,6 +1286,92 @@ async function isDuplicateMarket(
   return false;
 }
 
+// ─── 4-step creator slug resolver ────────────────────────────────────────────
+// Preferred over findCreatorSlug() for market inserts — more precise, no squatter
+// stripping side-effects, resolves by slug → deso_username → name → DeSo API.
+
+async function resolveCreatorSlug(
+  entityName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<string | null> {
+  if (!entityName || entityName.length < 2) return null;
+  const slugified = entityName.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Step 1 — exact slug match in recognised active/claimed tiers
+  {
+    const { data } = await supabase
+      .from("creators")
+      .select("slug")
+      .eq("slug", slugified)
+      .in("token_status", ["active_unverified", "active_verified", "claimed"])
+      .maybeSingle();
+    if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
+  }
+
+  // Step 2 — deso_username match (DeSo usernames are case-insensitive)
+  {
+    const { data } = await supabase
+      .from("creators")
+      .select("slug, deso_username")
+      .ilike("deso_username", slugified)
+      .in("token_status", ["active_unverified", "active_verified", "claimed"])
+      .maybeSingle();
+    if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
+  }
+
+  // Step 3 — fuzzy name match (ilike with full entity name)
+  {
+    const { data } = await supabase
+      .from("creators")
+      .select("slug, name")
+      .ilike("name", `%${entityName}%`)
+      .in("token_status", ["active_unverified", "active_verified", "claimed"])
+      .order("creator_coin_holders", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
+  }
+
+  // Step 4 — DeSo API: only accept IsReserved profiles; then upsert into DB
+  try {
+    const res = await fetch("https://api.deso.org/api/v0/get-single-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ Username: slugified }),
+    });
+    if (res.ok) {
+      const desoData = await res.json();
+      const profile = desoData?.Profile;
+      if (profile?.Username && profile.IsReserved === true) {
+        const desoUsername: string = profile.Username;
+        const slug = desoUsername.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (isValidDesoSlug(slug)) {
+          // Upsert so future lookups hit Step 1/2
+          await supabase.from("creators").upsert(
+            {
+              name: desoUsername,
+              slug,
+              deso_username: desoUsername,
+              deso_public_key: profile.PublicKeyBase58Check,
+              creator_coin_price:
+                ((profile.CoinPriceDeSoNanos ?? 0) / 1e9) * 4.63,
+              creator_coin_holders:
+                profile.CoinEntry?.NumberOfHolders ?? 0,
+              token_status: "active_unverified",
+              is_reserved: true,
+            },
+            { onConflict: "slug" }
+          );
+          return slug;
+        }
+      }
+    }
+  } catch { /* network error — fall through */ }
+
+  return null;
+}
+
 async function insertMarkets(
   markets: GeneratedMarket[],
   supabase: SupabaseClient,
@@ -1308,9 +1394,9 @@ async function insertMarkets(
     ? await lookupEntityRegistry(supabase, entityName)
     : { creatorSlug: null, leagueFallback: null };
 
-  // Use fuzzy findCreatorSlug for accurate creator matching
+  // Use resolveCreatorSlug (4-step) for accurate creator matching
   const finalCreatorSlug = entityName
-    ? await findCreatorSlug(entityName, supabase)
+    ? await resolveCreatorSlug(entityName, supabase)
     : null;
   const finalLeagueSlug = entityLookup.leagueFallback ?? leagueSlug ?? null;
 
