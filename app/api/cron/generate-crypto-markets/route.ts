@@ -58,8 +58,15 @@ export async function GET(req: Request) {
       timeZone: "America/New_York",
     });
 
+    // For sub-$1 coins show enough decimal places; for $1+ coins show no decimals
+    function fmtPrice(p: number) {
+      if (p >= 100) return p.toLocaleString("en-US", { maximumFractionDigits: 0 });
+      if (p >= 1)   return p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return p.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    }
+
     markets.push({
-      title: `Will $${coin.ticker} be above $${above.toLocaleString("en-US", { maximumFractionDigits: 0 })} at ${timeStr} ET?`,
+      title: `Will $${coin.ticker} be above $${fmtPrice(above)} at ${timeStr} ET?`,
       category: "Crypto",
       creator_slug: coin.slug,
       market_type: "binary",
@@ -80,7 +87,7 @@ export async function GET(req: Request) {
     });
 
     markets.push({
-      title: `Will $${coin.ticker} be below $${below.toLocaleString("en-US", { maximumFractionDigits: 0 })} at ${timeStr} ET?`,
+      title: `Will $${coin.ticker} be below $${fmtPrice(below)} at ${timeStr} ET?`,
       category: "Crypto",
       creator_slug: coin.slug,
       market_type: "binary",
