@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { useDesoBalance } from "@/hooks/useDesoBalance";
 import type { Market, CommentWithUser, Creator, MarketOutcome } from "@/types";
@@ -13,7 +13,7 @@ import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
 import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer";
-import { CryptoLivePriceBar } from "@/components/markets/CryptoLivePriceBar";
+import { CryptoRealTimeChart } from "@/components/markets/CryptoRealTimeChart";
 import {
   formatCompactCurrency,
   formatRelativeTime,
@@ -40,6 +40,10 @@ export function MarketDetailClient({
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
   const [news, setNews] = useState<Array<{ title: string; url: string; source: string; age: string }>>([]);
   const [copied, setCopied] = useState(false);
+  // Crypto 5-min market live state
+  const [cryptoPrice, setCryptoPrice] = useState<number | null>(null);
+  const [cryptoPriceChange, setCryptoPriceChange] = useState<'up' | 'down' | null>(null);
+  const [cryptoTimeLeft, setCryptoTimeLeft] = useState('');
   const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
 
   // Fetch categorical outcomes client-side when needed
@@ -71,6 +75,36 @@ export function MarketDetailClient({
     true
   );
 
+  // Crypto market: price update callback from chart
+  const handleCryptoPriceUpdate = useCallback((price: number, change: 'up' | 'down' | null) => {
+    setCryptoPrice(price);
+    setCryptoPriceChange(change);
+  }, []);
+
+  // Crypto market: countdown timer
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const resolveAt = (market as any).auto_resolve_at as string | undefined;
+    if (!resolveAt) return;
+    function tick() {
+      const diff = new Date(resolveAt!).getTime() - Date.now();
+      if (diff <= 0) { setCryptoTimeLeft('Resolving…'); return; }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setCryptoTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`);
+    }
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [market]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cryptoTicker = (market as any).crypto_ticker as string | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cryptoTargetPrice = (market as any).crypto_target_price as number | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const autoResolveAt = (market as any).auto_resolve_at as string | undefined;
+
   const yesPercent = Math.round((market.yes_price ?? 0) * 100);
   const isResolved = market.status === "resolved";
 
@@ -85,6 +119,143 @@ export function MarketDetailClient({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // ── Polymarket-style crypto 5-min layout ─────────────────────────────────────
+  if (cryptoTicker && cryptoTargetPrice && autoResolveAt) {
+    const isAbove = (cryptoPrice ?? 0) > cryptoTargetPrice;
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          {/* Left — title + live chart */}
+          <div className="flex-1 min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <CategoryPill category={market.category} />
+              <MarketStatusBadge status={market.status} />
+            </div>
+            <h1 className="font-display text-xl font-bold text-text-primary md:text-2xl mb-4">
+              {market.title}
+            </h1>
+
+            {/* Live chart */}
+            <div className="rounded-xl border border-border-subtle bg-surface p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-muted">Live Price Chart</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+              </div>
+              <CryptoRealTimeChart
+                ticker={cryptoTicker}
+                targetPrice={cryptoTargetPrice}
+                onPriceUpdate={handleCryptoPriceUpdate}
+              />
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="rounded-xl border border-border-subtle bg-surface p-3 text-center">
+                <p className="text-xs text-text-muted mb-1">Volume</p>
+                <p className="font-mono text-base font-semibold text-text-primary">
+                  {formatCompactCurrency(market.total_volume ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border-subtle bg-surface p-3 text-center">
+                <p className="text-xs text-text-muted mb-1">Liquidity</p>
+                <p className="font-mono text-base font-semibold text-text-primary">
+                  {formatCompactCurrency(market.liquidity ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border-subtle bg-surface p-3 text-center">
+                <p className="text-xs text-text-muted mb-1">Target</p>
+                <p className="font-mono text-base font-semibold text-text-primary">
+                  ${cryptoTargetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            </div>
+
+            <MarketTabs marketId={market.id} comments={comments} creator={creator} />
+          </div>
+
+          {/* Right — live price + trade panel */}
+          <div className="w-full lg:w-80 shrink-0">
+            <div className="sticky top-20 space-y-4">
+              {/* Live price card */}
+              <div className="rounded-xl border border-border-subtle bg-surface p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                      {cryptoTicker} / USD
+                    </span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
+                  </div>
+                  {cryptoTimeLeft && (
+                    <span className="font-mono text-sm font-bold text-text-muted">{cryptoTimeLeft}</span>
+                  )}
+                </div>
+
+                <div className={`font-mono text-4xl font-bold transition-colors duration-300 mb-3 ${
+                  cryptoPriceChange === 'up' ? 'text-yes' :
+                  cryptoPriceChange === 'down' ? 'text-no' : 'text-text-primary'
+                }`}>
+                  {cryptoPrice
+                    ? `$${cryptoPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : <span className="animate-pulse text-text-muted text-2xl">Loading…</span>}
+                </div>
+
+                {cryptoPrice && (
+                  <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold ${
+                    isAbove ? 'bg-yes/15 text-yes' : 'bg-no/15 text-no'
+                  }`}>
+                    {isAbove ? '▲' : '▼'} {isAbove ? 'ABOVE' : 'BELOW'} TARGET
+                  </div>
+                )}
+
+                <div className="mt-3 text-xs text-text-muted">
+                  Target: <span className="font-mono font-medium text-text-primary">
+                    ${cryptoTargetPrice.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                {cryptoPrice && (
+                  <div className="mt-1 text-xs text-text-muted">
+                    Diff:{' '}
+                    <span className={`font-mono font-medium ${isAbove ? 'text-yes' : 'text-no'}`}>
+                      {isAbove ? '+' : ''}{((cryptoPrice - cryptoTargetPrice) / cryptoTargetPrice * 100).toFixed(3)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {market.status === 'open' && (
+                <TradeTicket
+                  market={market}
+                  feeConfig={feeConfig}
+                  onTradeComplete={refreshBalance}
+                  selectedOutcome={null}
+                />
+              )}
+
+              <div className="flex items-center justify-center gap-3">
+                <WatchlistButton entityType="market" entityId={market.id} />
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors border border-border rounded-lg px-3 py-1.5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  Share
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors border border-border rounded-lg px-3 py-1.5"
+                >
+                  {copied ? '✓ Copied' : '🔗 Copy Link'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
@@ -363,15 +534,6 @@ export function MarketDetailClient({
         {/* Right column (35%) — sticky trading panel */}
         <div className="w-full lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
-            {/* Live price bar for 5-min crypto markets */}
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {(market as any).crypto_ticker && (market as any).auto_resolve_at && (
-              <CryptoLivePriceBar
-                ticker={(market as any).crypto_ticker}
-                targetPrice={(market as any).crypto_target_price ?? 0}
-                resolvesAt={(market as any).auto_resolve_at}
-              />
-            )}
             {market.status === "open" && (
               <TradeTicket market={market} feeConfig={feeConfig} onTradeComplete={refreshBalance} selectedOutcome={selectedOutcome} />
             )}
