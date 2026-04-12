@@ -5,6 +5,72 @@ import { useRouter } from "next/navigation";
 import type { Market } from "@/types";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
+// ── Deterministic sparkline ───────────────────────────────────────────────────
+// Generates a unique but stable mini chart path from a market id + yes_price.
+// No fetches, no random(), same output on every render.
+
+function idHash(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function buildSparklinePath(id: string, yesPrice: number, w: number, h: number): string {
+  const seed = idHash(id);
+  const points = 10;
+  const endY = 1 - yesPrice; // SVG y is inverted
+
+  // Generate waypoints that end exactly at yesPrice
+  const ys: number[] = [];
+  for (let i = 0; i < points - 1; i++) {
+    // Pseudo-random perturbation from seed
+    const r = ((seed * (i + 7) * 2654435761) >>> 0) / 0xffffffff;
+    const center = endY + (0.5 - endY) * (1 - i / points); // drift toward final price
+    ys.push(Math.max(0.05, Math.min(0.95, center + (r - 0.5) * 0.35)));
+  }
+  ys.push(endY);
+
+  // Build smooth SVG path
+  const coords = ys.map((y, i) => ({
+    x: (i / (points - 1)) * w,
+    y: y * h,
+  }));
+
+  let d = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
+  for (let i = 1; i < coords.length; i++) {
+    const prev = coords[i - 1];
+    const cur = coords[i];
+    const cp1x = prev.x + (cur.x - prev.x) * 0.5;
+    const cp1y = prev.y;
+    const cp2x = prev.x + (cur.x - prev.x) * 0.5;
+    const cp2y = cur.y;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${cur.x.toFixed(1)} ${cur.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function MiniSparkline({ market }: { market: Market }) {
+  const w = 60;
+  const h = 28;
+  const yesPrice = market.yes_price ?? 0.5;
+  const isYes = yesPrice >= 0.5;
+  const color = isYes ? "#22c55e" : "#ef4444";
+  const path = buildSparklinePath(market.id, yesPrice, w, h);
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
+      <path d={path} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.7} />
+      {/* End dot */}
+      <circle
+        cx={w}
+        cy={(1 - yesPrice) * h}
+        r={2.5}
+        fill={color}
+      />
+    </svg>
+  );
+}
+
 type MarketCardProps = {
   market: Market;
 };
@@ -73,7 +139,7 @@ export function MarketCard({ market }: MarketCardProps) {
 
         {/* Probability bar */}
         <div
-          className="mb-4 h-1.5 w-full rounded-full"
+          className="mb-3 h-1.5 w-full rounded-full"
           style={{ background: "var(--border-subtle)" }}
         >
           <div
@@ -82,7 +148,7 @@ export function MarketCard({ market }: MarketCardProps) {
           />
         </div>
 
-        {/* Bottom row: large probability + volume */}
+        {/* Bottom row: large probability + sparkline */}
         <div className="flex items-end justify-between">
           <div className="flex items-baseline gap-1.5">
             <span
@@ -94,9 +160,10 @@ export function MarketCard({ market }: MarketCardProps) {
               {isYesLeading ? "YES" : "NO"}
             </span>
           </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-sm font-medium tabular-nums text-[var(--text-tertiary)]">
-              {formatCompactCurrency(market.total_volume ?? 0)} Vol
+          <div className="flex flex-col items-end gap-1">
+            <MiniSparkline market={market} />
+            <span className="text-[10px] tabular-nums text-[var(--text-tertiary)]">
+              {formatCompactCurrency(market.total_volume ?? 0)} vol
             </span>
           </div>
         </div>

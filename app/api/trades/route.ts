@@ -209,6 +209,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Record price history snapshot (fire-and-forget)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    void (supabase as any).from("market_price_history").insert({
+      market_id: marketId,
+      yes_price: quote.newYesPrice,
+      no_price: quote.newNoPrice,
+      total_volume: (market.total_volume ?? 0) + amount,
+    });
+
     // Insert trade
     const { data: trade, error: tradeError } = await supabase
       .from("trades")

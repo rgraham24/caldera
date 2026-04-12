@@ -7,6 +7,7 @@ import type { Market, CommentWithUser, Creator, MarketOutcome } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
 import { MarketChart } from "@/components/markets/MarketChart";
+import { PriceChart } from "@/components/markets/PriceChart";
 import { TradeTicket } from "@/components/markets/TradeTicket";
 import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
@@ -252,7 +253,11 @@ export function MarketDetailClient({
           {/* Chart */}
           {!isResolved && (
             <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
-              <MarketChart yesPrice={market.yes_price ?? 0} />
+              <PriceChart
+                marketId={market.id}
+                currentYesPrice={market.yes_price ?? 0.5}
+                currentNoPrice={market.no_price ?? 0.5}
+              />
             </div>
           )}
 
