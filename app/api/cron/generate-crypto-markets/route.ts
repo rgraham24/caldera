@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 const COINS = [
   { id: "bitcoin", ticker: "BTC", slug: "bitcoin" },
+  { id: "ethereum", ticker: "ETH", slug: "caldera-eth" },
   { id: "solana", ticker: "SOL", slug: "solana" },
   { id: "chainlink", ticker: "LINK", slug: "chainlink" },
   { id: "matic-network", ticker: "MATIC", slug: "polygon" },

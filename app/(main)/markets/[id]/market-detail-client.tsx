@@ -13,6 +13,7 @@ import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
 import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer";
+import { CryptoLivePriceBar } from "@/components/markets/CryptoLivePriceBar";
 import {
   formatCompactCurrency,
   formatRelativeTime,
@@ -362,6 +363,15 @@ export function MarketDetailClient({
         {/* Right column (35%) — sticky trading panel */}
         <div className="w-full lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
+            {/* Live price bar for 5-min crypto markets */}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(market as any).crypto_ticker && (market as any).auto_resolve_at && (
+              <CryptoLivePriceBar
+                ticker={(market as any).crypto_ticker}
+                targetPrice={(market as any).crypto_target_price ?? 0}
+                resolvesAt={(market as any).auto_resolve_at}
+              />
+            )}
             {market.status === "open" && (
               <TradeTicket market={market} feeConfig={feeConfig} onTradeComplete={refreshBalance} selectedOutcome={selectedOutcome} />
             )}
