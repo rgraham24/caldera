@@ -31,11 +31,11 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: creatorsData } = await (supabase as any)
       .from("creators")
-      .select("slug, name, is_reserved, is_caldera_verified")
+      .select("slug, name, deso_is_reserved, is_caldera_verified")
       .in("slug", creatorSlugs);
     for (const c of creatorsData ?? []) {
       creatorNameMap.set(c.slug, c.name);
-      if (c.is_reserved) creatorReservedMap.set(c.slug, true);
+      if (c.deso_is_reserved) creatorReservedMap.set(c.slug, true);
       if (c.is_caldera_verified) creatorCalderaVerifiedMap.set(c.slug, true);
     }
   }

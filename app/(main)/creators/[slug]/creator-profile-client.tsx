@@ -235,7 +235,7 @@ export function CreatorProfileClient({
                   {creator.name}
                 </h1>
                 <VerificationBadge
-                  isReserved={creator.is_reserved ?? false}
+                  isReserved={creator.deso_is_reserved ?? false}
                   isCalderaVerified={creator.is_caldera_verified ?? false}
                 />
               </div>

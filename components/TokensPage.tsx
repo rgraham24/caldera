@@ -203,7 +203,7 @@ export default function TokensPage() {
                           {c.category === "Crypto" ? `${c.name} Markets` : c.name}
                         </p>
                         <VerificationBadge
-                          isReserved={c.is_reserved ?? false}
+                          isReserved={c.deso_is_reserved ?? false}
                           isCalderaVerified={c.is_caldera_verified ?? false}
                         />
                       </div>
