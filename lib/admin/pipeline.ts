@@ -716,6 +716,61 @@ function extractHandle(text: string, fallback: string): string {
   return fallback;
 }
 
+// ─── Social handle lookup via Brave Search ────────────────────────────────────
+
+async function lookupSocialHandle(
+  entityName: string,
+  braveApiKey: string
+): Promise<{ handle: string; platform: 'twitter' | 'instagram' } | null> {
+  try {
+    const query = encodeURIComponent(`${entityName} twitter OR instagram handle site:twitter.com OR site:instagram.com OR "@${entityName.split(' ')[0]}"`);
+    const res = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?q=${query}&count=5`,
+      { headers: { 'X-Subscription-Token': braveApiKey, 'Accept': 'application/json' } }
+    );
+    const data = await res.json();
+    const results: Array<{ url?: string; description?: string }> = data?.web?.results ?? [];
+
+    const twitterHandles: string[] = [];
+    const instaHandles: string[] = [];
+
+    for (const r of results) {
+      const twitterMatch = r.url?.match(/twitter\.com\/([A-Za-z0-9_]{1,50})/)?.[1]
+        || r.url?.match(/x\.com\/([A-Za-z0-9_]{1,50})/)?.[1];
+      if (twitterMatch && !['search', 'home', 'hashtag', 'i'].includes(twitterMatch)) {
+        twitterHandles.push(twitterMatch.toLowerCase());
+      }
+
+      const instaMatch = r.url?.match(/instagram\.com\/([A-Za-z0-9_.]{1,50})/)?.[1];
+      if (instaMatch && !['p', 'explore', 'accounts', 'reels'].includes(instaMatch)) {
+        instaHandles.push(instaMatch.toLowerCase());
+      }
+
+      const mentionMatches = (r.description ?? '').match(/@([A-Za-z0-9_]{3,50})/g) ?? [];
+      for (const m of mentionMatches) {
+        twitterHandles.push(m.replace('@', '').toLowerCase());
+      }
+    }
+
+    const countMap = new Map<string, number>();
+    for (const h of twitterHandles) {
+      countMap.set(h, (countMap.get(h) ?? 0) + 1);
+    }
+    const topHandle = [...countMap.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (topHandle && topHandle[1] >= 1) {
+      return { handle: topHandle[0], platform: 'twitter' };
+    }
+
+    if (instaHandles.length > 0) {
+      return { handle: instaHandles[0], platform: 'instagram' };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Entity enrichment ───────────────────────────────────────────────────────
 // Classifies entity type via Claude Haiku and checks for existing reserved profiles.
 // Returns null on error; returns { skip: true } for events/ambiguous entities.
@@ -787,31 +842,48 @@ For persons/orgs from other sources, infer the most likely Twitter handle from y
       return { type: classification.type as 'event' | 'ambiguous', skip: true };
     }
 
-    const handle = (classification.twitterHandle ?? entity.platformHandle ?? '')
-      .replace('@', '').toLowerCase().trim();
+    // Step 2: Look up real social handle via Brave Search
+    const braveApiKey = process.env.BRAVE_API_KEY ?? '';
+    const socialHandle = braveApiKey
+      ? await lookupSocialHandle(entity.name, braveApiKey)
+      : null;
 
-    if (handle) {
-      const { data: existing } = await supabase
-        .from('creators')
-        .select('id, slug, token_status')
-        .eq('deso_username', handle)
-        .in('token_status', ['active_unverified', 'active_verified'])
-        .maybeSingle();
+    // Prefer: platform handle (Kick/Twitch) → Brave search → Claude's guess
+    const handle = (
+      entity.platformHandle?.toLowerCase() ??
+      socialHandle?.handle ??
+      classification.twitterHandle?.replace('@', '').toLowerCase()
+    )?.trim();
 
-      if (existing) {
-        console.log(`[enrich] MATCHED "${entity.name}" → existing reserved profile: ${existing.slug}`);
-        return {
-          type: classification.type as 'person' | 'org',
-          twitterHandle: handle,
-          existingCreatorId: existing.id as string,
-          skip: false,
-        };
-      }
+    if (!handle || handle.length < 2) {
+      console.log(`[enrich] No handle found for "${entity.name}" — skipping`);
+      return { type: classification.type as 'person' | 'org', skip: true };
+    }
+
+    console.log(`[enrich] Handle for "${entity.name}": @${handle} (source: ${
+      entity.platformHandle ? 'platform' : socialHandle ? `brave/${socialHandle.platform}` : 'claude'
+    })`);
+
+    const { data: existing } = await supabase
+      .from('creators')
+      .select('id, slug, token_status')
+      .eq('deso_username', handle)
+      .in('token_status', ['active_unverified', 'active_verified'])
+      .maybeSingle();
+
+    if (existing) {
+      console.log(`[enrich] MATCHED "${entity.name}" → existing reserved profile: ${existing.slug}`);
+      return {
+        type: classification.type as 'person' | 'org',
+        twitterHandle: handle,
+        existingCreatorId: existing.id as string,
+        skip: false,
+      };
     }
 
     return {
       type: classification.type as 'person' | 'org',
-      twitterHandle: handle || undefined,
+      twitterHandle: handle,
       skip: false,
     };
   } catch (err) {
