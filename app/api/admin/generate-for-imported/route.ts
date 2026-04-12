@@ -4,7 +4,7 @@ import { generateMarketsForImportedCreators, bulkGenerateAndInsert } from "@/lib
 
 export async function POST(req: Request) {
   const adminPassword = process.env.ADMIN_PASSWORD;
-  const { password, limit = 20, creatorSlug } = await req.json().catch(() => ({}));
+  const { password, limit = 20, creatorSlug, marketsPerCreator = 1 } = await req.json().catch(() => ({}));
   if (adminPassword && password !== adminPassword) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -22,7 +22,11 @@ export async function POST(req: Request) {
     if (error || !creator) {
       return NextResponse.json({ error: `Creator not found: ${creatorSlug}` }, { status: 404 });
     }
-    const created = await bulkGenerateAndInsert([creator.name], apiKey, supabase);
+    let created = 0;
+    const iterations = Math.min(Math.max(1, marketsPerCreator), 10);
+    for (let i = 0; i < iterations; i++) {
+      created += await bulkGenerateAndInsert([creator.name], apiKey, supabase);
+    }
     // Refresh markets_count for this creator
     try {
       const { count } = await supabase
