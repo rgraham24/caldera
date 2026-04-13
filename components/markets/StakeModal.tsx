@@ -210,151 +210,107 @@ export function StakeModal({
 
         {/* Success state */}
         {txHash ? (
-          <div className="text-center py-6">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yes/10">
-              <Check className="h-6 w-6 text-yes" />
+          <div className="py-2">
+            <div className="text-center mb-5">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-yes/10 ring-4 ring-yes/20">
+                <Check className="h-7 w-7 text-yes" />
+              </div>
+              <p className="text-xl font-bold text-text-primary">
+                You&apos;re in! 🔥
+              </p>
+              <p className="mt-1 text-sm text-text-muted">
+                You now hold <span className="font-semibold text-caldera">${coinSymbol}</span>
+              </p>
             </div>
-            <p className="text-lg font-semibold text-text-primary">
-              Purchase confirmed
-            </p>
-            <p className="mt-1 text-sm text-text-muted">
-              {creator.name} coins {tab === "buy" ? "purchased" : "sold"}
-            </p>
-            <p className="mt-3 font-mono text-xs text-text-muted break-all">
-              Tx: {txHash.slice(0, 16)}...
-            </p>
+
+            <div className="mb-4 rounded-2xl border border-caldera/20 bg-caldera/5 p-4">
+              <div className="grid grid-cols-3 divide-x divide-caldera/10 text-center">
+                <div className="px-2">
+                  <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">You paid</p>
+                  <p className="text-sm font-bold font-mono text-text-primary">{formatCurrency(amountNum)}</p>
+                </div>
+                <div className="px-2">
+                  <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Mkt Cap</p>
+                  <p className="text-sm font-bold font-mono text-text-primary">
+                    {(() => {
+                      const mc = creator.creator_coin_market_cap;
+                      if (mc && mc > 0) {
+                        if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(1)}M`;
+                        if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
+                        return `$${mc.toFixed(0)}`;
+                      }
+                      return "—";
+                    })()}
+                  </p>
+                </div>
+                <div className="px-2">
+                  <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1">Markets</p>
+                  <p className="text-sm font-bold font-mono text-yes">
+                    {creator.markets_count ?? 0} active
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-xl bg-surface p-3 space-y-2">
+              <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What happens now</p>
+              <div className="flex items-start gap-2 text-xs text-text-muted">
+                <span className="text-orange-400 shrink-0">🔥</span>
+                <span>1% of every prediction trade on {creator.name}&apos;s markets auto-buys &amp; burns ${coinSymbol}</span>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-text-muted">
+                <span className="text-caldera shrink-0">📈</span>
+                <span>As supply decreases, scarcity increases — early holders benefit most</span>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-text-muted">
+                <span className="text-yes shrink-0">🏆</span>
+                <span>You now appear on the True Believers leaderboard on {creator.name}&apos;s profile</span>
+              </div>
+            </div>
+
             <a
               href={`https://explorer.deso.org/?transaction-id=${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1 text-xs text-caldera hover:text-caldera/80"
+              className="mb-4 flex items-center justify-center gap-1 text-[10px] text-text-faint hover:text-text-muted"
             >
-              View on DeSo Explorer
               <ExternalLink className="h-3 w-3" />
+              Tx: {txHash.slice(0, 20)}...
             </a>
+
             <Button
               variant="outline"
-              className="mt-4 w-full border-border-subtle text-text-primary hover:bg-surface"
+              className="w-full mb-2 border-border-subtle text-text-primary hover:bg-surface"
               onClick={async () => {
+                const shareText = `I just bought $${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\ncaldera.market/creators/${creator.slug}`;
+                const shareUrl = `https://caldera.market/creators/${creator.slug}`;
                 try {
-                  // Generate fan card as image using canvas
-                  const canvas = document.createElement("canvas");
-                  canvas.width = 1080;
-                  canvas.height = 1920;
-                  const ctx = canvas.getContext("2d")!;
-
-                  // Background
-                  ctx.fillStyle = "#0a0a0f";
-                  ctx.fillRect(0, 0, 1080, 1920);
-
-                  // Card background
-                  ctx.fillStyle = "#111118";
-                  ctx.roundRect(80, 600, 920, 720, 32);
-                  ctx.fill();
-
-                  // Card border
-                  ctx.strokeStyle = "#ffffff1a";
-                  ctx.lineWidth = 1;
-                  ctx.roundRect(80, 600, 920, 720, 32);
-                  ctx.stroke();
-
-                  // Accent line top
-                  ctx.fillStyle = "#6366f1";
-                  ctx.fillRect(80, 600, 920, 3);
-
-                  // Creator name
-                  ctx.fillStyle = "#f0f0f5";
-                  ctx.font = "bold 72px -apple-system, sans-serif";
-                  ctx.textAlign = "center";
-                  ctx.fillText(creator.name, 540, 760);
-
-                  // Symbol
-                  ctx.fillStyle = "#8888a0";
-                  ctx.font = "40px -apple-system, sans-serif";
-                  ctx.fillText(`$${coinSymbol} · ${formatCurrency(coinPrice)} per coin`, 540, 820);
-
-                  // Divider
-                  ctx.fillStyle = "#ffffff0f";
-                  ctx.fillRect(120, 860, 840, 1);
-
-                  // Stats
-                  ctx.fillStyle = "#55556a";
-                  ctx.font = "28px -apple-system, sans-serif";
-                  ctx.textAlign = "left";
-                  ctx.fillText("I INVESTED", 160, 930);
-                  ctx.textAlign = "right";
-                  ctx.fillText("I EARN FEES FROM", 920, 930);
-
-                  ctx.fillStyle = "#f0f0f5";
-                  ctx.font = "bold 64px -apple-system, sans-serif";
-                  ctx.textAlign = "left";
-                  ctx.fillText(formatCurrency(amountNum), 160, 1010);
-                  ctx.textAlign = "right";
-                  ctx.fillText(`${creator.markets_count ?? 0} markets`, 920, 1010);
-
-                  // Tagline
-                  ctx.fillStyle = "#8888a0";
-                  ctx.font = "36px -apple-system, sans-serif";
-                  ctx.textAlign = "center";
-                  ctx.fillText(`Earn passive income from every prediction`, 540, 1100);
-                  ctx.fillStyle = "#f0f0f5";
-                  ctx.font = "bold 36px -apple-system, sans-serif";
-                  ctx.fillText(`about ${creator.name}`, 540, 1150);
-
-                  // Bottom branding
-                  ctx.fillStyle = "#6366f1";
-                  ctx.font = "bold 48px -apple-system, sans-serif";
-                  ctx.textAlign = "center";
-                  ctx.fillText("CALDERA", 540, 1400);
-                  ctx.fillStyle = "#55556a";
-                  ctx.font = "32px -apple-system, sans-serif";
-                  ctx.fillText("caldera.market", 540, 1460);
-
-                  const shareText = `I just bought $${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\ncaldera.market/creators/${creator.slug}`;
-                  const shareUrl = `https://caldera.market/creators/${creator.slug}`;
-
-                  // Try native share with image (works for Instagram Stories on mobile)
-                  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
-                    canvas.toBlob(async (blob) => {
-                      if (!blob) return;
-                      const file = new File([blob], `caldera-${creator.slug}.png`, { type: "image/png" });
-                      const shareData = {
-                        title: `I bought $${coinSymbol} on Caldera`,
-                        text: shareText,
-                        url: shareUrl,
-                        files: [file],
-                      };
-                      if (navigator.canShare(shareData)) {
-                        try {
-                          await navigator.share(shareData);
-                          return;
-                        } catch {
-                          // User cancelled or error — fall through
-                        }
-                      }
-                      // Fallback: share without file
-                      try {
-                        await navigator.share({ title: `I bought $${coinSymbol} on Caldera`, text: shareText, url: shareUrl });
-                      } catch {
-                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
-                      }
-                    }, "image/png");
+                  if (typeof navigator !== "undefined" && navigator.share) {
+                    await navigator.share({
+                      title: `I bought $${coinSymbol} on Caldera`,
+                      text: shareText,
+                      url: shareUrl,
+                    });
                   } else {
-                    // Desktop: open tweet
-                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+                    window.open(
+                      `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`,
+                      "_blank"
+                    );
                   }
                 } catch {
-                  // Ultimate fallback
-                  const shareText = `I just bought $${coinSymbol} on Caldera 🔥\n\ncaldera.market/creators/${creator.slug}`;
-                  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+                  window.open(
+                    `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`,
+                    "_blank"
+                  );
                 }
               }}
             >
-              Share
+              🐦 Share on X
             </Button>
+
             <Button
               onClick={onClose}
-              className="mt-3 w-full bg-caldera text-background font-semibold hover:bg-caldera/90"
+              className="w-full bg-caldera text-background font-semibold hover:bg-caldera/90"
             >
               Done
             </Button>
