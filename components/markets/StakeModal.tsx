@@ -132,6 +132,7 @@ export function StakeModal({
             desoPriceAtPurchase: desoPrice,
             txHash: result?.txnHash ?? "",
             buyerPublicKey: desoPublicKey ?? "",
+            buyerUsername: null,
           }),
         }).catch(() => {});
       } else {
