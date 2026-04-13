@@ -833,6 +833,8 @@ export function HomeClient({
             </div>
           </div>
         )}
+        {/* HOT TOPICS STRIP — right below hero */}
+        <HotTopicsStrip activeFilter={activeFilter} onSelect={(slug) => { setActiveFilter(slug); setOffset(0); }} />
       </div>
 
       {/* 3. Token strip */}
@@ -973,9 +975,6 @@ export function HomeClient({
             </div>
           </div>
         )}
-
-        {/* HOT TOPICS STRIP */}
-        <HotTopicsStrip activeFilter={activeFilter} onSelect={(slug) => { setActiveFilter(slug); setOffset(0); }} />
 
         {/* ALL MARKETS */}
         <div ref={marketsRef} className="mb-4">
