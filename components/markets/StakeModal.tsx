@@ -125,11 +125,13 @@ export function StakeModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             creatorId: creator.id,
+            creatorSlug: creator.slug,
             desoUsername: desoUsername,
             coinsPurchased: estimatedCoins,
             pricePerCoinUsd: coinPrice,
             desoPriceAtPurchase: desoPrice,
             txHash: result?.txnHash ?? "",
+            buyerPublicKey: desoPublicKey ?? "",
           }),
         }).catch(() => {});
       } else {
