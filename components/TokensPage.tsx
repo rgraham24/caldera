@@ -46,8 +46,8 @@ export default function TokensPage() {
       .then((r) => r.json())
       .then(({ data }) => {
         const all: Creator[] = Array.isArray(data) ? data : [];
-        setCategoryTokens(all.filter((c) => (c as any).entity_type === 'category'));
-        setCreators(all.filter((c) => (c as any).entity_type !== 'category'));
+        setCategoryTokens(all.filter((c) => c.entity_type === 'category'));
+        setCreators(all.filter((c) => c.entity_type !== 'category'));
       })
       .catch(() => setCreators([]))
       .finally(() => setLoading(false));
