@@ -7,7 +7,12 @@ export type Creator = Database["public"]["Tables"]["creators"]["Row"] & {
   deso_is_reserved?: boolean | null;  // Tier 1 — DeSo reserved profile (gold badge)
   is_caldera_verified?: boolean | null; // Tier 2 — manually verified by Caldera (blue badge)
 };
-export type Market = Database["public"]["Tables"]["markets"]["Row"];
+export type Market = Database["public"]["Tables"]["markets"]["Row"] & {
+  crypto_ticker?: string | null;
+  crypto_target_price?: number | null;
+  auto_resolve_at?: string | null;
+  category_token_slug?: string | null;
+};
 export type Position = Database["public"]["Tables"]["positions"]["Row"];
 export type Trade = Database["public"]["Tables"]["trades"]["Row"];
 export type MarketComment = Database["public"]["Tables"]["market_comments"]["Row"];

@@ -28,6 +28,20 @@ type MarketDetailClientProps = {
   creator: Creator | null;
 };
 
+function getCategoryTokenDisplay(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
+  if (cryptoTicker && creatorSlug) return `$${creatorSlug}`;
+  const map: Record<string, string> = {
+    Sports: '$caldera-sports',
+    Music: '$caldera-music',
+    Politics: '$caldera-politics',
+    Entertainment: '$caldera-entertainment',
+    Companies: '$caldera-companies',
+    Climate: '$caldera-climate',
+    Tech: '$caldera-tech',
+  };
+  return map[category] || '$caldera-creators';
+}
+
 export function MarketDetailClient({
   market,
   comments,
@@ -222,16 +236,20 @@ export function MarketDetailClient({
                 />
               )}
 
-              {market.creator_slug && (
-                <div className="text-center">
-                  <a
-                    href={`/creators/${market.creator_slug}`}
-                    className="text-xs text-[var(--accent)] hover:underline"
-                  >
-                    View ${market.creator_slug} token →
-                  </a>
-                </div>
-              )}
+              {(() => {
+                const burnToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
+                const burnSlug = burnToken.replace('$', '');
+                return (
+                  <div className="text-center">
+                    <a
+                      href={`/creators/${burnSlug}`}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      View {burnToken} token →
+                    </a>
+                  </div>
+                );
+              })()}
 
               <div className="flex items-center justify-center gap-3">
                 <WatchlistButton entityType="market" entityId={market.id} />

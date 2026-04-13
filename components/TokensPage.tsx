@@ -31,6 +31,7 @@ const SORTS = [
 
 export default function TokensPage() {
   const [creators, setCreators] = useState<Creator[]>([]);
+  const [categoryTokens, setCategoryTokens] = useState<Creator[]>([]);
   const [loading, setLoading] = useState(true);
   const [catFilter, setCatFilter] = useState("all");
   const [sortBy, setSortBy] = useState("price");
@@ -43,7 +44,11 @@ export default function TokensPage() {
     setLoading(true);
     fetch("/api/creators/list")
       .then((r) => r.json())
-      .then(({ data }) => setCreators(Array.isArray(data) ? data : []))
+      .then(({ data }) => {
+        const all: Creator[] = Array.isArray(data) ? data : [];
+        setCategoryTokens(all.filter((c) => (c as any).entity_type === 'category'));
+        setCreators(all.filter((c) => (c as any).entity_type !== 'category'));
+      })
       .catch(() => setCreators([]))
       .finally(() => setLoading(false));
   }, []);
@@ -151,6 +156,30 @@ export default function TokensPage() {
           ))}
         </select>
       </div>
+
+      {/* Buy & Burn Category Tokens */}
+      {!loading && categoryTokens.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
+            Buy &amp; Burn Tokens
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {categoryTokens.map((t) => (
+              <Link key={t.slug} href={`/creators/${t.slug}`} className="rounded-xl border border-border-subtle bg-surface p-4 transition-all hover:border-caldera/30 hover:-translate-y-px">
+                <div className="text-base font-bold text-text-primary">
+                  ${t.name.toUpperCase()}
+                </div>
+                <div className="text-xs text-text-muted mt-1 leading-relaxed">
+                  1% of all {t.name.toLowerCase()} markets burned 🔥
+                </div>
+                <div className="text-xs text-caldera mt-2 font-medium">
+                  {t.markets_count || 0} markets
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (

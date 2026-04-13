@@ -508,16 +508,23 @@ type TokenTier = "hard_reserved" | "speculation_pool" | "shadow";
 // If a specific league token exists (e.g. "nba"), it takes priority.
 // These are the fallback league tokens when no specific league is set.
 export const CATEGORY_TOKENS: Record<string, string> = {
-  "Politics": "electionmarkets",
-  "Commentary": "conflictmarkets",
-  "Sports": "sportsmarkets",
-  "Entertainment": "entertainmentmarkets",
-  "Streamers": "viralmarkets",
-  "Viral": "viralmarkets",
-  "Music": "entertainmentmarkets",
-  "Tech": "cryptomarkets1",
-  "Crypto": "cryptomarkets1",
+  "Sports": "caldera-sports",
+  "Music": "caldera-music",
+  "Politics": "caldera-politics",
+  "Entertainment": "caldera-entertainment",
+  "Companies": "caldera-companies",
+  "Climate": "caldera-climate",
+  "Tech": "caldera-tech",
+  "Commentary": "caldera-creators",
+  "Streamers": "caldera-creators",
+  "Viral": "caldera-creators",
+  "Crypto": "caldera-creators",
 };
+
+function getCategoryToken(category: string, cryptoTicker?: string | null): string {
+  if (cryptoTicker) return '';
+  return CATEGORY_TOKENS[category] || 'caldera-creators';
+}
 
 // The category token DeSo usernames to import as active_verified
 export const CATEGORY_TOKEN_PROFILES = [
@@ -1523,6 +1530,7 @@ async function insertMarkets(
     if (allowedCreatorSlug) row.creator_slug = allowedCreatorSlug;
     if (teamSlug) row.team_creator_slug = teamSlug;
     if (effectiveLeagueSlug) row.league_creator_slug = effectiveLeagueSlug;
+    row.category_token_slug = getCategoryToken(market.category);
     const { error } = await supabase.from("markets").insert(row);
     if (!error) created++;
   }
@@ -2057,6 +2065,7 @@ export async function insertCategoricalMarket(
       yes_pool: 500,
       no_pool: 500,
       total_volume: 0,
+      category_token_slug: getCategoryToken(market.category),
     })
     .select()
     .single();
