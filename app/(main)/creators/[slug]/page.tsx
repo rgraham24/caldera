@@ -66,6 +66,16 @@ export default async function CreatorProfilePage({
         .limit(10)
     : { data: [] };
 
+  // Hide completely empty shadow profiles — no markets and no DeSo username
+  if (
+    creator &&
+    (creator.token_status === "shadow" || !creator.token_status) &&
+    !creator.deso_username &&
+    (!markets || markets.length === 0)
+  ) {
+    notFound();
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
   const claimUrl = claimRow?.code ? `${appUrl}/claim/${claimRow.code}` : null;
 
