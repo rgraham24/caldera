@@ -8,9 +8,9 @@ import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
 type DurationTab = "all" | "5min" | "1hr" | "daily";
 
-function classifyMarket(m: Market): DurationTab {
-  if (!m.resolve_at) return "all";
-  const minsLeft = (new Date(m.resolve_at).getTime() - Date.now()) / 60_000;
+function classifyMarket(m: Market, nowMs: number): DurationTab {
+  if (!m.resolve_at) return "daily";
+  const minsLeft = (new Date(m.resolve_at).getTime() - nowMs) / 60_000;
   if (minsLeft <= 10)  return "5min";
   if (minsLeft <= 180) return "1hr";
   return "daily";
@@ -47,18 +47,13 @@ export default function CryptoPage() {
 
   const filtered = useMemo(() => {
     if (tab === "all") return markets;
-    return markets.filter((m) => classifyMarket(m) === tab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return markets.filter((m) => classifyMarket(m, now) === tab);
   }, [markets, tab, now]);
 
   const counts = useMemo(() => {
     const c: Record<DurationTab, number> = { all: markets.length, "5min": 0, "1hr": 0, daily: 0 };
-    for (const m of markets) {
-      const d = classifyMarket(m);
-      if (d !== "all") c[d]++;
-    }
+    for (const m of markets) c[classifyMarket(m, now)]++;
     return c;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markets, now]);
 
   return (
@@ -140,9 +135,10 @@ function CryptoMarketCard({
   const yes = Math.round((market.yes_price ?? 0.5) * 100);
   const no = 100 - yes;
   const vol = market.total_volume ?? 0;
-  const duration = classifyMarket(market);
+  const nowMs = Date.now();
+  const duration = classifyMarket(market, nowMs);
   const minsLeft = market.resolve_at
-    ? Math.max(0, Math.ceil((new Date(market.resolve_at).getTime() - Date.now()) / 60_000))
+    ? Math.max(0, Math.ceil((new Date(market.resolve_at).getTime() - nowMs) / 60_000))
     : null;
 
   const durationBadge =
