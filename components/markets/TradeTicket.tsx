@@ -158,7 +158,7 @@ export function TradeTicket({
     : market.yes_price ?? 0;
   const noPrice = isCategorical && selectedOutcome
     ? 1 - selectedOutcome.probability
-    : market.no_price ?? 0;
+    : 1 - yesPrice;
 
   return (
     <>

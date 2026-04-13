@@ -353,11 +353,13 @@ export function MarketDetailClient({
                 creator={creator}
                 creatorFeePercent={parseFloat(feeConfig.creator_market_creator_fee || "0.01")}
               />
-              <div className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
-                <span className="text-xs text-caldera font-medium">
-                  Active holders: {(creator.creator_coin_holders ?? 0).toLocaleString()}
-                </span>
-              </div>
+              {(creator.creator_coin_holders ?? 0) > 0 && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
+                  <span className="text-xs text-caldera font-medium">
+                    Active holders: {(creator.creator_coin_holders ?? 0).toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
