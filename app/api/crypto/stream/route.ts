@@ -27,6 +27,28 @@ export async function GET(req: Request) {
     start(controller) {
       const ws = new WebSocket("wss://ws.kraken.com/v2");
       let frameCount = 0;
+      let lastPrice = 0;
+      let lastBid = 0;
+      let lastAsk = 0;
+
+      // Push last known price every second so the chart dot keeps animating
+      const heartbeat = setInterval(() => {
+        if (lastPrice > 0) {
+          try {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  ticker: resolvedTicker,
+                  price: lastPrice,
+                  bid: lastBid,
+                  ask: lastAsk,
+                  t: Date.now(),
+                })}\n\n`
+              )
+            );
+          } catch { /* stream closed */ }
+        }
+      }, 1000);
 
       ws.on("open", () => {
         console.log(`[crypto-stream] Kraken WS connected for ${resolvedTicker}`);
@@ -47,32 +69,27 @@ export async function GET(req: Request) {
           const price = parseFloat(tick.last);
           if (!price) return;
 
+          lastPrice = price;
+          lastBid = parseFloat(tick.bid) || 0;
+          lastAsk = parseFloat(tick.ask) || 0;
           frameCount++;
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                ticker: resolvedTicker,
-                price,
-                bid: parseFloat(tick.bid),
-                ask: parseFloat(tick.ask),
-                t: Date.now(),
-              })}\n\n`
-            )
-          );
         } catch { /* ignore parse errors */ }
       });
 
       ws.on("error", (err) => {
         console.error(`[crypto-stream] Kraken WS error for ${resolvedTicker}:`, err.message);
+        clearInterval(heartbeat);
         controller.close();
       });
 
       ws.on("close", () => {
         console.log(`[crypto-stream] Kraken WS closed for ${resolvedTicker} after ${frameCount} frames`);
+        clearInterval(heartbeat);
         controller.close();
       });
 
       return () => {
+        clearInterval(heartbeat);
         ws.close();
       };
     },

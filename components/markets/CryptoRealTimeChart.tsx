@@ -32,6 +32,17 @@ export function CryptoRealTimeChart({ ticker, targetPrice, onPriceUpdate }: Prop
     prevPriceRef.current = null;
     prevAboveRef.current = null;
 
+    // Seed chart instantly with REST price before SSE connects
+    fetch(`/api/crypto/prices?ticker=${ticker}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.price) {
+          setData([{ time: new Date(), price: d.price }]);
+          onPriceUpdateRef.current?.(d.price, null);
+        }
+      })
+      .catch(() => {});
+
     const es = new EventSource(`/api/crypto/stream?ticker=${ticker}`);
 
     es.onmessage = (e) => {
