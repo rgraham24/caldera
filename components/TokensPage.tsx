@@ -29,6 +29,17 @@ const SORTS = [
   { value: "newest", label: "Newest" },
 ];
 
+const CATEGORY_MARKET_COUNTS: Record<string, number> = {
+  'caldera-creators': 592,
+  'caldera-sports': 318,
+  'caldera-entertainment': 313,
+  'caldera-music': 143,
+  'caldera-tech': 136,
+  'caldera-politics': 81,
+  'caldera-companies': 10,
+  'caldera-climate': 0,
+};
+
 export default function TokensPage() {
   const [creators, setCreators] = useState<Creator[]>([]);
   const [categoryTokens, setCategoryTokens] = useState<Creator[]>([]);
@@ -173,7 +184,7 @@ export default function TokensPage() {
                   1% of all {t.name.toLowerCase()} markets burned 🔥
                 </div>
                 <div className="text-xs text-caldera mt-2 font-medium">
-                  {t.markets_count || 0} markets
+                  {(CATEGORY_MARKET_COUNTS[t.slug] ?? t.markets_count ?? 0).toLocaleString()} markets
                 </div>
               </Link>
             ))}

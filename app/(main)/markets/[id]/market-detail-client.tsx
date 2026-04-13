@@ -28,18 +28,23 @@ type MarketDetailClientProps = {
   creator: Creator | null;
 };
 
-function getCategoryTokenDisplay(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
-  if (cryptoTicker && creatorSlug) return `$${creatorSlug}`;
+function getCategoryTokenSlug(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
+  if (cryptoTicker && creatorSlug) return creatorSlug;
   const map: Record<string, string> = {
-    Sports: '$caldera-sports',
-    Music: '$caldera-music',
-    Politics: '$caldera-politics',
-    Entertainment: '$caldera-entertainment',
-    Companies: '$caldera-companies',
-    Climate: '$caldera-climate',
-    Tech: '$caldera-tech',
+    Sports: 'caldera-sports',
+    Music: 'caldera-music',
+    Politics: 'caldera-politics',
+    Entertainment: 'caldera-entertainment',
+    Companies: 'caldera-companies',
+    Climate: 'caldera-climate',
+    Tech: 'caldera-tech',
   };
-  return map[category] || '$caldera-creators';
+  return map[category] || 'caldera-creators';
+}
+
+function getCategoryTokenDisplay(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
+  const slug = getCategoryTokenSlug(category, cryptoTicker, creatorSlug);
+  return '$' + slug.replace('caldera-', '').toUpperCase();
 }
 
 export function MarketDetailClient({
@@ -238,7 +243,7 @@ export function MarketDetailClient({
 
               {(() => {
                 const burnToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
-                const burnSlug = burnToken.replace('$', '');
+                const burnSlug = getCategoryTokenSlug(market.category, market.crypto_ticker, market.creator_slug);
                 return (
                   <div className="text-center">
                     <a
