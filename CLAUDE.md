@@ -47,3 +47,33 @@
 3. Market-locked-behind-token mechanic
 4. Sell flow decrements creator_coin_holders
 5. Nader outreach prep
+
+## Supabase Direct Access (use for DB tasks autonomously)
+Claude Code can run Supabase queries directly via Node scripts.
+Pattern to use for any DB operation:
+
+```js
+// Save as /tmp/db-task.mjs, run with: node /tmp/db-task.mjs
+import { createClient } from '@supabase/supabase-js';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// do the thing
+const { data, error } = await supabase.from('markets').select('*').limit(5);
+console.log(data, error);
+```
+
+Valid market statuses: open, closed, resolving, resolved, cancelled
+Never use: archived (not a valid status — check constraint will reject it)
+
+## SQL migrations
+For schema changes, write the SQL and run via:
+node -e "require('dotenv').config({path:'.env.local'}); 
+  const {createClient} = require('@supabase/supabase-js');
+  const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  sb.rpc('exec_sql', {sql: 'YOUR SQL HERE'}).then(console.log)"
