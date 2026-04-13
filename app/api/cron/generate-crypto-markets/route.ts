@@ -115,6 +115,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Seed initial price snapshot for each new market
+  if (data?.length) {
+    const snapshots = (data as { id: string }[]).map((m) => ({
+      market_id: m.id,
+      yes_price: 0.5,
+      no_price: 0.5,
+      total_volume: 0,
+      recorded_at: now.toISOString(),
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: snapErr } = await (supabase as any).from("market_price_history").insert(snapshots);
+    if (snapErr) console.error("[crypto-markets] snapshot seed:", snapErr.message);
+  }
+
   console.log(`[crypto-markets] Created ${data.length} markets`);
   return NextResponse.json({ created: data.length });
 }
