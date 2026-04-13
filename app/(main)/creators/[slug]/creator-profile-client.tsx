@@ -12,6 +12,7 @@ import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { HolderCalculator } from "@/components/shared/HolderCalculator";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
+import { HolderLeaderboard } from "@/components/creators/HolderLeaderboard";
 import { FollowButton } from "@/components/shared/FollowButton";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
@@ -375,6 +376,9 @@ export function CreatorProfileClient({
             )}
           </div>
         )}
+
+        {/* Holder Leaderboard */}
+        <HolderLeaderboard creatorSlug={creator.slug} coinSymbol={coinSymbol || creator.name} />
 
         {/* Active Markets */}
         <div className="mb-8">
