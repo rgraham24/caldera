@@ -11,7 +11,7 @@ type DurationTab = "all" | "5min" | "1hr" | "daily";
 function classifyMarket(m: Market): DurationTab {
   if (!m.resolve_at) return "all";
   const minsLeft = (new Date(m.resolve_at).getTime() - Date.now()) / 60_000;
-  if (minsLeft <= 20)  return "5min";
+  if (minsLeft <= 10)  return "5min";
   if (minsLeft <= 180) return "1hr";
   return "daily";
 }
