@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const category = searchParams.get("category");
   const status = searchParams.get("status") ?? "open";
   const sort = searchParams.get("sort") || "newest";
-  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 500);
   const offset = parseInt(searchParams.get("offset") || "0");
   const desoPublicKey = searchParams.get("desoPublicKey");
   const creatorSlug = searchParams.get("creatorSlug");
@@ -97,7 +97,22 @@ export async function GET(req: NextRequest) {
       query = query.order("created_at", { ascending: false });
   }
 
-  const { data, error } = await query.range(offset, offset + limit - 1);
+  // Run data fetch and total count in parallel.
+  // Count query mirrors the same status + category filters without ordering.
+  let countQuery = supabase
+    .from("markets")
+    .select("id", { count: "exact", head: true })
+    .eq("status", status);
+  if (category && category !== "all") countQuery = countQuery.ilike("category", category);
+  if (sort === "breaking") {
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    countQuery = countQuery.gte("created_at", fortyEightHoursAgo);
+  }
+
+  const [{ data, error }, { count: total }] = await Promise.all([
+    query.range(offset, offset + limit - 1),
+    countQuery,
+  ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -109,7 +124,7 @@ export async function GET(req: NextRequest) {
     is_breaking: (m.created_at ?? "") > twoHoursAgo && (m.trending_score ?? 0) > 20,
   }));
 
-  return NextResponse.json({ data: enriched });
+  return NextResponse.json({ data: enriched, total: total ?? enriched.length });
 }
 
 const createMarketSchema = z.object({

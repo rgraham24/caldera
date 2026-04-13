@@ -19,6 +19,7 @@ const PAGE_SIZE = 30;
 export default function CategoryPage({ category, title, icon, description }: CategoryPageProps) {
   const router = useRouter();
   const [markets, setMarkets] = useState<Market[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [subFilter, setSubFilter] = useState("All");
@@ -26,12 +27,16 @@ export default function CategoryPage({ category, title, icon, description }: Cat
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/markets?category=${encodeURIComponent(category)}&limit=50&sort=volume`)
+    fetch(`/api/markets?category=${encodeURIComponent(category)}&limit=200&sort=volume`)
       .then((r) => r.json())
-      .then(({ data }) => {
-        setMarkets(Array.isArray(data) ? data : []);
+      .then(({ data, total }) => {
+        const rows = Array.isArray(data) ? data : [];
+        setMarkets(rows);
+        // Use the server-side total count for the "All" label so it reflects
+        // the real DB count, not just the number of rows we fetched.
+        setTotalCount(typeof total === "number" ? total : rows.length);
       })
-      .catch(() => setMarkets([]))
+      .catch(() => { setMarkets([]); setTotalCount(0); })
       .finally(() => setLoading(false));
   }, [category]);
 
@@ -80,7 +85,7 @@ export default function CategoryPage({ category, title, icon, description }: Cat
               Filter
             </p>
             <ul className="space-y-0.5">
-              {[{ name: "All", count: markets.length }, ...subCategories].map(({ name, count }) => (
+              {[{ name: "All", count: totalCount }, ...subCategories].map(({ name, count }) => (
                 <li key={name}>
                   <button
                     onClick={() => { setSubFilter(name); setPage(1); }}
@@ -117,7 +122,7 @@ export default function CategoryPage({ category, title, icon, description }: Cat
           {/* Mobile sub-filter chips */}
           {subCategories.length > 0 && (
             <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide md:hidden">
-              {[{ name: "All", count: markets.length }, ...subCategories].map(({ name }) => (
+              {[{ name: "All", count: totalCount }, ...subCategories].map(({ name }) => (
                 <button
                   key={name}
                   onClick={() => { setSubFilter(name); setPage(1); }}
