@@ -331,6 +331,21 @@ export function MarketDetailClient({
             </div>
           )}
 
+          {/* Overdue resolution banner */}
+          {market.status === "open" &&
+            market.resolve_at &&
+            new Date(market.resolve_at) < new Date() &&
+            market.category !== "Crypto" && (
+              <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                <span className="text-amber-400 text-base shrink-0 mt-0.5">⏰</span>
+                <p className="text-xs text-amber-400 leading-relaxed">
+                  This market has passed its resolve date and is{" "}
+                  <span className="font-semibold">pending resolution</span> by the Caldera team.
+                  Check back soon.
+                </p>
+              </div>
+          )}
+
           {/* Unclaimed token banner */}
           {creator && (creator.token_status === "shadow" || creator.token_status === "needs_review" || !creator.token_status) && (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">

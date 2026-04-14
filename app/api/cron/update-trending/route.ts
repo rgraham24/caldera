@@ -18,11 +18,24 @@ export async function GET(req: Request) {
 
   if (!markets?.length) return NextResponse.json({ updated: 0 });
 
+  const overdueIds: string[] = [];
+
   const updates = markets.map((m) => {
     const ageHours = (now - new Date(m.created_at ?? 0).getTime()) / (1000 * 60 * 60);
     const daysUntilResolve = m.resolve_at
       ? (new Date(m.resolve_at).getTime() - now) / (1000 * 60 * 60 * 24)
       : 999;
+
+    // Overdue non-crypto markets get zeroed out so they don't surface in feeds
+    const isOverdue =
+      m.resolve_at &&
+      daysUntilResolve < 0 &&
+      m.category !== "Crypto";
+
+    if (isOverdue) {
+      overdueIds.push(m.id);
+      return { id: m.id, trending_score: 0 };
+    }
 
     const volumeScore = Math.log10((m.total_volume || 0) + 1) * 1000;
     const recencyScore =
@@ -39,6 +52,13 @@ export async function GET(req: Request) {
     return { id: m.id, trending_score: Math.round(score) };
   });
 
+  if (overdueIds.length > 0) {
+    console.log(
+      `[update-trending] ${overdueIds.length} overdue markets zeroed (need manual resolution):`,
+      overdueIds.join(", ")
+    );
+  }
+
   // Process in batches of 100
   const batchSize = 100;
   let totalUpdated = 0;
@@ -54,9 +74,10 @@ export async function GET(req: Request) {
     ).length;
   }
 
-  console.log(`[update-trending] Updated ${totalUpdated} markets`);
+  console.log(`[update-trending] Updated ${totalUpdated} markets, ${overdueIds.length} overdue zeroed`);
   return NextResponse.json({
     updated: totalUpdated,
+    overdueZeroed: overdueIds.length,
     timestamp: new Date(now).toISOString(),
   });
 }
