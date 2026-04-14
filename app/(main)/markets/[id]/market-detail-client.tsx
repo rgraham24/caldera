@@ -437,15 +437,38 @@ export function MarketDetailClient({
                 </div>
               </div>
             ) : isResolved ? (
-              <div className="flex items-baseline gap-3">
-                <span
-                  className={`font-display text-6xl font-bold tracking-tight ${
-                    market.resolution_outcome === "yes" ? "text-yes" : "text-no"
-                  }`}
-                >
-                  {market.resolution_outcome?.toUpperCase()}
-                </span>
-                <span className="text-text-muted text-sm">Resolved</span>
+              <div className="space-y-3">
+                <div className="flex items-baseline gap-3">
+                  <span
+                    className={`font-display text-6xl font-bold tracking-tight ${
+                      market.resolution_outcome === "yes" ? "text-yes" : "text-no"
+                    }`}
+                  >
+                    {market.resolution_outcome?.toUpperCase()}
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-text-muted text-sm">
+                      {market.resolution_outcome === "yes" ? "YES wins 🎉" : "NO wins"}
+                    </span>
+                    {market.resolved_at && (
+                      <span className="text-xs text-text-faint">
+                        Resolved {new Date(market.resolved_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Resolution method badge */}
+                {(() => {
+                  const note = (market as unknown as Record<string, unknown>).resolution_note as string | null;
+                  const isAi = note?.startsWith("AI_AUTO_RESOLVED") || note?.startsWith("AI_FLAGGED");
+                  return (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${isAi ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" : "bg-surface-2 text-text-muted border border-border-subtle"}`}>
+                        {isAi ? "🤖 Auto-resolved by Caldera AI" : "✅ Resolved by Caldera team"}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <div className="flex items-baseline gap-3">
@@ -500,14 +523,14 @@ export function MarketDetailClient({
             </div>
           </div>
 
-          {/* Resolution Criteria */}
-          {(market.resolution_criteria || market.rules_text) && (
+          {/* Resolution Criteria / How was this resolved */}
+          {(market.resolution_criteria || market.rules_text || isResolved) && (
             <div className="mb-6 rounded-xl border border-border-subtle bg-surface">
               <button
                 onClick={() => setRulesOpen(!rulesOpen)}
                 className="flex w-full items-center justify-between p-4 text-sm font-medium text-text-primary"
               >
-                Resolution Criteria
+                {isResolved ? "How was this resolved?" : "Resolution Criteria"}
                 {rulesOpen ? (
                   <ChevronUp className="h-4 w-4 text-text-muted" />
                 ) : (
@@ -516,12 +539,48 @@ export function MarketDetailClient({
               </button>
               {rulesOpen && (
                 <div className="border-t border-border-subtle p-4 space-y-3">
+                  {/* Resolution method + AI reasoning */}
+                  {isResolved && (() => {
+                    const note = (market as unknown as Record<string, unknown>).resolution_note as string | null;
+                    const isAiAuto = note?.startsWith("AI_AUTO_RESOLVED");
+                    const isAiFlagged = note?.includes("AI_FLAGGED") || note?.includes("Confirmed by admin");
+                    const reasoningMatch = note?.match(/\d+%\s*confidence\]:\s*(.+?)(?:\s*\|\s*Source|$)/);
+                    const reasoning = reasoningMatch?.[1] ?? (isAiAuto ? note?.replace(/^AI_AUTO_RESOLVED[^:]*:\s*/, "") : null);
+                    return (
+                      <div className="rounded-lg border border-border-subtle bg-background p-3 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">Resolution Method</p>
+                        {isAiAuto && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 shrink-0">🤖</span>
+                            <div>
+                              <p className="text-xs text-text-primary font-medium">Auto-resolved by Caldera AI</p>
+                              {reasoning && <p className="text-xs text-text-muted mt-1 leading-relaxed">{reasoning}</p>}
+                            </div>
+                          </div>
+                        )}
+                        {isAiFlagged && !isAiAuto && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 shrink-0">🤖</span>
+                            <div>
+                              <p className="text-xs text-text-primary font-medium">AI-assisted, confirmed by Caldera team</p>
+                              {reasoning && <p className="text-xs text-text-muted mt-1 leading-relaxed">{reasoning}</p>}
+                            </div>
+                          </div>
+                        )}
+                        {!isAiAuto && !isAiFlagged && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-yes shrink-0">✅</span>
+                            <p className="text-xs text-text-primary font-medium">Resolved by Caldera team</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {market.resolution_criteria && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Resolves YES when</p>
-                      <p className="text-sm text-text-primary leading-relaxed">
-                        {market.resolution_criteria}
-                      </p>
+                      <p className="text-sm text-text-primary leading-relaxed">{market.resolution_criteria}</p>
                     </div>
                   )}
                   {market.resolution_source && (
@@ -533,9 +592,7 @@ export function MarketDetailClient({
                   {market.rules_text && (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-1">Rules</p>
-                      <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">
-                        {market.rules_text}
-                      </p>
+                      <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">{market.rules_text}</p>
                     </div>
                   )}
                   {market.resolution_source_url && (
