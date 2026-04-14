@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CreatorProfileClient } from "./creator-profile-client";
 import type { Market, Creator } from "@/types";
 
@@ -31,6 +31,12 @@ export default async function CreatorProfilePage({
   }
 
   if (!creator) notFound();
+
+  // Redirect old wrong-slug URLs to the correct canonical slug
+  // (creator.name holds the correct slug when token_status = 'redirect')
+  if (creator.token_status === "redirect" && creator.name) {
+    redirect(`/creators/${creator.name}`);
+  }
 
   const [{ data: markets }, { data: recentTrades }, { data: claimRow }] = await Promise.all([
     supabase
