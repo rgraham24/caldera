@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
     // Step 5-6: create DeSo profile via platform wallet
     let desoKey: string | null = creator.deso_public_key ?? null;
     let desoUsername: string | null = creator.deso_username ?? null;
+    let desoError: string | null = null;
 
     try {
       const { createDesoProfileForCreator } = await import("@/lib/deso/create-profile");
@@ -88,9 +89,11 @@ export async function POST(req: NextRequest) {
         updates.deso_username = desoUsername;
         updates.image_url = `https://node.deso.org/api/v0/get-single-profile-picture/${desoKey}`;
       } else {
-        console.warn(`[verify-creator] DeSo profile creation failed for ${handle}: ${result.error}`);
+        desoError = result.error ?? "DeSo profile creation failed (unknown reason)";
+        console.warn(`[verify-creator] DeSo profile creation failed for ${handle}: ${desoError}`);
       }
     } catch (err) {
+      desoError = String(err);
       console.error("[verify-creator] DeSo creation error:", err);
     }
 
@@ -112,6 +115,7 @@ export async function POST(req: NextRequest) {
       claimCode,
       desoKey,
       desoUsername,
+      desoError,
     });
   }
 

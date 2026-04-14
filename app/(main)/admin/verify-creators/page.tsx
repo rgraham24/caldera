@@ -67,13 +67,22 @@ function VerifyQueue() {
       });
       const data = await res.json();
       if (res.ok) {
-        const msg = action === "approve"
-          ? `✅ Approved — claim code: ${data.claimCode ?? "—"}, DeSo: ${data.desoUsername ?? "pending"}`
-          : "🚫 Rejected";
-        setResults((r) => ({ ...r, [slug]: { ok: true, msg } }));
+        let msg: string;
+        if (action === "approve") {
+          const parts = [`✅ Approved — claim code: ${data.claimCode ?? "—"}`];
+          if (data.desoUsername) parts.push(`DeSo: @${data.desoUsername}`);
+          else if (data.desoKey) parts.push(`DeSo key: ${data.desoKey.substring(0, 12)}…`);
+          else parts.push("DeSo: pending");
+          if (data.desoError) parts.push(`⚠️ DeSo error: ${data.desoError}`);
+          if (data.newSlug && data.newSlug !== slug) parts.push(`Slug → ${data.newSlug}`);
+          msg = parts.join(" | ");
+        } else {
+          msg = "🚫 Rejected";
+        }
+        setResults((r) => ({ ...r, [slug]: { ok: !data.desoError, msg } }));
         setQueue((q) => q.filter((c) => c.slug !== slug));
       } else {
-        setResults((r) => ({ ...r, [slug]: { ok: false, msg: data.error ?? "Error" } }));
+        setResults((r) => ({ ...r, [slug]: { ok: false, msg: data.error ?? "Unknown error" } }));
       }
     } catch (err) {
       setResults((r) => ({ ...r, [slug]: { ok: false, msg: String(err) } }));
@@ -93,13 +102,31 @@ function VerifyQueue() {
   if (queue.length === 0) {
     return (
       <div className="rounded-xl border border-border-subtle/30 bg-surface p-8 text-center">
-        <p className="text-text-muted">No creators pending verification</p>
+        <p className="mb-4 text-text-muted">No creators pending verification</p>
+        <p className="text-xs text-text-faint mb-4">
+          Queue shows creators with <code className="bg-surface-2 px-1 py-0.5 rounded">token_status = &apos;pending_deso_creation&apos;</code> or <code className="bg-surface-2 px-1 py-0.5 rounded">shadow</code> or <code className="bg-surface-2 px-1 py-0.5 rounded">verification_status = &apos;pending_review&apos;</code> with at least 1 market.
+        </p>
+        <button
+          onClick={fetchQueue}
+          className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-4 py-2 text-sm text-orange-400 hover:bg-orange-500/20 transition-colors"
+        >
+          Refresh
+        </button>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-text-muted">{queue.length} creator{queue.length !== 1 ? "s" : ""} in queue</p>
+        <button
+          onClick={fetchQueue}
+          className="text-xs text-text-muted hover:text-text-primary transition-colors"
+        >
+          ↻ Refresh
+        </button>
+      </div>
       {queue.map((creator) => (
         <div
           key={creator.id}

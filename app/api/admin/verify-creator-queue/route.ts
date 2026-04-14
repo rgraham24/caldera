@@ -12,11 +12,15 @@ import { createServiceClient } from "@/lib/supabase/server";
 export async function GET() {
   const supabase = createServiceClient();
 
-  // Fetch candidate creators
+  // Fetch candidate creators:
+  //   - legacy: token_status = 'pending_deso_creation'
+  //   - new pipeline: token_status = 'shadow' with verification_status = 'pending_review'
+  //   - explicit queue: verification_status = 'pending_review'
+  // Exclude already resolved (approved/rejected)
   const { data: creators } = await supabase
     .from("creators")
     .select("id, slug, name, image_url, category, token_status, verification_status, twitter_handle, markets_count")
-    .or("token_status.eq.pending_deso_creation,verification_status.eq.pending_review")
+    .or("token_status.eq.pending_deso_creation,token_status.eq.shadow,verification_status.eq.pending_review")
     .not("verification_status", "in", '("approved","rejected")')
     .gt("markets_count", 0)
     .order("markets_count", { ascending: false })

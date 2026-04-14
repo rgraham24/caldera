@@ -55,12 +55,16 @@ export async function createDesoProfileForCreator(params: {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ TransactionHex: frTxData.TransactionHex, Seed: platformSeed }),
             });
-            if (!frSignRes.ok) {
-              await fetch('https://api.deso.org/api/v0/submit-transaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ TransactionHex: frTxData.TransactionHex }),
-              });
+            if (frSignRes.ok) {
+              const frSignData = await frSignRes.json();
+              const frSignedHex: string | undefined = frSignData.SignedTransactionHex ?? frSignData.TransactionHex;
+              if (frSignedHex) {
+                await fetch('https://api.deso.org/api/v0/submit-transaction', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ TransactionHex: frSignedHex }),
+                });
+              }
             }
           }
         }
@@ -102,7 +106,7 @@ export async function createDesoProfileForCreator(params: {
       return { success: false, error: 'No transaction returned' };
     }
 
-    // Sign and submit the transaction
+    // Sign the transaction via Identity API (server-side, seed-based)
     const identityRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,18 +117,27 @@ export async function createDesoProfileForCreator(params: {
     });
 
     if (!identityRes.ok) {
-      // Try direct submit via node
-      const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          TransactionHex: txData.TransactionHex,
-        }),
-      });
+      const errText = await identityRes.text();
+      return { success: false, error: `Failed to sign transaction: ${errText.substring(0, 120)}` };
+    }
 
-      if (!submitRes.ok) {
-        return { success: false, error: 'Failed to submit transaction' };
-      }
+    const identityData = await identityRes.json();
+    const signedHex: string | undefined = identityData.SignedTransactionHex ?? identityData.TransactionHex;
+
+    if (!signedHex) {
+      return { success: false, error: 'Sign succeeded but no signed transaction hex returned' };
+    }
+
+    // Submit the SIGNED transaction
+    const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ TransactionHex: signedHex }),
+    });
+
+    if (!submitRes.ok) {
+      const errText = await submitRes.text();
+      return { success: false, error: `Failed to submit transaction: ${errText.substring(0, 120)}` };
     }
 
     // Wait for propagation then fetch the new profile
