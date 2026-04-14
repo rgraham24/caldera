@@ -111,21 +111,15 @@ function SearchBox({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchResults = useCallback(async (value: string) => {
-    if (value.length < 2) {
-      setResults({ markets: [], creators: [] });
-      setShowDropdown(false);
-      return;
-    }
-    setLoading(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(value)}`).then((r) => r.json());
+      const res = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
+      const data = res.ok ? await res.json() : { markets: [], creators: [] };
       setResults({
-        markets: res.markets ?? [],
-        creators: res.creators ?? [],
+        markets: data.markets ?? [],
+        creators: data.creators ?? [],
       });
-      setShowDropdown(true);
     } catch {
-      // ignore
+      setResults({ markets: [], creators: [] });
     } finally {
       setLoading(false);
     }
@@ -135,6 +129,15 @@ function SearchBox({
     const value = e.target.value;
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.length < 2) {
+      setShowDropdown(false);
+      setResults({ markets: [], creators: [] });
+      setLoading(false);
+      return;
+    }
+    // Show dropdown with loading skeleton immediately — don't wait for fetch
+    setShowDropdown(true);
+    setLoading(true);
     debounceRef.current = setTimeout(() => fetchResults(value), 200);
   };
 
@@ -170,7 +173,15 @@ function SearchBox({
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onFocus={() => { if (query.length >= 2) setShowDropdown(true); }}
+        onFocus={() => {
+          if (query.length >= 2) {
+            setShowDropdown(true);
+            if (results.markets.length === 0 && results.creators.length === 0 && !loading) {
+              setLoading(true);
+              fetchResults(query);
+            }
+          }
+        }}
         placeholder="Search markets, creators, tokens..."
         className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
         style={{ background: "var(--bg-surface)", borderColor: showDropdown ? "var(--border-strong)" : "var(--border-subtle)" }}
