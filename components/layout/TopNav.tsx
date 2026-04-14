@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Search, Menu, X, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
 import { useDesoBalance } from "@/hooks/useDesoBalance";
@@ -100,6 +100,178 @@ const MOBILE_LINKS = [
   { href: "/portfolio", label: "Portfolio" },
 ];
 
+// ─── Search autocomplete ──────────────────────────────────────────────────────
+
+type SearchResult = {
+  markets: Array<{ id: string; slug: string; title: string; category: string; yes_price: number | null }>;
+  creators: Array<{ id: string; slug: string; name: string; creator_coin_symbol: string | null; markets_count: number | null }>;
+};
+
+function SearchBox({
+  router,
+  searchRef,
+}: {
+  router: ReturnType<typeof import("next/navigation").useRouter>;
+  searchRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult>({ markets: [], creators: [] });
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchResults = useCallback(async (value: string) => {
+    if (value.length < 2) {
+      setResults({ markets: [], creators: [] });
+      setShowDropdown(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [marketsRes, creatorsRes] = await Promise.all([
+        fetch(`/api/markets?q=${encodeURIComponent(value)}&limit=4&sort=trending`).then((r) => r.json()),
+        fetch(`/api/creators/search?q=${encodeURIComponent(value)}&limit=3`).then((r) => r.json()),
+      ]);
+      setResults({
+        markets: marketsRes.data ?? [],
+        creators: creatorsRes.data ?? [],
+      });
+      setShowDropdown(true);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchResults(value), 200);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      setShowDropdown(false);
+    } else if (e.key === "Enter" && query.trim()) {
+      setShowDropdown(false);
+      router.push(`/markets?q=${encodeURIComponent(query.trim())}`);
+    }
+  };
+
+  const close = () => setShowDropdown(false);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    if (showDropdown) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showDropdown]);
+
+  const hasResults = results.markets.length > 0 || results.creators.length > 0;
+
+  return (
+    <div ref={containerRef} className="relative hidden flex-1 md:block max-w-xl">
+      <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
+      <input
+        ref={searchRef}
+        type="text"
+        value={query}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onFocus={() => { if (query.length >= 2) setShowDropdown(true); }}
+        placeholder="Search markets, creators, tokens..."
+        className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
+        style={{ background: "var(--bg-surface)", borderColor: showDropdown ? "var(--border-strong)" : "var(--border-subtle)" }}
+        autoComplete="off"
+      />
+
+      {showDropdown && query.length >= 2 && (
+        <div
+          className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl shadow-2xl"
+          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}
+        >
+          {loading && (
+            <div className="space-y-2 p-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-8 animate-pulse rounded-lg" style={{ background: "var(--border-subtle)" }} />
+              ))}
+            </div>
+          )}
+
+          {!loading && !hasResults && (
+            <div className="px-4 py-6 text-center text-sm text-[var(--text-tertiary)]">
+              No results for &ldquo;{query}&rdquo;
+            </div>
+          )}
+
+          {!loading && results.markets.length > 0 && (
+            <div className="px-2 pt-2">
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
+                Markets
+              </p>
+              {results.markets.map((m) => {
+                const yes = Math.round((m.yes_price ?? 0.5) * 100);
+                return (
+                  <Link
+                    key={m.id}
+                    href={`/markets/${m.slug}`}
+                    onClick={close}
+                    className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
+                  >
+                    <span
+                      className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                      style={{ background: "var(--accent-muted, #f9731615)", color: "var(--accent, #f97316)" }}
+                    >
+                      {m.category}
+                    </span>
+                    <span className="flex-1 truncate text-sm text-[var(--text-primary)]">
+                      {m.title.length > 60 ? m.title.slice(0, 60) + "…" : m.title}
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-emerald-400">{yes}%</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {!loading && results.creators.length > 0 && (
+            <div className={`px-2 ${results.markets.length > 0 ? "pt-1" : "pt-2"} pb-2`}>
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
+                Creators
+              </p>
+              {results.creators.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/creators/${c.slug}`}
+                  onClick={close}
+                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
+                >
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--accent, #f97316)" }}>
+                    {(c.name ?? "?")[0].toUpperCase()}
+                  </div>
+                  <span className="flex-1 truncate text-sm text-[var(--text-primary)]">{c.name}</span>
+                  {c.creator_coin_symbol && (
+                    <span className="shrink-0 font-mono text-xs text-[var(--text-tertiary)]">${c.creator_coin_symbol}</span>
+                  )}
+                  {(c.markets_count ?? 0) > 0 && (
+                    <span className="shrink-0 text-[10px] text-[var(--text-tertiary)]">{c.markets_count}m</span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── TopNav ───────────────────────────────────────────────────────────────────
 
 export function TopNav() {
@@ -176,19 +348,7 @@ export function TopNav() {
             </Link>
 
             {/* Search — takes up middle space */}
-            <div className="relative hidden flex-1 md:block max-w-xl">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Search markets, creators, tokens..."
-                className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
-                style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-                onKeyDown={(e) => { if (e.key === "Enter" && e.currentTarget.value.trim()) { router.push(`/markets?q=${encodeURIComponent(e.currentTarget.value.trim())}`); } }}
-              />
-            </div>
+            <SearchBox router={router} searchRef={searchRef} />
 
             {/* Right side */}
             <div className="ml-auto flex shrink-0 items-center gap-3">
