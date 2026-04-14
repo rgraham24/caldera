@@ -11,21 +11,9 @@ import {
 import { ChevronDown, TrendingUp, Zap } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
-import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { TrendingStrip } from "@/components/markets/TrendingStrip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type Topic = {
-  slug: string;
-  name: string;
-  isReserved?: boolean;
-  isCalderaVerified?: boolean;
-  totalVolume: number;
-  volumeFormatted: string;
-  marketCount: number;
-  topTrendingScore: number;
-  topMarket: { title: string; category: string };
-};
 
 type HomeClientProps = {
   heroMarkets: Market[];
@@ -288,50 +276,6 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
 const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto", "companies", "climate", "tokens", "new", "following"];
-
-function HotTopicsStrip({
-  activeFilter,
-  onSelect,
-}: {
-  activeFilter: string;
-  onSelect: (slug: string) => void;
-}) {
-  const [topics, setTopics] = useState<Topic[]>([]);
-
-  useEffect(() => {
-    fetch("/api/markets/topics")
-      .then((r) => r.json())
-      .then(({ topics: t }) => setTopics(Array.isArray(t) ? t : []))
-      .catch(() => {});
-  }, []);
-
-  if (topics.length === 0) return null;
-
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mb-4" style={{ scrollbarWidth: "none" } as React.CSSProperties}>
-      {topics.slice(0, 12).map((t) => {
-        const isActive = activeFilter === t.slug;
-        return (
-          <button
-            key={t.slug}
-            onClick={() => onSelect(isActive ? "all" : t.slug)}
-            className={`inline-flex items-center gap-1 flex-none rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
-              isActive
-                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                : "border-border-subtle bg-surface text-text-muted hover:text-text-primary hover:border-caldera/40"
-            }`}
-          >
-            {t.name}
-            <VerificationBadge isReserved={t.isReserved} isCalderaVerified={t.isCalderaVerified} />
-            {t.volumeFormatted && (
-              <span className="opacity-50">{t.volumeFormatted}</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 // ─── Trending tokens sidebar ──────────────────────────────────────────────────
 
@@ -725,6 +669,7 @@ export function HomeClient({
   const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
   const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
   const [sportsMarkets, setSportsMarkets] = useState<Market[]>([]);
+  const [trendingMarkets, setTrendingMarkets] = useState<Market[]>([]);
 
   // Deduplicate trending tokens by slug
   const uniqueTrendingCreators = useMemo(
@@ -736,13 +681,14 @@ export function HomeClient({
     [tokenStripCreators]
   );
 
-  // Fetch ending soon, featured, and sports markets in parallel on mount
+  // Fetch ending soon, featured, sports, and trending markets in parallel on mount
   useEffect(() => {
     Promise.all([
       fetch("/api/markets?status=open&sort=resolving_soon&limit=14").then((r) => r.json()),
       fetch("/api/markets?status=open&sort=trending&limit=12").then((r) => r.json()),
       fetch("/api/markets?category=sports&status=open&sort=newest&limit=4").then((r) => r.json()),
-    ]).then(([endingData, volumeData, sportsData]) => {
+      fetch("/api/markets?status=open&sort=trending&limit=6").then((r) => r.json()),
+    ]).then(([endingData, volumeData, sportsData, trendingData]) => {
       const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
       const endingSoon = (endingData.data ?? []).filter((m: Market) => {
         if (!m.resolve_at) return false;
@@ -762,6 +708,7 @@ export function HomeClient({
       }
 
       setSportsMarkets(sportsData.data ?? []);
+      setTrendingMarkets(trendingData.data ?? []);
     }).catch(() => {});
   }, []);
 
@@ -833,8 +780,8 @@ export function HomeClient({
             </div>
           </div>
         )}
-        {/* HOT TOPICS STRIP — right below hero */}
-        <HotTopicsStrip activeFilter={activeFilter} onSelect={(slug) => { setActiveFilter(slug); setOffset(0); }} />
+        {/* TRENDING STRIP — right below hero */}
+        <TrendingStrip markets={trendingMarkets} />
       </div>
 
       {/* 3. Token strip */}
