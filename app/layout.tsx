@@ -16,7 +16,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Caldera — The world runs on predictions.",
+  title: "Caldera — Trade what you know. Own what you love.",
   description:
     "Every market. Every token. One platform.",
 };

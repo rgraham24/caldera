@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "About Caldera — Predict. Trade. Burn.",
+  title: "Caldera — Trade what you know. Own what you love.",
 };
 
 const CATEGORY_TOKENS = [
@@ -43,11 +43,11 @@ export default function AboutPage() {
       {/* Hero */}
       <div className="mb-20 text-center">
         <h1 className="mb-4 font-display text-5xl font-bold tracking-tight text-text-primary sm:text-6xl">
-          Predict. Trade.{" "}
-          <span className="text-caldera">Burn.</span>
+          Trade what you know.{" "}
+          <span className="text-caldera">Own what you love.</span>
         </h1>
         <p className="mx-auto max-w-2xl text-lg text-text-muted">
-          The prediction market where every trade makes tokens more scarce and creators earn forever.
+          The prediction market for internet culture. Every market is tied to a creator, athlete, or event — and every trade makes the associated token more scarce.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link

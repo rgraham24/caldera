@@ -595,7 +595,12 @@ function MarketCard({ market }: { market: Market }) {
           >
             ${market.category_token_slug.replace("caldera-", "").toUpperCase()}
           </a>
-          <span className="text-xs text-muted-foreground">· 1% burn 🔥</span>
+          <span className="relative group cursor-help text-xs text-muted-foreground">
+            · 1% burn 🔥
+            <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-52 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
+              1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
+            </span>
+          </span>
         </div>
       )}
 
@@ -871,7 +876,12 @@ export function HomeClient({
                         <span className="text-xs text-orange-400 font-medium">
                           ${market.category_token_slug.replace("caldera-", "").toUpperCase()}
                         </span>
-                        <span className="text-xs text-muted-foreground">· 1% burn 🔥</span>
+                        <span className="relative group cursor-help text-xs text-muted-foreground">
+            · 1% burn 🔥
+            <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-52 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
+              1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
+            </span>
+          </span>
                       </div>
                     )}
                     <div className="mt-3">

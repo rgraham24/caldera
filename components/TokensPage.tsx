@@ -167,8 +167,14 @@ export default function TokensPage() {
         <div className="mb-10">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="font-display text-lg font-bold text-text-primary">
+              <h2 className="font-display text-lg font-bold text-text-primary flex items-center gap-1.5">
                 🔥 Buy &amp; Burn Tokens
+                <span className="relative group cursor-help">
+                  <span className="text-xs text-text-faint select-none">ℹ</span>
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-56 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
+                    Buy &amp; burn is a mechanism where a percentage of every trade is used to permanently purchase and remove tokens from circulation — reducing supply and increasing scarcity over time.
+                  </span>
+                </span>
               </h2>
               <p className="mt-0.5 text-xs text-text-muted">
                 Hold them as the platform grows. Every trade makes them scarcer forever.

@@ -232,7 +232,12 @@ export function TradeTicket({
           <div className="text-xs text-orange-400 font-medium">Trading on</div>
           <div className="text-sm font-semibold">{selectedOutcome.label}</div>
           {selectedOutcome.creator_slug && (
-            <div className="text-xs text-muted-foreground">1% burn 🔥</div>
+            <div className="relative group cursor-help text-xs text-muted-foreground inline-block">
+              1% burn 🔥
+              <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-52 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
+                1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
+              </span>
+            </div>
           )}
         </div>
       )}
@@ -426,7 +431,12 @@ export function TradeTicket({
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-text-muted">{burnToken} burn</span>
-                      <span className="text-orange-400">1% burn 🔥</span>
+                      <span className="relative group cursor-help">
+                        <span className="text-orange-400">1% burn 🔥</span>
+                        <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
+                          1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
+                        </span>
+                      </span>
                     </div>
                   </div>
                   <a href={`/creators/${burnSlug}`}
