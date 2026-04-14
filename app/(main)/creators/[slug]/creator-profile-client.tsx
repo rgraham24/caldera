@@ -35,6 +35,7 @@ type CreatorProfileClientProps = {
   creator: Creator;
   markets: Market[];
   holderEarnings: number;
+  unclaimedEarnings?: number;
   recentTrades: Array<{
     id: string;
     side: string;
@@ -50,6 +51,7 @@ export function CreatorProfileClient({
   creator,
   markets,
   holderEarnings,
+  unclaimedEarnings = 0,
   recentTrades,
   claimUrl,
 }: CreatorProfileClientProps) {
@@ -143,8 +145,42 @@ export function CreatorProfileClient({
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+        {/* ── Unclaimed earnings claim banner (approved creators only) ── */}
+        {creator.verification_status === "approved" && creator.claim_status !== "claimed" && (
+          <div
+            className="mb-6 rounded-2xl p-5"
+            style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.20)" }}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-xl mt-0.5">🔒</span>
+              <div className="flex-1">
+                <p className="font-semibold text-text-primary mb-1">This token is unclaimed</p>
+                {unclaimedEarnings > 0 && (
+                  <p className="text-sm text-text-muted mb-3">
+                    <span className="text-amber-400 font-semibold">${unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    {" "}in fees would have gone to this token&apos;s holder if it were claimed.
+                  </p>
+                )}
+                <p className="text-sm text-text-muted mb-4">
+                  Are you <span className="text-text-primary font-medium">{creator.name}</span>? Claim your token to start
+                  earning <span className="text-orange-400 font-medium">0.5%</span> of every future market trade —
+                  sent directly to your wallet.
+                </p>
+                {claimUrl && (
+                  <a
+                    href={claimUrl}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                  >
+                    Claim ${coinSymbol ?? creator.name} →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Token status banner */}
-        {(creator.token_status === "shadow" || !creator.token_status) && (
+        {(creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
           <div className="mb-6 rounded-2xl border border-border-subtle/30 bg-surface p-5">
             <p className="text-sm font-medium text-text-primary mb-2">📊 Prediction Market</p>
             <p className="text-sm text-text-muted mb-3">
@@ -245,8 +281,8 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* Earnings Preview — prominent for shadow profiles */}
-        {(creator.token_status === "shadow" || !creator.token_status) && (
+        {/* Earnings Preview — prominent for shadow profiles (hide if pending_review) */}
+        {(creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
           <div className="mb-6">
             <EarningsPreview
               creator={creator}

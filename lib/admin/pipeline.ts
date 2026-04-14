@@ -1115,12 +1115,13 @@ async function findCreatorSlug(
         return data.slug;
       }
 
-      // Squatter account — strip DeSo link and queue for platform wallet creation
+      // Squatter account — strip DeSo link and queue for admin verification
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any).from('creators').update({
         deso_username: null,
         deso_public_key: null,
-        token_status: 'pending_deso_creation',
+        token_status: 'shadow',
+        verification_status: 'pending_review',
       }).eq('slug', data.slug);
       console.log(`[findCreatorSlug] Squatter rejected: ${data.slug} (reserved:${isReserved}, holders:${holders})`);
       // Fall through to live DeSo check
@@ -1190,12 +1191,13 @@ async function findCreatorSlug(
       .single();
 
     if (localCreator && !localCreator.deso_username) {
-      // Mark as needing a DeSo profile — the autonomous cycle will create it
+      // Queue for admin verification — admin will approve and create DeSo profile
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any).from('creators').update({
-        token_status: 'pending_deso_creation',
+        token_status: 'shadow',
+        verification_status: 'pending_review',
       }).eq('slug', localCreator.slug);
-      console.log(`[findCreatorSlug] Queued for DeSo creation: ${localCreator.slug} (${localCreator.name})`);
+      console.log(`[findCreatorSlug] Queued for verification: ${localCreator.slug} (${localCreator.name})`);
       return localCreator.slug;
     }
   }
@@ -2197,12 +2199,15 @@ export async function processPendingDesoCreations(
 export async function queueAllCreatorsForDesoCreation(
   supabase: SupabaseClient
 ): Promise<number> {
+  // Route to admin verification queue instead of auto-creating DeSo profiles
   const { data } = await supabase
     .from('creators')
-    .update({ token_status: 'pending_deso_creation' })
+    .update({ token_status: 'shadow', verification_status: 'pending_review' })
     .is('deso_username', null)
     .not('token_status', 'eq', 'pending_deso_creation')
     .not('token_status', 'eq', 'deso_creation_failed')
+    .not('verification_status', 'eq', 'pending_review')
+    .not('verification_status', 'eq', 'approved')
     .select('slug');
 
   return data?.length ?? 0;
@@ -2211,7 +2216,7 @@ export async function queueAllCreatorsForDesoCreation(
 // ─── Audit and fix fan-account contamination ──────────────────────────────────
 // Removes DeSo links from profiles that are not IsReserved and have <100 holders.
 // Those are fan accounts — the real person can never claim them.
-// Marks them as pending_deso_creation so the platform wallet creates a real profile.
+// Routes them to the admin verification queue for manual review.
 
 export async function auditAndFixReservedProfiles(
   supabase: SupabaseClient,

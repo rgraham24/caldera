@@ -6,6 +6,15 @@ export type User = Database["public"]["Tables"]["users"]["Row"];
 export type Creator = Database["public"]["Tables"]["creators"]["Row"] & {
   deso_is_reserved?: boolean | null;  // Tier 1 — DeSo reserved profile (gold badge)
   is_caldera_verified?: boolean | null; // Tier 2 — manually verified by Caldera (blue badge)
+  // Verification & claim system (migration 20260414)
+  twitter_handle?: string | null;
+  twitter_handle_verified?: boolean | null;
+  verification_status?: string | null; // 'unverified' | 'pending_review' | 'approved' | 'rejected'
+  claim_code?: string | null;
+  claim_status?: string | null; // 'unclaimed' | 'pending_claim' | 'claimed'
+  claimed_at?: string | null;
+  claimed_deso_key?: string | null;
+  unclaimed_earnings_usd?: number | null;
 };
 export type Market = Database["public"]["Tables"]["markets"]["Row"] & {
   crypto_ticker?: string | null;

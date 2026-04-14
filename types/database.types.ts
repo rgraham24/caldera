@@ -382,8 +382,10 @@ export type Database = {
           claim_attempted_by: string | null
           claim_code: string | null
           claim_code_expires_at: string | null
+          claim_status: string | null
           claim_watcher_count: number | null
           claimed_at: string | null
+          claimed_deso_key: string | null
           coin_data_updated_at: string | null
           conference: string | null
           created_at: string | null
@@ -418,9 +420,13 @@ export type Database = {
           total_fees_distributed: number | null
           total_holder_earnings: number | null
           total_volume: number | null
+          twitter_handle: string | null
+          twitter_handle_verified: boolean | null
           unclaimed_earnings_escrow: number | null
+          unclaimed_earnings_usd: number | null
           updated_at: string | null
           user_id: string | null
+          verification_status: string | null
           weekly_volume_updated_at: string | null
           weekly_volume_usd: number | null
         }
@@ -430,8 +436,10 @@ export type Database = {
           claim_attempted_by?: string | null
           claim_code?: string | null
           claim_code_expires_at?: string | null
+          claim_status?: string | null
           claim_watcher_count?: number | null
           claimed_at?: string | null
+          claimed_deso_key?: string | null
           coin_data_updated_at?: string | null
           conference?: string | null
           created_at?: string | null
@@ -466,9 +474,13 @@ export type Database = {
           total_fees_distributed?: number | null
           total_holder_earnings?: number | null
           total_volume?: number | null
+          twitter_handle?: string | null
+          twitter_handle_verified?: boolean | null
           unclaimed_earnings_escrow?: number | null
+          unclaimed_earnings_usd?: number | null
           updated_at?: string | null
           user_id?: string | null
+          verification_status?: string | null
           weekly_volume_updated_at?: string | null
           weekly_volume_usd?: number | null
         }
@@ -478,8 +490,10 @@ export type Database = {
           claim_attempted_by?: string | null
           claim_code?: string | null
           claim_code_expires_at?: string | null
+          claim_status?: string | null
           claim_watcher_count?: number | null
           claimed_at?: string | null
+          claimed_deso_key?: string | null
           coin_data_updated_at?: string | null
           conference?: string | null
           created_at?: string | null
@@ -514,9 +528,13 @@ export type Database = {
           total_fees_distributed?: number | null
           total_holder_earnings?: number | null
           total_volume?: number | null
+          twitter_handle?: string | null
+          twitter_handle_verified?: boolean | null
           unclaimed_earnings_escrow?: number | null
+          unclaimed_earnings_usd?: number | null
           updated_at?: string | null
           user_id?: string | null
+          verification_status?: string | null
           weekly_volume_updated_at?: string | null
           weekly_volume_usd?: number | null
         }

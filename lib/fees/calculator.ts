@@ -21,17 +21,21 @@ export type CreatorInfo = {
   creator_coin_price?: number;
   entity_type?: string;
   token_status?: string; // shadow | active_unverified | active_verified | claimed
+  claim_status?: string | null; // 'unclaimed' | 'pending_claim' | 'claimed'
+  claimed_deso_key?: string | null;
 };
 
 export type FeeBreakdown = {
   total: number;
   platform: number;
   creatorEarning: number;
+  creatorWalletFee: number; // 0.5% sent to claimed creator's DeSo wallet (only when claimed)
   personalToken: number;
   teamToken: number;
   leagueToken: number;
   communityPool: number;
   personalTokenBlocked: boolean; // true when creator is active_unverified — auto-buy rerouted to team/league
+  isClaimed: boolean; // true when creator has claimed their profile (2.5% total fee)
   labels: {
     personal: string | null;
     team: string | null;
@@ -54,21 +58,26 @@ export function calculateMarketFees(
   teamCreator?: CreatorInfo | null,
   leagueCreator?: CreatorInfo | null
 ): FeeBreakdown {
-  const total = round(tradeAmountUsd * 0.02);
-  const platform = round(tradeAmountUsd * 0.01);
-  const creatorEarning = 0; // no separate creator fee; token auto-buy covers all
+  // Claimed creators get 2.5% total; everyone else gets 2%
+  const isClaimed = creator?.claim_status === "claimed";
+  const feeRate = isClaimed ? 0.025 : 0.02;
 
-  const remainingPool = round(total - platform); // = 1% token auto-buy
+  const total = round(tradeAmountUsd * feeRate);
+  const platform = round(tradeAmountUsd * 0.01);
+
+  // Claimed creator wallet fee: 0.5% sent directly to their DeSo key
+  const creatorWalletFee = isClaimed ? round(tradeAmountUsd * 0.005) : 0;
+  const creatorEarning = creatorWalletFee; // surfaced in UI as creator earning
+
+  // Token auto-buy pool: 1% unclaimed, 0.5% claimed (remaining after wallet fee)
+  const remainingPool = round(total - platform - creatorWalletFee);
 
   // Personal token auto-buy requires explicit claim/verification to protect
   // unclaimed celebrity identities from Caldera-driven price appreciation.
-  // Team and league tokens (outlets, orgs) are exempt from this restriction.
   const isFullyActive = (c?: CreatorInfo | null) =>
     c?.token_status === "active_verified" ||
     c?.token_status === "claimed";
 
-  // Team and league tokens can receive auto-buys even if unverified —
-  // they represent outlets/organizations rather than individual people.
   const isTeamEligible = (c?: CreatorInfo | null) =>
     c?.token_status === "active_unverified" ||
     c?.token_status === "active_verified" ||
@@ -86,39 +95,34 @@ export function calculateMarketFees(
   const perTier = tierCount > 0 ? round(remainingPool / tierCount) : 0;
   const communityPool = tierCount === 0 ? remainingPool : 0;
 
-  // Base allocation
   let personalToken = hasPersonal ? perTier : 0;
   let teamToken = hasTeam ? perTier : 0;
   let leagueToken = hasLeague ? perTier : 0;
 
-  // When personalToken is blocked, reroute the personal share to team or league
   if (personalBlocked && !hasPersonal) {
-    const blockedShare = round(remainingPool / (tierCount + 1)); // what personal would have gotten
+    const blockedShare = round(remainingPool / (tierCount + 1));
     if (hasTeam) {
       teamToken = round(teamToken + blockedShare);
     } else if (hasLeague) {
       leagueToken = round(leagueToken + blockedShare);
     }
-    // else it stays in communityPool (already captured above as tierCount === 0 path)
   }
 
   return {
     total,
     platform,
     creatorEarning,
+    creatorWalletFee,
     personalToken,
     teamToken,
     leagueToken,
     communityPool,
     personalTokenBlocked: personalBlocked,
+    isClaimed,
     labels: {
       personal: creator?.deso_username ? `$${creator.deso_username}` : null,
-      team: teamCreator?.deso_username
-        ? `$${teamCreator.deso_username}`
-        : null,
-      league: leagueCreator?.deso_username
-        ? `$${leagueCreator.deso_username}`
-        : null,
+      team: teamCreator?.deso_username ? `$${teamCreator.deso_username}` : null,
+      league: leagueCreator?.deso_username ? `$${leagueCreator.deso_username}` : null,
     },
     // Legacy compat
     grossAmount: tradeAmountUsd,

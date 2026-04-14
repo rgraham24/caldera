@@ -89,17 +89,34 @@ export default async function CreatorProfilePage({
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
-  const claimUrl = claimRow?.code ? `${appUrl}/claim/${claimRow.code}` : null;
 
-  const holderEarnings = Math.round(
-    (volumeRows ?? []).reduce((sum: number, m: { total_volume: number | null }) => sum + (m.total_volume ?? 0), 0) * 0.01 * 100
-  ) / 100;
+  // Prefer claim_code from creators table (new system), fall back to claim_codes table
+  const claimCodeValue = creator.claim_code ?? claimRow?.code ?? null;
+  const claimUrl = claimCodeValue ? `${appUrl}/claim/${claimCodeValue}` : null;
+
+  const totalVolume = (volumeRows ?? []).reduce(
+    (sum: number, m: { total_volume: number | null }) => sum + (m.total_volume ?? 0),
+    0
+  );
+  const holderEarnings = Math.round(totalVolume * 0.01 * 100) / 100;
+  // 0.5% of volume = what the creator would have earned if claimed
+  const unclaimedEarnings = Math.round(totalVolume * 0.005 * 100) / 100;
+
+  // Persist unclaimed_earnings_usd back to DB (fire-and-forget, non-blocking)
+  if (creator.claim_status !== "claimed") {
+    const supabaseWrite = await createClient();
+    void supabaseWrite
+      .from("creators")
+      .update({ unclaimed_earnings_usd: unclaimedEarnings })
+      .eq("id", creator.id);
+  }
 
   return (
     <CreatorProfileClient
       creator={creator as Creator}
       markets={(markets ?? []) as Market[]}
       holderEarnings={holderEarnings}
+      unclaimedEarnings={unclaimedEarnings}
       recentTrades={(trades as unknown as Array<{
         id: string;
         side: string;
