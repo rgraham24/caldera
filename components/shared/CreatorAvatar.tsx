@@ -30,6 +30,8 @@ type CreatorAvatarProps = {
   };
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** Pass eager=true for avatars above the fold (e.g. first visible row). Defaults to lazy. */
+  eager?: boolean;
 };
 
 const SIZES = {
@@ -38,13 +40,14 @@ const SIZES = {
   lg: "h-16 w-16 text-xl",
 };
 
-export function CreatorAvatar({ creator, size = "md", className }: CreatorAvatarProps) {
+export function CreatorAvatar({ creator, size = "md", className, eager = false }: CreatorAvatarProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const sizeClass = SIZES[size];
   const gradient = GRADIENTS[nameHash(creator.name) % GRADIENTS.length];
 
+  // Route through our proxy — cached 24h server-side, never hits node.deso.org from the browser
   const picUrl = creator.deso_public_key
-    ? `https://node.deso.org/api/v0/get-single-profile-picture/${creator.deso_public_key}?fallback=https://i.imgur.com/w1BEqJv.png`
+    ? `/api/avatar/${creator.deso_public_key}`
     : null;
 
   if (picUrl && !imgFailed) {
@@ -52,6 +55,7 @@ export function CreatorAvatar({ creator, size = "md", className }: CreatorAvatar
       <img
         src={picUrl}
         alt={creator.name}
+        loading={eager ? "eager" : "lazy"}
         className={cn("rounded-full object-cover shrink-0", sizeClass, className)}
         onError={() => setImgFailed(true)}
       />

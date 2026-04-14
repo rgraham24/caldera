@@ -86,8 +86,9 @@ export function HowItWorksModal() {
             <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src="https://node.deso.org/api/v0/get-single-profile-picture/BC1YLh2JrNMXmkerRRa7UgeqGgvcAbQ96rtfJHkVXkmafNNdfsHZDPZ?fallback=https://i.imgur.com/w1BEqJv.png"
+                  src="/api/avatar/BC1YLh2JrNMXmkerRRa7UgeqGgvcAbQ96rtfJHkVXkmafNNdfsHZDPZ"
                   className="w-10 h-10 rounded-full object-cover"
+                  loading="lazy"
                   alt="realdonaldtrump"
                 />
                 <div>
@@ -136,8 +137,9 @@ export function HowItWorksModal() {
             <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src="https://node.deso.org/api/v0/get-single-profile-picture/BC1YLhbhbNctADcV4AZDFk2NtAGWrfPytryAZsZoTA1KGme7EcNZbTH?fallback=https://i.imgur.com/w1BEqJv.png"
+                  src="/api/avatar/BC1YLhbhbNctADcV4AZDFk2NtAGWrfPytryAZsZoTA1KGme7EcNZbTH"
                   className="w-11 h-11 rounded-full object-cover"
+                  loading="lazy"
                   alt="lebronjames"
                 />
                 <div className="flex-1">
