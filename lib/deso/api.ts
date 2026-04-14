@@ -244,6 +244,30 @@ export async function sellCreatorCoin(
   }
 }
 
+export async function getUserCreatorCoinBalance(
+  holderPublicKey: string,
+  creatorPublicKey: string
+): Promise<number> {
+  try {
+    const res = await fetch(`${DESO_API}/get-hodlers-for-public-key`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        PublicKeyBase58Check: creatorPublicKey,
+        FetchHodlings: true,
+        NumToFetch: 1,
+        PublicKeyBase58CheckToFind: holderPublicKey,
+      }),
+    });
+    const data = await res.json();
+    const entry = data?.Hodlers?.[0];
+    if (!entry) return 0;
+    return (entry.BalanceNanos ?? 0) / 1e9;
+  } catch {
+    return 0;
+  }
+}
+
 export async function getCreatorCoinQuote(
   creatorPublicKey: string,
   desoToSpendNanos: number,
