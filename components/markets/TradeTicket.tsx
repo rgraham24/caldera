@@ -232,7 +232,7 @@ export function TradeTicket({
           <div className="text-xs text-orange-400 font-medium">Trading on</div>
           <div className="text-sm font-semibold">{selectedOutcome.label}</div>
           {selectedOutcome.creator_slug && (
-            <div className="text-xs text-muted-foreground">${selectedOutcome.creator_slug} gets auto-buyback</div>
+            <div className="text-xs text-muted-foreground">1% burn 🔥</div>
           )}
         </div>
       )}
@@ -425,8 +425,8 @@ export function TradeTicket({
                       <span className="text-white">1%</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-text-muted">{burnToken} buy & burn</span>
-                      <span className="text-orange-400">1% 🔥</span>
+                      <span className="text-text-muted">{burnToken} burn</span>
+                      <span className="text-orange-400">1% burn 🔥</span>
                     </div>
                   </div>
                   <a href={`/creators/${burnSlug}`}

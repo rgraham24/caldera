@@ -584,16 +584,16 @@ function MarketCard({ market }: { market: Market }) {
           {market.title}
         </p>
       </Link>
-      {market.creator_slug && (
+      {market.category_token_slug && (
         <div className="flex items-center gap-1 mt-1.5 mb-2">
           <a
-            href={`/creators/${market.creator_slug}`}
+            href={`/creators/${market.category_token_slug}`}
             onClick={(e) => e.stopPropagation()}
             className="text-xs text-orange-400 font-medium hover:underline"
           >
-            ${market.creator_slug}
+            ${market.category_token_slug.replace("caldera-", "").toUpperCase()}
           </a>
-          <span className="text-xs text-muted-foreground">· 1% buyback</span>
+          <span className="text-xs text-muted-foreground">· 1% burn 🔥</span>
         </div>
       )}
 
@@ -863,10 +863,12 @@ export function HomeClient({
                       )}
                     </div>
                     <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
-                    {market.creator_slug && (
+                    {market.category_token_slug && (
                       <div className="flex items-center gap-1 mt-1.5">
-                        <span className="text-xs text-orange-400 font-medium">${market.creator_slug}</span>
-                        <span className="text-xs text-muted-foreground">· 1% buyback</span>
+                        <span className="text-xs text-orange-400 font-medium">
+                          ${market.category_token_slug.replace("caldera-", "").toUpperCase()}
+                        </span>
+                        <span className="text-xs text-muted-foreground">· 1% burn 🔥</span>
                       </div>
                     )}
                     <div className="mt-3">

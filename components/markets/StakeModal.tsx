@@ -534,8 +534,8 @@ export function StakeModal({
                     <span className="text-text-primary">1%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">${coinSymbol} buyback + burn</span>
-                    <span className="text-orange-400 font-semibold">1% burn</span>
+                    <span className="text-text-muted">${coinSymbol} burn</span>
+                    <span className="text-orange-400 font-semibold">1% burn 🔥</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-text-muted">Token holders benefit</span>
