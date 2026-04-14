@@ -98,7 +98,7 @@ export function Footer() {
               Risk Disclosure
             </p>
             <p className="text-sm leading-relaxed text-[var(--text-tertiary)]">
-              Caldera charges 2% on buys. Sells are always free. 1% of every fee auto-buys the associated token. Not financial advice.
+              Caldera charges a 2% fee on trades. 1% goes to Caldera as platform revenue. 1% automatically buys and burns the associated category token ($SPORTS, $ENTERTAINMENT, etc.), reducing supply permanently. Sells are always free. Prediction markets involve risk — only trade what you can afford to lose.
             </p>
           </div>
         </div>
