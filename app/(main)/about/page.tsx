@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const revalidate = 0;
+
 export const metadata = {
   title: "Caldera — Trade what you know. Own what you love.",
 };
