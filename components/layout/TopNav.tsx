@@ -413,7 +413,7 @@ export function TopNav() {
                   )}
                 </div>
               ) : (
-                <button onClick={() => connectDeSoWallet()} className="rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-gray-100">
+                <button onClick={() => connectDeSoWallet()} className="rounded-lg bg-[#7C5CFC] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#6a4ae8]">
                   Connect
                 </button>
               )}

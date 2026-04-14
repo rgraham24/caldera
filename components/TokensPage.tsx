@@ -325,7 +325,7 @@ export default function TokensPage() {
                   {/* Buy button */}
                   <button
                     onClick={() => handleBuy(c)}
-                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-500"
+                    className="rounded-lg bg-[#7C5CFC] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#6a4ae8]"
                   >
                     Buy
                   </button>

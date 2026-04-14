@@ -146,7 +146,7 @@ export function PriceChart({ marketId, currentYesPrice, currentNoPrice }: Props)
       .attr("cy", yScale(last.yes))
       .attr("r", 4)
       .attr("fill", "#22c55e")
-      .attr("stroke", "#0a0a0f")
+      .attr("stroke", "#0e0c18")
       .attr("stroke-width", 2);
 
     // X axis
@@ -188,12 +188,12 @@ export function PriceChart({ marketId, currentYesPrice, currentNoPrice }: Props)
       .append("circle")
       .attr("r", 4)
       .attr("fill", "#22c55e")
-      .attr("stroke", "#0a0a0f")
+      .attr("stroke", "#0e0c18")
       .attr("stroke-width", 2);
     const tooltipBg = tooltip
       .append("rect")
       .attr("rx", 4)
-      .attr("fill", "#111118")
+      .attr("fill", "#15112a")
       .attr("stroke", "#ffffff1a")
       .attr("stroke-width", 1);
     const tooltipText = tooltip

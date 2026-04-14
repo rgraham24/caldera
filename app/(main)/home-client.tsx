@@ -207,8 +207,8 @@ function HeroSection({ markets }: { markets: Market[] }) {
       {markets.length > 1 && (
         <div className="relative overflow-hidden" style={{ marginTop: "12px" }}>
           {/* Edge fades */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#0a0a0f] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#0a0a0f] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#0e0c18] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#0e0c18] to-transparent" />
           {/* Scrollable chip track */}
           <div
             ref={chipContainerRef}
