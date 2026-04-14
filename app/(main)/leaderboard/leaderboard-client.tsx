@@ -1,6 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
+import { useAppStore } from "@/store";
+import { connectDeSoWallet } from "@/lib/deso/auth";
+
+function truncateAddress(s: string): string {
+  if (/^BC1Y/i.test(s) && s.length > 12) {
+    return `${s.slice(0, 6)}...${s.slice(-4)}`;
+  }
+  return s;
+}
 
 type Trader = {
   id: string;
@@ -26,11 +36,28 @@ type LeaderboardClientProps = {
 };
 
 export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientProps) {
+  const { isConnected } = useAppStore();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <h1 className="mb-8 font-display text-3xl font-bold tracking-tight text-text-primary">
+      <h1 className="mb-6 font-display text-3xl font-bold tracking-tight text-text-primary">
         Leaderboard
       </h1>
+
+      {/* Connect wallet banner */}
+      {!isConnected && (
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-surface px-5 py-4">
+          <p className="text-sm text-text-muted">
+            Connect your DeSo wallet to see your ranking
+          </p>
+          <button
+            onClick={() => connectDeSoWallet()}
+            className="shrink-0 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent/90 transition-colors"
+          >
+            Connect
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-8 lg:flex-row">
         {/* Main table */}
@@ -58,7 +85,7 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                       {i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-medium text-text-primary">{t.username}</span>
+                      <span className="font-medium text-text-primary">{truncateAddress(t.username)}</span>
                     </td>
                     <td className={cn(
                       "px-4 py-3 text-right font-mono font-bold",
@@ -113,7 +140,16 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                 </div>
               ))}
               {biggestWins.length === 0 && (
-                <p className="text-xs text-text-muted">No resolved trades yet</p>
+                <div className="rounded-xl border border-border-subtle bg-surface-2 p-4 text-center">
+                  <p className="mb-1 text-sm font-semibold text-text-primary">Be the first to win big 🏆</p>
+                  <p className="mb-3 text-xs text-text-muted">Trade on Caldera markets to appear here</p>
+                  <Link
+                    href="/markets"
+                    className="inline-block rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent/90 transition-colors"
+                  >
+                    Browse Markets
+                  </Link>
+                </div>
               )}
             </div>
           </div>
