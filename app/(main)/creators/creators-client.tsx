@@ -6,7 +6,12 @@ import type { Creator } from "@/types";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { Search } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
-import { StakeModal } from "@/components/markets/StakeModal";
+import dynamic from "next/dynamic";
+
+const StakeModal = dynamic(
+  () => import("@/components/markets/StakeModal").then((m) => ({ default: m.StakeModal })),
+  { ssr: false }
+);
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { FollowButton } from "@/components/shared/FollowButton";

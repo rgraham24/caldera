@@ -10,8 +10,14 @@ import {
 } from "@/lib/utils";
 import { ChevronDown, TrendingUp, Zap, Users } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
-import { StakeModal } from "@/components/markets/StakeModal";
 import { TrendingStrip } from "@/components/markets/TrendingStrip";
+import dynamic from "next/dynamic";
+
+// Only rendered when user clicks Buy — no need to include in initial bundle
+const StakeModal = dynamic(
+  () => import("@/components/markets/StakeModal").then((m) => ({ default: m.StakeModal })),
+  { ssr: false }
+);
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 

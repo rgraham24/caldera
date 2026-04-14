@@ -6,8 +6,17 @@ import { useDesoBalance } from "@/hooks/useDesoBalance";
 import type { Market, CommentWithUser, Creator, MarketOutcome } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
-import { MarketChart } from "@/components/markets/MarketChart";
-import { PriceChart } from "@/components/markets/PriceChart";
+import dynamic from "next/dynamic";
+
+// D3 + Recharts charts — heavy libs, deferred until after critical content
+const PriceChart = dynamic(
+  () => import("@/components/markets/PriceChart").then((m) => ({ default: m.PriceChart })),
+  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-xl bg-surface-2" /> }
+);
+const MarketChart = dynamic(
+  () => import("@/components/markets/MarketChart").then((m) => ({ default: m.MarketChart })),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-xl bg-surface-2" /> }
+);
 import { TradeTicket } from "@/components/markets/TradeTicket";
 import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";

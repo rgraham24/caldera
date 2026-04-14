@@ -4,7 +4,12 @@ import { Footer } from "@/components/layout/Footer";
 import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
 import StarterBanner from "@/components/shared/StarterBanner";
-import { HowItWorksModal } from "@/components/how-it-works-modal";
+import dynamic from "next/dynamic";
+
+// Heavy modals — only needed when triggered, never on initial render
+const HowItWorksModal = dynamic(
+  () => import("@/components/how-it-works-modal").then((m) => ({ default: m.HowItWorksModal }))
+);
 export default function MainLayout({
   children,
 }: {

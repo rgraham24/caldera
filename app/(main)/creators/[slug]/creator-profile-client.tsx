@@ -5,14 +5,28 @@ import Link from "next/link";
 import type { Creator, Market } from "@/types";
 import { formatCurrency, formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
 import { MarketCard } from "@/components/markets/MarketCard";
-import { StakeModal } from "@/components/markets/StakeModal";
-import { MarketChart } from "@/components/markets/MarketChart";
+import dynamic from "next/dynamic";
+
+// Modal — only mounts when Buy button clicked
+const StakeModal = dynamic(
+  () => import("@/components/markets/StakeModal").then((m) => ({ default: m.StakeModal })),
+  { ssr: false }
+);
+// Chart uses Recharts — lazy-load below fold
+const MarketChart = dynamic(
+  () => import("@/components/markets/MarketChart").then((m) => ({ default: m.MarketChart })),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-xl bg-surface-2" /> }
+);
 import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { HolderCalculator } from "@/components/shared/HolderCalculator";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
-import { HolderLeaderboard } from "@/components/creators/HolderLeaderboard";
+// Leaderboard — below the fold, deferred
+const HolderLeaderboard = dynamic(
+  () => import("@/components/creators/HolderLeaderboard").then((m) => ({ default: m.HolderLeaderboard })),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-xl bg-surface-2" /> }
+);
 import { FollowButton } from "@/components/shared/FollowButton";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 

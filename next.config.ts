@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -13,9 +18,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['deso-protocol'],
+  transpilePackages: ["deso-protocol"],
   turbopack: {
     root: __dirname,
+  },
+  experimental: {
+    optimizePackageImports: ["recharts", "lucide-react", "@heroicons/react"],
   },
   async headers() {
     return [
@@ -27,4 +35,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
