@@ -112,21 +112,21 @@ export default function AboutPage() {
             <p className="text-sm leading-relaxed text-text-muted">
               Hold <span className="font-mono text-caldera">$SPORTS</span> or{" "}
               <span className="font-mono text-caldera">$ENTERTAINMENT</span> and
-              benefit from every trade across that entire category. Every prediction
+              participate in every trade&apos;s burn across that entire category. Every prediction
               market in the category burns a tiny slice of that token — the more
               active the category, the more deflationary the pressure.
             </p>
           </div>
           <div className="rounded-xl border border-border-subtle/50 bg-surface-2 p-5">
             <h3 className="mb-2 font-semibold text-text-primary">
-              Creator tokens — True Believer status
+              Creator tokens — on-chain holder record
             </h3>
             <p className="text-sm leading-relaxed text-text-muted">
               Hold a creator&apos;s token like{" "}
-              <span className="font-mono text-caldera">$KAICENAT</span> and appear
-              on their leaderboard as a True Believer. Every time someone trades
-              a market about that creator, a fraction burns. The earlier you hold,
-              the more you benefit from growing market activity.
+              <span className="font-mono text-caldera">$KAICENAT</span> and
+              your holding history is recorded on-chain. Every time someone trades
+              a market about that creator, a fraction of fees automatically buys and removes tokens from circulation.
+              The earlier you hold, the longer your on-chain record.
             </p>
           </div>
         </div>
@@ -134,9 +134,9 @@ export default function AboutPage() {
         <div className="mt-6 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
           <p className="text-sm text-text-muted">
             <span className="font-semibold text-caldera">Buy &amp; burn</span> — 1% of
-            every trade fee is used to buy the associated token on the open market
-            and permanently remove it from circulation. No team allocation, no vesting
-            cliff. Supply decreases with every single trade.
+            every trade fee is used to automatically buy the associated token on the open market
+            and permanently remove it from circulation. This creates consistent buy pressure with every trade.
+            No team allocation, no promises of return. Fewer tokens exist after every trade.
           </p>
         </div>
       </div>

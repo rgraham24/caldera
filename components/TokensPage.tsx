@@ -117,7 +117,7 @@ export default function TokensPage() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold text-text-primary">💰 Tokens</h1>
         <p className="mt-1 text-sm text-text-muted">
-          Every trade burns these tokens permanently. More volume = scarcer supply = higher value.
+          Every trade, 1% of fees are used to buy these tokens on the open market and permanently remove them from circulation.
         </p>
       </div>
 
@@ -177,7 +177,7 @@ export default function TokensPage() {
                 </span>
               </h2>
               <p className="mt-0.5 text-xs text-text-muted">
-                Hold them as the platform grows. Every trade makes them scarcer forever.
+                Every trade creates automatic buy pressure and removes tokens permanently. More trading = fewer tokens in circulation.
               </p>
             </div>
           </div>

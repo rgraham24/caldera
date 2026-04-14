@@ -52,7 +52,7 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
   if (loading) {
     return (
       <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-        <h2 className="section-header mb-4">True Believers</h2>
+        <h2 className="section-header mb-4">On-Chain Holders</h2>
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-10 rounded-lg bg-surface-2 animate-pulse" />
@@ -65,7 +65,7 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
   if (holders.length === 0) {
     return (
       <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-        <h2 className="section-header mb-2">True Believers</h2>
+        <h2 className="section-header mb-2">On-Chain Holders</h2>
         <p className="text-sm text-text-muted">
           No holders yet — be the first to buy ${coinSymbol}.
         </p>
@@ -83,14 +83,14 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
   const rankLabel = (rank: number) => {
     if (rank === 1) return "Biggest Fan";
     if (rank === 2) return "Top Holder";
-    if (rank === 3) return "Early Believer";
+    if (rank === 3) return "Early Holder";
     return null;
   };
 
   return (
     <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-header">True Believers</h2>
+        <h2 className="section-header">On-Chain Holders</h2>
         <span className="text-xs text-text-muted">${coinSymbol} holders</span>
       </div>
 

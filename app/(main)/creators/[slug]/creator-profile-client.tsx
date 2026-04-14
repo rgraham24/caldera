@@ -348,7 +348,7 @@ export function CreatorProfileClient({
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
             { label: "🔥 TOTAL BURNED", value: formatCurrency(holderEarnings), show: true, tip: "Total value burned from trades on this creator's markets. Less supply = more valuable tokens." },
-            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more earnings for token holders." },
+            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more tokens burned from circulation." },
             { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">

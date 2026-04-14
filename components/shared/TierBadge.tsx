@@ -23,7 +23,7 @@ export function TierBadge({ tier, size = "sm" }: TierBadgeProps) {
       label: "Public Figure",
       dot: "bg-text-muted",
       text: "text-text-muted",
-      tooltip: "Public Figure — earnings go to token holders",
+      tooltip: "Public Figure — 1% of trade fees are used to buy and burn the associated token",
     },
     unclaimed: {
       label: "Unclaimed",

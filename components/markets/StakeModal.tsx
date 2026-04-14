@@ -296,11 +296,11 @@ export function StakeModal({
                   </div>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
                     <span className="text-caldera shrink-0">📈</span>
-                    <span>As supply decreases, scarcity increases — early holders benefit most</span>
+                    <span>As supply decreases, fewer tokens exist in circulation</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
                     <span className="text-yes shrink-0">🏆</span>
-                    <span>You now appear on the True Believers leaderboard on {creator.name}&apos;s profile</span>
+                    <span>Your position is recorded on-chain as an early holder on {creator.name}&apos;s profile</span>
                   </div>
                 </div>
               </>
