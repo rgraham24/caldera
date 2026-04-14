@@ -69,10 +69,10 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                   <th className="px-4 py-3 text-left font-medium w-12">#</th>
                   <th className="px-4 py-3 text-left font-medium">Trader</th>
                   <th className="px-4 py-3 text-right font-medium">P/L</th>
-                  <th className="px-4 py-3 text-right font-medium">Volume</th>
-                  <th className="px-4 py-3 text-right font-medium">Markets</th>
+                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Volume</th>
+                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Markets</th>
                   <th className="px-4 py-3 text-right font-medium">Win %</th>
-                  <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">Best Call</th>
+                  <th className="hidden px-4 py-3 text-left font-medium lg:table-cell">Best Call</th>
                 </tr>
               </thead>
               <tbody>
@@ -93,10 +93,10 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                     )}>
                       {t.totalPnl >= 0 ? "+" : ""}{formatCurrency(t.totalPnl)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-text-muted">
+                    <td className="hidden px-4 py-3 text-right font-mono text-text-muted sm:table-cell">
                       {formatCompactCurrency(t.totalVolume)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-text-muted">
+                    <td className="hidden px-4 py-3 text-right font-mono text-text-muted sm:table-cell">
                       {t.distinctMarkets}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-text-muted">

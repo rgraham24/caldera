@@ -338,18 +338,20 @@ export function CreatorProfileClient({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 md:ml-auto">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-500/30 text-orange-400 text-sm font-medium hover:bg-orange-500/10 transition-colors"
-            >
-              + Create Market
-            </button>
-            <FollowButton slug={creator.slug} />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:ml-auto">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-500/30 text-orange-400 text-sm font-medium hover:bg-orange-500/10 transition-colors"
+              >
+                + Create Market
+              </button>
+              <FollowButton slug={creator.slug} />
+            </div>
             {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
               <button
                 onClick={() => setShowStakeModal(true)}
-                className="rounded-xl bg-caldera px-5 py-2.5 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
+                className="w-full rounded-xl bg-caldera px-5 py-2.5 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors sm:w-auto"
               >
                 Buy ${coinSymbol}
               </button>
@@ -358,7 +360,7 @@ export function CreatorProfileClient({
         </div>
 
         {/* Earnings Stats */}
-        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
             { label: "🔥 TOTAL BURNED", value: formatCurrency(holderEarnings), show: true, tip: "Total value burned from trades on this creator's markets. Less supply = more valuable tokens." },
@@ -377,9 +379,11 @@ export function CreatorProfileClient({
 
         {/* Token chart + calculator — only for active tokens, not shadow */}
         {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
-          <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
+          <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5 overflow-hidden">
             <h2 className="section-header mb-4">Token Price <InfoTooltip text="The current price to buy one token. Prices rise as more people buy — early buyers get the lowest price." /></h2>
-            <MarketChart yesPrice={(livePrice ?? 0) / 200} />
+            <div className="max-w-full overflow-hidden">
+              <MarketChart yesPrice={(livePrice ?? 0) / 200} />
+            </div>
           </div>
         )}
 

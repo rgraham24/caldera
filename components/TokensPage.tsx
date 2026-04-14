@@ -237,10 +237,10 @@ export default function TokensPage() {
       ) : (
         <>
           {/* Header row */}
-          <div className="mb-1 grid grid-cols-[1fr_80px_80px_100px_80px_80px] items-center gap-4 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint">
+          <div className="mb-1 grid grid-cols-[1fr_70px_70px_56px] items-center gap-2 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint sm:grid-cols-[1fr_80px_80px_100px_80px_80px] sm:gap-4">
             <span>Token</span>
-            <span className="hidden text-right sm:block">Price</span>
-            <span className="hidden text-right sm:block">Holders</span>
+            <span className="text-right">Price</span>
+            <span className="text-right">Holders</span>
             <span className="hidden text-right sm:block">Mkt Cap</span>
             <span className="hidden text-right sm:block">Markets</span>
             <span />
@@ -265,7 +265,7 @@ export default function TokensPage() {
               return (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[1fr_80px_80px_100px_80px_80px] items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20"
+                  className="grid grid-cols-[1fr_70px_70px_56px] items-center gap-2 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20 sm:grid-cols-[1fr_80px_80px_100px_80px_80px] sm:gap-4"
                 >
                   {/* Creator info */}
                   <Link href={`/creators/${c.slug}`} className="flex min-w-0 items-center gap-3">
@@ -294,7 +294,7 @@ export default function TokensPage() {
                   {/* Price — flashes green on live update */}
                   <span
                     className={cn(
-                      "hidden text-right font-mono text-sm font-semibold transition-colors duration-500 sm:block",
+                      "text-right font-mono text-xs font-semibold transition-colors duration-500 sm:text-sm",
                       isFlashing ? "text-yes" : "text-text-primary"
                     )}
                   >
@@ -302,7 +302,7 @@ export default function TokensPage() {
                   </span>
 
                   {/* Holders */}
-                  <span className="hidden text-right font-mono text-sm text-text-muted sm:block">
+                  <span className="text-right font-mono text-xs text-text-muted sm:text-sm">
                     {displayHolders.toLocaleString()}
                   </span>
 

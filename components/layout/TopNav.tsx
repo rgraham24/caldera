@@ -99,9 +99,11 @@ type SearchResult = {
 function SearchBox({
   router,
   searchRef,
+  autoFocus,
 }: {
   router: ReturnType<typeof import("next/navigation").useRouter>;
   searchRef: React.RefObject<HTMLInputElement | null>;
+  autoFocus?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult>({ markets: [], creators: [] });
@@ -183,6 +185,7 @@ function SearchBox({
           }
         }}
         placeholder="Search markets, creators, tokens..."
+        autoFocus={autoFocus}
         className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
         style={{ background: "var(--bg-surface)", borderColor: showDropdown ? "var(--border-strong)" : "var(--border-subtle)" }}
         autoComplete="off"
@@ -299,6 +302,7 @@ export function TopNav() {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const isLowBalance = desoBalanceUSD < 1;
   const searchRef = useRef<HTMLInputElement>(null);
@@ -345,10 +349,10 @@ export function TopNav() {
       >
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
           {/* ROW 1 — Logo, Search (desktop), Connect */}
-          <div className="flex flex-wrap items-center gap-3 py-2.5 md:h-14 md:flex-nowrap md:py-0">
+          <div className="flex h-12 items-center gap-2 md:h-14 md:gap-3">
 
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 shrink-0">
+            {/* Logo — hidden when search is open on mobile */}
+            <Link href="/" className={cn("flex items-center gap-2.5 shrink-0 transition-all", searchOpen ? "hidden md:flex" : "flex")}>
               <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                 <circle cx="14" cy="14" r="13" stroke="rgba(255,255,255,0.14)" strokeWidth="1"/>
                 <circle cx="14" cy="14" r="8.5" stroke="rgba(124,92,252,0.5)" strokeWidth="0.8"/>
@@ -359,13 +363,40 @@ export function TopNav() {
               </span>
             </Link>
 
-            {/* Search — full-width below logo on mobile, inline on md+ */}
-            <div className="order-last w-full md:order-none md:flex-1 md:max-w-xl">
+            {/* Search — icon on mobile (expands on tap), inline bar on md+ */}
+            {/* Mobile: full-width bar when open */}
+            {searchOpen && (
+              <div className="flex flex-1 items-center gap-2 md:hidden">
+                <div className="flex-1">
+                  <SearchBox router={router} searchRef={searchRef} autoFocus />
+                </div>
+                <button
+                  onClick={() => setSearchOpen(false)}
+                  className="shrink-0 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                  aria-label="Close search"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {/* Desktop: always-visible search bar */}
+            <div className="hidden md:block md:flex-1 md:max-w-xl">
               <SearchBox router={router} searchRef={searchRef} />
             </div>
 
             {/* Right side */}
-            <div className="ml-auto flex shrink-0 items-center gap-3">
+            <div className={cn("flex shrink-0 items-center gap-2 md:gap-3", searchOpen ? "hidden md:flex" : "ml-auto flex")}>
+
+              {/* Search icon — mobile only, toggles expanded search */}
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex md:hidden items-center justify-center rounded-lg p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                aria-label="Search"
+              >
+                <Search className="h-5 w-5" />
+              </button>
 
               {/* How it works */}
               <button
@@ -428,7 +459,7 @@ export function TopNav() {
                   )}
                 </div>
               ) : (
-                <button onClick={() => connectDeSoWallet()} className="rounded-lg bg-[#7C5CFC] px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#6a4ae8]">
+                <button onClick={() => connectDeSoWallet()} className="rounded-lg bg-[#7C5CFC] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#6a4ae8] md:px-4">
                   Connect
                 </button>
               )}
