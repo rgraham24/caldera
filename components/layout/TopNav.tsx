@@ -93,7 +93,7 @@ function CenterTabs() {
 
 type SearchResult = {
   markets: Array<{ id: string; slug: string; title: string; category: string; yes_price: number | null }>;
-  creators: Array<{ id: string; slug: string; name: string; creator_coin_symbol: string | null; markets_count: number | null }>;
+  creators: Array<{ id: string; slug: string; name: string; image_url: string | null; creator_coin_symbol: string | null }>;
 };
 
 function SearchBox({
@@ -118,13 +118,10 @@ function SearchBox({
     }
     setLoading(true);
     try {
-      const [marketsRes, creatorsRes] = await Promise.all([
-        fetch(`/api/markets?q=${encodeURIComponent(value)}&limit=4&sort=trending`).then((r) => r.json()),
-        fetch(`/api/creators/search?q=${encodeURIComponent(value)}&limit=3`).then((r) => r.json()),
-      ]);
+      const res = await fetch(`/api/search?q=${encodeURIComponent(value)}`).then((r) => r.json());
       setResults({
-        markets: marketsRes.data ?? [],
-        creators: creatorsRes.data ?? [],
+        markets: res.markets ?? [],
+        creators: res.creators ?? [],
       });
       setShowDropdown(true);
     } catch {
@@ -241,15 +238,16 @@ function SearchBox({
                   onClick={close}
                   className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
                 >
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--accent, #f97316)" }}>
-                    {(c.name ?? "?")[0].toUpperCase()}
-                  </div>
+                  {c.image_url ? (
+                    <img src={c.image_url} alt={c.name} className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--accent, #f97316)" }}>
+                      {(c.name ?? "?")[0].toUpperCase()}
+                    </div>
+                  )}
                   <span className="flex-1 truncate text-sm text-[var(--text-primary)]">{c.name}</span>
                   {c.creator_coin_symbol && (
                     <span className="shrink-0 font-mono text-xs text-[var(--text-tertiary)]">${c.creator_coin_symbol}</span>
-                  )}
-                  {(c.markets_count ?? 0) > 0 && (
-                    <span className="shrink-0 text-[10px] text-[var(--text-tertiary)]">{c.markets_count}m</span>
                   )}
                 </Link>
               ))}

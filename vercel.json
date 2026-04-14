@@ -29,6 +29,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/check-category-health",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/generate-markets",
       "schedule": "0 9 * * *"
     },
