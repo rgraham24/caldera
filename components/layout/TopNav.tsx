@@ -338,9 +338,14 @@ export function TopNav() {
           <div className="flex flex-wrap items-center gap-3 py-2.5 md:h-14 md:flex-nowrap md:py-0">
 
             {/* Logo */}
-            <Link href="/" className="shrink-0">
-              <span style={{ fontFamily: "'Inter', -apple-system, sans-serif", fontWeight: 500, fontSize: '0.85rem', letterSpacing: '0.16em', color: '#f0f0f0', textTransform: 'uppercase' }}>
-                CALDERA
+            <Link href="/" className="flex items-center gap-3 shrink-0">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <circle cx="14" cy="14" r="13" stroke="rgba(255,255,255,0.14)" strokeWidth="1"/>
+                <circle cx="14" cy="14" r="8.5" stroke="rgba(124,92,252,0.5)" strokeWidth="0.8"/>
+                <circle cx="14" cy="14" r="3.2" fill="#7C5CFC"/>
+              </svg>
+              <span style={{ fontFamily: 'var(--font-dm-serif)', fontSize: '20px', color: '#fff', lineHeight: 1, letterSpacing: '0.01em' }}>
+                Caldera
               </span>
             </Link>
 

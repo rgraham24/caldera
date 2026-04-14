@@ -14,10 +14,21 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4">
           {/* Brand */}
           <div>
-            <p className="mb-2 text-base font-semibold text-[var(--text-primary)]">Caldera</p>
-            <p className="mb-4 text-sm text-[var(--text-secondary)]">
-              The prediction market for everything.
-            </p>
+            <div className="mb-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2.5">
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                  <circle cx="11" cy="11" r="10" stroke="rgba(255,255,255,0.14)" strokeWidth="0.8"/>
+                  <circle cx="11" cy="11" r="6.5" stroke="rgba(124,92,252,0.45)" strokeWidth="0.6"/>
+                  <circle cx="11" cy="11" r="2.5" fill="#7C5CFC"/>
+                </svg>
+                <span style={{ fontFamily: 'var(--font-dm-serif)', fontSize: '17px', color: '#fff', lineHeight: 1 }}>
+                  Caldera
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)]" style={{ letterSpacing: '0.04em' }}>
+                Trade what you know. Own what you love.
+              </p>
+            </div>
             <p className="text-xs text-[var(--text-tertiary)]">© 2026 Caldera</p>
           </div>
 

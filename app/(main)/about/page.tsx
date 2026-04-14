@@ -42,6 +42,16 @@ export default function AboutPage() {
 
       {/* Hero */}
       <div className="mb-20 text-center">
+        <div className="flex items-center gap-4 justify-center mb-6">
+          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="25" stroke="rgba(255,255,255,0.12)" strokeWidth="1.2"/>
+            <circle cx="26" cy="26" r="16" stroke="rgba(124,92,252,0.4)" strokeWidth="1"/>
+            <circle cx="26" cy="26" r="6" fill="#7C5CFC"/>
+          </svg>
+          <span style={{ fontFamily: 'var(--font-dm-serif)', fontSize: '40px', color: '#fff', lineHeight: 1 }}>
+            Caldera
+          </span>
+        </div>
         <h1 className="mb-4 font-display text-5xl font-bold tracking-tight text-text-primary sm:text-6xl">
           Trade what you know.{" "}
           <span className="text-caldera">Own what you love.</span>
