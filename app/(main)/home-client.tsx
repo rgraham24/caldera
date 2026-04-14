@@ -399,7 +399,8 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
           prevPricesRef.current[c.slug] = cur;
         }
 
-        setCreators(data);
+        const deduped = (data as Creator[]).filter((t, i, arr) => arr.findIndex(x => x.slug === t.slug) === i);
+        setCreators(deduped);
         if (Object.keys(newFlash).length > 0) {
           setFlashing(newFlash);
           setTimeout(() => setFlashing({}), 1000);
