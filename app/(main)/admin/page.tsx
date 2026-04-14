@@ -35,9 +35,17 @@ export default async function AdminPage() {
   return (
     <AdminGate>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        <h1 className="mb-6 font-display text-2xl font-bold text-text-primary">
-          Admin Dashboard
-        </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="font-display text-2xl font-bold text-text-primary">
+            Admin Dashboard
+          </h1>
+          <a
+            href="/admin/create-market"
+            className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-500 transition-colors"
+          >
+            ⚡ Quick Create Market
+          </a>
+        </div>
 
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           {stats.map((stat) => (

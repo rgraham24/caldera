@@ -8,40 +8,42 @@ export async function GET(req: Request) {
   }
 
   const supabase = await createClient();
-  const now = new Date();
+  const now = Date.now();
 
-  // Fetch all open markets
+  // Fetch all open markets with fields needed for composite scoring
   const { data: markets } = await supabase
     .from("markets")
-    .select("id, created_at, close_at, total_volume, featured_score")
+    .select("id, created_at, resolve_at, total_volume, yes_price, category, featured_score")
     .eq("status", "open");
 
   if (!markets?.length) return NextResponse.json({ updated: 0 });
 
-  // Calculate trending score for each market
   const updates = markets.map((m) => {
-    const hoursOld = (now.getTime() - new Date(m.created_at ?? 0).getTime()) / 3_600_000;
-    const recencyScore = Math.max(0, 1 - hoursOld / 48) * 100;
+    const ageHours = (now - new Date(m.created_at ?? 0).getTime()) / (1000 * 60 * 60);
+    const daysUntilResolve = m.resolve_at
+      ? (new Date(m.resolve_at).getTime() - now) / (1000 * 60 * 60 * 24)
+      : 999;
 
-    let urgencyScore = 0;
-    if (m.close_at) {
-      const hoursToClose = (new Date(m.close_at).getTime() - now.getTime()) / 3_600_000;
-      if (hoursToClose > 0 && hoursToClose <= 24) urgencyScore = 50;
-      else if (hoursToClose > 24 && hoursToClose <= 72) urgencyScore = 25;
-    }
+    const volumeScore = Math.log10((m.total_volume || 0) + 1) * 1000;
+    const recencyScore =
+      ageHours < 48 ? 500 : ageHours < 168 ? 200 : ageHours < 720 ? 50 : 0;
+    const movementScore = Math.abs((m.yes_price || 0.5) - 0.5) * 200;
+    const expiryScore =
+      daysUntilResolve < 7 ? 300 : daysUntilResolve < 30 ? 100 : 0;
+    const breakingBoost =
+      ageHours < 48 && m.category !== "Crypto" ? 400 : 0;
 
-    const volumeScore = (m.total_volume ?? 0);
-    const featuredScore = (m.featured_score ?? 0);
-    const trendingScore = volumeScore + recencyScore + urgencyScore + featuredScore;
+    const score =
+      volumeScore + recencyScore + movementScore + expiryScore + breakingBoost;
 
-    return { id: m.id, trending_score: Math.round(trendingScore) };
+    return { id: m.id, trending_score: Math.round(score) };
   });
 
-  // Batch UPDATE in chunks of 50 concurrent calls (upsert fails on NOT NULL columns)
-  const chunkSize = 50;
+  // Process in batches of 100
+  const batchSize = 100;
   let totalUpdated = 0;
-  for (let i = 0; i < updates.length; i += chunkSize) {
-    const chunk = updates.slice(i, i + chunkSize);
+  for (let i = 0; i < updates.length; i += batchSize) {
+    const chunk = updates.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       chunk.map(({ id, trending_score }) =>
         supabase.from("markets").update({ trending_score }).eq("id", id)
@@ -53,5 +55,8 @@ export async function GET(req: Request) {
   }
 
   console.log(`[update-trending] Updated ${totalUpdated} markets`);
-  return NextResponse.json({ updated: totalUpdated, timestamp: now.toISOString() });
+  return NextResponse.json({
+    updated: totalUpdated,
+    timestamp: new Date(now).toISOString(),
+  });
 }

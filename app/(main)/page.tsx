@@ -12,14 +12,14 @@ export default async function HomePage() {
     { data: tokenStripCreators },
     { data: initialRaw },
   ] = await Promise.all([
-    // FIX 4: Hero carousel — top 8 open markets by volume (is_hero flag OR has volume)
+    // Hero carousel — manually pinned (featured_score > 0) first, then trending_score
     supabase
       .from("markets")
       .select("*")
       .eq("status", "open")
-      .or("is_hero.eq.true,total_volume.gt.0")
-      .order("total_volume", { ascending: false })
-      .limit(8),
+      .order("featured_score", { ascending: false })
+      .order("trending_score", { ascending: false })
+      .limit(5),
 
     // Breaking — fetch 6 so dedup can still yield 3
     supabase
