@@ -26,7 +26,6 @@ export type CreatorInfo = {
 export type FeeBreakdown = {
   total: number;
   platform: number;
-  caldra: number;
   creatorEarning: number;
   personalToken: number;
   teamToken: number;
@@ -57,7 +56,6 @@ export function calculateMarketFees(
 ): FeeBreakdown {
   const total = round(tradeAmountUsd * 0.02);
   const platform = round(tradeAmountUsd * 0.01);
-  const caldra = 0; // folded into platform — no separate line item
   const creatorEarning = 0; // no separate creator fee; token auto-buy covers all
 
   const remainingPool = round(total - platform); // = 1% token auto-buy
@@ -107,7 +105,6 @@ export function calculateMarketFees(
   return {
     total,
     platform,
-    caldra,
     creatorEarning,
     personalToken,
     teamToken,
@@ -127,7 +124,7 @@ export function calculateMarketFees(
     grossAmount: tradeAmountUsd,
     platformFee: platform,
     creatorFee: creatorEarning,
-    coinHolderPoolFee: round(personalToken + teamToken + leagueToken + caldra),
+    coinHolderPoolFee: round(personalToken + teamToken + leagueToken),
     escrowFee: 0,
     marketCreatorFee: 0,
     totalFee: total,
