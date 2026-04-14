@@ -74,10 +74,30 @@ export async function GET(req: Request) {
     ).length;
   }
 
-  console.log(`[update-trending] Updated ${totalUpdated} markets, ${overdueIds.length} overdue zeroed`);
+  // ── Decay simulated volume 8% per day ──
+  // Affects only markets created before Apr 7 2026 with volume > 100.
+  // At 8%/day: halves in ~8 days, reaches ~zero in ~30 days.
+  const { data: simulatedMarkets } = await supabase
+    .from("markets")
+    .select("id, total_volume")
+    .lt("created_at", "2026-04-07T00:00:00Z")
+    .gt("total_volume", 100)
+    .eq("status", "open");
+
+  let volumeDecayed = 0;
+  for (const market of simulatedMarkets ?? []) {
+    const decayed = Math.max(0, Math.round((market.total_volume ?? 0) * 0.92));
+    if (decayed !== market.total_volume) {
+      await supabase.from("markets").update({ total_volume: decayed }).eq("id", market.id);
+      volumeDecayed++;
+    }
+  }
+
+  console.log(`[update-trending] Updated ${totalUpdated} markets, ${overdueIds.length} overdue zeroed, ${volumeDecayed} volume decayed`);
   return NextResponse.json({
     updated: totalUpdated,
     overdueZeroed: overdueIds.length,
+    volumeDecayed,
     timestamp: new Date(now).toISOString(),
   });
 }

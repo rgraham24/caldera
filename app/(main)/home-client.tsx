@@ -713,7 +713,7 @@ export function HomeClient({
   initialMarkets,
 }: HomeClientProps) {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [sort, setSort] = useState("volume");
+  const [sort, setSort] = useState("trending");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
   const [offset, setOffset] = useState(PAGE_SIZE);
   const [hasMore, setHasMore] = useState(initialMarkets.length === PAGE_SIZE);
@@ -740,7 +740,7 @@ export function HomeClient({
   useEffect(() => {
     Promise.all([
       fetch("/api/markets?status=open&sort=resolving_soon&limit=14").then((r) => r.json()),
-      fetch("/api/markets?status=open&sort=volume&limit=12").then((r) => r.json()),
+      fetch("/api/markets?status=open&sort=trending&limit=12").then((r) => r.json()),
       fetch("/api/markets?category=sports&status=open&sort=newest&limit=4").then((r) => r.json()),
     ]).then(([endingData, volumeData, sportsData]) => {
       const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;

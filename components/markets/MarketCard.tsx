@@ -162,9 +162,16 @@ export function MarketCard({ market }: MarketCardProps) {
           </div>
           <div className="flex flex-col items-end gap-1">
             <MiniSparkline market={market} />
-            <span className="text-[10px] tabular-nums text-[var(--text-tertiary)]">
-              {formatCompactCurrency(market.total_volume ?? 0)} vol
-            </span>
+            {(() => {
+              const vol = market.total_volume ?? 0;
+              // Hide volume for old seed data (created before Apr 7 2026) — it was simulated
+              const isSimulated = (market.created_at ?? "") < "2026-04-07" && vol > 100;
+              return vol > 0 && !isSimulated ? (
+                <span className="text-[10px] tabular-nums text-[var(--text-tertiary)]">
+                  {formatCompactCurrency(vol)} vol
+                </span>
+              ) : null;
+            })()}
           </div>
         </div>
 

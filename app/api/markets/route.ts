@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const category = searchParams.get("category");
   const status = searchParams.get("status") ?? "open";
-  const sort = searchParams.get("sort") || "newest";
+  const sort = searchParams.get("sort") || "trending";
   const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 500);
   const offset = parseInt(searchParams.get("offset") || "0");
   const desoPublicKey = searchParams.get("desoPublicKey");
@@ -93,8 +93,11 @@ export async function GET(req: NextRequest) {
     case "resolving_soon":
       query = query.order("resolve_at", { ascending: true });
       break;
+    case "trending":
+      query = query.order("trending_score", { ascending: false });
+      break;
     default:
-      query = query.order("created_at", { ascending: false });
+      query = query.order("trending_score", { ascending: false });
   }
 
   // Run data fetch and total count in parallel.

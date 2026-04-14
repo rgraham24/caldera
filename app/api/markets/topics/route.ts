@@ -16,7 +16,7 @@ export async function GET() {
     .from("markets")
     .select("id, title, category, creator_slug, total_volume, trending_score, yes_price, close_at, created_at")
     .eq("status", "open")
-    .order("total_volume", { ascending: false })
+    .order("trending_score", { ascending: false })
     .limit(200);
 
   if (!markets) return NextResponse.json({ topics: [] });
@@ -81,11 +81,15 @@ export async function GET() {
     }
   }
 
-  // Sort by totalVolume DESC, return top 10
+  // Sort by topTrendingScore DESC (not volume — volume is seeded/simulated)
   const topics = Array.from(topicMap.values())
-    .sort((a, b) => b.totalVolume - a.totalVolume)
-    .slice(0, 10)
-    .map((t) => ({ ...t, volumeFormatted: formatVolume(t.totalVolume) }));
+    .sort((a, b) => b.topTrendingScore - a.topTrendingScore)
+    .slice(0, 12)
+    .map((t) => ({
+      ...t,
+      // Show market count instead of (potentially fake) volume
+      volumeFormatted: t.marketCount > 1 ? `${t.marketCount} markets` : null,
+    }));
 
   return NextResponse.json({ topics });
 }
