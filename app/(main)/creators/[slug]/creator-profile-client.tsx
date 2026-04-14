@@ -126,6 +126,18 @@ export function CreatorProfileClient({
   const resolvedMarkets = markets.filter((m) => m.status === "resolved");
   const coinSymbol = desoUser || creator.creator_coin_symbol;
 
+  // Category token symbol for fee burn banner
+  const categoryTokenSymbol = (() => {
+    const cat = (creator.category ?? "").toLowerCase();
+    const map: Record<string, string> = {
+      sports: "SPORTS", music: "MUSIC", politics: "POLITICS",
+      entertainment: "ENTERTAINMENT", companies: "COMPANIES",
+      climate: "CLIMATE", tech: "TECH", creators: "CREATORS",
+    };
+    return map[cat] ?? null;
+  })();
+  const isCryptoCreator = (creator.category ?? "").toLowerCase() === "crypto";
+
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
@@ -186,11 +198,19 @@ export function CreatorProfileClient({
           </div>
         )}
         {creator.token_status === "active_unverified" && (
-          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-            <p className="text-sm text-text-muted">
-              Prediction fees flow back into ${coinSymbol} automatically.
-            </p>
-          </div>
+          isCryptoCreator ? (
+            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+              <p className="text-sm text-text-muted">
+                Every trade on ${coinSymbol} markets burns ${coinSymbol} tokens automatically.
+              </p>
+            </div>
+          ) : categoryTokenSymbol ? (
+            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+              <p className="text-sm text-text-muted">
+                Trade markets. Burn <span className="font-medium text-caldera">${categoryTokenSymbol}</span> tokens.
+              </p>
+            </div>
+          ) : null
         )}
         {creator.token_status === "needs_review" && (
           <div className="mb-6 rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
@@ -200,11 +220,19 @@ export function CreatorProfileClient({
           </div>
         )}
         {creator.token_status === "active_verified" && (
-          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-            <p className="text-sm text-text-muted">
-              Prediction fees flow back into ${coinSymbol} automatically.
-            </p>
-          </div>
+          isCryptoCreator ? (
+            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+              <p className="text-sm text-text-muted">
+                Every trade on ${coinSymbol} markets burns ${coinSymbol} tokens automatically.
+              </p>
+            </div>
+          ) : categoryTokenSymbol ? (
+            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+              <p className="text-sm text-text-muted">
+                Trade markets. Burn <span className="font-medium text-caldera">${categoryTokenSymbol}</span> tokens.
+              </p>
+            </div>
+          ) : null
         )}
         {creator.token_status === "claimed" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
