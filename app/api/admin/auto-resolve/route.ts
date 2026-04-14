@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolveSportsMarket, detectSport } from "@/lib/resolution/sports-resolver";
 
 const ADMIN_PW = process.env.ADMIN_PASSWORD ?? "caldera-admin-2026";
 const CONFIDENCE_AUTO = 85;
@@ -24,7 +25,7 @@ type MarketRow = {
 
 /**
  * Category-specific pre-screening before calling Claude.
- * Returns null to proceed normally, or a forced result.
+ * Returns null to proceed normally, or a forced skip.
  */
 function prescreenMarket(market: MarketRow): { skip: true; reason: string } | null {
   const title = market.title.toLowerCase();
@@ -106,7 +107,8 @@ async function settlePositions(
   supabase: Awaited<ReturnType<typeof createClient>>,
   marketId: string,
   outcome: "yes" | "no",
-  now: string
+  now: string,
+  resolvedBy: "ESPN" | "AI"
 ): Promise<{ positionsSettled: number; winnersCount: number; totalPaidOut: number }> {
   const { data: positions } = await supabase
     .from("positions")
@@ -138,7 +140,7 @@ async function settlePositions(
     await supabase.from("market_resolutions").insert({
       market_id: marketId,
       outcome,
-      notes: `AI_AUTO_RESOLVED`,
+      notes: resolvedBy === "ESPN" ? "ESPN_AUTO_RESOLVED" : "AI_AUTO_RESOLVED",
       created_at: now,
     });
   } catch { /* non-critical */ }
@@ -203,14 +205,13 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // apiKey used via closure in resolveWithClaude
-
   const autoResolved: Array<{
     marketId: string;
     title: string;
     outcome: string;
     confidence: number;
     reasoning: string;
+    method: "ESPN" | "AI";
   }> = [];
 
   const flaggedForReview: Array<{
@@ -229,6 +230,59 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    // ── Step 1: Try ESPN for Sports markets ──
+    if (market.category === "Sports" && detectSport(market.title)) {
+      let espnResult;
+      try {
+        espnResult = await resolveSportsMarket(market);
+      } catch (err) {
+        console.error("[auto-resolve] ESPN error for", market.title, err);
+        // Fall through to Claude
+      }
+
+      if (espnResult?.resolved && espnResult.outcome !== "unknown") {
+        // Auto-resolve via ESPN
+        await supabase
+          .from("markets")
+          .update({
+            status: "resolved",
+            resolution_outcome: espnResult.outcome,
+            resolved_at: now,
+            resolution_note: `ESPN_AUTO_RESOLVED [${espnResult.confidence}% confidence]: ${espnResult.reasoning}`,
+            resolution_source_url: espnResult.source || null,
+          })
+          .eq("id", market.id);
+
+        await settlePositions(supabase, market.id, espnResult.outcome, now, "ESPN");
+
+        autoResolved.push({
+          marketId: market.id,
+          title: market.title,
+          outcome: espnResult.outcome,
+          confidence: espnResult.confidence,
+          reasoning: espnResult.reasoning,
+          method: "ESPN",
+        });
+        continue;
+      }
+
+      if (espnResult && !espnResult.resolved) {
+        // ESPN found the game wasn't played yet, or couldn't match — skip Claude for Sports
+        // unless it's a non-game-specific question (championships, season totals, etc.)
+        const isGameSpecific = /\bbeat\b|\bdefeat\b|\bwin\b.*\bagainst\b|\bvs\b/i.test(market.title);
+        if (isGameSpecific) {
+          skipped.push({
+            marketId: market.id,
+            title: market.title,
+            reason: `ESPN: ${espnResult.reasoning}`,
+          });
+          continue;
+        }
+        // Non-game-specific sports question — fall through to Claude
+      }
+    }
+
+    // ── Step 2: Claude fallback ──
     let resolution: ClaudeResolution;
     try {
       resolution = await resolveWithClaude(market, apiKey);
@@ -242,7 +296,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (resolution.confidence >= CONFIDENCE_AUTO && resolution.outcome !== "unknown") {
-      // Auto-resolve
+      // Auto-resolve via Claude
       await supabase
         .from("markets")
         .update({
@@ -254,7 +308,7 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", market.id);
 
-      await settlePositions(supabase, market.id, resolution.outcome, now);
+      await settlePositions(supabase, market.id, resolution.outcome, now, "AI");
 
       autoResolved.push({
         marketId: market.id,
@@ -262,6 +316,7 @@ export async function POST(req: NextRequest) {
         outcome: resolution.outcome,
         confidence: resolution.confidence,
         reasoning: resolution.reasoning,
+        method: "AI",
       });
     } else if (resolution.confidence >= CONFIDENCE_REVIEW) {
       // Flag for review — store Claude's analysis but don't resolve

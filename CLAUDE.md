@@ -71,6 +71,30 @@ console.log(data, error);
 Valid market statuses: open, closed, resolving, resolved, cancelled
 Never use: archived (not a valid status — check constraint will reject it)
 
+## ESPN Free API (no auth required)
+Sports scoreboard + schedule data. Used by `lib/resolution/sports-resolver.ts`.
+
+Base: `https://site.api.espn.com/apis/site/v2/sports`
+
+Endpoints:
+- NFL:  `/football/nfl/scoreboard?dates=YYYYMMDD`
+- NBA:  `/basketball/nba/scoreboard?dates=YYYYMMDD`
+- MLB:  `/baseball/mlb/scoreboard?dates=YYYYMMDD`
+- NHL:  `/hockey/nhl/scoreboard?dates=YYYYMMDD`
+
+Key response fields:
+- `events[].status.type.state` — "pre" | "in" | "post"
+- `events[].status.type.completed` — boolean
+- `events[].competitions[0].competitors[].team.shortDisplayName` — team name
+- `events[].competitions[0].competitors[].score` — score string
+- `events[].competitions[0].competitors[].winner` — boolean
+- `events[].competitions[0].competitors[].homeAway` — "home" | "away"
+
+Usage:
+- `resolveSportsMarket(market)` — checks ESPN for completed game, returns SportsResolutionResult
+- `fetchUpcomingGames(sports, daysAhead)` — returns pre-game events for schedule market generation
+- `detectSport(title)` — returns "nfl" | "nba" | "mlb" | "nhl" | null
+
 ## SQL migrations
 For schema changes, write the SQL and run via:
 node -e "require('dotenv').config({path:'.env.local'}); 
