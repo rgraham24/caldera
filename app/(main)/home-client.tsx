@@ -8,10 +8,12 @@ import {
   formatCompactCurrency,
   formatRelativeTime,
 } from "@/lib/utils";
-import { ChevronDown, TrendingUp, Zap } from "lucide-react";
+import { ChevronDown, TrendingUp, Zap, Users } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { TrendingStrip } from "@/components/markets/TrendingStrip";
+import { useAppStore } from "@/store";
+import { connectDeSoWallet } from "@/lib/deso/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -657,6 +659,7 @@ export function HomeClient({
   tokenStripCreators,
   initialMarkets,
 }: HomeClientProps) {
+  const { isConnected } = useAppStore();
   const [activeFilter, setActiveFilter] = useState("all");
   const [sort, setSort] = useState("trending");
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
@@ -975,20 +978,41 @@ export function HomeClient({
           </div>
         </div>
 
-        {/* Grid */}
-        <div
-          className={`grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-4 ${loading ? "opacity-40 pointer-events-none" : "opacity-100"}`}
-        >
-          {markets.map((m) => (
-            <MarketCard key={m.id} market={m} />
-          ))}
-        </div>
+        {/* Following empty state — shown when not connected */}
+        {activeFilter === "following" && !isConnected ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-subtle bg-surface">
+              <Users className="h-6 w-6 text-text-muted" />
+            </div>
+            <h3 className="mb-2 font-display text-lg font-bold text-text-primary">Follow your favorites</h3>
+            <p className="mb-6 max-w-xs text-sm text-text-muted">
+              Connect your DeSo wallet to follow creators and get a personalized feed
+            </p>
+            <button
+              onClick={() => connectDeSoWallet()}
+              className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 transition-colors"
+            >
+              Connect wallet
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Grid */}
+            <div
+              className={`grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-4 ${loading ? "opacity-40 pointer-events-none" : "opacity-100"}`}
+            >
+              {markets.map((m) => (
+                <MarketCard key={m.id} market={m} />
+              ))}
+            </div>
 
-        {markets.length === 0 && !loading && (
-          <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets found</p>
+            {markets.length === 0 && !loading && (
+              <p className="py-16 text-center text-sm text-[var(--text-tertiary)]">No markets found</p>
+            )}
+          </>
         )}
 
-        {hasMore && (
+        {hasMore && !(activeFilter === "following" && !isConnected) && (
           <div className="mt-8 flex justify-center">
             <button
               onClick={() => fetchMarkets(activeFilter, sort, offset, true)}

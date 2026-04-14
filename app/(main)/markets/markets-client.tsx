@@ -24,6 +24,7 @@ const STATUS_OPTIONS = [
 
 type MarketsClientProps = {
   markets: Market[];
+  totalCount: number;
 };
 
 function Pill({
@@ -50,7 +51,7 @@ function Pill({
   );
 }
 
-export function MarketsClient({ markets }: MarketsClientProps) {
+export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("trending");
@@ -234,7 +235,10 @@ export function MarketsClient({ markets }: MarketsClientProps) {
         {/* Main grid */}
         <div className="flex-1">
           <p className="mb-4 text-sm text-[var(--text-tertiary)]">
-            {filtered.length} market{filtered.length !== 1 ? "s" : ""}
+            {selectedCategories.size === 0 && statusFilter === "all"
+              ? <>{totalCount.toLocaleString()} markets</>
+              : <>{filtered.length} market{filtered.length !== 1 ? "s" : ""}</>
+            }
           </p>
           <MarketGrid markets={filtered} />
         </div>
