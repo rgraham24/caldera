@@ -190,26 +190,30 @@ function SearchBox({
 
       {showDropdown && query.length >= 2 && (
         <div
-          className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl shadow-2xl"
-          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}
+          className="absolute left-0 right-0 top-full mt-1 overflow-hidden rounded-xl shadow-2xl"
+          style={{
+            zIndex: 9999,
+            background: "#15112a",
+            border: "1px solid rgba(124,92,252,0.2)",
+          }}
         >
           {loading && (
             <div className="space-y-2 p-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-8 animate-pulse rounded-lg" style={{ background: "var(--border-subtle)" }} />
+                <div key={i} className="h-8 animate-pulse rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }} />
               ))}
             </div>
           )}
 
           {!loading && !hasResults && (
-            <div className="px-4 py-6 text-center text-sm text-[var(--text-tertiary)]">
+            <div className="px-4 py-6 text-center text-sm" style={{ color: "#8888a0" }}>
               No results for &ldquo;{query}&rdquo;
             </div>
           )}
 
           {!loading && results.markets.length > 0 && (
             <div className="px-2 pt-2">
-              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#55556a" }}>
                 Markets
               </p>
               {results.markets.map((m) => {
@@ -219,15 +223,18 @@ function SearchBox({
                     key={m.id}
                     href={`/markets/${m.slug}`}
                     onClick={close}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
+                    className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors"
+                    style={{ color: "#f0f0f5" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(124,92,252,0.08)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <span
                       className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                      style={{ background: "var(--accent-muted, #f9731615)", color: "var(--accent, #f97316)" }}
+                      style={{ background: "rgba(124,92,252,0.15)", color: "#7C5CFC" }}
                     >
                       {m.category}
                     </span>
-                    <span className="flex-1 truncate text-sm text-[var(--text-primary)]">
+                    <span className="flex-1 truncate text-sm">
                       {m.title.length > 60 ? m.title.slice(0, 60) + "…" : m.title}
                     </span>
                     <span className="shrink-0 text-xs font-semibold text-emerald-400">{yes}%</span>
@@ -239,7 +246,7 @@ function SearchBox({
 
           {!loading && results.creators.length > 0 && (
             <div className={`px-2 ${results.markets.length > 0 ? "pt-1" : "pt-2"} pb-2`}>
-              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#55556a" }}>
                 Creators
               </p>
               {results.creators.map((c) => (
@@ -247,18 +254,21 @@ function SearchBox({
                   key={c.id}
                   href={`/creators/${c.slug}`}
                   onClick={close}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--bg-hover)]"
+                  className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors"
+                  style={{ color: "#f0f0f5" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(124,92,252,0.08)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   {c.image_url ? (
                     <img src={c.image_url} alt={c.name} className="h-6 w-6 shrink-0 rounded-full object-cover" />
                   ) : (
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "var(--accent, #f97316)" }}>
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "#7C5CFC" }}>
                       {(c.name ?? "?")[0].toUpperCase()}
                     </div>
                   )}
-                  <span className="flex-1 truncate text-sm text-[var(--text-primary)]">{c.name}</span>
+                  <span className="flex-1 truncate text-sm">{c.name}</span>
                   {c.creator_coin_symbol && (
-                    <span className="shrink-0 font-mono text-xs text-[var(--text-tertiary)]">${c.creator_coin_symbol}</span>
+                    <span className="shrink-0 font-mono text-xs" style={{ color: "#8888a0" }}>${c.creator_coin_symbol}</span>
                   )}
                 </Link>
               ))}
