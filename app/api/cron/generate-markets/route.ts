@@ -237,9 +237,53 @@ export async function GET(req: Request) {
 
   const totalGenerated = Object.values(breakdown).reduce((a, b) => a + b, 0);
 
+  // ── Daily photo refresh — top 10 creators by market count ──
+  let photosRefreshed = 0;
+  try {
+    const { data: topCreators } = await supabase
+      .from("creators")
+      .select("id, slug, deso_public_key, image_url")
+      .not("deso_public_key", "is", null)
+      .order("markets_count", { ascending: false })
+      .limit(10);
+
+    for (const creator of topCreators ?? []) {
+      if (!creator.deso_public_key) continue;
+      try {
+        const res = await fetch("https://node.deso.org/api/v0/get-single-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ PublicKeyBase58Check: creator.deso_public_key }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) continue;
+        const data = await res.json() as { Profile?: { Username?: string; ExtraData?: { LargeProfilePicURL?: string } } };
+        const profile = data?.Profile;
+        if (!profile) continue;
+
+        const freshImageUrl =
+          profile.ExtraData?.LargeProfilePicURL ||
+          `https://node.deso.org/api/v0/get-single-profile-picture/${creator.deso_public_key}`;
+
+        if (freshImageUrl && freshImageUrl !== creator.image_url) {
+          await supabase
+            .from("creators")
+            .update({ image_url: freshImageUrl, deso_username: profile.Username ?? undefined })
+            .eq("id", creator.id);
+          photosRefreshed++;
+        }
+
+        await new Promise((r) => setTimeout(r, 150));
+      } catch { /* non-critical — skip this creator */ }
+    }
+  } catch (err) {
+    console.error("[cron/generate-markets] photo refresh error:", err);
+  }
+
   return NextResponse.json({
     success: true,
     generated: totalGenerated,
     breakdown,
+    photosRefreshed,
   });
 }
