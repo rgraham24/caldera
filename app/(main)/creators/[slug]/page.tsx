@@ -66,10 +66,9 @@ export default async function CreatorProfilePage({
         .limit(10)
     : { data: [] };
 
-  // Hide completely empty shadow profiles — no markets and no DeSo username
+  // Hide profiles with no DeSo identity AND no markets
   if (
     creator &&
-    (creator.token_status === "shadow" || !creator.token_status) &&
     !creator.deso_username &&
     (!markets || markets.length === 0)
   ) {
