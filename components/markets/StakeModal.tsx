@@ -460,8 +460,8 @@ export function StakeModal({
                     <span className="text-orange-400 font-semibold">1% burn</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Token holders earn</span>
-                    <span className="text-caldera font-semibold">passive income</span>
+                    <span className="text-text-muted">Token holders benefit</span>
+                    <span className="text-caldera font-semibold">from buy &amp; burn</span>
                   </div>
                 </div>
               </div>

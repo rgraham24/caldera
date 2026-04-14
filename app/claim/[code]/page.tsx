@@ -120,7 +120,7 @@ export default function ClaimPage() {
             You now own <span className="text-white font-medium">${creator?.symbol}</span> on Caldera.
           </p>
           <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
-            Every market about you generates passive income for your token holders — including you.
+            Every market about you auto-buys &amp; burns ${creator?.symbol} — benefiting all token holders, including you.
           </p>
           <button
             onClick={() => router.push(`/creators/${creator?.slug}`)}
