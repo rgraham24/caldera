@@ -116,9 +116,8 @@ export default function TokensPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold text-text-primary">💰 Tokens</h1>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-yes" />
-          Live on DeSo
+        <p className="mt-1 text-sm text-text-muted">
+          Every trade burns these tokens permanently. More volume = scarcer supply = higher value.
         </p>
       </div>
 
@@ -172,7 +171,7 @@ export default function TokensPage() {
                 🔥 Buy &amp; Burn Tokens
               </h2>
               <p className="mt-0.5 text-xs text-text-muted">
-                1% of every trade on Caldera buys &amp; burns these tokens automatically.
+                Hold them as the platform grows. Every trade makes them scarcer forever.
               </p>
             </div>
           </div>
@@ -191,7 +190,7 @@ export default function TokensPage() {
                   <div>
                     <div className="text-base font-bold text-text-primary font-mono">{symbol}</div>
                     <div className="text-[11px] text-text-muted mt-1 leading-relaxed">
-                      1% of every {t.name.toLowerCase()} market trade burns this token
+                      Burns 🔥 with every {t.name.toLowerCase()} trade
                     </div>
                   </div>
                   <div className="flex items-center justify-between">

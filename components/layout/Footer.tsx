@@ -98,7 +98,7 @@ export function Footer() {
               Risk Disclosure
             </p>
             <p className="text-sm leading-relaxed text-[var(--text-tertiary)]">
-              Caldera charges a 2% fee on trades. 1% goes to Caldera as platform revenue. 1% automatically buys and burns the associated category token ($SPORTS, $ENTERTAINMENT, etc.), reducing supply permanently. Sells are always free. Prediction markets involve risk — only trade what you can afford to lose.
+              Caldera is a prediction market platform on the DeSo blockchain. Every trade triggers an automatic token burn, reducing supply permanently. Claimed creators receive 0.5% of trades on their markets. A 2% fee applies: 1% funds platform operations, 1% burns the associated category token. Sells are free. Never trade more than you can afford to lose. Not financial advice.
             </p>
           </div>
         </div>
