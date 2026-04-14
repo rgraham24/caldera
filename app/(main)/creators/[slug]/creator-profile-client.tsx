@@ -34,6 +34,7 @@ type BuybackEvent = {
 type CreatorProfileClientProps = {
   creator: Creator;
   markets: Market[];
+  holderEarnings: number;
   recentTrades: Array<{
     id: string;
     side: string;
@@ -48,6 +49,7 @@ type CreatorProfileClientProps = {
 export function CreatorProfileClient({
   creator,
   markets,
+  holderEarnings,
   recentTrades,
   claimUrl,
 }: CreatorProfileClientProps) {
@@ -309,7 +311,7 @@ export function CreatorProfileClient({
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
-            { label: "Holder Earnings", value: (creator.total_holder_earnings ?? 0) > 0 ? formatCompactCurrency(creator.total_holder_earnings ?? 0) : "—", show: true, tip: "The total amount earned by people who hold this token from prediction activity on Caldera." },
+            { label: "Holder Earnings", value: formatCurrency(holderEarnings), show: true, tip: "Total USD burned across all prediction markets tied to this creator — 1% of every trade goes to burning the associated token." },
             { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more earnings for token holders." },
             { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
