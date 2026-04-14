@@ -76,9 +76,7 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
       const CAT_GROUPS: Record<string, string[]> = {
         creators: ["creators", "streamers"],
         entertainment: ["entertainment", "viral"],
-        tech: ["tech", "crypto"],
         sports: ["sports", "athletes"],
-        commentary: ["commentary", "Commentary"],
       };
       selectedCategories.forEach((c) => {
         const group = CAT_GROUPS[c] || [c];

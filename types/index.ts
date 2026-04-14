@@ -30,7 +30,7 @@ export type MarketStatus = "open" | "closed" | "resolving" | "resolved" | "cance
 export type TradeSide = "yes" | "no";
 
 // Category type
-export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment" | "commentary" | "crypto" | "companies" | "climate";
+export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment" | "crypto" | "companies" | "climate";
 
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "creators", label: "🎬 Creators" },
@@ -42,7 +42,6 @@ export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "music", label: "🎵 Music" },
   { value: "tech", label: "💻 Tech" },
   { value: "entertainment", label: "🎭 Entertainment" },
-  { value: "commentary", label: "💬 Commentary" },
 ];
 
 // Leaderboard period
