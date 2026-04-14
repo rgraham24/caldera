@@ -163,26 +163,59 @@ export default function TokensPage() {
         </select>
       </div>
 
-      {/* Buy & Burn Category Tokens */}
+      {/* 🔥 Buy & Burn Category Tokens */}
       {!loading && categoryTokens.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
-            Buy &amp; Burn Tokens
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {categoryTokens.map((t) => (
-              <Link key={t.slug} href={`/creators/${t.slug}`} className="rounded-xl border border-border-subtle bg-surface p-4 transition-all hover:border-caldera/30 hover:-translate-y-px">
-                <div className="text-base font-bold text-text-primary">
-                  ${t.name.toUpperCase()}
+        <div className="mb-10">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-lg font-bold text-text-primary">
+                🔥 Buy &amp; Burn Tokens
+              </h2>
+              <p className="mt-0.5 text-xs text-text-muted">
+                1% of every trade on Caldera buys &amp; burns these tokens automatically.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {categoryTokens.map((t) => {
+              const marketCount = categoryMarketCounts[t.slug] ?? t.markets_count ?? 0;
+              const symbol = `$${t.name.toUpperCase()}`;
+              const desoUrl = t.deso_public_key
+                ? `https://diamondapp.com/u/${t.deso_username}`
+                : null;
+              return (
+                <div
+                  key={t.slug}
+                  className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col gap-3 hover:border-orange-500/30 transition-colors"
+                >
+                  <div>
+                    <div className="text-base font-bold text-text-primary font-mono">{symbol}</div>
+                    <div className="text-[11px] text-text-muted mt-1 leading-relaxed">
+                      1% of every {t.name.toLowerCase()} market trade burns this token
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-caldera">
+                      {marketCount.toLocaleString()} markets
+                    </span>
+                    {desoUrl ? (
+                      <a
+                        href={desoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg bg-orange-500 px-3 py-1 text-xs font-semibold text-white hover:bg-orange-400 transition-colors"
+                      >
+                        Buy
+                      </a>
+                    ) : (
+                      <span className="rounded-lg border border-border-subtle px-3 py-1 text-xs font-semibold text-text-faint cursor-default">
+                        Coming Soon
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-text-muted mt-1 leading-relaxed">
-                  1% of all {t.name.toLowerCase()} markets burned 🔥
-                </div>
-                <div className="text-xs text-caldera mt-2 font-medium">
-                  {(categoryMarketCounts[t.slug] ?? t.markets_count ?? 0).toLocaleString()} markets
-                </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
