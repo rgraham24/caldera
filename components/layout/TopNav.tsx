@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
-import { Button } from "@/components/ui/button";
-import { Search, Menu, X, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
+import { Search, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
@@ -57,7 +56,7 @@ function CenterTabs() {
   })();
 
   return (
-    <div className="flex items-center overflow-x-auto scrollbar-hide">
+    <div className="flex items-center overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
       {CENTER_TABS.map((tab, i) => {
         if ("divider" in tab) {
           return (
@@ -89,16 +88,6 @@ function CenterTabs() {
     </div>
   );
 }
-
-// ─── Mobile menu items ────────────────────────────────────────────────────────
-
-const MOBILE_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/markets", label: "Markets" },
-  { href: "/tokens", label: "Tokens" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/portfolio", label: "Portfolio" },
-];
 
 // ─── Search autocomplete ──────────────────────────────────────────────────────
 
@@ -176,7 +165,7 @@ function SearchBox({
   const hasResults = results.markets.length > 0 || results.creators.length > 0;
 
   return (
-    <div ref={containerRef} className="relative hidden flex-1 md:block max-w-xl">
+    <div ref={containerRef} className="relative w-full">
       <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)] pointer-events-none" />
       <input
         ref={searchRef}
@@ -289,7 +278,6 @@ export function TopNav() {
     false
   );
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
@@ -337,8 +325,8 @@ export function TopNav() {
         }}
       >
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-          {/* ROW 1 — Logo, Search, How it works, Connect */}
-        <div className="flex h-14 items-center gap-4">
+          {/* ROW 1 — Logo, Search (desktop), Connect */}
+          <div className="flex flex-wrap items-center gap-3 py-2.5 md:h-14 md:flex-nowrap md:py-0">
 
             {/* Logo */}
             <Link href="/" className="shrink-0">
@@ -347,8 +335,10 @@ export function TopNav() {
               </span>
             </Link>
 
-            {/* Search — takes up middle space */}
-            <SearchBox router={router} searchRef={searchRef} />
+            {/* Search — full-width below logo on mobile, inline on md+ */}
+            <div className="order-last w-full md:order-none md:flex-1 md:max-w-xl">
+              <SearchBox router={router} searchRef={searchRef} />
+            </div>
 
             {/* Right side */}
             <div className="ml-auto flex shrink-0 items-center gap-3">
@@ -419,82 +409,15 @@ export function TopNav() {
                 </button>
               )}
 
-              {/* Mobile hamburger */}
-              <Button variant="ghost" size="icon" className="text-[var(--text-secondary)] md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
             </div>
-        </div>
+          </div>
 
-        {/* ROW 2 — Category tabs, hidden on mobile */}
-        <div className="hidden md:block border-t" style={{ borderColor: "var(--border-subtle)" }}>
+        {/* ROW 2 — Category tabs, always visible, scrollable */}
+        <div className="border-t" style={{ borderColor: "var(--border-subtle)" }}>
           <Suspense fallback={<div className="h-10" />}>
             <CenterTabs />
           </Suspense>
         </div>
-
-          {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <div className="pb-4 md:hidden" style={{ borderTop: "1px solid var(--border-subtle)" }}>
-              {/* Category scroll strip on mobile */}
-              <div className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
-                {CENTER_TABS.filter((t) => !("divider" in t)).map((tab) => {
-                  if ("divider" in tab) return null;
-                  return (
-                    <Link
-                      key={tab.id}
-                      href={tab.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="shrink-0 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap"
-                      style={{ borderColor: "var(--border-subtle)", color: "var(--text-secondary)" }}
-                    >
-                      {tab.label}
-                    </Link>
-                  );
-                })}
-              </div>
-              <div className="flex flex-col gap-1 pt-1">
-                {MOBILE_LINKS.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                      pathname === item.href ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-                {isConnected ? (
-                  <>
-                    <div className="mx-3 my-1 h-px" style={{ background: "var(--border-subtle)" }} />
-                    <div className="flex items-center gap-3 px-3 py-2">
-                      {desoProfilePicUrl && !avatarError ? (
-                        <img src={desoProfilePicUrl} alt={desoUsername ?? ""} className="h-7 w-7 rounded-full object-cover" />
-                      ) : (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-white">
-                          {(desoUsername ?? "?")[0].toUpperCase()}
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-[var(--text-primary)]">@{desoUsername}</p>
-                        <p className="font-mono text-xs text-[var(--text-secondary)]">{desoBalanceDeso.toFixed(2)} DESO</p>
-                      </div>
-                    </div>
-                    <button onClick={() => { setMobileMenuOpen(false); handleDisconnect(); }} className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                      Disconnect
-                    </button>
-                  </>
-                ) : (
-                  <button onClick={() => { setMobileMenuOpen(false); connectDeSoWallet(); }} className="mx-3 mt-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-gray-100">
-                    Connect Wallet
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </nav>
     </>

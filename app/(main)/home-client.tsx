@@ -776,7 +776,7 @@ export function HomeClient({
             {heroMarkets.length > 0 && (
               <HeroSection markets={heroMarkets} />
             )}
-            <div className="flex flex-col gap-4">
+            <div className="hidden lg:flex flex-col gap-4">
               {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
               {uniqueTrendingCreators.length > 0 && (
                 <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
