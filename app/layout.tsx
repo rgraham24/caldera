@@ -1,3 +1,4 @@
+// v2 - cache bust April 2026
 import type { Metadata } from "next";
 import { Inter, IBM_Plex_Mono, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
