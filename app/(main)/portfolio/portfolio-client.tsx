@@ -6,6 +6,7 @@ import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { TradeTicket } from "@/components/markets/TradeTicket";
+import { StakeModal } from "@/components/markets/StakeModal";
 import type { Market } from "@/types";
 
 type Position = {
@@ -67,6 +68,8 @@ export function PortfolioClient() {
   const [coinHoldings, setCoinHoldings] = useState<CoinHolding[]>([]);
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [tradeModal, setTradeModal] = useState<TradeModal>(null);
+  type CoinTradeModal = { creator: { id: string; name: string; slug: string; deso_username: string | null; deso_public_key: string | null; creator_coin_price: number | null; creator_coin_holders: number | null; creator_coin_market_cap: number | null; markets_count: number | null; image_url: string | null; deso_is_reserved: boolean | null; is_caldera_verified: boolean | null; entity_type: string | null; [key: string]: any; }; initialMode: "buy" | "sell"; } | null;
+  const [coinTradeModal, setCoinTradeModal] = useState<CoinTradeModal>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const { isConnected, desoPublicKey, desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
 
@@ -104,6 +107,23 @@ export function PortfolioClient() {
         creator_market_creator_fee: "0.01",
       };
       setTradeModal({ market, feeConfig, initialMode: mode, positionSide: pos.side as "yes" | "no" });
+    } catch {
+      // silently fail
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openCoinTradeModal = async (h: CoinHolding, mode: "buy" | "sell") => {
+    setModalLoading(true);
+    try {
+      const identifier = h.creatorSlug || h.username;
+      const res = await fetch(`/api/creators/${identifier}`);
+      const json = await res.json();
+      const creator = json.data ?? json;
+      if (creator?.id) {
+        setCoinTradeModal({ creator, initialMode: mode });
+      }
     } catch {
       // silently fail
     } finally {
@@ -504,7 +524,7 @@ export function PortfolioClient() {
                 <div className="rounded-xl border border-border-subtle bg-surface p-4">
                   <p className="text-xs text-text-muted">Creators Held</p>
                   <p className="mt-1 font-mono text-lg font-semibold text-caldera">
-                    {coinHoldings.filter((h) => h.hasPurchased).length}
+                    {coinHoldings.filter((h) => (h.totalValueUSD ?? 0) >= 0.01).length}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border-subtle bg-surface p-4 col-span-2 md:col-span-1">
@@ -519,46 +539,34 @@ export function PortfolioClient() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {coinHoldings.map((h) => {
                   const coinsHeld = h.balanceNanos / 1e9;
-                  const valueUSD = coinsHeld * h.coinPriceUSD;
-                  const card = (
-                    <div className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 hover:border-border-default transition-colors">
+                  const valueUSD = h.totalValueUSD ?? coinsHeld * h.coinPriceUSD;
+                  return (
+                    <div key={h.creatorPublicKey} className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 hover:border-caldera/30 transition-colors">
                       {h.imageUrl ? (
-                        <img
-                          src={h.imageUrl}
-                          alt={h.displayName || h.username}
-                          className="h-10 w-10 rounded-full object-cover shrink-0"
-                          onError={(e) => { e.currentTarget.style.display = "none"; }}
-                        />
+                        <img src={h.imageUrl} alt={h.displayName || h.username} className="h-10 w-10 rounded-full object-cover shrink-0" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                       ) : (
                         <div className="h-10 w-10 rounded-full bg-caldera/20 flex items-center justify-center shrink-0 text-sm font-bold text-caldera">
                           {(h.displayName || h.username || "?").charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-text-primary truncate">
-                          {h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}
-                        </p>
-                        <p className="text-xs text-text-muted font-mono">
-                          {coinsHeld.toFixed(4)} coins
-                        </p>
+                        {h.creatorSlug ? (
+                          <Link href={`/creators/${h.creatorSlug}`} className="text-sm font-semibold text-text-primary truncate hover:text-caldera block">
+                            {h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}
+                          </Link>
+                        ) : (
+                          <p className="text-sm font-semibold text-text-primary truncate">{h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}</p>
+                        )}
+                        <p className="text-xs text-text-muted font-mono">{coinsHeld.toFixed(4)} coins · {formatCurrency(h.coinPriceUSD)}/coin</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold font-mono text-text-primary">
-                          {formatCurrency(valueUSD)}
-                        </p>
-                        <p className="text-xs text-text-muted font-mono">
-                          {formatCurrency(h.coinPriceUSD)}/coin
-                        </p>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <p className="text-sm font-semibold font-mono text-text-primary">{formatCurrency(valueUSD)}</p>
+                        <div className="flex gap-1">
+                          <button onClick={() => openCoinTradeModal(h, "buy")} disabled={modalLoading} className="rounded-md bg-[#7C5CFC] px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-[#6a4ae8] transition-colors disabled:opacity-50">Buy</button>
+                          <button onClick={() => openCoinTradeModal(h, "sell")} disabled={modalLoading} className="rounded-md border border-border-subtle px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:text-text-primary hover:border-white/30 transition-colors disabled:opacity-50">Sell</button>
+                        </div>
                       </div>
                     </div>
-                  );
-
-                  return h.creatorSlug ? (
-                    <Link key={h.creatorPublicKey} href={`/creators/${h.creatorSlug}`}>
-                      {card}
-                    </Link>
-                  ) : (
-                    <div key={h.creatorPublicKey}>{card}</div>
                   );
                 })}
               </div>
@@ -616,6 +624,18 @@ export function PortfolioClient() {
           Loading market…
         </div>
       </div>
+    )}
+
+    {coinTradeModal && (
+      <StakeModal
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        creator={coinTradeModal.creator as any}
+        isOpen={!!coinTradeModal}
+        onClose={() => { setCoinTradeModal(null); setCoinHoldings([]); }}
+        desoUsername={coinTradeModal.creator?.deso_username}
+        livePrice={coinTradeModal.creator?.creator_coin_price ?? undefined}
+        initialTab={coinTradeModal.initialMode}
+      />
     )}
     </>
   );
