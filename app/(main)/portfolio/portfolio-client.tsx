@@ -618,7 +618,7 @@ export function PortfolioClient() {
             <TradeTicket
               market={tradeModal.market}
               feeConfig={tradeModal.feeConfig}
-              onTradeComplete={() => { fetchPositions(); }}
+              onTradeComplete={() => { setTradeModal(null); fetchPositions(); }}
               initialMode={tradeModal.initialMode}
             />
           </div>

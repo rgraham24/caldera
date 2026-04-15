@@ -19,54 +19,59 @@ export async function POST(req: NextRequest) {
       .eq("deso_public_key", desoPublicKey)
       .single();
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // Get market
+    // Get market for current price
     const { data: market } = await supabase
       .from("markets")
-      .select("*")
+      .select("yes_price, no_price, status")
       .eq("id", marketId)
       .single();
 
-    if (!market) {
-      return NextResponse.json({ error: "Market not found" }, { status: 404 });
-    }
+    if (!market) return NextResponse.json({ error: "Market not found" }, { status: 404 });
+    if (market.status !== "open") return NextResponse.json({ error: "Market is closed" }, { status: 400 });
 
-    // Get position
-    const { data: position } = await supabase
+    // Get open position — filter by user + market + side + open status
+    const { data: positions } = await supabase
       .from("positions")
       .select("*")
       .eq("user_id", user.id)
       .eq("market_id", marketId)
       .eq("side", side)
-      .single();
+      .neq("status", "closed")
+      .order("created_at", { ascending: true });
 
-    if (!position || (position.quantity ?? 0) < shares) {
-      return NextResponse.json({ error: "Insufficient position" }, { status: 400 });
-    }
+    const position = positions?.[0];
+    if (!position) return NextResponse.json({ error: "No open position found" }, { status: 404 });
 
+    const sharesToSell = Math.min(shares, position.quantity ?? 0);
     const currentPrice = side === "yes" ? (market.yes_price ?? 0.5) : (market.no_price ?? 0.5);
-    const returnAmount = shares * currentPrice;
-    const realizedPnl = (currentPrice - (position.avg_entry_price ?? 0)) * shares;
+    const returnAmount = sharesToSell * currentPrice;
+    const realizedPnl = (currentPrice - (position.avg_entry_price ?? 0.5)) * sharesToSell;
+    const newQuantity = (position.quantity ?? 0) - sharesToSell;
 
-    const newQuantity = (position.quantity ?? 0) - shares;
-
-    if (newQuantity <= 0.0001) {
+    if (newQuantity < 0.001) {
       // Close position entirely
-      await supabase.from("positions").update({
-        quantity: 0,
-        status: "closed",
-        realized_pnl: (position.realized_pnl ?? 0) + realizedPnl,
-        updated_at: new Date().toISOString(),
-      }).eq("id", position.id);
+      const { error } = await supabase
+        .from("positions")
+        .update({
+          quantity: 0,
+          status: "closed",
+          realized_pnl: (position.realized_pnl ?? 0) + realizedPnl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", position.id);
+      if (error) throw error;
     } else {
-      await supabase.from("positions").update({
-        quantity: newQuantity,
-        realized_pnl: (position.realized_pnl ?? 0) + realizedPnl,
-        updated_at: new Date().toISOString(),
-      }).eq("id", position.id);
+      const { error } = await supabase
+        .from("positions")
+        .update({
+          quantity: newQuantity,
+          realized_pnl: (position.realized_pnl ?? 0) + realizedPnl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", position.id);
+      if (error) throw error;
     }
 
     // Record the sell trade
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest) {
       market_id: marketId,
       side,
       action_type: "sell",
-      quantity: shares,
+      quantity: sharesToSell,
       price: currentPrice,
       gross_amount: returnAmount,
       fee_amount: 0,
@@ -86,12 +91,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      data: {
-        sharesSOld: shares,
-        returnAmount,
-        realizedPnl,
-        newQuantity: Math.max(0, newQuantity),
-      }
+      data: { sharesSold: sharesToSell, returnAmount, realizedPnl, newQuantity: Math.max(0, newQuantity) }
     });
   } catch (err) {
     console.error("[sell]", err);
