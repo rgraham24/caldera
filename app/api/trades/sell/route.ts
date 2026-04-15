@@ -121,26 +121,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Record the sell trade
-    await supabase.from("trades").insert({
-      user_id: user.id,
-      market_id: marketId,
-      side,
-      action_type: "sell",
-      quantity: sharesToSell,
-      price: currentPrice,
-      gross_amount: returnAmount,
-      fee_amount: 0,
-      platform_fee_amount: 0,
-      creator_fee_amount: 0,
-      market_creator_fee_amount: 0,
-      coin_holder_pool_amount: 0,
-    });
+    try {
+      await supabase.from("trades").insert({
+        user_id: user.id,
+        market_id: marketId,
+        side,
+        action_type: "sell",
+        quantity: sharesToSell,
+        price: currentPrice,
+        gross_amount: returnAmount,
+        fee_amount: 0,
+        platform_fee_amount: 0,
+        creator_fee_amount: 0,
+        market_creator_fee_amount: 0,
+        coin_holder_pool_amount: 0,
+      });
+    } catch (tradeErr) {
+      console.error("[sell] trade insert failed:", tradeErr);
+      // non-fatal — position was already updated
+    }
 
     return NextResponse.json({
       data: { sharesSold: sharesToSell, returnAmount, realizedPnl, newQuantity: Math.max(0, newQuantity) }
     });
   } catch (err) {
-    console.error("[sell]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[sell]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
