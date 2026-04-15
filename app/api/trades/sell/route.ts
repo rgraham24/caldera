@@ -74,50 +74,63 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
     }
 
-    // Send DESO back to user from platform wallet
-    const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
-    const priceData = await priceRes.json();
-    const desoUSD = (priceData?.USDCentsPerDeSoExchangeRate ?? 0) / 100;
-
-    if (desoUSD > 0 && returnAmount > 0) {
-      const returnNanos = Math.floor((returnAmount / desoUSD) * 1e9);
-      if (returnNanos > 10000) {
-        const platformSeed = process.env.DESO_PLATFORM_SEED;
-        const platformPublicKey = process.env.DESO_PLATFORM_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_DESO_PLATFORM_PUBLIC_KEY;
-        const baseUrl = process.env.DESO_NODE_URL || 'https://node.deso.org';
-
-        const sendRes = await fetch(`${baseUrl}/api/v0/send-deso`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            SenderPublicKeyBase58Check: platformPublicKey,
-            RecipientPublicKeyOrUsername: desoPublicKey,
-            AmountNanos: returnNanos,
-            MinFeeRateNanosPerKB: 1000,
-          }),
-        });
-        const sendData = await sendRes.json();
-
-        if (sendData?.TransactionHex && platformSeed) {
-          const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ TransactionHex: sendData.TransactionHex, Seed: platformSeed }),
-          });
-          const signData = signRes.ok ? await signRes.json() : null;
-          const signedHex = signData?.SignedTransactionHex ?? sendData.TransactionHex;
-
-          const submitRes = await fetch(`${baseUrl}/api/v0/submit-transaction`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ TransactionHex: signedHex }),
-          });
-          if (submitRes.ok) {
-            const submitData = await submitRes.json();
-            console.log(`[sell] ✅ Paid out ${returnNanos} nanos to ${desoPublicKey} — tx: ${submitData.TxnHashHex}`);
+    // Send DESO back to user from platform wallet (best-effort — don't fail sell if payout fails)
+    let payoutTxnHash: string | null = null;
+    try {
+      const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
+      if (priceRes.ok) {
+        const priceData = await priceRes.json();
+        const desoUSD = (priceData?.USDCentsPerDeSoExchangeRate ?? 0) / 100;
+        if (desoUSD > 0 && returnAmount > 0) {
+          const returnNanos = Math.floor((returnAmount / desoUSD) * 1e9);
+          if (returnNanos > 10000) {
+            const platformSeed = process.env.DESO_PLATFORM_SEED;
+            const platformPublicKey = process.env.DESO_PLATFORM_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_DESO_PLATFORM_PUBLIC_KEY;
+            const baseUrl = 'https://node.deso.org';
+            const sendRes = await fetch(`${baseUrl}/api/v0/send-deso`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                SenderPublicKeyBase58Check: platformPublicKey,
+                RecipientPublicKeyOrUsername: desoPublicKey,
+                AmountNanos: returnNanos,
+                MinFeeRateNanosPerKB: 1000,
+              }),
+            });
+            const sendText = await sendRes.text();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let sendData: any = null;
+            try { sendData = JSON.parse(sendText); } catch {
+              console.error('[sell] send-deso returned non-JSON:', sendText.slice(0, 200));
+            }
+            if (sendData?.TransactionHex && platformSeed) {
+              const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ TransactionHex: sendData.TransactionHex, Seed: platformSeed }),
+              });
+              const signData = signRes.ok ? await signRes.json() : null;
+              const signedHex = signData?.SignedTransactionHex ?? sendData.TransactionHex;
+              const submitRes = await fetch(`${baseUrl}/api/v0/submit-transaction`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ TransactionHex: signedHex }),
+              });
+              if (submitRes.ok) {
+                const submitData = await submitRes.json();
+                payoutTxnHash = submitData?.TxnHashHex ?? null;
+                console.log(`[sell] ✅ Paid out ${returnNanos} nanos to ${desoPublicKey} — tx: ${payoutTxnHash}`);
+              } else {
+                console.error('[sell] submit failed:', await submitRes.text());
+              }
+            } else {
+              console.error('[sell] send-deso failed or no TransactionHex:', sendData);
+            }
           }
         }
       }
+    } catch (payoutErr) {
+      console.error('[sell] payout error (non-fatal):', payoutErr instanceof Error ? payoutErr.message : payoutErr);
     }
 
     // Record the sell trade
@@ -142,7 +155,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      data: { sharesSold: sharesToSell, returnAmount, realizedPnl, newQuantity: Math.max(0, newQuantity) }
+      data: { sharesSold: sharesToSell, returnAmount, realizedPnl, newQuantity: Math.max(0, newQuantity), payoutTxnHash }
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
