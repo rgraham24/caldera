@@ -49,6 +49,7 @@ type CoinHolding = {
   coinPriceUSD: number;
   hasPurchased: boolean;
   creatorSlug?: string | null;
+  totalValueUSD?: number;
 };
 
 type TradeModal = {
