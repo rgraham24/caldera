@@ -3,6 +3,17 @@ import { HDKey } from "@scure/bip32";
 import * as secp from "@noble/secp256k1";
 import { createHash } from "crypto";
 
+// Encode integer as DeSo uvarint
+function uvarint64ToBuf(uint: number): Buffer {
+  const result: number[] = [];
+  while (uint >= 0x80) {
+    result.push((uint & 0xff) | 0x80);
+    uint >>>= 7;
+  }
+  result.push(uint | 0);
+  return Buffer.from(result);
+}
+
 // Convert compact signature (64 bytes: r||s) to DER encoding
 function compactToDER(compact: Uint8Array): Buffer {
   const r = compact.slice(0, 32);
@@ -26,14 +37,19 @@ export async function signTransactionWithSeed(
   if (!child.privateKey) throw new Error("Could not derive private key");
 
   const txBytes = Buffer.from(transactionHex, "hex");
-  // Double SHA256 using Node's built-in crypto — no subpath imports needed
+
+  // Double SHA256 — DeSo transaction hashing
   const hash1 = createHash("sha256").update(txBytes).digest();
   const hash2 = createHash("sha256").update(hash1).digest();
 
   const compactSig = await secp.signAsync(hash2, child.privateKey, { prehash: false, lowS: true });
   const derSig = compactToDER(compactSig as unknown as Uint8Array);
+  const sigLenBuf = uvarint64ToBuf(derSig.length);
 
-  const sigLenBuf = Buffer.alloc(1);
-  sigLenBuf.writeUInt8(derSig.length);
-  return Buffer.concat([txBytes, sigLenBuf, derSig]).toString("hex");
+  // CRITICAL: slice off last byte (0x00 signature placeholder) before appending real signature
+  return Buffer.concat([
+    txBytes.slice(0, -1),
+    sigLenBuf,
+    derSig,
+  ]).toString("hex");
 }
