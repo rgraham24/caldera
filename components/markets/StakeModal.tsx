@@ -16,6 +16,7 @@ type StakeModalProps = {
   livePrice?: number;
   desoUsername?: string | null;
   profilePicUrl?: string | null;
+  initialTab?: "buy" | "sell";
 };
 
 export function StakeModal({
@@ -25,10 +26,11 @@ export function StakeModal({
   livePrice,
   desoUsername,
   profilePicUrl,
+  initialTab,
 }: StakeModalProps) {
   const { isConnected, desoPublicKey, desoBalanceNanos, desoBalanceUSD } =
     useAppStore();
-  const [tab, setTab] = useState<"buy" | "sell">("buy");
+  const [tab, setTab] = useState<"buy" | "sell">(initialTab ?? "buy");
   const [amountUSD, setAmountUSD] = useState("");
   const [coinAmountInput, setCoinAmountInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +64,7 @@ export function StakeModal({
   useEffect(() => {
     if (isOpen) {
       fetchDesoPrice();
+      setTab(initialTab ?? "buy");
       setTxHash(null);
       setError(null);
       setAmountUSD("");

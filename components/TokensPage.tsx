@@ -38,6 +38,7 @@ export default function TokensPage() {
   const [sortBy, setSortBy] = useState("price");
   const [search, setSearch] = useState("");
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
+  const [defaultTab, setDefaultTab] = useState<"buy" | "sell">("buy");
   const { isConnected } = useAppStore();
   const { prices: livePrices, lastUpdated } = useLivePrices();
 
@@ -213,13 +214,13 @@ export default function TokensPage() {
                     </span>
                     <div className="flex gap-1.5">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setStakeCreator(t); }}
+                        onClick={(e) => { e.stopPropagation(); setDefaultTab("buy"); setStakeCreator(t); }}
                         className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C5CFC] text-white hover:bg-[#6a4ae8] transition-colors"
                       >
                         Buy
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); setStakeCreator(t); }}
+                        onClick={(e) => { e.stopPropagation(); setDefaultTab("sell"); setStakeCreator(t); }}
                         className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-white/30 transition-colors"
                       >
                         Sell
@@ -330,13 +331,11 @@ export default function TokensPage() {
                     )}
                   </span>
 
-                  {/* Buy button */}
-                  <button
-                    onClick={() => handleBuy(c)}
-                    className="rounded-lg bg-[#7C5CFC] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#6a4ae8]"
-                  >
-                    Buy
-                  </button>
+                  {/* Buy/Sell buttons */}
+                  <div className="flex gap-1.5">
+                    <button onClick={() => { setDefaultTab("buy"); handleBuy(c); }} className="rounded-lg bg-[#7C5CFC] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#6a4ae8]">Buy</button>
+                    <button onClick={() => { setDefaultTab("sell"); handleBuy(c); }} className="rounded-lg border border-border-subtle px-3 py-1.5 text-xs font-semibold text-text-muted transition-colors hover:border-white/30 hover:text-text-primary">Sell</button>
+                  </div>
                 </div>
               );
             })}
@@ -348,9 +347,10 @@ export default function TokensPage() {
         <StakeModal
           creator={stakeCreator}
           isOpen={!!stakeCreator}
-          onClose={() => setStakeCreator(null)}
+          onClose={() => { setStakeCreator(null); setDefaultTab("buy"); }}
           desoUsername={stakeCreator.deso_username}
           livePrice={stakeCreator.creator_coin_price ?? undefined}
+          initialTab={defaultTab}
         />
       )}
     </div>
