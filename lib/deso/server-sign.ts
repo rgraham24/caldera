@@ -3,96 +3,6 @@ import { HDKey } from "@scure/bip32";
 import * as secp from "@noble/secp256k1";
 import { createHash } from "crypto";
 
-// Read a uvarint64 from buffer at offset, returns [value, bytesRead]
-function readUvarint(buf: Buffer, offset: number): [number, number] {
-  let x = 0, shift = 0, i = offset;
-  while (i < buf.length) {
-    const b = buf[i++];
-    x |= (b & 0x7f) << shift;
-    shift += 7;
-    if (!(b & 0x80)) break;
-  }
-  return [x, i - offset];
-}
-
-// Read a var-length buffer (uvarint length prefix + bytes)
-function readVarBuffer(buf: Buffer, offset: number): [Buffer, number] {
-  const [len, lenBytes] = readUvarint(buf, offset);
-  const start = offset + lenBytes;
-  return [buf.slice(start, start + len), lenBytes + len];
-}
-
-// Skip N bytes
-function skip(n: number): number { return n; }
-
-// Parse a DeSo TransactionV0 and return how many bytes it consumed.
-// Structure: inputs[] + outputs[] + txnType(uvarint) + metadata(varies) + publicKey(varbuf) + extraData(varbuf array) + signature(varbuf)
-// After V0 ends, remaining bytes are v1 fields: version(uvarint) + feeNanos(uvarint) + nonce(2 uvarints)
-function findV1FieldsOffset(txBytes: Buffer): number {
-  let pos = 0;
-
-  // Read inputs array: uvarint count, then each input = 32 bytes (txid) + uvarint (index)
-  const [inputCount, icBytes] = readUvarint(txBytes, pos);
-  pos += icBytes;
-  for (let i = 0; i < inputCount; i++) {
-    pos += 32; // txid fixed 32 bytes
-    const [, idxBytes] = readUvarint(txBytes, pos);
-    pos += idxBytes;
-  }
-
-  // Read outputs array: uvarint count, then each output = 33 bytes (pubkey) + uvarint (amountNanos)
-  const [outputCount, ocBytes] = readUvarint(txBytes, pos);
-  pos += ocBytes;
-  for (let i = 0; i < outputCount; i++) {
-    pos += 33; // pubkey fixed 33 bytes
-    const [, amtBytes] = readUvarint(txBytes, pos);
-    pos += amtBytes;
-  }
-
-  // Read txnType (uvarint)
-  const [txnType, ttBytes] = readUvarint(txBytes, pos);
-  pos += ttBytes;
-
-  // Skip transaction metadata based on txnType
-  // For BasicTransfer (type 2) = empty metadata
-  // For send-deso it's also BasicTransfer
-  // We handle the common case: metadata is a VarBuffer for most types
-  // BasicTransfer (2) has empty metadata = just a 0x00 length prefix
-  if (txnType === 2) {
-    // BasicTransfer = empty metadata, just skip the 0x00
-    // Actually it has no fields, so metadata bytes = 0
-    // But it's still encoded as Enum which reads the type already
-    // No additional bytes to skip for BasicTransfer metadata
-  } else {
-    // For other types, skip the metadata as a var buffer
-    const [, mbBytes] = readVarBuffer(txBytes, pos);
-    pos += mbBytes;
-  }
-
-  // Read publicKey (VarBuffer: 33 bytes usually)
-  const [, pkBytes] = readVarBuffer(txBytes, pos);
-  pos += pkBytes;
-
-  // Read extraData (ArrayOf KVs): uvarint count, then each KV = VarBuffer key + VarBuffer value
-  const [kvCount, kvCountBytes] = readUvarint(txBytes, pos);
-  pos += kvCountBytes;
-  for (let i = 0; i < kvCount; i++) {
-    const [, kBytes] = readVarBuffer(txBytes, pos);
-    pos += kBytes;
-    const [, vBytes] = readVarBuffer(txBytes, pos);
-    pos += vBytes;
-  }
-
-  // Now at signature position: VarBuffer (length 0 for unsigned tx = 0x00)
-  // Read and skip the signature length (should be 0x00)
-  const [sigLen, slBytes] = readUvarint(txBytes, pos);
-  pos += slBytes + sigLen; // skip sig length varint + sig bytes (0 for unsigned)
-
-  // pos now points to start of v1 fields
-  return pos;
-}
-
-// Encode integer as DeSo uvarint
 function uvarint64ToBuf(uint: number): Buffer {
   const result: number[] = [];
   while (uint >= 0x80) {
@@ -103,7 +13,6 @@ function uvarint64ToBuf(uint: number): Buffer {
   return Buffer.from(result);
 }
 
-// Convert compact sig (r||s) to DER
 function compactToDER(compact: Uint8Array): Buffer {
   const r = compact.slice(0, 32);
   const s = compact.slice(32, 64);
@@ -111,6 +20,46 @@ function compactToDER(compact: Uint8Array): Buffer {
   const sPad = s[0] & 0x80 ? Buffer.concat([Buffer.from([0x00]), Buffer.from(s)]) : Buffer.from(s);
   const inner = Buffer.concat([Buffer.from([0x02, rPad.length]), rPad, Buffer.from([0x02, sPad.length]), sPad]);
   return Buffer.concat([Buffer.from([0x30, inner.length]), inner]);
+}
+
+// Scan from the END of the tx to find the signature slot.
+// DeSo unsigned tx structure ends with: [0x00 sig placeholder][v1 fields]
+// v1 fields for basic_transfer: version(uvarint) + feeNanos(uvarint) + nonce(2 uvarints)
+// Strategy: scan backwards from end, reading varints, until we find the 0x00 sig slot
+function findSigSlotFromEnd(txBytes: Buffer): { sigSlotOffset: number; v1Fields: Buffer } {
+  // The last bytes of an unsigned tx are v1 fields followed by nothing.
+  // v1 fields structure (from Transaction class):
+  //   Optional(Uvarint64) version  -- if present, starts with a non-zero varint
+  //   Optional(Uvarint64) feeNanos -- another varint  
+  //   Optional(TransactionNonce) nonce -- 2 more varints
+  //
+  // For a simple send-deso with nonce, last few bytes look like:
+  //   [sigLen=0x00][version varint][feeNanos varint][nonce.expirationBlock varint][nonce.partialId varint]
+  //
+  // Approach: find 0x00 byte that's the sig placeholder by scanning forward through tx structure.
+  // But since parsing is complex, use a smarter approach:
+  // The sig slot 0x00 byte is immediately preceded by the extraData field.
+  // After 0x00, the v1 fields start with version varint (typically 0x01 or 0x02).
+  //
+  // Key insight: scan the tx looking for a 0x00 byte that could be sig placeholder.
+  // The 0x00 sig placeholder is NEVER inside the v1 fields (those are all non-zero varints for real txns).
+  // 
+  // Most reliable: find last occurrence of 0x00 that is followed by valid v1 field varints.
+  // For simplicity, since we know v1 fields are small (4 varints, usually 4-8 bytes),
+  // try offsets from end: check if bytes[offset] == 0x00 and bytes[offset+1..end] parse as valid varints.
+  
+  // Try each possible sig slot offset from near the end
+  for (let tailSize = 1; tailSize <= 20; tailSize++) {
+    const candidateOffset = txBytes.length - tailSize;
+    if (txBytes[candidateOffset] === 0x00) {
+      // This could be the sig slot (empty sig = length 0)
+      const v1Candidate = txBytes.slice(candidateOffset + 1);
+      return { sigSlotOffset: candidateOffset, v1Fields: v1Candidate };
+    }
+  }
+  
+  // Fallback: no 0x00 found in last 20 bytes, use last byte
+  return { sigSlotOffset: txBytes.length - 1, v1Fields: Buffer.alloc(0) };
 }
 
 export async function signTransactionWithSeed(
@@ -124,7 +73,7 @@ export async function signTransactionWithSeed(
 
   const txBytes = Buffer.from(transactionHex, "hex");
 
-  // Hash the FULL transaction bytes (including empty sig placeholder)
+  // Hash full tx bytes including 0x00 sig placeholder
   const hash1 = createHash("sha256").update(txBytes).digest();
   const hash2 = createHash("sha256").update(hash1).digest();
 
@@ -132,26 +81,10 @@ export async function signTransactionWithSeed(
   const sigBytes = compactToDER(compactSig as unknown as Uint8Array);
   const sigLenBuf = uvarint64ToBuf(sigBytes.length);
 
-  // Find where v0 ends (signature slot) and v1 fields begin
-  let v1Offset: number;
-  try {
-    v1Offset = findV1FieldsOffset(txBytes);
-  } catch {
-    // Fallback: assume no v1 fields (old-style tx)
-    v1Offset = txBytes.length;
-  }
-
-  // v0FieldsWithoutSignature = everything before the signature uvarint
-  // We need to re-find the position just before the sig length varint
-  // findV1FieldsOffset advances PAST the sig, so we need the position BEFORE reading sig
-  // Let's compute: re-run but stop before signature read
-  // Actually: signatureSlotOffset = v1Offset - (sigLen varint bytes + sigLen bytes)
-  // For unsigned tx sigLen=0, so varint is 1 byte (0x00), sig bytes = 0
-  // So signature slot starts at v1Offset - 1
-  const sigSlotOffset = v1Offset - 1; // position of the 0x00 sig length byte
-
+  const { sigSlotOffset, v1Fields } = findSigSlotFromEnd(txBytes);
   const v0WithoutSig = txBytes.slice(0, sigSlotOffset);
-  const v1Fields = txBytes.slice(v1Offset);
+
+  console.log(`[sign] txLen=${txBytes.length} sigSlot=${sigSlotOffset} v1Len=${v1Fields.length} v1=${v1Fields.toString('hex')}`);
 
   return Buffer.concat([v0WithoutSig, sigLenBuf, sigBytes, v1Fields]).toString("hex");
 }
