@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       };
     })
     // Filter dust: only show holdings worth at least $0.01 OR more than 0.001 coins
-    .filter((h: any) => h.totalValueUSD >= 0.01 || (h.balanceNanos / 1e9) >= 0.001)
+    .filter((h: any) => (h.totalValueUSD ?? 0) >= 0.01)
     // Sort by value descending
     .sort((a: any, b: any) => b.totalValueUSD - a.totalValueUSD);
 

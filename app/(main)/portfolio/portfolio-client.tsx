@@ -629,7 +629,7 @@ export function PortfolioClient() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         creator={coinTradeModal.creator as any}
         isOpen={!!coinTradeModal}
-        onClose={() => { setCoinTradeModal(null); setCoinHoldings([]); }}
+        onClose={() => { setCoinTradeModal(null); setCoinHoldings([]); setTab("holdings"); }}
         desoUsername={coinTradeModal.creator?.deso_username}
         livePrice={coinTradeModal.creator?.creator_coin_price ?? undefined}
         initialTab={coinTradeModal.initialMode}
