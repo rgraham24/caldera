@@ -206,7 +206,7 @@ export function TradeTicket({
         setUserPosition(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Trade failed");
+      setError(err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err));
       setTradeStatus(null);
     } finally {
       setIsSubmitting(false);
@@ -656,7 +656,7 @@ export function TradeTicket({
             </div>
           )}
           {error && (
-            <p className="mb-3 text-xs text-no">{error}</p>
+            <p className="mb-3 text-xs text-no">{typeof error === 'string' ? error : JSON.stringify(error)}</p>
           )}
           <Button
             onClick={handleTrade}
