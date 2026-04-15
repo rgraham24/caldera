@@ -27,31 +27,37 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ step: 'send-deso-failed', sendData, hasPlatformKey: !!platformPublicKey, hasSeed: !!platformSeed, desoUSD });
     }
 
-    // Step 3: Sign
-    const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
+    // Step 3: Sign server-side
+    if (!platformSeed) {
+      return NextResponse.json({ step: 'no-seed', hasPlatformKey: !!platformPublicKey, desoUSD });
+    }
+    const { signTransactionWithSeed } = await import('@/lib/deso/server-sign');
+    const signedHex = await signTransactionWithSeed(sendData.TransactionHex, platformSeed);
+
+    // Step 4: Submit (actually broadcasts — sends 1000 nanos to self)
+    const submitRes = await fetch(`${baseUrl}/api/v0/submit-transaction`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ TransactionHex: sendData.TransactionHex, Seed: platformSeed }),
+      body: JSON.stringify({ TransactionHex: signedHex }),
     });
-    const signText = await signRes.text();
+    const submitText = await submitRes.text();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let signData: any = null;
-    try { signData = JSON.parse(signText); } catch {
-      return NextResponse.json({ step: 'sign-parse-failed', signText: signText.slice(0, 300), desoUSD });
-    }
-    if (!signData?.SignedTransactionHex) {
-      return NextResponse.json({ step: 'sign-failed', signData, signStatus: signRes.status, desoUSD });
+    let submitData: any = null;
+    try { submitData = JSON.parse(submitText); } catch {
+      return NextResponse.json({ step: 'submit-parse-failed', submitText: submitText.slice(0, 300), desoUSD });
     }
 
-    // Step 4: Submit (actually broadcast — this sends real DESO so we skip in test)
+    if (!submitRes.ok || submitData?.error) {
+      return NextResponse.json({ step: 'submit-failed', submitData, submitStatus: submitRes.status, desoUSD });
+    }
+
     return NextResponse.json({
       step: 'all-steps-ok',
-      hasSignedHex: !!signData.SignedTransactionHex,
-      signedHexPreview: signData.SignedTransactionHex?.slice(0, 40),
+      txnHash: submitData?.TxnHashHex,
       hasPlatformKey: !!platformPublicKey,
       hasSeed: !!platformSeed,
       desoUSD,
-      note: 'Submit step skipped in test to avoid broadcasting real tx'
+      note: 'Sent 1000 nanos to self as end-to-end test'
     });
   } catch (err) {
     return NextResponse.json({ step: 'exception', error: err instanceof Error ? err.message : String(err) });

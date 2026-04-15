@@ -50,21 +50,9 @@ async function executeCreatorCoinBuyback(params: {
     const txData = await txRes.json();
     if (!txData.TransactionHex) return;
 
-    // Sign with platform seed via Identity API
-    const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        TransactionHex: txData.TransactionHex,
-        Seed: platformSeed,
-      }),
-    });
-
-    let signedHex = txData.TransactionHex;
-    if (signRes.ok) {
-      const signData = await signRes.json();
-      if (signData.SignedTransactionHex) signedHex = signData.SignedTransactionHex;
-    }
+    // Sign with platform seed server-side
+    const { signTransactionWithSeed } = await import('@/lib/deso/server-sign');
+    const signedHex = await signTransactionWithSeed(txData.TransactionHex, platformSeed);
 
     // Submit
     const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {

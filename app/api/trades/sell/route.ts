@@ -104,13 +104,8 @@ export async function POST(req: NextRequest) {
               console.error('[sell] send-deso returned non-JSON:', sendText.slice(0, 200));
             }
             if (sendData?.TransactionHex && platformSeed) {
-              const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ TransactionHex: sendData.TransactionHex, Seed: platformSeed }),
-              });
-              const signData = signRes.ok ? await signRes.json() : null;
-              const signedHex = signData?.SignedTransactionHex ?? sendData.TransactionHex;
+              const { signTransactionWithSeed } = await import('@/lib/deso/server-sign');
+              const signedHex = await signTransactionWithSeed(sendData.TransactionHex, platformSeed);
               const submitRes = await fetch(`${baseUrl}/api/v0/submit-transaction`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
