@@ -249,19 +249,23 @@ export async function getUserCreatorCoinBalance(
   creatorPublicKey: string
 ): Promise<number> {
   try {
-    const res = await fetch(`${DESO_API}/get-hodlers-for-public-key`, {
+    const res = await fetch(`${DESO_API}/get-users-stateless`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        PublicKeyBase58Check: creatorPublicKey,
-        NumToFetch: 1,
-        PublicKeyBase58CheckToFind: holderPublicKey,
+        PublicKeysBase58Check: [holderPublicKey],
+        SkipForLeaderboard: false,
+        IncludeBalance: true,
       }),
     });
+    if (!res.ok) return 0;
     const data = await res.json();
-    const entry = data?.Hodlers?.[0];
-    if (!entry) return 0;
-    return (entry.BalanceNanos ?? 0) / 1e9;
+    const hodlings: { CreatorPublicKeyBase58Check: string; BalanceNanos: number }[] =
+      data?.UserList?.[0]?.UsersYouHODL ?? [];
+    const match = hodlings.find(
+      (h) => h.CreatorPublicKeyBase58Check === creatorPublicKey
+    );
+    return match ? match.BalanceNanos / 1e9 : 0;
   } catch {
     return 0;
   }
