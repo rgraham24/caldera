@@ -246,7 +246,7 @@ export default function TokensPage() {
       ) : (
         <>
           {/* Header row */}
-          <div className="mb-1 grid grid-cols-[1fr_70px_70px_56px] items-center gap-2 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint sm:grid-cols-[1fr_80px_80px_100px_80px_80px] sm:gap-4">
+          <div className="mb-1 grid grid-cols-[1fr_70px_70px_120px] items-center gap-2 px-4 text-[10px] font-semibold uppercase tracking-widest text-text-faint sm:grid-cols-[1fr_80px_80px_100px_80px_120px] sm:gap-4">
             <span>Token</span>
             <span className="text-right">Price</span>
             <span className="text-right">Holders</span>
@@ -274,7 +274,7 @@ export default function TokensPage() {
               return (
                 <div
                   key={c.id}
-                  className="grid grid-cols-[1fr_70px_70px_56px] items-center gap-2 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20 sm:grid-cols-[1fr_80px_80px_100px_80px_80px] sm:gap-4"
+                  className="grid grid-cols-[1fr_70px_70px_120px] items-center gap-2 rounded-xl border border-border-subtle bg-surface px-4 py-3 transition-all hover:border-white/20 sm:grid-cols-[1fr_80px_80px_100px_80px_120px] sm:gap-4"
                 >
                   {/* Creator info */}
                   <Link href={`/creators/${c.slug}`} className="flex min-w-0 items-center gap-3">
