@@ -192,7 +192,18 @@ export default function TokensPage() {
                   onClick={() => setStakeCreator(t)}
                 >
                   <div>
-                    <div className="text-base font-bold text-text-primary font-mono">{symbol}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-base font-bold text-text-primary font-mono">{symbol}</div>
+                      <span className="relative group inline-flex shrink-0">
+                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold cursor-help">🔥</span>
+                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 hidden group-hover:block w-60 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 shadow-xl">
+                          <span className="block text-[11px] font-semibold text-orange-400 mb-1">Buy &amp; Burn Token</span>
+                          <span className="block text-[11px] text-text-muted leading-relaxed">
+                            Every prediction market trade in this category automatically uses 1% of fees to buy {symbol} on the open market and permanently remove it from circulation — reducing supply forever.
+                          </span>
+                        </span>
+                      </span>
+                    </div>
                     <div className="text-[11px] text-text-muted mt-1 leading-relaxed">
                       Burns 🔥 with every {t.name.toLowerCase()} trade
                     </div>
