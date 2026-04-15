@@ -120,7 +120,7 @@ export function PortfolioClient() {
       const identifier = h.creatorSlug || h.username;
       const res = await fetch(`/api/creators/${identifier}`);
       const json = await res.json();
-      const creator = json.data ?? json;
+      const creator = json.creator ?? json.data ?? json;
       if (creator?.id) {
         setCoinTradeModal({ creator, initialMode: mode });
       }
