@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
+import { TradeTicket } from "@/components/markets/TradeTicket";
+import type { Market } from "@/types";
 
 type Position = {
   id: string;
@@ -49,6 +51,13 @@ type CoinHolding = {
   creatorSlug?: string | null;
 };
 
+type TradeModal = {
+  market: Market;
+  feeConfig: Record<string, string>;
+  initialMode: "buy" | "sell";
+  positionSide: "yes" | "no";
+} | null;
+
 export function PortfolioClient() {
   const [tab, setTab] = useState<Tab>("open");
   const [positions, setPositions] = useState<Position[]>([]);
@@ -56,7 +65,17 @@ export function PortfolioClient() {
   const [loading, setLoading] = useState(true);
   const [coinHoldings, setCoinHoldings] = useState<CoinHolding[]>([]);
   const [holdingsLoading, setHoldingsLoading] = useState(false);
+  const [tradeModal, setTradeModal] = useState<TradeModal>(null);
+  const [modalLoading, setModalLoading] = useState(false);
   const { isConnected, desoPublicKey, desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
+
+  const fetchPositions = useCallback(() => {
+    if (!desoPublicKey) return;
+    fetch(`/api/portfolio?desoPublicKey=${encodeURIComponent(desoPublicKey)}`)
+      .then((r) => r.json())
+      .then((json) => { if (json.data) setPositions(json.data); })
+      .catch(() => {});
+  }, [desoPublicKey]);
 
   useEffect(() => {
     if (!desoPublicKey) {
@@ -69,6 +88,27 @@ export function PortfolioClient() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [desoPublicKey]);
+
+  const openTradeModal = async (pos: Position, mode: "buy" | "sell") => {
+    setModalLoading(true);
+    try {
+      const [marketRes, configRes] = await Promise.all([
+        fetch(`/api/markets/${pos.market.slug}`).then((r) => r.json()),
+        fetch("/api/admin/config").then((r) => r.json()).catch(() => ({ data: {} })),
+      ]);
+      const market: Market = marketRes.data ?? marketRes;
+      const feeConfig: Record<string, string> = configRes.data ?? {
+        standard_platform_fee: "0.02",
+        creator_market_platform_fee: "0.015",
+        creator_market_creator_fee: "0.01",
+      };
+      setTradeModal({ market, feeConfig, initialMode: mode, positionSide: pos.side as "yes" | "no" });
+    } catch {
+      // silently fail
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   // Load coin holdings when tab is selected
   useEffect(() => {
@@ -260,6 +300,7 @@ export function PortfolioClient() {
                 <th className="px-4 py-3 text-right font-medium">Avg Entry</th>
                 <th className="px-4 py-3 text-right font-medium">Current</th>
                 <th className="px-4 py-3 text-right font-medium">PnL</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -312,13 +353,31 @@ export function PortfolioClient() {
                     >
                       {formatCurrency((currentPrice - pos.avg_entry_price) * pos.quantity)}
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => openTradeModal(pos, "buy")}
+                          disabled={modalLoading}
+                          className="rounded-lg bg-[#7C5CFC] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#6a4ae8] disabled:opacity-50"
+                        >
+                          Buy
+                        </button>
+                        <button
+                          onClick={() => openTradeModal(pos, "sell")}
+                          disabled={modalLoading}
+                          className="rounded-lg border border-no/40 px-2.5 py-1 text-xs font-semibold text-no transition-colors hover:bg-no/10 disabled:opacity-50"
+                        >
+                          Sell
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {openPositions.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-text-muted"
                   >
                     No open positions
@@ -523,6 +582,56 @@ export function PortfolioClient() {
         </div>
       )}
     </div>
+
+    {/* Trade modal */}
+    {tradeModal && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={(e) => { if (e.target === e.currentTarget) setTradeModal(null); }}
+      >
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+        {/* Panel */}
+        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border-subtle bg-bg shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
+            <div className="min-w-0 pr-4">
+              <p className="text-xs text-text-muted uppercase tracking-widest font-semibold mb-0.5">
+                {tradeModal.initialMode === "buy" ? "Buy More" : "Sell Position"}
+              </p>
+              <p className="text-sm font-semibold text-text-primary truncate">
+                {tradeModal.market.title}
+              </p>
+            </div>
+            <button
+              onClick={() => setTradeModal(null)}
+              className="shrink-0 rounded-lg p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+          {/* TradeTicket */}
+          <div className="p-4 max-h-[80vh] overflow-y-auto">
+            <TradeTicket
+              market={tradeModal.market}
+              feeConfig={tradeModal.feeConfig}
+              onTradeComplete={() => {
+                fetchPositions();
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Modal loading spinner */}
+    {modalLoading && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="rounded-xl border border-border-subtle bg-surface px-6 py-4 text-sm text-text-muted">
+          Loading market…
+        </div>
+      </div>
+    )}
     </>
   );
 }
