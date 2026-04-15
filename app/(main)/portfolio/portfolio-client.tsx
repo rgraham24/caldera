@@ -498,7 +498,7 @@ export function PortfolioClient() {
                 <div className="rounded-xl border border-border-subtle bg-surface p-4">
                   <p className="text-xs text-text-muted">Holdings Value</p>
                   <p className="mt-1 font-mono text-lg font-semibold text-text-primary">
-                    {formatCurrency(coinHoldings.reduce((s, h) => s + (h.balanceNanos / 1e9) * h.coinPriceUSD, 0))}
+                    {formatCurrency(coinHoldings.reduce((s, h) => s + (h.totalValueUSD ?? (h.balanceNanos / 1e9) * h.coinPriceUSD), 0))}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border-subtle bg-surface p-4">
