@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     const holdings = hodlings.map((h: any) => {
       const creatorPk = h.CreatorPublicKeyBase58Check;
       const profile = profileMap.get(creatorPk);
-      const coinPriceDeSo = (profile?.CoinEntry?.CoinPriceDeSoNanos ?? 0) / 1e9;
+      const coinPriceDeSo = (profile?.CoinPriceDeSoNanos ?? profile?.CoinEntry?.CoinPriceDeSoNanos ?? 0) / 1e9;
       return {
         creatorPublicKey: creatorPk,
         username: profile?.Username ?? "",
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         coinPriceUSD: coinPriceDeSo * desoUSD,
         hasPurchased: h.HasPurchased ?? false,
       };
-    }).filter((h: any) => h.balanceNanos > 0);
+    }).filter((h: any) => h.balanceNanos >= 10_000_000);
 
     return NextResponse.json({ holdings });
   } catch {
