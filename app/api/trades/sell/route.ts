@@ -74,6 +74,52 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
     }
 
+    // Send DESO back to user from platform wallet
+    const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
+    const priceData = await priceRes.json();
+    const desoUSD = (priceData?.USDCentsPerDeSoExchangeRate ?? 0) / 100;
+
+    if (desoUSD > 0 && returnAmount > 0) {
+      const returnNanos = Math.floor((returnAmount / desoUSD) * 1e9);
+      if (returnNanos > 10000) {
+        const platformSeed = process.env.DESO_PLATFORM_SEED;
+        const platformPublicKey = process.env.DESO_PLATFORM_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_DESO_PLATFORM_PUBLIC_KEY;
+        const baseUrl = process.env.DESO_NODE_URL || 'https://node.deso.org';
+
+        const sendRes = await fetch(`${baseUrl}/api/v0/send-deso`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            SenderPublicKeyBase58Check: platformPublicKey,
+            RecipientPublicKeyOrUsername: desoPublicKey,
+            AmountNanos: returnNanos,
+            MinFeeRateNanosPerKB: 1000,
+          }),
+        });
+        const sendData = await sendRes.json();
+
+        if (sendData?.TransactionHex && platformSeed) {
+          const signRes = await fetch('https://identity.deso.org/api/v0/sign-transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ TransactionHex: sendData.TransactionHex, Seed: platformSeed }),
+          });
+          const signData = signRes.ok ? await signRes.json() : null;
+          const signedHex = signData?.SignedTransactionHex ?? sendData.TransactionHex;
+
+          const submitRes = await fetch(`${baseUrl}/api/v0/submit-transaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ TransactionHex: signedHex }),
+          });
+          if (submitRes.ok) {
+            const submitData = await submitRes.json();
+            console.log(`[sell] ✅ Paid out ${returnNanos} nanos to ${desoPublicKey} — tx: ${submitData.TxnHashHex}`);
+          }
+        }
+      }
+    }
+
     // Record the sell trade
     await supabase.from("trades").insert({
       user_id: user.id,
