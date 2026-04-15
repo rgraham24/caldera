@@ -178,7 +178,6 @@ export function TradeTicket({
         setTradeSuccess({ shares, side, mode: "buy" });
         setAmount("");
         onTradeComplete?.();
-        setTimeout(() => setTradeSuccess(null), 4000);
       } else {
         // Sell
         if (!userPosition) throw new Error("No position to sell");
@@ -203,7 +202,6 @@ export function TradeTicket({
         onTradeComplete?.();
         // Refresh position
         setUserPosition(null);
-        setTimeout(() => setTradeSuccess(null), 4000);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trade failed");
@@ -566,64 +564,131 @@ export function TradeTicket({
         </>
       )}
 
-      {tradeStatus && (
-        <div className="mb-3 text-xs text-orange-400 text-center animate-pulse">
-          {tradeStatus}
-        </div>
-      )}
+      {tradeSuccess ? (
+        <div className="space-y-3">
+          {/* Hero success card */}
+          <div className={cn(
+            "rounded-2xl border p-5 text-center relative overflow-hidden",
+            tradeSuccess.mode === "buy" && tradeSuccess.side === "yes"
+              ? "bg-emerald-500/10 border-emerald-500/30"
+              : tradeSuccess.mode === "buy" && tradeSuccess.side === "no"
+              ? "bg-red-500/10 border-red-500/30"
+              : "bg-amber-500/10 border-amber-500/20"
+          )}>
+            {/* Big emoji */}
+            <div className="text-4xl mb-2">
+              {tradeSuccess.mode === "buy" && tradeSuccess.side === "yes" ? "🚀" : tradeSuccess.mode === "buy" ? "🎯" : "💰"}
+            </div>
+            <p className={cn(
+              "font-bold text-xl mb-1",
+              tradeSuccess.mode === "buy" && tradeSuccess.side === "yes" ? "text-emerald-400"
+              : tradeSuccess.mode === "buy" ? "text-red-400"
+              : "text-amber-400"
+            )}>
+              {tradeSuccess.mode === "buy" ? `You're in!` : `Position Sold`}
+            </p>
+            <p className="text-text-muted text-sm">
+              {tradeSuccess.mode === "buy"
+                ? `${tradeSuccess.shares.toFixed(2)} ${tradeSuccess.side.toUpperCase()} shares`
+                : `${tradeSuccess.shares.toFixed(2)} ${tradeSuccess.side.toUpperCase()} shares sold`}
+            </p>
+            <p className="text-xs text-text-faint mt-1">{market.title}</p>
+          </div>
 
-      {tradeSuccess && (
-        <div className={cn(
-          "mb-3 rounded-lg border p-3 text-center",
-          tradeSuccess.mode === "buy"
-            ? "bg-emerald-500/15 border-emerald-500/30"
-            : "bg-amber-500/10 border-amber-500/20"
-        )}>
-          <p className={cn("font-semibold text-sm", tradeSuccess.mode === "buy" ? "text-emerald-400" : "text-amber-400")}>
-            {tradeSuccess.mode === "buy" ? "✓ Trade confirmed!" : "✓ Sold!"}
-          </p>
-          <p className={cn("text-xs mt-0.5", tradeSuccess.mode === "buy" ? "text-emerald-400/70" : "text-amber-400/70")}>
-            {tradeSuccess.mode === "buy"
-              ? `You bought ${tradeSuccess.shares.toFixed(2)} ${tradeSuccess.side.toUpperCase()} shares`
-              : `You sold ${tradeSuccess.shares.toFixed(2)} ${tradeSuccess.side.toUpperCase()} shares`}
-          </p>
-        </div>
-      )}
-      {error && (
-        <p className="mb-3 text-xs text-no">{error}</p>
-      )}
+          {/* What happens next — only on buy */}
+          {tradeSuccess.mode === "buy" && (
+            <div className="rounded-xl bg-surface border border-border-subtle p-3 space-y-2 text-xs">
+              <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What just happened</p>
+              <div className="flex items-start gap-2 text-text-muted">
+                <span className="shrink-0">🔗</span>
+                <span>Your DESO was transferred on-chain to the Caldera platform wallet</span>
+              </div>
+              <div className="flex items-start gap-2 text-text-muted">
+                <span className="shrink-0">🔥</span>
+                <span>1% of your trade automatically buys & burns the category token — permanently</span>
+              </div>
+              <div className="flex items-start gap-2 text-text-muted">
+                <span className="shrink-0">📈</span>
+                <span>Your position is now live. If {tradeSuccess.side.toUpperCase()} wins, you collect your full payout.</span>
+              </div>
+            </div>
+          )}
 
-      <Button
-        onClick={handleTrade}
-        disabled={
-          market.status !== "open" ||
-          (isConnected && tradeMode === "buy" && amountNum <= 0 && !isCategorical) ||
-          (isConnected && tradeMode === "sell" && (sellSharesNum <= 0 || !userPosition)) ||
-          isSubmitting
-        }
-        className={cn(
-          "w-full py-3.5 rounded-xl font-bold text-base transition-all duration-150 active:scale-[0.99] shadow-lg",
-          !isConnected || market.status !== "open"
-            ? "bg-white text-black hover:bg-gray-100 shadow-none"
-            : tradeMode === "sell"
-            ? "bg-red-500 hover:bg-red-400 text-white shadow-red-500/25"
-            : side === "yes"
-            ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/25"
-            : "bg-red-500 hover:bg-red-400 text-white shadow-red-500/25"
-        )}
-      >
-        {isSubmitting
-          ? (tradeStatus ?? "Confirming...")
-          : market.status !== "open"
-          ? "Market Closed"
-          : !isConnected
-          ? "Connect to Trade"
-          : tradeMode === "sell"
-          ? `Sell ${userPosition?.side?.toUpperCase() ?? ""} Shares`
-          : isCategorical && selectedOutcome && side === "yes"
-          ? `Buy YES — ${selectedOutcome.label}`
-          : `Buy ${side.toUpperCase()}`}
-      </Button>
+          {/* Share button */}
+          <button
+            onClick={() => {
+              const side = tradeSuccess.side.toUpperCase();
+              const shares = tradeSuccess.shares.toFixed(2);
+              const shareText = tradeSuccess.mode === "buy"
+                ? `I just bought ${side} on "${market.title}" on Caldera 🔥\n\n${shares} shares. Let's go.\n\ncaldera.market`
+                : `I just exited my ${side} position on "${market.title}" on Caldera.\n\ncaldera.market`;
+              const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+              window.open(tweetUrl, "_blank");
+            }}
+            className="w-full rounded-xl bg-[#1DA1F2]/15 border border-[#1DA1F2]/30 text-[#1DA1F2] font-semibold py-3 text-sm hover:bg-[#1DA1F2]/25 transition-colors flex items-center justify-center gap-2"
+          >
+            🐦 Share on X
+          </button>
+
+          {/* View portfolio */}
+          <a
+            href="/portfolio"
+            className="w-full rounded-xl border border-border-subtle text-text-muted font-medium py-3 text-sm hover:text-text-primary hover:border-white/20 transition-colors flex items-center justify-center gap-2"
+          >
+            View My Portfolio →
+          </a>
+
+          {/* Dismiss — make another trade */}
+          <button
+            onClick={() => setTradeSuccess(null)}
+            className="w-full text-xs text-text-faint hover:text-text-muted transition-colors py-1"
+          >
+            Make another trade
+          </button>
+        </div>
+      ) : (
+        <>
+          {tradeStatus && (
+            <div className="mb-3 text-xs text-orange-400 text-center animate-pulse">
+              {tradeStatus}
+            </div>
+          )}
+          {error && (
+            <p className="mb-3 text-xs text-no">{error}</p>
+          )}
+          <Button
+            onClick={handleTrade}
+            disabled={
+              market.status !== "open" ||
+              (isConnected && tradeMode === "buy" && amountNum <= 0 && !isCategorical) ||
+              (isConnected && tradeMode === "sell" && (sellSharesNum <= 0 || !userPosition)) ||
+              isSubmitting
+            }
+            className={cn(
+              "w-full py-3.5 rounded-xl font-bold text-base transition-all duration-150 active:scale-[0.99] shadow-lg",
+              !isConnected || market.status !== "open"
+                ? "bg-white text-black hover:bg-gray-100 shadow-none"
+                : tradeMode === "sell"
+                ? "bg-red-500 hover:bg-red-400 text-white shadow-red-500/25"
+                : side === "yes"
+                ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/25"
+                : "bg-red-500 hover:bg-red-400 text-white shadow-red-500/25"
+            )}
+          >
+            {isSubmitting
+              ? (tradeStatus ?? "Confirming...")
+              : market.status !== "open"
+              ? "Market Closed"
+              : !isConnected
+              ? "Connect to Trade"
+              : tradeMode === "sell"
+              ? `Sell ${userPosition?.side?.toUpperCase() ?? ""} Shares`
+              : isCategorical && selectedOutcome && side === "yes"
+              ? `Buy YES — ${selectedOutcome.label}`
+              : `Buy ${side.toUpperCase()}`}
+          </Button>
+        </>
+      )}
 
       </>
       )}
