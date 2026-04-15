@@ -112,12 +112,13 @@ export function PortfolioClient() {
 
   // Load coin holdings when tab is selected
   useEffect(() => {
-    if (tab !== "holdings" || !desoPublicKey || coinHoldings.length > 0) return;
+    const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
+    if (tab !== "holdings" || !key || coinHoldings.length > 0) return;
 
     const loadHoldings = async () => {
       setHoldingsLoading(true);
       try {
-        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(desoPublicKey)}`);
+        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(key)}`);
         const { holdings = [] } = await res.json() as { holdings: CoinHolding[] };
 
         if (holdings.length === 0) {
