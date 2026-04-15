@@ -185,14 +185,11 @@ export default function TokensPage() {
             {categoryTokens.map((t) => {
               const marketCount = categoryMarketCounts[t.slug] ?? t.markets_count ?? 0;
               const symbol = `$${t.name.toUpperCase()}`;
-              // Always derive DeSo username from slug or name — never rely on DB deso_username
-              // Category token slugs are either "caldera-sports" or plain "sports"
-              const slugName = t.slug.replace(/^caldera-/, "").toLowerCase();
-              const desoUrl = `https://diamondapp.com/u/${slugName}`;
               return (
                 <div
                   key={t.slug}
-                  className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col gap-3 hover:border-orange-500/30 transition-colors"
+                  className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col gap-3 hover:border-caldera/30 transition-colors cursor-pointer"
+                  onClick={() => setStakeCreator(t)}
                 >
                   <div>
                     <div className="text-base font-bold text-text-primary font-mono">{symbol}</div>
@@ -204,14 +201,9 @@ export default function TokensPage() {
                     <span className="text-xs font-medium text-caldera">
                       {marketCount.toLocaleString()} markets
                     </span>
-                    <a
-                      href={desoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-colors"
-                    >
-                      Buy on DeSo ↗
-                    </a>
+                    <button className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C5CFC] text-white hover:bg-[#6a4ae8] transition-colors">
+                      Buy {symbol}
+                    </button>
                   </div>
                 </div>
               );
