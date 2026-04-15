@@ -572,7 +572,7 @@ export function PortfolioClient() {
     {tradeModal && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        onClick={(e) => { if (e.target === e.currentTarget) setTradeModal(null); }}
+        onClick={(e) => { if (e.target === e.currentTarget) { setTradeModal(null); setCoinHoldings([]); } }}
       >
         {/* Backdrop */}
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
@@ -589,7 +589,7 @@ export function PortfolioClient() {
               </p>
             </div>
             <button
-              onClick={() => setTradeModal(null)}
+              onClick={() => { setTradeModal(null); setCoinHoldings([]); }}
               className="shrink-0 rounded-lg p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
             >
               ✕

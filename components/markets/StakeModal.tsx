@@ -433,7 +433,7 @@ export function StakeModal({
                   </span>
                   <button
                     onClick={() => {
-                      const max = Math.max(0, userCoinBalance - 0.001);
+                      const max = Math.max(0, userCoinBalance - 0.000001);
                       setCoinAmountInput(max > 0 ? max.toFixed(6) : "");
                     }}
                     className="rounded px-2 py-0.5 bg-surface text-xs text-caldera hover:bg-surface-2 transition-colors"
@@ -455,7 +455,7 @@ export function StakeModal({
                     <button
                       key={pct}
                       onClick={() => {
-                        const coins = (userCoinBalance - 0.001) * pct / 100;
+                        const coins = (userCoinBalance - 0.000001) * pct / 100;
                         setCoinAmountInput(Math.max(0, coins).toFixed(6));
                       }}
                       className="flex-1 rounded-md bg-surface px-2 py-1 text-xs text-text-muted hover:text-text-primary transition-colors"
@@ -465,7 +465,7 @@ export function StakeModal({
                   ))}
                   <button
                     onClick={() => {
-                      const max = Math.max(0, userCoinBalance - 0.001);
+                      const max = Math.max(0, userCoinBalance - 0.000001);
                       setCoinAmountInput(max > 0 ? max.toFixed(6) : "");
                     }}
                     className="flex-1 rounded-md bg-surface px-2 py-1 text-xs text-no hover:opacity-80 transition-colors"
