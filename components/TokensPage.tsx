@@ -188,8 +188,7 @@ export default function TokensPage() {
               return (
                 <div
                   key={t.slug}
-                  className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col gap-3 hover:border-caldera/30 transition-colors cursor-pointer"
-                  onClick={() => setStakeCreator(t)}
+                  className="rounded-xl border border-border-subtle bg-surface p-4 flex flex-col gap-3 hover:border-caldera/30 transition-colors"
                 >
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -212,9 +211,20 @@ export default function TokensPage() {
                     <span className="text-xs font-medium text-caldera">
                       {marketCount.toLocaleString()} markets
                     </span>
-                    <button className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C5CFC] text-white hover:bg-[#6a4ae8] transition-colors">
-                      Buy {symbol}
-                    </button>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setStakeCreator(t); }}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#7C5CFC] text-white hover:bg-[#6a4ae8] transition-colors"
+                      >
+                        Buy
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setStakeCreator(t); }}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-white/30 transition-colors"
+                      >
+                        Sell
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

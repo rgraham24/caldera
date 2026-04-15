@@ -254,7 +254,6 @@ export async function getUserCreatorCoinBalance(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         PublicKeyBase58Check: creatorPublicKey,
-        FetchHodlings: true,
         NumToFetch: 1,
         PublicKeyBase58CheckToFind: holderPublicKey,
       }),
