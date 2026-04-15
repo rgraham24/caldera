@@ -24,6 +24,7 @@ type TradeTicketProps = {
   /** Set when the creator is claimed — enables 2.5% fee breakdown with creator token rows */
   creatorTokenSymbol?: string;
   creatorName?: string;
+  initialMode?: "buy" | "sell";
 };
 
 type UserPosition = {
@@ -60,8 +61,9 @@ export function TradeTicket({
   selectedOutcome,
   creatorTokenSymbol,
   creatorName,
+  initialMode,
 }: TradeTicketProps) {
-  const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
+  const [tradeMode, setTradeMode] = useState<"buy" | "sell">(initialMode ?? "buy");
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("");
   const [sellShares, setSellShares] = useState("");

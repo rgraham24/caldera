@@ -134,24 +134,36 @@ export function PortfolioClient() {
     const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
     if (tab !== "holdings" || !key) return;
 
+    // Check session cache first for instant load
+    const cacheKey = `holdings_${key}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { data, ts } = JSON.parse(cached);
+        // Use cache if less than 60 seconds old
+        if (Date.now() - ts < 60000 && data.length > 0) {
+          setCoinHoldings(data);
+          return;
+        }
+      } catch {}
+    }
+
     const loadHoldings = async () => {
       setHoldingsLoading(true);
       try {
-        const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
-        if (!key) {
-          setCoinHoldings([]);
-          return;
-        }
-        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(key)}`);
+        const k = desoPublicKey ?? useAppStore.getState().desoPublicKey;
+        if (!k) { setCoinHoldings([]); return; }
+        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(k)}`);
         const { holdings = [] } = await res.json() as { holdings: CoinHolding[] };
         setCoinHoldings(holdings);
+        // Cache for 60 seconds
+        sessionStorage.setItem(cacheKey, JSON.stringify({ data: holdings, ts: Date.now() }));
       } catch {
         setCoinHoldings([]);
       } finally {
         setHoldingsLoading(false);
       }
     };
-
     loadHoldings();
   }, [tab, desoPublicKey]);
 
@@ -606,9 +618,8 @@ export function PortfolioClient() {
             <TradeTicket
               market={tradeModal.market}
               feeConfig={tradeModal.feeConfig}
-              onTradeComplete={() => {
-                fetchPositions();
-              }}
+              onTradeComplete={() => { fetchPositions(); }}
+              initialMode={tradeModal.initialMode}
             />
           </div>
         </div>
