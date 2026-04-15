@@ -1,104 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
   const publicKey = req.nextUrl.searchParams.get("publicKey");
   if (!publicKey) return NextResponse.json({ error: "publicKey required" }, { status: 400 });
 
   try {
-    const supabase = await createClient();
-
-    // Look up user_id from deso_public_key
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("id")
-      .eq("deso_public_key", publicKey)
-      .single();
-
-    if (!userRow) return NextResponse.json({ holdings: [] });
-
-    // Get coins purchased through Caldera, joining creators for slug
-    const { data: purchases } = await supabase
-      .from("user_coin_purchases")
-      .select("deso_username, coins_purchased, price_per_coin_usd, creator:creators(slug, deso_username)")
-      .eq("user_id", userRow.id)
-      .order("purchased_at", { ascending: false });
-
-    if (!purchases?.length) return NextResponse.json({ holdings: [] });
-
-    // Aggregate by creator (sum coins across multiple purchases)
-    const aggregated = new Map<string, {
-      creatorSlug: string;
-      desoUsername: string;
-      totalCoins: number;
-      avgPriceUSD: number;
-    }>();
-
-    for (const p of purchases) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const creator = p.creator as any;
-      const username = creator?.deso_username ?? p.deso_username ?? "";
-      const slug = creator?.slug ?? "";
-      const key = slug || username;
-      if (!key) continue;
-      const existing = aggregated.get(key);
-      if (existing) {
-        existing.totalCoins += p.coins_purchased ?? 0;
-      } else {
-        aggregated.set(key, {
-          creatorSlug: slug,
-          desoUsername: username,
-          totalCoins: p.coins_purchased ?? 0,
-          avgPriceUSD: p.price_per_coin_usd ?? 0,
-        });
-      }
-    }
-
-    // Fetch live prices + profile data from DeSo for each creator
-    const desoUsernames = [...aggregated.values()]
-      .map(v => v.desoUsername)
-      .filter(Boolean);
-
-    const [priceRes, ...profileResults] = await Promise.all([
+    const [hodlRes, priceRes] = await Promise.all([
+      fetch("https://api.deso.org/api/v0/get-users-stateless", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          PublicKeysBase58Check: [publicKey],
+          SkipForLeaderboard: false,
+          IncludeBalance: true,
+        }),
+      }),
       fetch("https://api.deso.org/api/v0/get-exchange-rate"),
-      ...desoUsernames.map(username =>
-        fetch("https://api.deso.org/api/v0/get-single-profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ Username: username }),
-        }).then(r => r.json()).catch(() => null)
-      ),
     ]);
 
-    const priceData = await priceRes.json();
+    const [hodlData, priceData] = await Promise.all([hodlRes.json(), priceRes.json()]);
     const desoUSD = (priceData?.USDCentsPerDeSoExchangeRate ?? 0) / 100;
 
-    // Build profile map
+    // UsersYouHODL = creator coins this user holds
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const profileMap = new Map<string, any>();
-    desoUsernames.forEach((username, i) => {
-      const profile = profileResults[i]?.Profile;
-      if (profile) profileMap.set(username, profile);
-    });
+    const hodlings: any[] = hodlData?.UserList?.[0]?.UsersYouHODL ?? [];
 
-    const holdings = [...aggregated.values()].map(v => {
-      const profile = profileMap.get(v.desoUsername);
+    if (hodlings.length === 0) return NextResponse.json({ holdings: [] });
+
+    // Fetch live profiles for all creators in one batch
+    const creatorPublicKeys = hodlings.map((h: any) => h.CreatorPublicKeyBase58Check);
+    const profilesRes = await fetch("https://api.deso.org/api/v0/get-users-stateless", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ PublicKeysBase58Check: creatorPublicKeys, SkipForLeaderboard: true }),
+    });
+    const profilesData = await profilesRes.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profileMap = new Map<string, any>(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (profilesData?.UserList ?? []).map((u: any) => [u.PublicKeyBase58Check, u.ProfileEntryResponse])
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const holdings = hodlings.map((h: any) => {
+      const creatorPk = h.CreatorPublicKeyBase58Check;
+      const profile = profileMap.get(creatorPk);
       const coinPriceDeSo = (profile?.CoinPriceDeSoNanos ?? 0) / 1e9;
       const coinPriceUSD = coinPriceDeSo * desoUSD;
-      const pk = profile?.PublicKeyBase58Check ?? "";
-
+      const coinsHeld = (h.BalanceNanos ?? 0) / 1e9;
       return {
-        creatorPublicKey: pk,
-        username: v.desoUsername,
-        displayName: profile?.ExtraData?.DisplayName ?? profile?.Username ?? v.desoUsername,
-        imageUrl: pk ? `https://node.deso.org/api/v0/get-single-profile-picture/${pk}` : null,
-        balanceNanos: Math.floor(v.totalCoins * 1e9),
+        creatorPublicKey: creatorPk,
+        username: profile?.Username ?? "",
+        displayName: profile?.ExtraData?.DisplayName ?? profile?.Username ?? "",
+        imageUrl: creatorPk ? `https://node.deso.org/api/v0/get-single-profile-picture/${creatorPk}` : null,
+        balanceNanos: h.BalanceNanos ?? 0,
         coinPriceUSD,
-        hasPurchased: true,
-        creatorSlug: v.creatorSlug,
-        totalValueUSD: v.totalCoins * coinPriceUSD,
+        hasPurchased: h.HasPurchased ?? false,
+        totalValueUSD: coinsHeld * coinPriceUSD,
+        creatorSlug: null as string | null,
       };
-    }).filter(h => h.balanceNanos > 0);
+    })
+    // Filter dust: only show holdings worth at least $0.01 OR more than 0.001 coins
+    .filter((h: any) => h.totalValueUSD >= 0.01 || (h.balanceNanos / 1e9) >= 0.001)
+    // Sort by value descending
+    .sort((a: any, b: any) => b.totalValueUSD - a.totalValueUSD);
+
+    // Cross-reference with Caldera DB to get creator slugs for linking
+    if (holdings.length > 0) {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const pks = holdings.map((h: any) => h.creatorPublicKey).filter(Boolean);
+      const { data: creators } = await supabase
+        .from("creators")
+        .select("deso_public_key, slug")
+        .in("deso_public_key", pks);
+      const slugMap = new Map((creators ?? []).map((c: any) => [c.deso_public_key, c.slug]));
+      holdings.forEach((h: any) => {
+        h.creatorSlug = slugMap.get(h.creatorPublicKey) ?? null;
+      });
+    }
 
     return NextResponse.json({ holdings });
   } catch {
