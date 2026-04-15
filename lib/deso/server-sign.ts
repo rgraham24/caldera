@@ -1,30 +1,24 @@
 import * as bip39 from "bip39";
-import { BIP32Factory } from "bip32";
-import * as ecc from "tiny-secp256k1";
-import { ec as EC } from "elliptic";
-
-const bip32 = BIP32Factory(ecc);
-const ec = new EC("secp256k1");
+import { HDKey } from "@scure/bip32";
+import { secp256k1 } from "@noble/curves/secp256k1";
+import { sha256 } from "@noble/hashes/sha256";
 
 export async function signTransactionWithSeed(
   transactionHex: string,
   mnemonic: string
 ): Promise<string> {
   const seed = await bip39.mnemonicToSeed(mnemonic);
-  const root = bip32.fromSeed(seed);
-  const child = root.derivePath("m/44'/0'/0'/0/0");
+  const root = HDKey.fromMasterSeed(seed);
+  const child = root.derive("m/44'/0'/0'/0/0");
   if (!child.privateKey) throw new Error("Could not derive private key");
 
   const txBytes = Buffer.from(transactionHex, "hex");
-  const crypto = await import("crypto");
-  const hash1 = crypto.createHash("sha256").update(txBytes).digest();
-  const hash2 = crypto.createHash("sha256").update(hash1).digest();
+  const hash1 = sha256(txBytes);
+  const hash2 = sha256(hash1);
 
-  const keyPair = ec.keyFromPrivate(child.privateKey);
-  const sig = keyPair.sign(hash2, { canonical: true });
-  const derSig = Buffer.from(sig.toDER());
+  const sig = secp256k1.sign(hash2, child.privateKey, { lowS: true });
+  const derSig = Buffer.from(sig.toDERRawBytes());
 
-  // Append signature to tx bytes with varint length prefix
   const sigLenBuf = Buffer.alloc(1);
   sigLenBuf.writeUInt8(derSig.length);
   return Buffer.concat([txBytes, sigLenBuf, derSig]).toString("hex");
