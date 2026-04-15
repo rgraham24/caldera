@@ -21,7 +21,6 @@ import { TradeTicket } from "@/components/markets/TradeTicket";
 import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
-import { CreatorCoinExplainer } from "@/components/markets/CreatorCoinExplainer";
 import { CryptoRealTimeChart } from "@/components/markets/CryptoRealTimeChart";
 import {
   formatCompactCurrency,
@@ -66,7 +65,6 @@ export function MarketDetailClient({
   const [rulesOpen, setRulesOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
-  const [news, setNews] = useState<Array<{ title: string; url: string; source: string; age: string }>>([]);
   const [copied, setCopied] = useState(false);
   // Crypto 5-min market live state
   const [cryptoPrice, setCryptoPrice] = useState<number | null>(null);
@@ -86,15 +84,6 @@ export function MarketDetailClient({
       })
       .catch(() => {});
   }, [market.id, market.market_type]);
-
-  // Fetch related news headlines
-  useEffect(() => {
-    if (!market?.id) return;
-    fetch(`/api/markets/${market.id}/news`)
-      .then((r) => r.json())
-      .then((d: { articles?: Array<{ title: string; url: string; source: string; age: string }> }) => setNews(d.articles ?? []))
-      .catch(() => {});
-  }, [market?.id]);
 
   // Active balance polling (10s) on trade page — immediate refresh after trade
   const { refresh: refreshBalance } = useDesoBalance(
@@ -247,6 +236,8 @@ export function MarketDetailClient({
                   feeConfig={feeConfig}
                   onTradeComplete={refreshBalance}
                   selectedOutcome={null}
+                  creatorTokenSymbol={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? (creator?.deso_username ?? creator?.creator_coin_symbol ?? undefined) : undefined}
+                  creatorName={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? creator?.name : undefined}
                 />
               )}
 
@@ -311,35 +302,6 @@ export function MarketDetailClient({
             )}
           </div>
 
-          {/* Related news */}
-          {news.length > 0 && (
-            <div className="mt-4 mb-6 space-y-2">
-              <h3 className="text-xs font-medium text-text-muted uppercase tracking-wider">
-                Related News
-              </h3>
-              {news.map((article, i) => (
-                <a
-                  key={i}
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-2 p-2.5 rounded-lg hover:bg-surface-2 transition-colors group"
-                  style={{ border: "1px solid var(--border-subtle)" }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium line-clamp-2 group-hover:text-caldera transition-colors">
-                      {article.title}
-                    </div>
-                    <div className="text-xs text-text-muted mt-0.5">
-                      {article.source}{article.age && ` · ${article.age}`}
-                    </div>
-                  </div>
-                  <div className="text-text-muted shrink-0 mt-0.5">→</div>
-                </a>
-              ))}
-            </div>
-          )}
-
           {/* Overdue resolution banner */}
           {market.status === "open" &&
             market.resolve_at &&
@@ -370,22 +332,6 @@ export function MarketDetailClient({
             </div>
           )}
 
-          {/* Creator stake explainer */}
-          {creator && (
-            <div className="mb-6">
-              <CreatorCoinExplainer
-                creator={creator}
-                creatorFeePercent={parseFloat(feeConfig.creator_market_creator_fee || "0.01")}
-              />
-              {(creator.creator_coin_holders ?? 0) > 0 && (
-                <div className="mt-2 flex items-center gap-2 rounded-lg bg-surface px-3 py-2">
-                  <span className="text-xs text-caldera font-medium">
-                    Active holders: {(creator.creator_coin_holders ?? 0).toLocaleString()}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Big probability / categorical outcomes */}
           <div className="mb-6">
@@ -642,7 +588,14 @@ export function MarketDetailClient({
         <div className="w-full lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
             {market.status === "open" && (
-              <TradeTicket market={market} feeConfig={feeConfig} onTradeComplete={refreshBalance} selectedOutcome={selectedOutcome} />
+              <TradeTicket
+                market={market}
+                feeConfig={feeConfig}
+                onTradeComplete={refreshBalance}
+                selectedOutcome={selectedOutcome}
+                creatorTokenSymbol={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? (creator?.deso_username ?? creator?.creator_coin_symbol ?? undefined) : undefined}
+                creatorName={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? creator?.name : undefined}
+              />
             )}
 
             <div className="flex items-center justify-center gap-3">

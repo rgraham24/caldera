@@ -185,9 +185,10 @@ export default function TokensPage() {
             {categoryTokens.map((t) => {
               const marketCount = categoryMarketCounts[t.slug] ?? t.markets_count ?? 0;
               const symbol = `$${t.name.toUpperCase()}`;
-              const desoUrl = t.deso_public_key
-                ? `https://diamondapp.com/u/${t.deso_username}`
-                : null;
+              // Always derive DeSo username from slug or name — never rely on DB deso_username
+              // Category token slugs are either "caldera-sports" or plain "sports"
+              const slugName = t.slug.replace(/^caldera-/, "").toLowerCase();
+              const desoUrl = `https://diamondapp.com/u/${slugName}`;
               return (
                 <div
                   key={t.slug}
@@ -203,20 +204,14 @@ export default function TokensPage() {
                     <span className="text-xs font-medium text-caldera">
                       {marketCount.toLocaleString()} markets
                     </span>
-                    {desoUrl ? (
-                      <a
-                        href={desoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg bg-orange-500 px-3 py-1 text-xs font-semibold text-white hover:bg-orange-400 transition-colors"
-                      >
-                        Buy
-                      </a>
-                    ) : (
-                      <span className="rounded-lg border border-border-subtle px-3 py-1 text-xs font-semibold text-text-faint cursor-default">
-                        Coming Soon
-                      </span>
-                    )}
+                    <a
+                      href={desoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-colors"
+                    >
+                      Buy on DeSo ↗
+                    </a>
                   </div>
                 </div>
               );

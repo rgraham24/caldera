@@ -3,12 +3,6 @@
 import { useState, useEffect } from "react";
 import type { Creator } from "@/types";
 import { formatCurrency, formatCompactCurrency } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
@@ -95,9 +89,7 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                 )}
               </div>
 
-              {!desoUser ? (
-                <p className="mb-4 text-xs text-text-faint">Not on DeSo yet</p>
-              ) : (
+              {desoUser && (
                 <>
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-1">
@@ -121,27 +113,13 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                       {formatCompactCurrency(creator.total_holder_earnings ?? 0)} earned by holders
                     </p>
                   )}
+                  <button
+                    onClick={() => setStakeCreator(creator)}
+                    className="w-full text-left text-xs font-medium text-caldera transition-colors hover:text-caldera/80"
+                  >
+                    Buy ${coinSymbol}
+                  </button>
                 </>
-              )}
-
-              {desoUser ? (
-                <button
-                  onClick={() => setStakeCreator(creator)}
-                  className="w-full text-left text-xs font-medium text-caldera transition-colors hover:text-caldera/80"
-                >
-                  Buy ${coinSymbol}
-                </button>
-              ) : (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger className="w-full text-left text-xs font-medium text-text-faint">
-                      Not on DeSo yet
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-surface border-border-subtle text-text-primary">
-                      <p className="text-xs">This creator is not yet on the DeSo blockchain</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               )}
             </div>
           );

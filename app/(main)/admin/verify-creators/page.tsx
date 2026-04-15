@@ -15,6 +15,7 @@ type QueueItem = {
   markets_count: number;
   total_volume: number;
   twitter_handle: string | null;
+  deso_public_key: string | null;
 };
 
 const ADMIN_PW_KEY = "caldera_admin_pw";
@@ -26,6 +27,8 @@ function VerifyQueue() {
   const [handles, setHandles] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
 
   const adminPassword = typeof window !== "undefined"
     ? localStorage.getItem(ADMIN_PW_KEY) ?? "caldera-admin-2026"
@@ -45,6 +48,24 @@ function VerifyQueue() {
   }, []);
 
   useEffect(() => { fetchQueue(); }, [fetchQueue]);
+
+  const syncPrices = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/admin/sync-prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword, desoPublicKey }),
+      });
+      const data = await res.json();
+      setSyncResult(res.ok ? `✅ ${data.message}` : `❌ ${data.error ?? "Failed"}`);
+    } catch (err) {
+      setSyncResult(`❌ ${String(err)}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const act = async (slug: string, action: "approve" | "reject") => {
     const handle = handles[slug]?.trim();
@@ -102,104 +123,189 @@ function VerifyQueue() {
   if (queue.length === 0) {
     return (
       <div className="rounded-xl border border-border-subtle/30 bg-surface p-8 text-center">
-        <p className="mb-4 text-text-muted">No creators pending verification</p>
-        <p className="text-xs text-text-faint mb-4">
-          Queue shows creators with <code className="bg-surface-2 px-1 py-0.5 rounded">token_status = &apos;pending_deso_creation&apos;</code> or <code className="bg-surface-2 px-1 py-0.5 rounded">shadow</code> or <code className="bg-surface-2 px-1 py-0.5 rounded">verification_status = &apos;pending_review&apos;</code> with at least 1 market.
+        <p className="mb-2 text-text-muted">No creators pending verification</p>
+        <p className="text-xs text-text-faint mb-6">
+          Reserved profiles with DeSo coins are auto-fixed on load. Only creators with
+          <code className="mx-1 bg-surface-2 px-1 py-0.5 rounded">token_status = pending_deso_creation</code>
+          and no DeSo key appear here.
         </p>
-        <button
-          onClick={fetchQueue}
-          className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-4 py-2 text-sm text-orange-400 hover:bg-orange-500/20 transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <button
+            onClick={fetchQueue}
+            className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-4 py-2 text-sm text-orange-400 hover:bg-orange-500/20 transition-colors"
+          >
+            ↻ Refresh
+          </button>
+          <button
+            onClick={syncPrices}
+            disabled={syncing}
+            className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-2 text-sm text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-40"
+          >
+            {syncing ? "Syncing…" : "⟳ Sync Prices"}
+          </button>
+        </div>
+        {syncResult && (
+          <p className={`mt-3 text-xs ${syncResult.startsWith("✅") ? "text-green-400" : "text-red-400"}`}>
+            {syncResult}
+          </p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs text-text-muted">{queue.length} creator{queue.length !== 1 ? "s" : ""} in queue</p>
-        <button
-          onClick={fetchQueue}
-          className="text-xs text-text-muted hover:text-text-primary transition-colors"
-        >
-          ↻ Refresh
-        </button>
+    <div className="space-y-4">
+      {/* Instructional banner */}
+      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs text-blue-300 leading-relaxed space-y-1">
+        <p className="font-semibold text-blue-200">How to approve a creator:</p>
+        <p>① Look up their exact Twitter/X handle and verify the account is real</p>
+        <p>② Type it in the @ field below their name</p>
+        <p>③ Click <span className="text-green-300 font-medium">Approve</span> — their DeSo coin will be created automatically and a claim code generated</p>
+        <p className="text-blue-400 mt-1">Only approve real people with active Twitter accounts. Category tokens and bots should be Rejected.</p>
       </div>
-      {queue.map((creator) => (
-        <div
-          key={creator.id}
-          className="rounded-xl border border-border-subtle/30 bg-surface p-5"
-        >
-          {/* Header row */}
-          <div className="flex items-start gap-4">
-            {creator.image_url ? (
-              <img src={creator.image_url} alt={creator.name} className="h-12 w-12 rounded-full object-cover shrink-0" />
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-orange-500/20 flex items-center justify-center text-lg font-bold text-orange-400 shrink-0">
-                {(creator.name ?? "?")[0].toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-text-primary">{creator.name}</span>
-                <code className="text-xs text-text-muted bg-surface-2 px-1.5 py-0.5 rounded">{creator.slug}</code>
-                {creator.category && (
-                  <span className="text-xs text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">{creator.category}</span>
-                )}
-                <span className="text-xs text-text-muted">
-                  status: <span className="text-amber-400">{creator.token_status ?? "—"}</span>
-                </span>
-              </div>
-              <div className="mt-1 flex gap-4 text-xs text-text-muted">
-                <span>{creator.markets_count} markets</span>
-                <span>${(creator.total_volume ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} volume</span>
-                {creator.twitter_handle && (
-                  <span className="text-blue-400">@{creator.twitter_handle}</span>
-                )}
-              </div>
-            </div>
-          </div>
 
-          {/* Actions */}
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <span className="text-xs text-text-muted shrink-0">@</span>
-              <input
-                type="text"
-                placeholder="twitter handle (e.g. ninja)"
-                value={handles[creator.slug] ?? creator.twitter_handle ?? ""}
-                onChange={(e) => setHandles((h) => ({ ...h, [creator.slug]: e.target.value }))}
-                className="w-full rounded-lg border border-border-subtle/40 bg-base px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-orange-500/50"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => act(creator.slug, "approve")}
-                disabled={processing[creator.slug]}
-                className="rounded-lg bg-green-500/15 border border-green-500/30 px-4 py-1.5 text-sm font-medium text-green-400 hover:bg-green-500/25 transition-colors disabled:opacity-40"
-              >
-                {processing[creator.slug] ? "…" : "Approve"}
-              </button>
-              <button
-                onClick={() => act(creator.slug, "reject")}
-                disabled={processing[creator.slug]}
-                className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-
-          {/* Result message */}
-          {results[creator.slug] && (
-            <p className={`mt-2 text-xs ${results[creator.slug].ok ? "text-green-400" : "text-red-400"}`}>
-              {results[creator.slug].msg}
-            </p>
-          )}
+      {/* Queue header */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-text-muted">{queue.length} creator{queue.length !== 1 ? "s" : ""} need DeSo coins</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={syncPrices}
+            disabled={syncing}
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-40"
+          >
+            {syncing ? "Syncing…" : "⟳ Sync Prices"}
+          </button>
+          <button
+            onClick={fetchQueue}
+            className="text-xs text-text-muted hover:text-text-primary transition-colors"
+          >
+            ↻ Refresh
+          </button>
         </div>
-      ))}
+      </div>
+
+      {syncResult && (
+        <p className={`text-xs px-3 py-2 rounded-lg ${syncResult.startsWith("✅") ? "text-green-400 bg-green-500/10" : "text-red-400 bg-red-500/10"}`}>
+          {syncResult}
+        </p>
+      )}
+
+      {queue.map((creator) => {
+        const handle = handles[creator.slug] ?? creator.twitter_handle ?? "";
+        const trimmedHandle = handle.replace(/^@/, "").trim();
+
+        return (
+          <div
+            key={creator.id}
+            className="rounded-xl border border-border-subtle/30 bg-surface p-5"
+          >
+            {/* Header row */}
+            <div className="flex items-start gap-4">
+              {creator.image_url ? (
+                <img src={creator.image_url} alt={creator.name} className="h-12 w-12 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="h-12 w-12 rounded-full bg-orange-500/20 flex items-center justify-center text-lg font-bold text-orange-400 shrink-0">
+                  {(creator.name ?? "?")[0].toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-text-primary">{creator.name}</span>
+                  <code className="text-xs text-text-muted bg-surface-2 px-1.5 py-0.5 rounded">{creator.slug}</code>
+                  {creator.category && (
+                    <span className="text-xs text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">{creator.category}</span>
+                  )}
+                  {/* View on Caldera link */}
+                  <a
+                    href={`/creators/${creator.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-text-faint hover:text-caldera transition-colors"
+                  >
+                    View ↗
+                  </a>
+                </div>
+
+                {/* Status badge */}
+                <div className="mt-1.5">
+                  {creator.deso_public_key ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+                      ✓ Has DeSo coin — should auto-fix on refresh
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full">
+                      ● No DeSo coin yet — needs approval
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-1.5 flex gap-4 text-xs text-text-muted">
+                  <span>{creator.markets_count} markets</span>
+                  <span>${(creator.total_volume ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} volume</span>
+                  {creator.twitter_handle && (
+                    <a
+                      href={`https://twitter.com/${creator.twitter_handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300"
+                    >
+                      @{creator.twitter_handle} ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+                <span className="text-xs text-text-muted shrink-0">@</span>
+                <input
+                  type="text"
+                  placeholder="handle (must match exact Twitter/X username)"
+                  value={handle}
+                  onChange={(e) => setHandles((h) => ({ ...h, [creator.slug]: e.target.value }))}
+                  className="w-full rounded-lg border border-border-subtle/40 bg-base px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-orange-500/50"
+                />
+                {trimmedHandle && (
+                  <a
+                    href={`https://twitter.com/${trimmedHandle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Verify on Twitter/X"
+                    className="shrink-0 text-blue-400 hover:text-blue-300 transition-colors text-xs border border-blue-500/30 rounded px-1.5 py-1"
+                  >
+                    ↗
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => act(creator.slug, "approve")}
+                  disabled={processing[creator.slug]}
+                  className="rounded-lg bg-green-500/15 border border-green-500/30 px-4 py-1.5 text-sm font-medium text-green-400 hover:bg-green-500/25 transition-colors disabled:opacity-40"
+                >
+                  {processing[creator.slug] ? "…" : "Approve"}
+                </button>
+                <button
+                  onClick={() => act(creator.slug, "reject")}
+                  disabled={processing[creator.slug]}
+                  className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+
+            {/* Result message */}
+            {results[creator.slug] && (
+              <p className={`mt-2 text-xs ${results[creator.slug].ok ? "text-green-400" : "text-red-400"}`}>
+                {results[creator.slug].msg}
+              </p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -211,7 +317,7 @@ export default function VerifyCreatorsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-text-primary">Verification Queue</h1>
           <p className="mt-1 text-sm text-text-muted">
-            Creators with markets pending DeSo coin creation. Type the verified Twitter handle and approve to create their DeSo profile and generate a claim code.
+            Creators with active markets but no DeSo coin yet. Reserved profiles are auto-fixed on load.
           </p>
         </div>
         <VerifyQueue />

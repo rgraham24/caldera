@@ -321,7 +321,7 @@ export function CreatorProfileClient({
                 />
               </div>
               <p className="mt-1 text-sm text-text-muted">${coinSymbol}</p>
-              <div className="mt-3 flex items-center gap-4">
+              <div className="mt-3 flex items-center gap-4 flex-wrap">
                 <div>
                   <span className="font-display text-2xl font-bold tracking-normal text-text-primary">
                     {desoUser ? formatCurrency(livePrice ?? 0) : "—"}
@@ -330,6 +330,9 @@ export function CreatorProfileClient({
                     <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-yes">
                       <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" /> Live
                     </span>
+                  )}
+                  {desoUser && (livePrice === 0 || livePrice === null) && (
+                    <span className="ml-2 text-xs text-text-muted">· No trades yet — be the first buyer</span>
                   )}
                 </div>
                 <span className="text-sm text-text-muted">
@@ -581,15 +584,25 @@ export function CreatorProfileClient({
                   className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
                 />
               </div>
-              <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
-                <div className="text-xs font-medium text-orange-400 mb-1">
-                  💰 Token Buyback Active
+              {creator.claim_status === "claimed" ? (
+                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
+                  <div className="text-xs font-medium text-orange-400 mb-1">
+                    💰 Token Buyback Active
+                  </div>
+                  <div className="text-xs text-[var(--color-text-muted)]">
+                    1% of every trade auto-buys ${coinSymbol} and permanently removes it from circulation.
+                  </div>
                 </div>
-                <div className="text-xs text-[var(--color-text-muted)]">
-                  1% of every trade on this market auto-buys ${coinSymbol} —{' '}
-                  supporting {creator.name}&apos;s creator coin.
+              ) : (
+                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
+                  <div className="text-xs font-medium text-orange-400 mb-1">
+                    🔥 $CREATORS Burn Active
+                  </div>
+                  <div className="text-xs text-[var(--color-text-muted)]">
+                    1% of every trade permanently burns $CREATORS tokens. When {creator.name} claims their profile, they&apos;ll also earn 0.5% per trade.
+                  </div>
                 </div>
-              </div>
+              )}
               {createError && (
                 <p className="text-xs text-red-400">{createError}</p>
               )}

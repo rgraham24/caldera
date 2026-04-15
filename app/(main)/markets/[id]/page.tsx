@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { MarketDetailClient } from "./market-detail-client";
 import type { CommentWithUser, Creator } from "@/types";
 
+export const revalidate = 0;
+
 export default async function MarketDetailPage({
   params,
 }: {

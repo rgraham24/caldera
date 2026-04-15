@@ -21,6 +21,9 @@ type TradeTicketProps = {
   feeConfig: Record<string, string>;
   onTradeComplete?: () => void;
   selectedOutcome?: MarketOutcome | null;
+  /** Set when the creator is claimed — enables 2.5% fee breakdown with creator token rows */
+  creatorTokenSymbol?: string;
+  creatorName?: string;
 };
 
 type UserPosition = {
@@ -55,6 +58,8 @@ export function TradeTicket({
   feeConfig,
   onTradeComplete,
   selectedOutcome,
+  creatorTokenSymbol,
+  creatorName,
 }: TradeTicketProps) {
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
   const [side, setSide] = useState<"yes" | "no">("yes");
@@ -421,6 +426,7 @@ export function TradeTicket({
             {(() => {
               const burnToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
               const burnSlug = getCategoryTokenSlug(market.category, market.crypto_ticker, market.creator_slug);
+              const isClaimed = !!creatorTokenSymbol;
               return (
                 <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 mt-2">
                   <div className="text-xs font-medium text-orange-400 mb-2">Fee Breakdown</div>
@@ -432,12 +438,29 @@ export function TradeTicket({
                     <div className="flex justify-between text-xs">
                       <span className="text-text-muted">{burnToken} burn</span>
                       <span className="relative group cursor-help">
-                        <span className="text-orange-400">1% burn 🔥</span>
+                        <span className="text-orange-400">{isClaimed ? "0.5%" : "1%"} burn 🔥</span>
                         <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                          1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
+                          {isClaimed ? "0.5%" : "1%"} of this trade permanently reduces the token supply, making remaining tokens scarcer.
                         </span>
                       </span>
                     </div>
+                    {isClaimed && (
+                      <>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">${creatorTokenSymbol} burn</span>
+                          <span className="relative group cursor-help">
+                            <span className="text-orange-400">0.5% burn 🔥</span>
+                            <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
+                              0.5% of this trade auto-buys ${creatorTokenSymbol} and permanently removes it from circulation.
+                            </span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">{creatorName ?? "Creator"} earns</span>
+                          <span className="text-green-400">0.5%</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <a href={`/creators/${burnSlug}`}
                      className="mt-2 text-xs text-orange-400 hover:underline block">
