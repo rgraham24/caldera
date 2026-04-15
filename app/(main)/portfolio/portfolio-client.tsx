@@ -113,36 +113,19 @@ export function PortfolioClient() {
   // Load coin holdings when tab is selected
   useEffect(() => {
     const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
-    if (tab !== "holdings" || !key || coinHoldings.length > 0) return;
+    if (tab !== "holdings" || !key) return;
 
     const loadHoldings = async () => {
       setHoldingsLoading(true);
       try {
-        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(key)}`);
-        const { holdings = [] } = await res.json() as { holdings: CoinHolding[] };
-
-        if (holdings.length === 0) {
+        const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
+        if (!key) {
           setCoinHoldings([]);
           return;
         }
-
-        // Cross-reference with our DB to get creator slugs for linking
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const publicKeys = holdings.map((h) => h.creatorPublicKey);
-        const { data: creators } = await supabase
-          .from("creators")
-          .select("deso_public_key, slug")
-          .in("deso_public_key", publicKeys);
-
-        const slugMap = new Map((creators ?? []).map((c) => [c.deso_public_key, c.slug]));
-
-        setCoinHoldings(
-          holdings.map((h) => ({
-            ...h,
-            creatorSlug: slugMap.get(h.creatorPublicKey) ?? null,
-          }))
-        );
+        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(key)}`);
+        const { holdings = [] } = await res.json() as { holdings: CoinHolding[] };
+        setCoinHoldings(holdings);
       } catch {
         setCoinHoldings([]);
       } finally {
@@ -151,7 +134,7 @@ export function PortfolioClient() {
     };
 
     loadHoldings();
-  }, [tab, desoPublicKey, coinHoldings.length]);
+  }, [tab, desoPublicKey]);
 
   const openPositions = positions.filter((p) => p.status === "open");
   const settledPositions = positions.filter((p) => p.status === "settled");
