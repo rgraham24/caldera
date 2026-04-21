@@ -2,7 +2,7 @@
 
 ## What Caldera Is
 
-Caldera is a crypto-native prediction market platform where users bet YES/NO on outcomes using real DeSo (a blockchain). Every market is tied to a creator — an athlete, musician, influencer, or public figure — whose DeSo creator coin benefits from trading fees via a "buy & burn" mechanic. Users buy shares in prediction markets, the AMM adjusts prices, and winners receive payouts in DeSo. The platform differentiates from Polymarket/Kalshi by layering DeSo's social graph and creator coin economy on top of standard binary prediction markets, with creator tiers, claim codes, and reputation scores.
+Caldera is a crypto-native prediction market platform where users bet YES/NO on outcomes using real DeSo (a blockchain). Every market is tied to a creator — an athlete, musician, influencer, or public figure — and a category token ($CalderaSports, $CalderaMusic, etc.). Trading fees flow to holders of the relevant token as on-chain rewards, plus auto-buyback for price support. Claimed creators earn a direct 0.5% cut on every trade. Users buy shares in prediction markets, the AMM adjusts prices, and winners receive payouts in DeSo. The platform differentiates from Polymarket/Kalshi by layering DeSo's social graph and creator coin economy on top of standard binary prediction markets, with creator tiers, claim codes, and reputation scores.
 
 ---
 
@@ -19,32 +19,45 @@ Caldera is a crypto-native prediction market platform where users bet YES/NO on 
 
 ---
 
-## Fee Model (as actually implemented in `lib/fees/calculator.ts`)
+## Fee Model (LOCKED 2026-04-21)
 
-**Buy trades:**
+**Sells:** Always 0%. Always free.
 
-| Scenario | Total fee | Platform | Creator wallet | Token auto-buy pool |
-|---|---|---|---|---|
-| Unclaimed creator | 2.0% | 1.0% | 0% | 1.0% |
-| Claimed creator | 2.5% | 1.0% | 0.5% | 0.5% |
+**Buys:** 2.5% total on ALL markets (claimed and unclaimed). Split:
 
-**Sell trades:** 0% fee, always free.
+| Slice | Goes to |
+|---|---|
+| 1.0% | Platform (Caldera operations) |
+| 0.5% | Relevant-token holder rewards (accrual ledger, pull/claim model) |
+| 0.5% | Relevant-token auto-buy on DeSo (price support) |
+| 0.5% | Creator slice — see routing below |
 
-**Token auto-buy pool distribution** (the 1% or 0.5% remaining):
-- Split equally among active tiers: personal, team, league
-- **Personal token** only gets a cut if `token_status === "active_verified"` OR `"claimed"` AND `creator_coin_price > 0`
-- **Team/League tokens** qualify if `token_status` is `"active_unverified"` | `"active_verified"` | `"claimed"` AND `coin_price > 0`
-- **Personal token blocked** (`personalTokenBlocked = true`): when creator is `active_unverified` with a coin price > 0 — their personal cut is rerouted to team/league to protect unclaimed celebrities from Caldera-driven price appreciation
-- **Community pool**: receives the full auto-buy pool if no active tokens qualify
+**Creator slice routing (the 0.5%):**
+- Claimed creator → direct payout to creator's DeSo wallet at trade time
+- Unclaimed creator → accrues in `creators.unclaimed_earnings_escrow`
+  - Released to creator when they claim via CALDERA-XXXX-XXXX flow
+  - If not claimed within 12 months, rolls over to the relevant category token's holder rewards pool
+  - Never expires to zero
 
-**Where fees flow in the database:**
-- `fee_earnings` table: up to 3 rows per trade (`recipient_type` = `'platform'` | `'creator'` | `'market_creator'`)
-- `coin_holder_distributions` table: auto-buy pool amounts (personal/team/league/community), with `per_coin_amount`
-- `buyback_events` table: fire-and-forget record of each buyback execution
-- `creators.total_fees_distributed`: incremented after each coin_holder_distributions insert
-- Actual DeSo buyback: executed server-side via `executeCreatorCoinBuyback()` in `app/api/trades/route.ts` — calls DeSo `buy-or-sell-creator-coin`, signed with `lib/deso/server-sign.ts`
+**"Relevant token" routing (the 0.5% holder rewards + 0.5% auto-buy):**
+| Market type | Relevant token |
+|---|---|
+| Crypto market (BTC, ETH, SOL, etc.) | The underlying coin ($Bitcoin, $Ethereum, $Solana, etc. on DeSo) |
+| Unclaimed creator market | $CalderaCreators |
+| Sports market | $CalderaSports |
+| Music market | $CalderaMusic |
+| Politics market | $CalderaPolitics |
+| Tech market | $CalderaTech |
+| Entertainment market | $CalderaEntertainment |
+| Climate market | $CalderaClimate |
+| Companies market | $CalderaCompanies |
+| (no category) / fallback | $CalderaCreators |
 
-**`FeeBreakdown` type fields:** `total`, `platform`, `creatorEarning`, `creatorWalletFee`, `personalToken`, `teamToken`, `leagueToken`, `communityPool`, `personalTokenBlocked`, `isClaimed`, `labels` (DeSo usernames like `$elonmusk`). Legacy compat fields also present: `grossAmount`, `platformFee`, `creatorFee`, `coinHolderPoolFee`, `totalFee`, `netAmount`.
+**No $CalderaCrypto token exists.** Crypto fees route directly to the underlying asset's DeSo coin.
+
+**No burn mechanism exists.** DeSo creator coins cannot be burned. The 0.5% auto-buy is a buyback that provides price support only — supply is never reduced.
+
+**Holder rewards:** accrue per trade into a `holder_rewards` ledger (to be built). Holders pull their accrued rewards via a Claim Rewards action. No automatic push distributions (gas economics don't work at per-trade scale).
 
 ---
 
@@ -190,7 +203,7 @@ End-to-end, as implemented in `app/api/claim/`:
 
 - **PATH B chosen**: the platform holds DeSo accounts for pipeline-discovered creators. The platform wallet (`DESO_PLATFORM_SEED`) signs all transactions server-side. Never use a personal seed. Never use `identity.deso.org` (browser-only endpoint).
 
-- **"Buy & burn" not "passive income"**: fee auto-buys are always described as "buy & burn" in all user-facing copy. Never say "passive income."
+- **NO "burn" language anywhere**: DeSo creator coins cannot be burned. Never use "burn", "buy & burn", "remove from circulation", or "burn address" in site copy, terms, docs, or comments. The mechanic is "buy & hold" (platform buys the coin and holds it → price support via bonding curve). User-facing framing: "holders earn rewards", "price support via buyback", "buy & hold". The old CLAUDE.md rule "always use buy & burn" is INVERTED as of 2026-04-21 — "buy & burn" is now BANNED.
 
 - **Never delete markets** via API if positions/trades exist. Use `status='cancelled'` instead. `status='archived'` is not a valid value.
 
