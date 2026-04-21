@@ -193,39 +193,6 @@ export async function POST(req: NextRequest) {
 
     const v2Fees = calculateBuyFees(amount, creatorForFees, relevantToken);
 
-    // ── TEMPORARY DEBUG (will be reverted in 3a.2) ──
-    console.log('[v2-debug]', JSON.stringify({
-      trade_amount: amount,
-      market: {
-        id: market.id,
-        category: market.category,
-        crypto_ticker: mktFields.crypto_ticker,
-        creator_slug: market.creator_slug,
-      },
-      relevantToken_result: relevantToken,
-      creatorForFees_summary: creatorForFees ? {
-        id: creatorForFees.id,
-        token_status: creatorForFees.token_status,
-        claim_status: creatorForFees.claim_status,
-        has_deso_key: !!creatorForFees.deso_public_key,
-      } : null,
-      v2Fees_summary: {
-        total: v2Fees.total,
-        platform: v2Fees.platform,
-        holderRewards: v2Fees.holderRewards,
-        autoBuy: v2Fees.autoBuy,
-        creatorSlice: v2Fees.creatorSlice,
-        destination: v2Fees.creatorSliceDestination,
-      },
-      conditions: {
-        holderRewards_gt_zero: v2Fees.holderRewards > 0,
-        relevantToken_has_key: !!relevantToken?.deso_public_key,
-        will_write_holder_rewards: v2Fees.holderRewards > 0 && !!relevantToken?.deso_public_key,
-        autoBuy_gt_zero: v2Fees.autoBuy > 0,
-        will_write_auto_buy: v2Fees.autoBuy > 0 && !!relevantToken?.deso_public_key,
-      },
-    }, null, 2));
-
     // Fire-and-forget buyback event — never blocks the trade
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mkt = market as any;
