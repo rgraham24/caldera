@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mkt = market as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    void (supabase as any).from("buyback_events").insert({
+    (supabase as any).from("buyback_events").insert({
       market_id: market.id,
       market_title: market.title,
       creator_slug: mkt.creator_slug ?? null,
@@ -241,6 +241,8 @@ export async function POST(req: NextRequest) {
       team_buyback_usd: fees.teamToken,
       league_buyback_usd: fees.leagueToken,
       platform_fee_usd: fees.platform,
+    }).then(({ error }: { error: { message: string } | null }) => {
+      if (error) console.error('[trades] buyback_events insert failed:', error.message);
     });
 
     // Calculate trade quote with net amount (after fees)
@@ -272,11 +274,13 @@ export async function POST(req: NextRequest) {
 
     // Record price history snapshot (fire-and-forget)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    void (supabase as any).from("market_price_history").insert({
+    (supabase as any).from("market_price_history").insert({
       market_id: marketId,
       yes_price: quote.newYesPrice,
       no_price: quote.newNoPrice,
       total_volume: (market.total_volume ?? 0) + amount,
+    }).then(({ error }: { error: { message: string } | null }) => {
+      if (error) console.error('[trades] market_price_history insert failed:', error.message);
     });
 
     // Insert trade
@@ -356,20 +360,21 @@ export async function POST(req: NextRequest) {
 
     // 1. Platform (always)
     if (v2Fees.platform > 0) {
-      await supabase.from("fee_earnings").insert({
+      const { error } = await supabase.from("fee_earnings").insert({
         recipient_type: "platform",
         source_type: "trade",
         source_id: trade.id,
         amount: v2Fees.platform,
         currency: "USD",
       });
+      if (error) console.error('[trades] fee_earnings insert failed for platform:', error.message, error.details);
     }
 
     // 2. Holder rewards pool — skip if no relevantToken or token has no
     //    DeSo public key (ghost slug). The 0.5% is dropped per 2026-04-21
     //    decision: "no holders → platform keeps, log warning."
     if (v2Fees.holderRewards > 0 && relevantToken?.deso_public_key) {
-      await supabase.from("fee_earnings").insert({
+      const { error } = await supabase.from("fee_earnings").insert({
         recipient_type: "holder_rewards_pool",
         recipient_id: null, // distributed at holder-snapshot time in commit 3c
         source_type: "trade",
@@ -377,6 +382,7 @@ export async function POST(req: NextRequest) {
         amount: v2Fees.holderRewards,
         currency: "USD",
       });
+      if (error) console.error('[trades] fee_earnings insert failed for holder_rewards_pool:', error.message, error.details);
     } else if (v2Fees.holderRewards > 0) {
       console.warn(
         `[trades] Dropping $${v2Fees.holderRewards.toFixed(4)} holder rewards ` +
@@ -389,7 +395,7 @@ export async function POST(req: NextRequest) {
     //    buyback executed later; this is just the accounting row).
     //    Skip if we have no target public key.
     if (v2Fees.autoBuy > 0 && relevantToken?.deso_public_key) {
-      await supabase.from("fee_earnings").insert({
+      const { error } = await supabase.from("fee_earnings").insert({
         recipient_type: "auto_buy_pool",
         recipient_id: null,
         source_type: "trade",
@@ -397,6 +403,7 @@ export async function POST(req: NextRequest) {
         amount: v2Fees.autoBuy,
         currency: "USD",
       });
+      if (error) console.error('[trades] fee_earnings insert failed for auto_buy_pool:', error.message, error.details);
     } else if (v2Fees.autoBuy > 0) {
       console.warn(
         `[trades] Dropping $${v2Fees.autoBuy.toFixed(4)} auto-buy for trade ` +
@@ -411,7 +418,7 @@ export async function POST(req: NextRequest) {
       v2Fees.creatorSliceDestination === "creator_wallet" &&
       v2Fees.creatorSlicePublicKey
     ) {
-      await supabase.from("fee_earnings").insert({
+      const { error } = await supabase.from("fee_earnings").insert({
         recipient_type: "creator",
         recipient_id: creatorForFees?.id ?? null,
         source_type: "trade",
@@ -419,6 +426,7 @@ export async function POST(req: NextRequest) {
         amount: v2Fees.creatorSlice,
         currency: "USD",
       });
+      if (error) console.error('[trades] fee_earnings insert failed for creator:', error.message, error.details);
     }
 
     // Coin holder pool distribution
@@ -432,14 +440,17 @@ export async function POST(req: NextRequest) {
       const totalCoins = (creator as { total_coins_in_circulation: number } | null)?.total_coins_in_circulation || 1;
       const perCoin = fees.coinHolderPoolFee / totalCoins;
 
-      await supabase.from("coin_holder_distributions").insert({
-        market_id: marketId,
-        trade_id: trade.id,
-        creator_id: market.creator_id,
-        total_pool_amount: fees.coinHolderPoolFee,
-        per_coin_amount: perCoin,
-        snapshot_holder_count: 0,
-      });
+      {
+        const { error } = await supabase.from("coin_holder_distributions").insert({
+          market_id: marketId,
+          trade_id: trade.id,
+          creator_id: market.creator_id,
+          total_pool_amount: fees.coinHolderPoolFee,
+          per_coin_amount: perCoin,
+          snapshot_holder_count: 0,
+        });
+        if (error) console.error('[trades] coin_holder_distributions insert failed:', error.message, error.details);
+      }
 
       const prevDistributed = (creator as { total_fees_distributed: number } | null)?.total_fees_distributed || 0;
       await supabase
