@@ -21,6 +21,26 @@ Holder rewards distribute via an accrual ledger (to be built). Per-trade push di
 
 Supersedes the 2026-04-16 stub. Reverses the 2026-04-15 / earlier "buy & burn" framing.
 
+## 2026-04-21 — Step 3a complete (v2 fee_earnings live on preview)
+
+Shipped on `feat/tokenomics-v2` branch:
+- `lib/fees/relevantToken.ts` — resolves which DeSo token receives holder-rewards + auto-buy (commit 6671d0c, fixed 1303d11)
+- `lib/fees/calculator.ts` — locked v2 math: 2.5% flat, 4-way split, 8-decimal `round()`, `authoritativeTotal = sliceSum` invariant (commits 4a5227c, e57c206)
+- `supabase/migrations/20260421b_fee_earnings_recipient_types.sql` — expands `fee_earnings_recipient_type_check` constraint to allow `holder_rewards_pool` and `auto_buy_pool` (commit f451495)
+- `app/api/trades/route.ts` — writes 4 fee_earnings rows per buy trade instead of 3; error-checks all inserts (commits ad566cd, f451495, e57c206, 0ef6a47)
+- `__tests__/fees/calculator.v2.test.ts` — full suite covering all routing paths + rounding invariant (commit e57c206)
+- `__tests__/fees/relevantToken.test.ts` — 18 pure unit tests (commits 6671d0c, 1303d11)
+
+Verified on preview deploy with real $1 trade on BTC market:
+  `platform=$0.01, holder_rewards_pool=$0.005, auto_buy_pool=$0.005, creator=$0.005`
+
+Known gaps still owed in Step 3:
+- **3b:** Increment `creators.unclaimed_earnings_escrow` when `creatorSliceDestination === 'escrow'` (unclaimed creator slice currently inserted to fee_earnings but not accumulated on the creator row)
+- **3c:** Per-holder snapshot writes to `holder_rewards` table (requires DeSo API paginated holder list; pull/claim model)
+- **3d:** Rewire auto-buy DeSo transaction target from creator's personal coin to `relevantToken.deso_public_key`
+
+Production is unchanged. Branch is deploy-ready only after 3b–3d land and merge to main.
+
 ## 2026-04-15: Path B for creator accounts
 Platform holds DeSo accounts via DESO_PLATFORM_SEED for pipeline-discovered creators. Creators claim ownership via /claim/[code] with CALDERA-XXXX-XXXX codes posted publicly. Unclaimed earnings accrue in creators.unclaimed_earnings_escrow.
 
