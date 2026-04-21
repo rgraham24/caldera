@@ -68,31 +68,22 @@ export default function TermsPage() {
             5. Platform Fees
           </h2>
           <p>
-            Caldera charges a <strong className="text-text-primary">1% platform fee</strong> on
-            the gross value of every trade. An additional 1% of every trade is used to
-            automatically purchase ("buy &amp; burn") the category token associated with the
-            market, permanently removing that supply from circulation. Fees are deducted
-            at time of trade and are non-refundable.
+            Caldera charges a total fee of <strong className="text-text-primary">2.5% on every buy trade</strong>. Sell trades are free. The 2.5% is split as follows: 1% funds platform operations, 0.5% accrues as on-chain holder rewards for holders of the relevant token associated with the market, 0.5% is used to buy the relevant token on the open market and hold it (no supply is reduced — see Section 6), and 0.5% is routed to the claimed creator's DeSo wallet if the creator has claimed their profile, otherwise it accrues in escrow and is released to the creator upon successful claim. Fees are deducted at time of trade and are non-refundable.
           </p>
         </section>
 
         <section>
           <h2 className="mb-3 font-display text-xl font-semibold text-text-primary">
-            6. Buy &amp; Burn Mechanic
+            6. Holder Rewards and Token Buyback
           </h2>
           <p>
-            Each prediction market on Caldera is linked to a category token (e.g.
-            $SPORTS, $ENTERTAINMENT) or an individual creator token. A portion of every
-            trade fee is used to buy that token on the open market and send it to a burn
-            address, permanently reducing the circulating supply.
+            Each prediction market on Caldera is associated with a relevant token — typically a category token (e.g. $CalderaSports, $CalderaEntertainment), the underlying asset for crypto markets, or $CalderaCreators for markets about unclaimed creators. On every buy trade, 0.5% of the gross trade value accrues to holders of that relevant token as on-chain rewards (holders must manually claim accrued rewards). An additional 0.5% is used to purchase the relevant token on the open market and is held by Caldera; this purchased supply is <strong className="text-text-primary">not burned and is not removed from circulation</strong>. No token supply reduction occurs at any time.
           </p>
           <p className="mt-3">
             <strong className="text-text-primary">
               Holding a token does not guarantee any return or monetary value.
             </strong>{" "}
-            The buy &amp; burn mechanic reduces supply but does not guarantee that token
-            price will increase. Tokens are utility tokens that represent participation
-            in the Caldera ecosystem, not securities or investment contracts.
+            Accrued rewards may be zero if trading activity in the relevant category is low. The buyback-and-hold mechanic may provide upward price pressure on a token via bonding-curve dynamics but does not guarantee any price increase. Tokens are utility tokens that represent participation in the Caldera ecosystem, not securities or investment contracts. Past trading activity and past reward accrual do not predict future results.
           </p>
         </section>
 

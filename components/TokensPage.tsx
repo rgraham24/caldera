@@ -118,7 +118,7 @@ export default function TokensPage() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold text-text-primary">💰 Tokens</h1>
         <p className="mt-1 text-sm text-text-muted">
-          Every trade, 1% of fees are used to buy these tokens on the open market and permanently remove them from circulation.
+          Every buy trade, 0.5% of fees accrues as on-chain rewards to holders of the relevant token, and another 0.5% is used to buy the token on the open market. Hold to earn.
         </p>
       </div>
 
@@ -163,22 +163,22 @@ export default function TokensPage() {
         </select>
       </div>
 
-      {/* 🔥 Buy & Burn Category Tokens */}
+      {/* 💰 Holder Rewards Category Tokens */}
       {!loading && categoryTokens.length > 0 && (
         <div className="mb-10">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="font-display text-lg font-bold text-text-primary flex items-center gap-1.5">
-                🔥 Buy &amp; Burn Tokens
+                💰 Holder Rewards Tokens
                 <span className="relative group cursor-help">
                   <span className="text-xs text-text-faint select-none">ℹ</span>
                   <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-56 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                    Buy &amp; burn is a mechanism where a percentage of every trade is used to permanently purchase and remove tokens from circulation — reducing supply and increasing scarcity over time.
+                    Every trade in this category sends 0.5% of fees as on-chain rewards to holders of this token, plus another 0.5% to buy more of this token on the open market. The more active the category, the more holders earn.
                   </span>
                 </span>
               </h2>
               <p className="mt-0.5 text-xs text-text-muted">
-                Every trade creates automatic buy pressure and removes tokens permanently. More trading = fewer tokens in circulation.
+                Every trade pays holders on-chain. More trading = more rewards flowing to holders.
               </p>
             </div>
           </div>
@@ -197,15 +197,15 @@ export default function TokensPage() {
                       <span className="relative group inline-flex shrink-0">
                         <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold cursor-help">🔥</span>
                         <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 hidden group-hover:block w-60 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 shadow-xl">
-                          <span className="block text-[11px] font-semibold text-orange-400 mb-1">Buy &amp; Burn Token</span>
+                          <span className="block text-[11px] font-semibold text-orange-400 mb-1">Holder Rewards Token</span>
                           <span className="block text-[11px] text-text-muted leading-relaxed">
-                            Every prediction market trade in this category automatically uses 1% of fees to buy {symbol} on the open market and permanently remove it from circulation — reducing supply forever.
+                            Every buy trade in this category sends 0.5% of fees to holders of {symbol} as on-chain rewards, and another 0.5% buys more {symbol} on the open market.
                           </span>
                         </span>
                       </span>
                     </div>
                     <div className="text-[11px] text-text-muted mt-1 leading-relaxed">
-                      Burns 🔥 with every {t.name.toLowerCase()} trade
+                      Earns 💰 with every {t.name.toLowerCase()} trade
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
