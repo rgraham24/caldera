@@ -154,9 +154,24 @@ export function calculateBuyFees(
     creatorSlice = 0;
   }
 
+  // Invariant: slices must sum to total. Guard against future drift.
+  const sliceSum = platform + holderRewards + autoBuy + creatorSlice;
+  const drift = Math.abs(sliceSum - total);
+  if (drift > 0.000001) {
+    console.warn(
+      `[calculateBuyFees] Slice sum drift: ${sliceSum} != total ${total}. ` +
+      `grossAmount=${grossAmount}, destination=${destination}. ` +
+      `Returning total=sliceSum to keep ledger internally consistent.`
+    );
+  }
+  // Use the sliced sum as the authoritative total (prevents divergence
+  // between the "charged" total and the ledger rows when routing changes
+  // slice allocations, e.g. the no-creator fold).
+  const authoritativeTotal = sliceSum;
+
   return {
     grossAmount,
-    total,
+    total: authoritativeTotal,
     platform,
     holderRewards,
     autoBuy,
@@ -166,10 +181,10 @@ export function calculateBuyFees(
     creatorId,
     isClaimed,
     relevantToken,
-    netAmount: round(grossAmount - total),
+    netAmount: round(grossAmount - authoritativeTotal),
 
     // Legacy compat
-    totalFee: total,
+    totalFee: authoritativeTotal,
     platformFee: platform,
     creatorFee: destination === 'creator_wallet' ? creatorSlice : 0,
     creatorWalletFee: destination === 'creator_wallet' ? creatorSlice : 0,
@@ -282,7 +297,15 @@ function zeroFees(
   };
 }
 
+/**
+ * Round to 8 decimal places, matching the numeric(20, 8) precision of
+ * the fee_earnings.amount and holder_rewards.amount_usd DB columns.
+ *
+ * UI display should apply its own 2-decimal rounding at render time
+ * (e.g. `.toFixed(2)`) — NOT here. Keeping full precision in the math
+ * prevents slice-sum-vs-total divergence like "user charged $0.02 but
+ * fee_earnings sum says $0.03" at small trade sizes.
+ */
 function round(n: number): number {
-  // Round to 2 decimal places for USD.
-  return Math.round(n * 100) / 100;
+  return Math.round(n * 1e8) / 1e8;
 }

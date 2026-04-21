@@ -97,6 +97,27 @@ describe('calculateBuyFees: core rates', () => {
     expect(f.platform).toBe(0);
     expect(f.holderRewards).toBe(0);
   });
+
+  it('$1 unclaimed-crypto trade: slices sum exactly to total (no rounding drift)', () => {
+    const creator: CreatorInfo = {
+      id: 'c1', claim_status: 'unclaimed', token_status: 'active_unverified',
+    };
+    const token: RelevantToken = {
+      type: 'crypto', slug: 'bitcoin',
+      deso_public_key: 'BC1YTEST', display_label: '$Bitcoin',
+    };
+    const f = calculateBuyFees(1, creator, token);
+
+    expect(f.total).toBe(0.025);
+    expect(f.platform).toBe(0.01);
+    expect(f.holderRewards).toBe(0.005);
+    expect(f.autoBuy).toBe(0.005);
+    expect(f.creatorSlice).toBe(0.005);
+
+    // The critical check: sum of slices === total, no drift
+    const sum = f.platform + f.holderRewards + f.autoBuy + f.creatorSlice;
+    expect(sum).toBeCloseTo(f.total, 10);
+  });
 });
 
 // ─── Claimed creator routing ─────────────────────────────────────────
