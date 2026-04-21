@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getTradeQuote } from "@/lib/trading/amm";
-import { calculateFees, getMarketFeeType } from "@/lib/fees/calculator";
+import { calculateFees, getMarketFeeType, calculateBuyFees } from "@/lib/fees/calculator";
+import { resolveRelevantToken } from "@/lib/fees/relevantToken";
 import { z } from "zod";
 
 async function executeCreatorCoinBuyback(params: {
@@ -149,9 +150,48 @@ export async function POST(req: NextRequest) {
       feeConfig[row.key] = row.value;
     });
 
-    // Calculate fees
+    // Calculate fees — legacy path stays for backward compat with downstream
+    // (buyback_events, positions, trades row writes). New v2 values are used
+    // for the fee_earnings inserts below.
     const feeType = getMarketFeeType(market);
     const fees = calculateFees(amount, feeType, feeConfig);
+
+    // ── v2 tokenomics (LOCKED 2026-04-21) ──────────────────────────
+    // Resolve the relevant token for this market (crypto coin / category
+    // token / creator-coin). Used for holder-rewards + auto-buy routing.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mktFields = market as any;
+    const relevantToken = await resolveRelevantToken(
+      {
+        category: market.category ?? '',
+        crypto_ticker: mktFields.crypto_ticker ?? null,
+        creator_slug: market.creator_slug ?? null,
+        category_token_slug: mktFields.category_token_slug ?? null,
+      },
+      supabase
+    );
+
+    // Look up the creator for claim-status + creator-slice routing
+    let creatorForFees = null;
+    if (market.creator_slug) {
+      const { data: creatorRow } = await supabase
+        .from('creators')
+        .select('id, token_status, claim_status, deso_public_key, deso_username')
+        .eq('slug', market.creator_slug)
+        .maybeSingle();
+      if (creatorRow) {
+        creatorForFees = {
+          id: creatorRow.id,
+          deso_public_key: creatorRow.deso_public_key,
+          deso_username: creatorRow.deso_username,
+          token_status: creatorRow.token_status ?? undefined,
+          claim_status: creatorRow.claim_status ?? undefined,
+          claimed_deso_key: creatorRow.deso_public_key,
+        };
+      }
+    }
+
+    const v2Fees = calculateBuyFees(amount, creatorForFees, relevantToken);
 
     // Fire-and-forget buyback event — never blocks the trade
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -270,31 +310,81 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Insert fee earnings
-    if (fees.platformFee > 0) {
+    // ── v2 fee_earnings inserts ──────────────────────────────────────
+    // Four slices per trade, per locked tokenomics (see DECISIONS.md
+    // 2026-04-21):
+    //   platform            — always 1%
+    //   holder_rewards_pool — 0.5% (or 1% if no-creator topup) routed
+    //                          to holders of relevantToken at payout time
+    //   auto_buy_pool       — 0.5% used to buy relevantToken on DeSo
+    //   creator             — 0.5% to claimed creator's wallet
+    //                         (unclaimed creator slice goes to escrow —
+    //                         handled in commit 3b, not here)
+
+    // 1. Platform (always)
+    if (v2Fees.platform > 0) {
       await supabase.from("fee_earnings").insert({
         recipient_type: "platform",
         source_type: "trade",
         source_id: trade.id,
-        amount: fees.platformFee,
+        amount: v2Fees.platform,
+        currency: "USD",
       });
     }
-    if (fees.creatorFee > 0 && market.creator_id) {
+
+    // 2. Holder rewards pool — skip if no relevantToken or token has no
+    //    DeSo public key (ghost slug). The 0.5% is dropped per 2026-04-21
+    //    decision: "no holders → platform keeps, log warning."
+    if (v2Fees.holderRewards > 0 && relevantToken?.deso_public_key) {
+      await supabase.from("fee_earnings").insert({
+        recipient_type: "holder_rewards_pool",
+        recipient_id: null, // distributed at holder-snapshot time in commit 3c
+        source_type: "trade",
+        source_id: trade.id,
+        amount: v2Fees.holderRewards,
+        currency: "USD",
+      });
+    } else if (v2Fees.holderRewards > 0) {
+      console.warn(
+        `[trades] Dropping $${v2Fees.holderRewards.toFixed(4)} holder rewards ` +
+        `for trade ${trade.id}: relevantToken has no deso_public_key ` +
+        `(slug=${relevantToken?.slug ?? 'null'}).`
+      );
+    }
+
+    // 3. Auto-buy pool — the 0.5% used to buy relevantToken (actual DeSo
+    //    buyback executed later; this is just the accounting row).
+    //    Skip if we have no target public key.
+    if (v2Fees.autoBuy > 0 && relevantToken?.deso_public_key) {
+      await supabase.from("fee_earnings").insert({
+        recipient_type: "auto_buy_pool",
+        recipient_id: null,
+        source_type: "trade",
+        source_id: trade.id,
+        amount: v2Fees.autoBuy,
+        currency: "USD",
+      });
+    } else if (v2Fees.autoBuy > 0) {
+      console.warn(
+        `[trades] Dropping $${v2Fees.autoBuy.toFixed(4)} auto-buy for trade ` +
+        `${trade.id}: relevantToken has no deso_public_key.`
+      );
+    }
+
+    // 4. Creator slice — only paid out to wallet when claimed.
+    //    Unclaimed: accrues to unclaimed_earnings_escrow (wired in commit 3b).
+    if (
+      v2Fees.creatorSlice > 0 &&
+      v2Fees.creatorSliceDestination === "creator_wallet" &&
+      v2Fees.creatorSlicePublicKey
+    ) {
       await supabase.from("fee_earnings").insert({
         recipient_type: "creator",
-        recipient_id: market.creator_id,
+        recipient_id: creatorForFees?.id ?? null,
         source_type: "trade",
         source_id: trade.id,
-        amount: fees.creatorFee,
-      });
-    }
-    if (fees.marketCreatorFee > 0 && market.created_by_user_id) {
-      await supabase.from("fee_earnings").insert({
-        recipient_type: "market_creator",
-        recipient_id: market.created_by_user_id,
-        source_type: "trade",
-        source_id: trade.id,
-        amount: fees.marketCreatorFee,
+        amount: v2Fees.creatorSlice,
+        currency: "USD",
       });
     }
 
