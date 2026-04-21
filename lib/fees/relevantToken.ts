@@ -16,6 +16,23 @@
  * execution time when deso_public_key is null.
  */
 
+/**
+ * ─── OPERATIONAL NOTES (as of 2026-04-21) ───
+ *
+ * Known gaps in production data that affect this resolver:
+ *   - ethereum, dogecoin have no deso_public_key yet
+ *     → auto-buy will skip for ETH/DOGE markets until profiles are created
+ *   - MATIC tickered markets may not have matching creator slugs
+ *     → ghost-slug warning will fire; create the creator record to fix
+ *   - Market categories currently mostly "Crypto" (998/1000)
+ *     → category-token paths ($CalderaSports etc) are under-exercised
+ *
+ * When adding new crypto categories or tickers, ALSO:
+ *   1. Ensure creators.slug exists matching the ticker's canonical coin name
+ *   2. Ensure creators.deso_public_key is populated (create DeSo profile if needed)
+ *   3. Verify by inspecting a live trade's fee_earnings row after a test trade
+ */
+
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RelevantToken, RelevantTokenType } from './calculator';
 
@@ -68,9 +85,18 @@ export function inferTokenType(slug: string, market: MarketTokenInput): Relevant
   return 'creator';
 }
 
-/** Build a display label from a slug, e.g. 'caldera-sports' → '$SPORTS'. */
+/**
+ * Build a display label from a slug.
+ * Category tokens: 'caldera-sports' → '$CalderaSports'
+ * Non-category (crypto/creator): 'bitcoin' → '$Bitcoin' (capitalized, not upper-cased)
+ */
 export function tokenDisplayLabel(slug: string): string {
-  return '$' + slug.replace('caldera-', '').toUpperCase();
+  if (slug.startsWith('caldera-')) {
+    const category = slug.replace('caldera-', '');
+    return '$Caldera' + category.charAt(0).toUpperCase() + category.slice(1);
+  }
+  // Crypto or creator slug — capitalize first letter only
+  return '$' + slug.charAt(0).toUpperCase() + slug.slice(1);
 }
 
 /**
@@ -112,6 +138,17 @@ export async function resolveRelevantToken(
     .select('deso_public_key')
     .eq('slug', slug)
     .maybeSingle();
+
+  // Ghost slug detection: we derived a slug but no creator row exists for it.
+  // Accruing rewards to this slug would be wasted — nobody holds it.
+  // We still return the token (for display/accounting), but log so ops can fix.
+  if (!creator) {
+    console.warn(
+      `[resolveRelevantToken] Ghost slug detected: "${slug}" has no creator row. ` +
+      `Market category=${market.category} ticker=${market.crypto_ticker ?? 'n/a'}. ` +
+      `Rewards and auto-buy will route to a non-existent token.`
+    );
+  }
 
   return {
     type: inferTokenType(slug, market),

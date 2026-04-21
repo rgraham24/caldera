@@ -64,6 +64,12 @@ describe('getTokenSlug', () => {
     expect(getTokenSlug({ category: 'Unknown' })).toBeNull();
   });
 
+  it('null or empty category → returns null (no crash)', () => {
+    // @ts-expect-error — testing null safety at runtime
+    expect(getTokenSlug({ category: null })).toBeNull();
+    expect(getTokenSlug({ category: '' })).toBeNull();
+  });
+
   it('CATEGORY_TOKEN_MAP covers all 8 expected categories', () => {
     const expected = ['Sports', 'Music', 'Politics', 'Entertainment', 'Companies', 'Climate', 'Tech', 'Creators'];
     for (const cat of expected) {
@@ -92,14 +98,21 @@ describe('inferTokenType', () => {
 // ─── tokenDisplayLabel ───────────────────────────────────────────────
 
 describe('tokenDisplayLabel', () => {
-  it('strips caldera- prefix and uppercases', () => {
-    expect(tokenDisplayLabel('caldera-sports')).toBe('$SPORTS');
-    expect(tokenDisplayLabel('caldera-music')).toBe('$MUSIC');
+  it('category tokens format as $CalderaX (PascalCase)', () => {
+    expect(tokenDisplayLabel('caldera-sports')).toBe('$CalderaSports');
+    expect(tokenDisplayLabel('caldera-music')).toBe('$CalderaMusic');
+    expect(tokenDisplayLabel('caldera-entertainment')).toBe('$CalderaEntertainment');
+    expect(tokenDisplayLabel('caldera-creators')).toBe('$CalderaCreators');
   });
 
-  it('crypto slugs just uppercase (no caldera- prefix to strip)', () => {
-    expect(tokenDisplayLabel('bitcoin')).toBe('$BITCOIN');
-    expect(tokenDisplayLabel('solana')).toBe('$SOLANA');
+  it('crypto slugs format as $Bitcoin (just first-letter cap, not all-caps)', () => {
+    expect(tokenDisplayLabel('bitcoin')).toBe('$Bitcoin');
+    expect(tokenDisplayLabel('solana')).toBe('$Solana');
+    expect(tokenDisplayLabel('ethereum')).toBe('$Ethereum');
+  });
+
+  it('creator slugs format same as crypto', () => {
+    expect(tokenDisplayLabel('dharmesh')).toBe('$Dharmesh');
   });
 });
 
@@ -119,7 +132,7 @@ describe('buildRelevantToken', () => {
       type: 'crypto',
       slug: 'bitcoin',
       deso_public_key: 'BC1YLht6kTvCHS5gSzysSkjLTbVwq7D6DAEVzgBCTH58a7taQTwf3XN',
-      display_label: '$BITCOIN',
+      display_label: '$Bitcoin',
     });
   });
 
@@ -132,7 +145,7 @@ describe('buildRelevantToken', () => {
       type: 'category',
       slug: 'caldera-sports',
       deso_public_key: 'BC1YLi6ybMLmpvpgwwpxKq6653AnaPXb9p8TszF42mcyn8F1SGdXcEW',
-      display_label: '$SPORTS',
+      display_label: '$CalderaSports',
     });
   });
 
