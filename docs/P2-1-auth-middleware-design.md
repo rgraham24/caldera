@@ -159,14 +159,25 @@ DeSo signs with ES256 (ECDSA over secp256k1, SHA-256). We verify with
 1. Split JWT into `header.payload.signature`
 2. Base64url-decode each part
 3. Parse header: `{ alg: "ES256", typ: "JWT" }` — require exact match
-4. Parse payload: expect `{ sub: string, iat: number, exp?: number, derivedPublicKeyBase58Check?: string }`
-5. Check `exp` if present (reject if expired)
+4. Parse payload: expect `{ derivedPublicKeyBase58Check: string, iat: number, exp: number }`
+   **Note:** DeSo's JWT has NO `sub` claim. The derived public key in the
+   payload is the only cryptographic identifier in the token.
+5. Check `exp` (DeSo JWTs expire 30 minutes after issuance; reject if past)
 6. Check `iat` is within last 5 minutes (reject stale JWTs — replay defense)
 7. Reconstruct signing input: `base64url(header) + "." + base64url(payload)`
 8. SHA-256 hash the input
-9. Verify signature with `@noble/secp256k1.verify(sig, hash, publicKey)`
-10. Extract the claimed DeSo public key from the request body
-11. Cross-check: public key must match `body.publicKey`
+9. Base64url-decode the signature (64 raw bytes = r (32) + s (32), JOSE format)
+10. Verify signature with `@noble/secp256k1.verify(sig, hash, derivedPublicKeyBase58Check)`
+    — using the DERIVED key, not the owner key. DeSo signs JWTs with the
+    per-app derived key.
+11. Cross-check binding via DeSo API:
+    `GET https://node.deso.org/api/v0/get-single-derived-key/{ownerPublicKey}/{derivedPublicKey}`
+    Response must contain `DerivedKey.IsValid === true`.
+    This step proves the derived key is authorized to act on behalf of the
+    claimed owner public key. Without it, any user with any derived key could
+    claim any owner public key they wanted.
+12. All checks pass → the requester controls `ownerPublicKey`'s wallet.
+    Issue session cookie for that owner public key.
 
 ### Attack defenses
 
@@ -174,7 +185,9 @@ DeSo signs with ES256 (ECDSA over secp256k1, SHA-256). We verify with
 |---|---|
 | Replay old JWT from a captured login | `iat` check (5-minute window) + rate limit on login endpoint |
 | Forge JWT | Can't — secp256k1 signatures require private key |
-| Submit valid JWT with wrong `publicKey` in body | Cross-check step (#11) rejects |
+| Submit valid JWT signed by unauthorized derived key, claiming any owner pk | DeSo API check (step 11) rejects — `IsValid` will be false |
+| Submit JWT from a revoked derived key | DeSo API `IsValid` returns false |
+| DeSo API unavailable | Fail closed — reject login until API reachable |
 | Capture session cookie via XSS | `HttpOnly` flag blocks JS access |
 | CSRF on money routes | `SameSite=Lax` blocks cross-origin POSTs |
 
@@ -229,14 +242,21 @@ A helper `getAuthenticatedUser(request)` in `lib/auth/index.ts` abstracts this.
 - malformed cookie strings (no dot, bad base64, non-JSON payload) fail cleanly
 - wrong signing key fails verification
 
-**`__tests__/auth/deso-jwt.test.ts`**
-- valid DeSo JWT verifies (use a real captured JWT from preview)
-- tampered payload fails
-- wrong public key fails
-- expired JWT fails
-- `iat` in future fails
-- `iat` > 5min old fails
-- ES256/secp256k1 signature math correctness
+**`__tests__/auth/deso-jwt.test.ts`** (unit tests, DeSo API mocked)
+- Valid DeSo JWT with mocked `IsValid: true` → verifies, returns owner pk
+- Tampered payload → signature fails
+- Tampered signature → signature fails
+- JWT missing `derivedPublicKeyBase58Check` claim → rejects
+- JWT header `alg` other than ES256 → rejects
+- JWT header `typ` other than JWT → rejects
+- Expired JWT (`exp` in past) → rejects
+- `iat` in future → rejects (clock skew protection)
+- `iat` > 5min old → rejects (replay defense)
+- DeSo API returns `IsValid: false` → rejects
+- DeSo API returns 4xx/5xx → rejects (fail closed)
+- DeSo API network error → rejects (fail closed)
+- ES256/secp256k1 signature math correctness using `@noble/secp256k1` v3 API
+- Base64url decode of signature: wrong length (not 64 bytes) → rejects
 
 **`__tests__/auth/middleware.test.ts`** (integration via Next.js test utilities)
 - no cookie → no auth header attached
@@ -357,8 +377,12 @@ Manual preview test: trade with cookie → works. Trade without cookie → 401.
 
 ## Decisions still open (to be resolved during implementation)
 
-- Exact DeSo JWT claim field name for public key (`sub` vs custom claim) —
-  verified during P2-1.2 by decoding a real preview JWT
+- ~~Exact DeSo JWT claim field name for public key~~ **RESOLVED by research**:
+  DeSo JWTs have no `sub` claim. The `derivedPublicKeyBase58Check` payload
+  field is the only key identifier. Binding to owner key is verified via
+  DeSo's `get-single-derived-key` API endpoint (not via the JWT payload).
+- Whether to cache `IsValid: true` results short-term to reduce DeSo API
+  load during bursty logins — DEFER to P2-1.3. Likely no cache for MVP.
 - Whether to include a `jti` (JWT ID) in our session payload for future
   revocation support — likely YES for forward-compat
 - How to surface "session expired" errors to the client UX — likely 401 +
