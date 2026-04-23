@@ -4,73 +4,8 @@ import { getTradeQuote } from "@/lib/trading/amm";
 import { calculateFees, getMarketFeeType, calculateBuyFees } from "@/lib/fees/calculator";
 import { resolveRelevantToken } from "@/lib/fees/relevantToken";
 import { snapshotHolders } from "@/lib/fees/holderSnapshot";
+import { executeTokenBuyback } from "@/lib/deso/buyback";
 import { z } from "zod";
-
-async function executeCreatorCoinBuyback(params: {
-  creatorSlug: string;
-  amountUSD: number;
-  platformPublicKey: string;
-}) {
-  try {
-    const platformSeed = process.env.DESO_PLATFORM_SEED;
-    if (!platformSeed || !params.platformPublicKey) return;
-
-    const supabase = await createClient();
-    const { data: creator } = await supabase
-      .from('creators')
-      .select('deso_public_key')
-      .eq('slug', params.creatorSlug)
-      .single();
-
-    if (!creator?.deso_public_key) return;
-
-    const priceRes = await fetch('https://api.deso.org/api/v0/get-exchange-rate');
-    const priceData = await priceRes.json();
-    const centsPerDeso = priceData.USDCentsPerDeSoExchangeRate ?? 0;
-    const desoUsdRate = centsPerDeso > 0 ? centsPerDeso / 100 : 0;
-    if (desoUsdRate <= 0) return;
-
-    const buyAmountNanos = Math.floor((params.amountUSD / desoUsdRate) * 1e9);
-    if (buyAmountNanos < 1000) return;
-
-    // Build transaction
-    const txRes = await fetch('https://api.deso.org/api/v0/buy-or-sell-creator-coin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        UpdaterPublicKeyBase58Check: params.platformPublicKey,
-        CreatorPublicKeyBase58Check: creator.deso_public_key,
-        OperationType: 'buy',
-        DeSoToSellNanos: buyAmountNanos,
-        CreatorCoinToSellNanos: 0,
-        MinDeSoExpectedNanos: 0,
-        MinCreatorCoinExpectedNanos: 0,
-        MinFeeRateNanosPerKB: 1000,
-      }),
-    });
-    if (!txRes.ok) return;
-    const txData = await txRes.json();
-    if (!txData.TransactionHex) return;
-
-    // Sign with platform seed server-side
-    const { signTransactionWithSeed } = await import('@/lib/deso/server-sign');
-    const signedHex = await signTransactionWithSeed(txData.TransactionHex, platformSeed);
-
-    // Submit
-    const submitRes = await fetch('https://api.deso.org/api/v0/submit-transaction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ TransactionHex: signedHex }),
-    });
-
-    if (submitRes.ok) {
-      const submitData = await submitRes.json();
-      console.log(`[buyback] ✅ Bought $${params.amountUSD.toFixed(4)} of ${params.creatorSlug} — tx: ${submitData.TxnHashHex}`);
-    }
-  } catch (err) {
-    console.error('[buyback]', err);
-  }
-}
 
 const tradeSchema = z.object({
   marketId: z.string().min(1),
@@ -359,19 +294,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Auto-buy pool — the 0.5% used to buy relevantToken (actual DeSo
-    //    buyback executed later; this is just the accounting row).
-    //    Skip if we have no target public key.
+    // 3. Auto-buy pool — 0.5% that funds a real DeSo creator-coin buy
+    //    of relevantToken. Insert first (for the audit trail), then fire
+    //    executeTokenBuyback fire-and-forget. The buyback function
+    //    updates this row's status/tx_hash when DeSo confirms, or
+    //    status='failed'/failed_reason on any gate failure (see
+    //    lib/deso/buyback.ts — 3d.2c).
     if (v2Fees.autoBuy > 0 && relevantToken?.deso_public_key) {
-      const { error } = await supabase.from("fee_earnings").insert({
-        recipient_type: "auto_buy_pool",
-        recipient_id: null,
-        source_type: "trade",
-        source_id: trade.id,
-        amount: v2Fees.autoBuy,
-        currency: "USD",
-      });
-      if (error) console.error('[trades] fee_earnings insert failed for auto_buy_pool:', error.message, error.details);
+      const { data: autoBuyRow, error } = await supabase
+        .from("fee_earnings")
+        .insert({
+          recipient_type: "auto_buy_pool",
+          recipient_id: null,
+          source_type: "trade",
+          source_id: trade.id,
+          amount: v2Fees.autoBuy,
+          currency: "USD",
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error(
+          '[trades] fee_earnings insert failed for auto_buy_pool:',
+          error.message, error.details
+        );
+      } else if (autoBuyRow && process.env.DESO_PLATFORM_SEED && process.env.DESO_PLATFORM_PUBLIC_KEY) {
+        // Fire-and-forget DeSo buyback. Never throws.
+        // Writes status='paid'+tx_hash on success, status='failed'+reason on failure.
+        void executeTokenBuyback({
+          desoPublicKey: relevantToken.deso_public_key,
+          amountUsd: v2Fees.autoBuy,
+          feeEarningsRowId: autoBuyRow.id,
+          platformPublicKey: process.env.DESO_PLATFORM_PUBLIC_KEY,
+          platformSeed: process.env.DESO_PLATFORM_SEED,
+          supabase: createServiceClient(),
+        });
+      } else if (autoBuyRow) {
+        // Row written, but env is missing — mark failed so it's visible.
+        console.warn(
+          `[trades] Skipping executeTokenBuyback for row ${autoBuyRow.id}: ` +
+          `DESO_PLATFORM_SEED or DESO_PLATFORM_PUBLIC_KEY not set in env.`
+        );
+      }
     } else if (v2Fees.autoBuy > 0) {
       console.warn(
         `[trades] Dropping $${v2Fees.autoBuy.toFixed(4)} auto-buy for trade ` +
@@ -489,17 +454,6 @@ export async function POST(req: NextRequest) {
         .from("creators")
         .update({ total_fees_distributed: prevDistributed + fees.coinHolderPoolFee })
         .eq("id", market.creator_id);
-    }
-
-    // Fire-and-forget creator coin buyback via platform wallet
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mktAny = market as any;
-    if (mktAny.creator_slug && fees.personalToken > 0) {
-      void executeCreatorCoinBuyback({
-        creatorSlug: mktAny.creator_slug,
-        amountUSD: fees.personalToken,
-        platformPublicKey: process.env.DESO_PLATFORM_PUBLIC_KEY ?? '',
-      });
     }
 
     return NextResponse.json({
