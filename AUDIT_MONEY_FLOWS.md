@@ -588,8 +588,276 @@ Route handler
 
 ---
 
-<!-- Path 3 — Market Resolution -->
-<!-- Path 3 — Market Resolution -->
+## Path 3 — Market Resolution & Winner Payout
+
+### What it should do
+
+A market reaches its close time or a decisive event, an outcome is
+determined, and the positions are settled accordingly. After this flow:
+
+- Market is marked `status='resolved'` with an authoritative outcome
+- Every position on the market has `status='settled'` with `realized_pnl`
+  reflecting win/loss
+- Winners have a way to receive their payout in DESO
+- Losers' positions are closed at zero payout (their stake remains in
+  the AMM/platform wallet, offsetting winner payouts)
+- The platform retains the 2.5% fees already collected at buy time
+
+**Payout model (locked 2026-04-23): pull-based claim.** Resolution
+settles the ledger. Users click "Claim winnings" to trigger their own
+payout. See Target behavior section for details and rationale.
+
+### Current flow (2026-04-23)
+
+Three redundant routes implement the same resolution logic:
+- `app/api/admin/resolve-market/route.ts`
+- `app/api/markets/[id]/resolve/route.ts`
+- `app/api/admin/auto-resolve/route.ts`
+
+Plus a cron scheduler at `app/api/cron/resolve-crypto-markets/route.ts`
+that invokes one of the above.
+
+All three routes follow the same pattern:
+
+```
+Admin or cron invokes a resolution route
+         │
+         ▼
+┌─────────────────────────────────────────────────────┐
+│ SERVER (one of three resolution routes)             │
+│ 1. markets.update({                                 │
+│      status: 'resolved',                            │
+│      resolution_outcome,                            │
+│      resolved_at,                                   │
+│    })                                               │
+│ 2. Load positions WHERE market_id = X AND status =  │
+│    'open'                                           │
+│ 3. For each position:                               │
+│    realizedPnl = isWinner                           │
+│      ? quantity * 1.0 - total_cost                  │
+│      : -total_cost                                  │
+│ 4. positions.update({                               │
+│      status: 'settled',                             │
+│      realized_pnl,                                  │
+│    })                                               │
+│ 5. Insert market_resolutions row                    │
+│ [STOP — no DESO send anywhere]                      │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+   Market and positions are in 'resolved' / 'settled' state
+   Winners see a positive realized_pnl in the UI
+   ⚠ No DESO has moved. No payout mechanism exists.
+```
+
+**The DB says winners have earned money. The platform wallet still
+holds all the DESO. There is no code path to bridge the two.**
+
+### Schema touched
+
+- `markets` (update: status, resolution_outcome, resolved_at)
+- `positions` (update: status='settled', realized_pnl)
+- `market_resolutions` (insert: resolution audit row)
+
+Notably NOT touched:
+- No DESO send anywhere in any of the three routes
+- No `claim_status` on positions (doesn't exist)
+- No ledger row for payout owed (doesn't exist)
+
+### Trust boundaries crossed
+
+- **Admin authorization** — the three resolution routes require admin
+  auth (the admin password pattern). Not audited in detail here; scoped
+  to the Cross-cutting concerns section.
+- **Cron-triggered resolution** — crypto markets auto-resolve from a
+  scheduled cron. Pulls price data from a public API, resolves based on
+  target threshold. Trust boundary: the external price source. Not a
+  money-flow issue per se but a market-integrity one. Documented here
+  for completeness.
+
+### 🚨 Critical findings
+
+#### RESOLUTION-1: No payout mechanism exists (P0)
+
+- **Evidence:** Audit path 2 output (2026-04-23). Zero matches for
+  `send-deso`, `SendDeSo`, `submit-transaction`, or
+  `signTransactionWithSeed` in any resolution route. No `realized_pnl`
+  consumer anywhere that initiates an on-chain transfer.
+- **Impact:** **The core value proposition of a prediction market is
+  not implemented.** Users can trade, win, see a positive `realized_pnl`
+  in the UI, and never receive DESO. Launching the platform in this
+  state would be fraud in effect — taking user funds with no mechanism
+  to return them.
+- **Severity:** P0 launch blocker. Without this, Caldera is a database
+  of unfulfillable promises.
+- **Fix:** Build the pull-based claim system described in Target
+  behavior below. This is a net-new feature, not a fix to existing
+  code. Depends on Phase 2 primitives and a new `position_payouts`
+  ledger table.
+
+#### RESOLUTION-2: Three redundant resolution routes (P1)
+
+- **Evidence:** `app/api/admin/resolve-market/route.ts`,
+  `app/api/markets/[id]/resolve/route.ts`,
+  `app/api/admin/auto-resolve/route.ts` all implement the same
+  resolution logic independently.
+- **Impact:** Maintenance disaster. Any fix (like adding the claim
+  ledger writes) must be made in three places. Drift between the three
+  implementations is inevitable and undetectable until a discrepancy
+  causes a production incident.
+- **Severity:** P1. Not a direct correctness bug, but guarantees future
+  correctness bugs.
+- **Fix:** Consolidate into a single `resolveMarket(marketId, outcome,
+  meta)` function in a shared lib module (e.g.,
+  `lib/markets/resolution.ts`). All three routes become thin wrappers
+  around it. Cron calls the same function directly. Pure refactor — no
+  behavior change — as its own commit before the RESOLUTION-1 fix lands.
+
+#### RESOLUTION-3: No solvency check before resolution (P0)
+
+- **Evidence:** Resolution routes do not query platform wallet DESO
+  balance or sum aggregate winning realized_pnl before marking the
+  market resolved. If the platform wallet cannot cover all winners,
+  the DB state still transitions to `settled` — but claims will fail
+  when users attempt them.
+- **Impact:** Platform wallet underfunding becomes invisible until the
+  first winner tries to claim. At that point: either the claim fails
+  (graceful but alarming) or drains the wallet leaving other winners
+  with nothing (catastrophic).
+- **Severity:** P0 launch blocker once RESOLUTION-1 is fixed. Not
+  standalone — solvency check belongs in the claim flow itself, per-
+  user, because platform wallet balance at claim time is what matters.
+- **Fix:** Per-claim solvency check in the claim handler. Before
+  building the DeSo send tx: verify platform wallet has ≥ (claim_amount
+  + estimated_tx_fee). If not, write the payout row as
+  `status='blocked_insolvent'` (new status) and surface to admin
+  dashboard. User sees "temporarily unavailable" not silent failure.
+
+### 🟡 Concerns
+
+#### RESOLUTION-4: No dispute mechanism
+
+- **Evidence:** Once an admin or cron resolves a market, there is no
+  contestation path. `status='resolved'` is terminal.
+- **Impact:** For price-based crypto markets (the current product focus),
+  cron resolution against a reliable feed is defensible. For subjective
+  markets (sports, politics, streamer events), disputes are normal and
+  contentious. Caldera has no design answer for them.
+- **Severity:** P2. Not a launch blocker for the crypto-market MVP.
+  Becomes important when expanding to subjective markets.
+- **Fix:** Future feature. Likely: timed-window challenge period after
+  resolution during which users can flag, admin reviews, outcome can be
+  amended. Track in product backlog.
+
+#### RESOLUTION-5: Auto-resolution via cron runs without human review
+
+- **Evidence:** `app/api/cron/resolve-crypto-markets/route.ts` is
+  invoked by the scheduled Vercel cron (6x/day). Resolves all
+  expired crypto markets in one pass using the current resolution logic.
+- **Impact:** Any bug in resolution logic gets mass-exercised silently.
+  Resolving 100 markets with a subtle pricing error is a worse outcome
+  than a human catching 1 bad resolution. Already a concern; will
+  amplify once payouts are wired.
+- **Severity:** P1. Becomes more severe post-RESOLUTION-1 fix.
+- **Fix:** Add a dry-run mode to cron resolution that logs intended
+  resolutions without committing. Run weekly as admin dashboard check.
+  Consider requiring human confirmation for any market > a threshold
+  TVL (e.g., $100).
+
+#### RESOLUTION-6: No "claim my winnings" UI exists
+
+- **Evidence:** Audit path 2 Part F. Zero grep results for user-facing
+  claim components on trade positions.
+- **Impact:** Even if RESOLUTION-1 is fixed with a pull-based claim
+  API, users have no way to discover they've won or trigger the claim
+  without a UI.
+- **Severity:** P0 (inherits from RESOLUTION-1 — fix lands together).
+- **Fix:** New UI components: dashboard widget showing claimable
+  positions with "Claim $X" button. Email/push notification when a
+  user has claimable amounts. Covered in Phase 3 alongside the API.
+
+### Target behavior (after fixes)
+
+**Two-stage flow: resolve (admin/cron) then claim (user-initiated).**
+
+#### Stage 1 — Resolve (admin or cron, current behavior, cleaned up)
+
+```
+Admin (or cron) invokes the consolidated resolveMarket(...)
+      │
+      ▼
+1. BEGIN TX (atomic_resolve_market RPC):
+     UPDATE markets SET status='resolved', outcome, resolved_at
+     For each open position:
+       INSERT position_payouts row:
+         position_id, user_id, market_id
+         realized_pnl (the amount owed if winner)
+         amount_deso_nanos (snapshot at resolution-time rate)
+         deso_usd_rate_at_resolution
+         claim_status='pending'   ← user has not claimed yet
+         claim_tx_hash=null
+       UPDATE positions SET status='settled', realized_pnl
+     INSERT market_resolutions row
+   COMMIT
+      │
+      ▼
+Return with count of payouts written
+Winners can now see "You won $X" with a Claim button
+Losers' positions are settled; no payout row written
+```
+
+#### Stage 2 — Claim (user-initiated, one at a time)
+
+```
+User clicks "Claim $X" on a settled winning position
+      │
+      ▼
+POST /api/positions/[id]/claim-winnings
+      │
+      ▼
+Next.js middleware
+  - Auth session verification (shared with BUY/SELL auth)
+  - Per-user rate limit
+      │
+      ▼
+Route handler
+  1. Load position_payouts row for this position
+  2. Verify session.desoPublicKey owns the position
+  3. Verify claim_status='pending' (idempotency)
+  4. Verify platform wallet has ≥ (amount + tx fee estimate)
+     - If not: UPDATE to 'blocked_insolvent', return 503
+  5. UPDATE claim_status='in_flight' (pessimistic lock)
+  6. Build + signAndSubmit send-deso tx
+     - Success:
+         UPDATE claim_status='paid', claim_tx_hash, paid_at
+         Return 200 with tx hash
+     - Failure:
+         UPDATE claim_status='failed', failed_reason
+         Return 500 with correlation ID
+```
+
+Per-user atomicity. Independent failures. Solvency protected at
+claim time (not resolution time). tx_hash stored for on-chain audit.
+Same pattern as `fee_earnings.auto_buy_pool` (see Step 3d.1-3d.3)
+and as the holder rewards claim (Path 4).
+
+### Dependencies (what needs to exist before fixes land)
+
+- Phase 2 primitive: Auth middleware (shared with BUY-1, SELL-1)
+- Phase 2 primitive: `lib/deso/transaction.ts` already exists
+- Phase 2 primitive: Platform wallet solvency check helper
+  (`lib/deso/platformWalletHealth.ts` — originally planned for Step
+  3d.4; is now needed here too)
+- New DB table: `position_payouts` (ledger for win claim accruals)
+- New DB migration: `atomic_resolve_market` RPC
+- New API route: `POST /api/positions/[id]/claim-winnings`
+- New UI: position claim widget + notification
+- Consolidation refactor: one canonical `resolveMarket` lib function
+  replacing the three route-level implementations
+
+---
+
+<!-- Path 4 — Holder Rewards Claim -->
 <!-- Path 4 — Holder Rewards Claim -->
 <!-- Path 5 — Creator Profile Claim -->
 <!-- Cross-cutting concerns -->
