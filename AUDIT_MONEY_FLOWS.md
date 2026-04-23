@@ -1147,8 +1147,364 @@ audit trail.
 
 ---
 
-<!-- Path 5 — Creator Profile Claim -->
-<!-- Path 5 — Creator Profile Claim -->
+## Path 5 — Creator Profile Claim
+
+### What it should do
+
+A creator whose profile was created by Caldera (as a shadow profile
+during market discovery) sees their `CALDERA-XXXX-XXXX` claim code
+posted publicly, comes to the claim page, proves they are the real
+entity, and links their DeSo wallet to the Caldera creator record.
+After this flow:
+
+- The `creators` row has `claim_status='claimed'` and
+  `claimed_deso_key` set to the DeSo public key the creator owns
+- Any accrued `unclaimed_earnings_escrow` on that creator has been
+  transferred to the creator's DeSo wallet on-chain in DESO
+- A `creator_claim_payouts` row records the payout event with
+  `tx_hash`, completing the append-only audit trail
+- The `unclaimed_earnings_escrow` column is zeroed **only after**
+  the on-chain transfer confirmed
+- All subsequent fees that would have accrued to escrow now flow
+  directly to the creator's wallet (per tokenomics-v2)
+
+**Payout model (locked 2026-04-23): DESO, not creator coins.** Creators
+want money. Paying them in their own coins (which they already mostly
+own via the founder-reward mechanic) would be weird and dilutive. DESO
+is the simple, correct choice — structurally like Path 3 winner
+payouts, unlike Path 4 holder rewards which pay in creator coins.
+
+### Current flow (2026-04-23)
+
+**Five redundant routes implement claim logic, none of them send
+DESO.** The flow actively corrupts the ledger by zeroing the escrow
+column without any on-chain transfer.
+
+The five claim-related routes:
+
+- `app/claim/[code]/page.tsx` — UI page
+- `app/api/claim/verify/route.ts` — sets claim_status; no escrow
+  handling at all
+- `app/api/creators/[slug]/verify-claim/route.ts` — zeros escrow,
+  rolls into total_creator_earnings, no DESO send
+- `app/api/creators/[slug]/claim/route.ts` — same pattern as
+  verify-claim, also no DESO send
+- `app/api/creators/claim/route.ts` — stub with `// TODO: Full
+  transaction signing...` comment; no execution
+
+Plus `ClaimProfileModal.tsx` in `components/shared/` as the UI
+entry point.
+
+Current worst-case flow (executed by verify-claim and claim routes):
+
+```
+Creator enters claim code on /claim/[code]
+         │
+         ▼
+┌─────────────────────────────────────────────────────┐
+│ CLIENT (ClaimProfileModal.tsx)                      │
+│ 1. Verify tweet or URL scrape proving the code was  │
+│    posted by the real creator                       │
+│ 2. Connect DeSo wallet (gets desoPublicKey)         │
+│    ⚠ NO verification that the claimer owns that     │
+│    wallet (client-supplied — same gap as BUY-1)     │
+│ 3. POST verify-claim (or alt route)                 │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────┐
+│ SERVER (verify-claim or claim route)                │
+│ 1. creators.update({                                │
+│      claim_status: 'claimed',                       │
+│      token_status: 'claimed',                       │
+│      claimed_deso_key: userPublicKey,               │
+│      unclaimed_earnings_escrow: 0,  ← ZEROED        │
+│      total_creator_earnings: prev + prev_escrow,    │
+│    })                                               │
+│ 2. [STOP — no DESO send, no tx_hash, no ledger row] │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+   Creator sees "claimed!" success
+   UI shows $X claimed in total_creator_earnings
+   ⚠ No money has moved
+   ⚠ The DB no longer records that the creator was ever owed money
+   ⚠ total_creator_earnings is now a lying aggregate
+```
+
+**This is the worst finding of the audit: claim does not merely fail
+to pay, it actively destroys the record of what was owed.** Other
+broken paths (resolution, holder rewards) leave the DB honestly
+saying "pending." Creator claim leaves it saying "paid" — falsely.
+
+### Schema touched (current)
+
+- `creators`:
+  - `claim_status` → 'claimed'
+  - `token_status` → 'claimed'
+  - `claimed_deso_key` → user's key
+  - `unclaimed_earnings_escrow` → 0 (destructive)
+  - `total_creator_earnings` → += prev escrow (lying aggregate)
+
+Notably NOT touched:
+- No ledger row anywhere records the claim event
+- No `tx_hash` stored
+- No status like 'pending_payout' or 'in_flight' to track the attempt
+
+### Trust boundaries crossed (current)
+
+- **Client-trusted `desoPublicKey`** — same gap as BUY-1/SELL-1
+- **Tweet/URL verification** — external trust boundary, reasonable
+  for MVP but brittle (Twitter API changes, URL scraping breaks)
+- **Wallet ownership** — not verified. Someone could post the code
+  with their own DeSo key and claim the profile (and eventually any
+  future DESO payouts) without being the real creator
+
+### 🚨 Critical findings
+
+#### CLAIM-1: Escrow zeroed without DESO transfer — active ledger corruption (P0)
+
+- **Evidence:** `app/api/creators/[slug]/verify-claim/route.ts` and
+  `app/api/creators/[slug]/claim/route.ts` both execute
+  `creators.update({ unclaimed_earnings_escrow: 0, total_creator_earnings: prev + prev_escrow, claim_status: 'claimed' })`
+  with no DESO send anywhere in the codebase between these operations.
+- **Impact:** Worst finding of the audit. The DB state after a claim
+  says "this creator was paid $X" but no DESO moved on-chain. Future
+  investigation of "did creator X receive their money?" cannot be
+  answered from DB state because the evidence has been erased.
+  Creators who claim today get nothing and the system doesn't
+  remember they're owed anything.
+- **Severity:** P0 critical launch blocker. This is worse than not
+  implementing the payout — it actively hides the liability. Must
+  be fixed before any real creator is offered a claim.
+- **Fix:** Completely rewrite the claim flow. Never zero the escrow
+  column before DESO confirmed sent. Introduce `creator_claim_payouts`
+  ledger table (append-only per the Liability-Ledger pattern). Follow
+  target flow below.
+
+#### CLAIM-2: Identity and wallet-ownership verification both client-trusted (P0)
+
+- **Evidence:** Same pattern as BUY-1 and SELL-1. The claim routes
+  accept `desoPublicKey` from the request body with no session
+  verification. Additionally, there is no challenge-response proving
+  the claimer owns the wallet they're linking to the profile.
+- **Impact:** Attacker who sees a public claim code (`CALDERA-XXXX-XXXX`
+  posted on Twitter) can hit the claim endpoint with their OWN
+  `desoPublicKey`, attach themselves to the creator's profile, and
+  receive all future DESO payouts to that profile — either via
+  claimed-escrow releases or direct fee flows under tokenomics-v2.
+- **Severity:** P0 launch blocker. Direct theft surface. A front-run
+  attack on any creator who posts their code before the real creator
+  claims it.
+- **Fix:** Same auth middleware as BUY-1/SELL-1/RESOLUTION claims —
+  verify session's `desoPublicKey` matches request. Additionally,
+  require a signed nonce/challenge during the claim flow proving the
+  claimer controls the wallet private key (standard "sign this message
+  with your wallet" pattern). The tweet/URL verification proves
+  "this person owns the creator identity"; the signed challenge proves
+  "this wallet is theirs." Both required.
+
+#### CLAIM-3: Five redundant claim routes (P1)
+
+- **Evidence:** Routes listed above — `/api/claim/verify`,
+  `/api/creators/[slug]/verify-claim`, `/api/creators/[slug]/claim`,
+  `/api/creators/claim`, plus the UI in `app/claim/[code]/page.tsx`
+  and `ClaimProfileModal.tsx`. All do subsets of the same job, all
+  differently, all with the same core bug.
+- **Impact:** Maintenance disaster. Fixing the escrow-destruction bug
+  must be done in multiple routes. Drift guarantees recurring bugs.
+- **Severity:** P1. Not a direct correctness issue but blocks clean
+  implementation of CLAIM-1 fix.
+- **Fix:** Consolidate into a single canonical route:
+  `POST /api/creators/[slug]/claim`. Delete the other 3 backend
+  routes. `ClaimProfileModal.tsx` calls only the canonical route.
+  Do this refactor FIRST as its own commit before the CLAIM-1 fix.
+  Stub route `/api/creators/claim/route.ts` deleted with an explicit
+  "this TODO is obsolete — see /api/creators/[slug]/claim" note in
+  the commit message.
+
+#### CLAIM-4: TransferCreatorCoin primitive not needed for this path (informational)
+
+- **Evidence:** Payout design decision 2026-04-23 is DESO, not creator
+  coins. Creator claim therefore uses `send-deso` (already in
+  `lib/deso/transaction.ts` / buyback plumbing), not the yet-unbuilt
+  `lib/deso/transfer.ts`.
+- **Impact:** Creator claim implementation is NOT blocked on the
+  TransferCreatorCoin primitive (which blocks holder rewards claim).
+  Can be worked on in parallel.
+- **Severity:** N/A — design clarification.
+- **Note:** This is informational. Including in the findings list so
+  a future reader doesn't incorrectly assume creator claim and holder
+  rewards claim share the same primitive dependency.
+
+### 🟡 Concerns
+
+#### CLAIM-5: `total_creator_earnings` column currently a lying aggregate
+
+- **Evidence:** Zero production creators claimed currently. But the
+  code path exists and would populate `total_creator_earnings`
+  incorrectly the moment any creator claims.
+- **Impact:** If the column is ever used (admin dashboards, revenue
+  reports, creator-facing UI), it would display numbers that don't
+  correspond to real DESO that moved.
+- **Severity:** P1 hygiene. Zero real data corruption YET because
+  zero claimed creators exist. Fix lands with CLAIM-1 rewrite.
+- **Fix:** Redefine the column semantic clearly. Two options:
+    1. Drop the column; replace with a SQL view that sums
+       `creator_claim_payouts.amount` WHERE status='paid'
+    2. Keep the column but populate it ONLY from the payout-confirmed
+       side, via trigger or application-level rule
+  Recommendation: option 1 (view-based). Eliminates the lie surface.
+  Migration ordering: build the view, migrate any consumers, then
+  drop the column.
+
+#### CLAIM-6: Tweet/URL verification is brittle
+
+- **Evidence:** The claim flow verifies ownership via scraping a
+  tweet or URL where the creator posted their `CALDERA-XXXX-XXXX` code.
+- **Impact:** Any change to the Twitter API or the target URL breaks
+  the flow. Already on Twitter v2 API (paid) or dependent on scraping
+  quirks. Medium-term maintenance risk.
+- **Severity:** P2. Works today; worth monitoring.
+- **Fix:** Defer. Not a P0 blocker but an ongoing reliability concern.
+  Could add alternative verification paths (e.g., creator_slug on
+  DeSo already matches the profile the wallet is linked to) in the
+  future.
+
+#### CLAIM-7: No idempotency on claim attempts
+
+- **Evidence:** Current code doesn't check for an in-progress or
+  already-successful claim before executing the update.
+- **Impact:** A double-submit during a slow response (network retry,
+  user double-click) could attempt the claim twice. With the current
+  broken code, the second attempt would find `claim_status='claimed'`
+  and likely no-op. With the fixed code (per CLAIM-1), we need
+  idempotency explicitly.
+- **Severity:** P1. Edge case, but real.
+- **Fix:** In the rewritten claim handler: check
+  `creator_claim_payouts` for a row in `status='in_flight'` or
+  `'paid'` for this creator before starting. If present, return
+  current state rather than starting a second claim. Unique
+  constraint on `creator_claim_payouts.creator_id WHERE status IN
+  ('in_flight', 'paid')` to enforce at the DB level.
+
+### Target behavior (after fixes)
+
+#### Accrual — no changes
+
+Step 3b logic stays: trade route calls `increment_unclaimed_escrow`
+RPC atomically on every buy trade tied to an unclaimed creator. That
+column is the "currently claimable in USD" representation.
+
+#### Claim — new flow
+
+```
+Creator enters CALDERA-XXXX-XXXX code on /claim/[code]
+      │
+      ▼
+UI (ClaimProfileModal.tsx)
+  1. Connect DeSo wallet → get desoPublicKey
+  2. Request a challenge nonce from the server
+  3. Sign the nonce with the wallet (via DeSo Identity)
+  4. Verify tweet or URL contains the code (existing logic)
+  5. POST /api/creators/[slug]/claim
+     body: { code, signedNonce, tweetUrl }
+      │
+      ▼
+Next.js middleware
+  - Rate limit (claim code attempts are expensive, limit tight)
+      │
+      ▼
+Route handler
+  1. Zod parse body
+  2. Load creator by slug, verify claim_status='unclaimed'
+  3. Verify claim code matches
+  4. Verify tweet/URL evidence (existing logic)
+  5. Verify signed nonce proves ownership of desoPublicKey
+  6. BEGIN TX (atomic_start_creator_claim RPC):
+       Check no existing creator_claim_payouts row with
+       status IN ('in_flight', 'paid') for this creator
+       (enforces idempotency via unique index)
+       INSERT creator_claim_payouts:
+         creator_id
+         claimer_deso_public_key
+         amount_usd (snapshot of creators.unclaimed_earnings_escrow
+                     at this moment)
+         amount_deso_nanos (at current rate)
+         deso_usd_rate_at_claim
+         status='in_flight'
+         tweet_url (evidence)
+         signed_nonce (evidence)
+     COMMIT (returns payout_row_id)
+  7. Verify platform wallet solvency:
+     - If balance < amount + tx_fee:
+         UPDATE creator_claim_payouts SET
+           status='blocked_insolvent'
+         Return 503 with correlation ID
+  8. Build send-deso tx:
+     sender = PLATFORM_PUBLIC_KEY
+     recipient = claimer_deso_public_key
+     amount_nanos = amount_deso_nanos
+  9. signAndSubmit via lib/deso/transaction.ts
+     - Success:
+         BEGIN TX (atomic_settle_creator_claim RPC):
+           UPDATE creator_claim_payouts SET
+             status='paid'
+             tx_hash=<hash>
+             paid_at=NOW()
+           UPDATE creators SET
+             claim_status='claimed'
+             claimed_deso_key=<claimer_key>
+             unclaimed_earnings_escrow=0
+             (zeroed ONLY NOW, after DESO confirmed sent)
+         COMMIT
+         Return 200 with tx_hash
+     - Failure:
+         UPDATE creator_claim_payouts SET
+           status='failed'
+           failed_reason=<msg>
+         (creators row UNCHANGED — creator can retry later)
+         Return 500 with correlation ID
+```
+
+Key properties:
+- Escrow zeroed only after DESO confirmed on-chain — ledger never lies
+- creator_claim_payouts is append-only audit trail with tx_hash
+- Idempotency enforced at DB level (unique index on creator_id for
+  non-failed rows)
+- Per-user atomicity — failure doesn't affect other creators
+- Wallet ownership cryptographically verified via signed nonce
+
+### Dependencies (what needs to exist before fixes land)
+
+- Phase 2 primitive: Auth middleware (shared with all money routes)
+- Phase 2 primitive: Signed-nonce challenge flow (new — used here and
+  potentially expanded for other verification needs)
+- Phase 2 primitive: `lib/deso/transaction.ts` already exists (send-deso
+  path via existing signAndSubmit)
+- Phase 2 primitive: Platform wallet DESO solvency check (shared with
+  Path 3 resolution claim)
+- New DB table: `creator_claim_payouts` (ledger)
+- New DB migration: unique index on creator_claim_payouts.creator_id
+  WHERE status IN ('in_flight', 'paid')
+- New DB migration: drop or view-replace `total_creator_earnings`
+  column (per CLAIM-5)
+- New atomic Supabase RPC: `atomic_start_creator_claim`,
+  `atomic_settle_creator_claim`
+- Route consolidation refactor (as its own commit): 4 backend routes
+  → 1 canonical `POST /api/creators/[slug]/claim`; delete the others
+- UI updates: `ClaimProfileModal.tsx` calls only canonical route;
+  nonce-challenge flow added; success/failure/in-progress states
+
+---
+
+<!-- Cross-cutting concerns -->
+
+<!-- Prioritized fix list -->
+
+<!-- Open questions -->
+
+<!-- Changelog -->
 <!-- Cross-cutting concerns -->
 <!-- Prioritized fix list -->
 <!-- Open questions -->
