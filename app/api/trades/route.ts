@@ -6,6 +6,7 @@ import { resolveRelevantToken } from "@/lib/fees/relevantToken";
 import { snapshotHolders } from "@/lib/fees/holderSnapshot";
 import { executeTokenBuyback } from "@/lib/deso/buyback";
 import { z } from "zod";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 const tradeSchema = z.object({
   marketId: z.string().min(1),
@@ -27,11 +28,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { marketId, side, amount, txnHash, desoPublicKey } = parsed.data;
+    const { marketId, side, amount, txnHash } = parsed.data;
 
-    if (!desoPublicKey) {
+    // P2-1.5: Identity comes from the middleware-verified session cookie,
+    // NOT from the request body. Any desoPublicKey in the body is ignored;
+    // the Zod schema still accepts it (.optional()) during the P2-1.6
+    // client transition.
+    const authed = getAuthenticatedUser(req);
+    if (!authed) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const desoPublicKey = authed.publicKey;
 
     const supabase = await createClient();
 

@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { marketId, side, shares, desoPublicKey } = body;
+    const { marketId, side, shares } = body;
 
-    if (!desoPublicKey || !marketId || !shares || shares <= 0) {
+    // P2-1.5: Identity comes from middleware-verified session cookie.
+    const authed = getAuthenticatedUser(req);
+    if (!authed) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const desoPublicKey = authed.publicKey;
+
+    if (!marketId || !shares || shares <= 0) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
