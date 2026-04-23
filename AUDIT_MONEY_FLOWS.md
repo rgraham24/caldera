@@ -398,7 +398,197 @@ Route handler
 
 ---
 
-<!-- Path 2 — Sell Flow -->
+## Path 2 — Sell Flow
+
+### What it should do
+
+A user closes or reduces an existing position to exit the market. After this flow:
+
+- The user's position is reduced (partial sell) or closed (full sell) by exactly the quantity they chose to sell
+- A `trades` row records the event with side='sell'
+- DESO from the platform wallet is sent on-chain to the user's wallet for the AMM-quoted return amount
+- The on-chain tx hash is persisted so the payout is verifiable later
+- No fees are taken on sells (per tokenomics locked 2026-04-21)
+
+### Current flow (2026-04-23)
+
+```
+User clicks "Sell" with a quantity in TradeTicket
+         │
+         ▼
+┌─────────────────────────────────────────────────────┐
+│ CLIENT (components/markets/TradeTicket.tsx)         │
+│ NO DeSo Identity popup. NO user-side on-chain tx.   │
+│ 1. POST /api/trades/sell { marketId, side,          │
+│    quantity, desoPublicKey }                        │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────┐
+│ SERVER (app/api/trades/sell/route.ts POST)          │
+│ 1. Parse request, look up user via desoPublicKey    │
+│    ⚠ NO verification the user owns that wallet      │
+│ 2. Load user's open position                        │
+│ 3. Compute AMM return quote                         │
+│ 4. UPDATE positions:                                │
+│    - full sell → status='closed'                    │
+│    - partial sell → reduce quantity                 │
+│    ⚠ Position closed/reduced BEFORE payout attempt  │
+│ 5. INSERT trades row with side='sell', fees=0       │
+│ 6. TRY to pay user on-chain:                        │
+│    - POST node.deso.org /api/v0/send-deso          │
+│       ⚠ Different endpoint than buy route           │
+│         (api.deso.org). Inconsistent.               │
+│    - Get unsigned TransactionHex                    │
+│    - signTransactionWithSeed(txHex, platformSeed)   │
+│    - Submit signed tx                               │
+│    - Get payoutTxnHash                              │
+│    ⚠ payoutTxnHash is NEVER persisted to any table  │
+│    ⚠ Whole payout block wrapped in try/catch —      │
+│      failures are swallowed, sell still returns     │
+│      success response to client                     │
+│ 7. Return success                                   │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+   Client shows "sold!" success — even if DESO never arrived
+```
+
+### Schema touched
+
+- `users` (read)
+- `markets` (read)
+- `positions` (read, then update × 2 paths: close or partial)
+- `trades` (insert, all fee_* fields = 0)
+
+Notably NOT touched:
+- No `payout_tx_hash` column exists anywhere
+- No `payout_status` tracking
+- No `fee_earnings` rows (sells are 0-fee per 2026-04-21 tokenomics)
+
+### Trust boundaries crossed
+
+- **Client-trusted `desoPublicKey`** — same gap as BUY-1
+- **Client-trusted `quantity`** — validated against the user's position, but only after trusting the claim that the position belongs to the requester
+- **Server-side DeSo tx signed + submitted** — platform wallet seed used; failure silently swallowed
+
+### 🚨 Critical findings
+
+#### SELL-1: Identity is client-claimed (inherits BUY-1) (P0)
+
+- **Evidence:** `app/api/trades/sell/route.ts` — same `desoPublicKey` from request body pattern as `/api/trades`. No session/signature verification.
+- **Impact:** Anyone can POST `/api/trades/sell` with any user's `desoPublicKey` and close that user's positions. Payout goes to that user's wallet (not the attacker's) — but the attacker has now forcibly liquidated someone's position, potentially at unfavorable AMM pricing. Griefing attack on par with theft in user experience.
+- **Severity:** P0 launch blocker. Fix shares with BUY-1 (single auth middleware serves both routes).
+- **Fix:** Auth middleware that verifies `desoPublicKey` matches the authenticated session. Same fix as BUY-1.
+
+#### SELL-2: Payout failure is silently swallowed (P0)
+
+- **Evidence:** `app/api/trades/sell/route.ts` — the entire on-chain payout block is wrapped in a try/catch. Catch branch logs but does NOT propagate failure. Function returns success to client regardless of payout outcome.
+- **Impact:** User with 7 shares worth $3.90 clicks "sell all". Server:
+    1. Closes position (status='closed')
+    2. Inserts sell trade row
+    3. Tries to send DESO — fails (platform wallet out of DESO, DeSo API 500, any error)
+    4. Returns success to client
+    User loses position AND gets no payout. No way to automatically recover — position is gone from the DB.
+- **Severity:** P0 launch blocker. Worse failure mode than buy's atomicity gap — user loses both sides.
+- **Fix:** Two-part:
+    1. Don't close the position until payout confirmed (see Target behavior below)
+    2. Never return success when payout failed — return 500 with a support-ticket-able error code. Add retry mechanism for stuck payouts (Phase 4 reconciliation tooling).
+
+#### SELL-3: `payout_tx_hash` is not persisted (P0)
+
+- **Evidence:** The DeSo submit-transaction response contains a `TxnHashHex` (the on-chain tx hash of the platform's payout). This value is used only in the local function scope and is never written to any DB table. No `payout_tx_hash` column exists on `trades` or anywhere else.
+- **Impact:** Zero on-chain verifiability for any sell payout. Cannot answer "did user X actually receive their sell proceeds?" without digging through Vercel logs (which rotate). Parallel to the `fee_earnings.tx_hash` gap we fixed in Step 3d.1 for auto-buys — sell flow is missing the same feature.
+- **Severity:** P0 launch blocker. Even if SELL-2 is fixed, without persisting tx_hash we can't audit sell payouts.
+- **Fix:** Add `payout_tx_hash`, `payout_status`, `payout_at`, `payout_failed_reason` columns to `trades` via migration. On successful DeSo send, write `payout_tx_hash` and status='paid'. On failure, write status='failed' with reason.
+
+### 🟡 Concerns
+
+#### SELL-4: Position update happens BEFORE payment attempt
+
+- **Evidence:** Sequence in the sell route: positions update → trades insert → DeSo payout (tried).
+- **Impact:** The wrong order for this flow. If the payout fails, the position is already closed — user has no retry option without manual intervention.
+- **Fix:** Correct order (see Target behavior): insert sell trade with payout_status='pending' → attempt on-chain payout → on success, close position + update trade; on failure, update trade to 'failed', leave position open.
+- **Note:** This fix is entwined with SELL-2's fix; they land together in the same branch.
+
+#### SELL-5: No sell fees — correct per tokenomics, worth documenting
+
+- **Evidence:** Sell route inserts `trades` rows with all `fee_*` fields set to 0.
+- **Impact:** None — this is the correct behavior per 2026-04-21 tokenomics lock-in (sells are 0% fee). But the code actively writes zeroes rather than omitting the columns, which is a slight readability issue.
+- **Fix:** Not a fix — verify the intent by making the zero-writes explicit with a comment referencing DECISIONS.md. No behavior change.
+
+#### SELL-6: 10,000 nanos minimum floor (inconsistent with buy's 1000)
+
+- **Evidence:** Sell route floors the computed payout nanos at 10000. Buy route / `lib/deso/buyback.ts` uses a floor of 1000.
+- **Impact:** Minor. A user selling a position worth < ~$0.000047 wouldn't receive a payout. Probably never happens in real usage.
+- **Fix:** Decide on a canonical floor (the 1000 nanos value from DeSo's native floor is the right choice) and apply consistently across both routes. Add as a shared constant in `lib/deso/transaction.ts` or similar.
+
+#### SELL-7: Uses `node.deso.org` not `api.deso.org`
+
+- **Evidence:** Sell route's on-chain calls go to `node.deso.org`; buy's go to `api.deso.org`.
+- **Impact:** Usually harmless — both resolve to DeSo's infrastructure. But if one's load-balanced differently or one gets deprecated, only one route breaks. Maintenance hazard.
+- **Fix:** Canonicalize on `api.deso.org` via the shared `DESO_API_BASE` constant from `lib/deso/rate.ts`. Already done for new code; sell route needs migrating.
+
+#### SELL-8: Unused fields on positions table
+
+- **Evidence:** Positions table has `deso_staked_nanos` and `txn_hash` columns that are always null. Never written. Possibly dead from an earlier architecture.
+- **Impact:** None functionally. Schema clutter. Could also be confusing — "is this meant to be populated?"
+- **Fix:** Either drop in a migration or document in a comment on the table what they're for / why they exist. Low priority.
+
+### Target behavior (after fixes)
+
+```
+POST /api/trades/sell
+      │
+      ▼
+Next.js middleware
+  - Extract auth session (proves holder of desoPublicKey)
+  - Rate limit check
+      │
+      ▼
+Route handler
+  1. Zod parse body
+  2. Assert session.desoPublicKey === body.desoPublicKey
+  3. Load user's position — verify ownership + sufficient quantity
+  4. Compute AMM quote
+  5. BEGIN TX (via atomic_open_sell_trade RPC):
+       INSERT trades row with:
+         side='sell'
+         payout_status='pending'
+         payout_tx_hash=null
+       (position NOT modified yet)
+     COMMIT
+  6. Attempt on-chain payout:
+     - build send-deso tx via api.deso.org (canonical)
+     - signAndSubmit via lib/deso/transaction.ts
+     - if success:
+         BEGIN TX (atomic_settle_sell_trade RPC):
+           UPDATE trades SET
+             payout_status='paid', payout_tx_hash, payout_at
+           UPDATE positions (close or reduce)
+         COMMIT
+     - if failure:
+         UPDATE trades SET
+           payout_status='failed', payout_failed_reason
+         (position untouched — user can retry)
+  7. Return response reflecting actual payout state
+      - 200 + position state on success
+      - 500 + correlation ID on failure; reconciliation picks up the
+        pending trade and can retry or escalate
+```
+
+### Dependencies (what needs to exist before fixes land)
+
+- Phase 2 primitive: Auth middleware (shared with BUY-1)
+- Phase 2 primitive: `lib/deso/transaction.ts` already exists (shipped in 3d.2b)
+- Phase 2 primitive: Atomic sell-trade RPCs (new Supabase functions)
+- DB migration: Add `payout_status`, `payout_tx_hash`, `payout_at`, `payout_failed_reason` to `trades`
+- DB migration: Index on `(payout_status, payout_at)` for reconciliation queries
+- Phase 4: Reconciliation job that finds `payout_status='pending'` rows older than N minutes and surfaces for retry/admin
+
+---
+
+<!-- Path 3 — Market Resolution -->
 <!-- Path 3 — Market Resolution -->
 <!-- Path 4 — Holder Rewards Claim -->
 <!-- Path 5 — Creator Profile Claim -->
