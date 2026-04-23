@@ -857,8 +857,297 @@ and as the holder rewards claim (Path 4).
 
 ---
 
-<!-- Path 4 — Holder Rewards Claim -->
-<!-- Path 4 — Holder Rewards Claim -->
+## Path 4 — Holder Rewards Claim
+
+### What it should do
+
+Holders of a relevant token (a creator coin like `$bitcoin` or a
+category token like `$CalderaSports`) accrue rewards every time a
+trade happens on a market tied to that token. This path transfers
+those accrued rewards into the holder's DeSo wallet. After this flow:
+
+- Holder's total unclaimed reward balance (sum of `holder_rewards` rows
+  with `status='pending'`) is reduced to zero
+- Each individual `holder_rewards` row is status-transitioned to
+  `'claimed'` with a `tx_hash` reference — rows are NOT deleted
+- Platform wallet transfers creator coins (the relevant token) from its
+  auto_buy_pool accumulation to the holder's wallet on-chain
+- Holder's DeSo wallet shows new creator coin holdings
+
+**Payout model (locked 2026-04-23): creator coin transfer, not DESO.**
+Rewards are paid in the actual relevant token, matching the
+tokenomics-v2 intent that paired the 0.5% auto-buy slice with the 0.5%
+holder rewards slice. The auto-buy accumulates `$bitcoin` in the
+platform wallet; the claim distributes that same `$bitcoin` to
+holders. See Target behavior for rationale and mechanics.
+
+### Current flow (2026-04-23)
+
+**The claim side does not exist.** Only the accrual side (shipped in
+Step 3c, 2026-04-23) is implemented.
+
+Accrual side (implemented, see Step 3c):
+
+```
+Trade happens on market tied to relevant token T
+         │
+         ▼
+snapshotHolders (fire-and-forget from trade route)
+         │
+         ▼
+┌─────────────────────────────────────────────────────┐
+│ lib/fees/holderSnapshot.ts                          │
+│ 1. fetchAllHolders(T.deso_public_key) from DeSo     │
+│ 2. Filter out issuer (founder reward not a real     │
+│    holder)                                          │
+│ 3. computeHolderShares (pro-rata, truncate dust)    │
+│ 4. For each holder:                                 │
+│    INSERT holder_rewards row:                       │
+│      holder_deso_public_key                         │
+│      token_slug, token_type                         │
+│      amount_usd (authoritative)                     │
+│      amount_deso_nanos (at accrual DESO rate)       │
+│      deso_usd_rate_at_accrual                       │
+│      holder_coins_at_accrual,                       │
+│      total_coins_at_accrual                         │
+│      status='pending'                               │
+│      trade_id, market_id                            │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+   holder_rewards table grows. Rows stay status='pending' forever.
+   [No claim mechanism exists. No UI. No API route. Nothing.]
+```
+
+Current DB state (preview at 2026-04-23):
+- 174 `holder_rewards` rows across 4 test trades
+- 100% status='pending'
+- Total accrued: $0.00999908 (~1 cent, all from testing)
+- Top holder: $0.00464 pending
+
+Marketing copy in `app/terms/page.tsx` and `Footer.tsx` states
+"holders must manually claim accrued rewards." **This is a factual
+claim about a feature that does not exist.** Legal/compliance exposure
+before launch.
+
+### Schema touched (current)
+
+Accrual-only:
+- `holder_rewards` (insert ~87 rows per trade)
+
+Not touched (because claim doesn't exist):
+- No row ever transitions out of status='pending'
+- No tx_hash stored
+- No creator-coin transfers happen
+
+### Trust boundaries crossed (current)
+
+Not applicable for the accrual side (no user input at all — trade route
+fires snapshot internally). Trust boundaries for the claim side are
+documented in Target behavior below.
+
+### 🚨 Critical findings
+
+#### REWARDS-1: Claim mechanism does not exist (P0)
+
+- **Evidence:** Audit path 3 output (2026-04-23). Zero matches in
+  `app/` for holder-reward claim routes or UI. No status transition
+  from `'pending'` to `'claimed'` anywhere. 174 rows sit pending with
+  no destination.
+- **Impact:** Rewards accrue forever with no way for users to collect.
+  Liability grows with every trade. The "Hold to earn" promise in the
+  UI has no mechanism behind it. At any meaningful trade volume, this
+  becomes a legal and UX disaster.
+- **Severity:** P0 launch blocker. Feature is advertised in site copy
+  and not implemented. Must be built before any public launch.
+- **Fix:** Build the claim system per Target behavior below. New API
+  route, new UI, new `lib/deso/transfer.ts` primitive. Net-new feature,
+  not a fix to existing code.
+
+#### REWARDS-2: Marketing copy promises an undelivered feature (P0)
+
+- **Evidence:** `app/terms/page.tsx` and `Footer.tsx` reference
+  "holders must manually claim accrued rewards."
+- **Impact:** Undeliverable promise in legal/terms documents.
+  Misrepresentation risk if used to attract users without the feature
+  existing.
+- **Severity:** P0 pre-launch blocker. Either implement the feature
+  (preferred, per REWARDS-1 fix) or remove the copy. Do not launch with
+  both the copy and no feature.
+- **Fix:** Strictly paired with REWARDS-1. When the claim system lands,
+  update the copy to match actual behavior. If launch happens before
+  the claim is built (not the current plan), remove the copy first.
+
+#### REWARDS-3: `TransferCreatorCoin` primitive does not exist in codebase (P0)
+
+- **Evidence:** Audit path 3 Part G (2026-04-23). Zero matches for
+  `TransferCreatorCoin`, `transfer-creator-coin`, or any creator-coin
+  transfer pattern in the codebase.
+- **Impact:** The underlying DeSo primitive needed to move creator
+  coins from platform wallet to holder wallet is not built. This
+  blocks REWARDS-1 and also blocks Path 5 (creator claim) if that
+  flow is redesigned to use creator coin transfers.
+- **Severity:** P0 infrastructure blocker. Must be built before any
+  claim flow.
+- **Fix:** Build `lib/deso/transfer.ts` as a Phase 2 primitive:
+  `transferCreatorCoin(fromSeed, recipientPublicKey, creatorCoinPublicKey, amountCoinNanos)` → signAndSubmit → return tx_hash.
+  Follows the same module pattern as `lib/deso/buyback.ts` (shipped
+  Step 3d.2c). Unit-tested input validation; integration-tested on
+  preview with real creator coin transfers.
+
+#### REWARDS-4: 5 stale `auto_buy_pool` rows stuck at 'pending' in prod (P1)
+
+- **Evidence:** Audit path 3 Part F. 5 `fee_earnings` rows with
+  `recipient_type='auto_buy_pool'` and `status='pending'` from before
+  `executeTokenBuyback` was wired (commit 1c77d3e). They'll never
+  self-execute because the code that creates them has changed.
+- **Impact:** $0.030 of intended-but-not-executed buybacks. Not
+  drastic. But demonstrates the "pending forever" failure mode that
+  requires reconciliation tooling to detect.
+- **Severity:** P1 hygiene.
+- **Fix:** Part of Phase 4 reconciliation. A scheduled job finds
+  `status='pending'` rows older than N minutes, attempts re-execution
+  or marks as permanently failed with a reason. Specific handling for
+  these 5 rows: likely safe to mark `status='abandoned'` with reason
+  `'pre-v2-code-path'` and move on.
+
+### 🟡 Concerns
+
+#### REWARDS-5: No "accumulated balance" view per holder
+
+- **Evidence:** No API endpoint or SQL view aggregates a holder's
+  pending rewards.
+- **Impact:** Even when the claim is built, showing a holder "You
+  have $X claimable" requires a query that doesn't exist.
+- **Fix:** Trivial SQL view (`v_holder_rewards_pending_by_user`) and
+  API endpoint (`GET /api/holder-rewards/balance`). Lands with the
+  claim UI in Phase 3.
+
+#### REWARDS-6: Claim payment unit requires clear UX
+
+- **Evidence:** Design decision 2026-04-23 — pay in creator coins,
+  not DESO. This is correct architecturally but needs clear user
+  communication.
+- **Impact:** Users must understand "claim $0.005 of $bitcoin rewards"
+  means they receive 0.0002 $bitcoin coins (at current price), which
+  will show up in their DeSo wallet as a new creator-coin holding
+  (not a DESO balance increase).
+- **Fix:** UX/copy work in Phase 3. Show both the USD-equivalent and
+  the coin quantity they'll receive. Link to DeSo explorer post-claim.
+
+#### REWARDS-7: `amount_creator_coin_nanos` not stored at accrual time
+
+- **Evidence:** `holder_rewards` schema has `amount_usd` and
+  `amount_deso_nanos` but no `amount_creator_coin_nanos`. The claim
+  payout amount (in creator-coin nanos) will be computed at claim
+  time from `amount_usd / current_creator_coin_price`.
+- **Impact:** Holders bear creator-coin price fluctuation between
+  accrual and claim. If $bitcoin doubles in price between accrual and
+  claim, holder gets half as many coins for the same accrued $amount.
+  Equitable but worth understanding.
+- **Severity:** P1. Could be addressed two ways:
+    1. Accept as-is — the USD amount is the canonical promise; coin
+       count is what happens to be worth that USD at claim time
+    2. Snapshot `amount_creator_coin_nanos` at accrual time too (add
+       column + compute at accrual) and pay the snapshotted amount
+- **Fix:** Design decision for Phase 3. Recommendation: snapshot the
+  amount at accrual (option 2). Matches how we snapshot DESO nanos for
+  auditability, and means the platform pool doesn't slowly bleed out
+  to holders on price upswings. Add `amount_creator_coin_nanos` +
+  `creator_coin_price_at_accrual` columns in a Phase 3 migration.
+
+### Target behavior (after fixes)
+
+#### Accrual — no changes from what's already built
+
+The Step 3c snapshot logic stays. Only schema addition: add
+`amount_creator_coin_nanos` and `creator_coin_price_at_accrual` to
+the `holder_rewards` table (Phase 3 migration per REWARDS-7 decision).
+Update `snapshotHolders` to populate these at accrual time.
+
+#### Claim — new flow
+
+```
+User opens Caldera dashboard, sees "$X claimable" for their holdings
+      │
+      ▼
+User clicks "Claim rewards" on a token (e.g., $bitcoin)
+      │
+      ▼
+POST /api/holder-rewards/claim
+body: { tokenSlug: 'bitcoin' }
+(Claim is per relevant token, not per trade — aggregates all pending
+rows for this holder + this token into a single on-chain transfer.)
+      │
+      ▼
+Next.js middleware
+  - Auth session verification (shared with all money routes)
+  - Per-user rate limit
+      │
+      ▼
+Route handler
+  1. Zod parse body (tokenSlug)
+  2. Load all holder_rewards rows WHERE
+       holder_deso_public_key = session.desoPublicKey
+       AND token_slug = tokenSlug
+       AND status = 'pending'
+  3. If zero rows: return 404 "nothing to claim"
+  4. Sum amount_creator_coin_nanos (or compute from amount_usd at
+     current price per REWARDS-7 decision) → total_coin_nanos
+  5. Verify platform wallet holds ≥ total_coin_nanos of this creator
+     coin (solvency check via GetHodlersForPublicKey with platform
+     as holder)
+     - If not: UPDATE all selected rows to
+       status='blocked_insolvent'. Return 503. Alert admin.
+  6. Mark rows as 'in_flight' (pessimistic lock):
+       UPDATE holder_rewards SET status='in_flight'
+       WHERE id IN (selected row ids)
+  7. Build TransferCreatorCoin tx:
+       sender = PLATFORM_PUBLIC_KEY
+       creator = tokenSlug's creator.deso_public_key
+       recipient = session.desoPublicKey
+       coin_nanos = total_coin_nanos
+  8. signAndSubmit via lib/deso/transaction.ts
+     - Success:
+         UPDATE selected rows SET
+           status='claimed'
+           claim_tx_hash=<hash>
+           claimed_at=NOW()
+         Return 200 with tx_hash
+     - Failure:
+         UPDATE selected rows SET
+           status='failed'
+           failed_reason=<msg>
+         Return 500 with correlation ID
+```
+
+Per-user atomicity. Per-token claim (not per-row) to minimize on-chain
+transactions. Rows never deleted — status transitions preserve the
+audit trail.
+
+### Dependencies (what needs to exist before fixes land)
+
+- Phase 2 primitive: Auth middleware (shared with BUY-1, SELL-1,
+  RESOLUTION claim)
+- Phase 2 primitive: `lib/deso/transfer.ts` (new) with
+  `transferCreatorCoin(...)` — **blocks REWARDS-1 and likely Path 5**
+- Phase 2 primitive: Platform wallet creator-coin solvency check
+  (extension of `lib/deso/platformWalletHealth.ts` from 3d.4 scope)
+- New API route: `POST /api/holder-rewards/claim`
+- New API route: `GET /api/holder-rewards/balance` (summary per user)
+- New SQL view: `v_holder_rewards_pending_by_user`
+- DB migration: new statuses — `'in_flight'`, `'claimed'`,
+  `'failed'`, `'blocked_insolvent'`, `'abandoned'`. Update CHECK.
+- DB migration (REWARDS-7 resolution): add
+  `amount_creator_coin_nanos`, `creator_coin_price_at_accrual`
+- New UI: claim widget, balance display, claim-success confirmation
+- Copy update: terms and footer reference reality once claim lives
+- Phase 4 reconciliation: find stale `'pending'` and `'in_flight'`
+  rows; retry or surface to admin
+
+---
+
+<!-- Path 5 — Creator Profile Claim -->
 <!-- Path 5 — Creator Profile Claim -->
 <!-- Cross-cutting concerns -->
 <!-- Prioritized fix list -->
