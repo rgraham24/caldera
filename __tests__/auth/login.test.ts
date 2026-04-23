@@ -108,7 +108,7 @@ describe("POST /api/auth/deso-login", () => {
     const match = setCookie!.match(/caldera-session=([^;]+)/);
     expect(match).toBeTruthy();
     const cookieValue = match![1];
-    const verified = verifyCookie(cookieValue, process.env.COOKIE_SIGNING_KEY!);
+    const verified = await verifyCookie(cookieValue, process.env.COOKIE_SIGNING_KEY!);
     expect(verified).not.toBeNull();
     expect((verified as SessionPayload).publicKey).toBe(VALID_PK);
   });
