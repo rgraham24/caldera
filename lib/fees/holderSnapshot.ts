@@ -19,6 +19,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RelevantToken } from './calculator';
+import { fetchDesoUsdRate } from '@/lib/deso/rate';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -80,35 +81,6 @@ export function computeHolderShares(
 
 const DESO_API_BASE = 'https://api.deso.org';
 const MAX_HOLDER_COUNT = 50_000;
-
-/**
- * Fetch the current DESO → USD exchange rate.
- * Returns the rate as dollars-per-DESO, or null on any failure.
- *
- * Used at snapshot time to capture a point-in-time rate that can be
- * denormalized on every holder_rewards row, preserving the conversion
- * that was in effect when the reward was accrued.
- */
-export async function fetchDesoUsdRate(): Promise<number | null> {
-  try {
-    const response = await fetch(`${DESO_API_BASE}/api/v0/get-exchange-rate`);
-    if (!response.ok) {
-      console.error(
-        `[fetchDesoUsdRate] DeSo returned ${response.status}`
-      );
-      return null;
-    }
-    const data = await response.json();
-    const cents = data.USDCentsPerDeSoExchangeRate ?? 0;
-    return cents > 0 ? cents / 100 : null;
-  } catch (err) {
-    console.error(
-      '[fetchDesoUsdRate] fetch failed:',
-      err instanceof Error ? err.message : String(err)
-    );
-    return null;
-  }
-}
 
 /**
  * Fetches all holders of a DeSo creator coin using FetchAll=true.
