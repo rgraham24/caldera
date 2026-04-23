@@ -23,7 +23,8 @@ process.env.COOKIE_SIGNING_KEY =
 
 import { POST as loginPOST } from "@/app/api/auth/deso-login/route";
 import { POST as logoutPOST } from "@/app/api/auth/logout/route";
-import { verifyCookie, type SessionPayload } from "@/lib/auth/cookie";
+import { verifyCookie } from "@/lib/auth/cookie-verify";
+import { type SessionPayload } from "@/lib/auth/cookie-sign";
 
 // ─── helpers ──────────────────────────────────────────────────────────
 

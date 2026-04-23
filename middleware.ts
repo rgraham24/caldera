@@ -13,11 +13,8 @@
  * Auth is enforced per-route, not here — middleware is passive.
  */
 
-export const runtime = "edge";
-
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyCookie } from "@/lib/auth/cookie";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/cookie-helpers";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 import { AUTH_HEADER } from "@/lib/auth/index";
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {

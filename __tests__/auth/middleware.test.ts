@@ -5,9 +5,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // without re-testing the crypto layer (covered by cookie.test.ts).
 
 const mockVerifyCookie = vi.fn();
-vi.mock("@/lib/auth/cookie", () => ({
-  verifyCookie: (...args: unknown[]) => mockVerifyCookie(...args),
-}));
+vi.mock("@/lib/auth/cookie-verify", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/cookie-verify")>();
+  return {
+    ...actual,
+    verifyCookie: (...args: unknown[]) => mockVerifyCookie(...args),
+  };
+});
 
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";

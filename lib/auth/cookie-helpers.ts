@@ -4,10 +4,13 @@
  * mixing HTTP concerns with HMAC primitives.
  */
 
-import type { SessionPayload } from "@/lib/auth/cookie";
-import { signCookie } from "@/lib/auth/cookie";
-
-export const SESSION_COOKIE_NAME = "caldera-session";
+import type { SessionPayload } from "@/lib/auth/cookie-sign";
+import { signCookie } from "@/lib/auth/cookie-sign";
+// SESSION_COOKIE_NAME lives in cookie-verify (Edge-safe). Import it
+// here for local use and re-export so Node callers can import from
+// either file without pulling in the Node-only sign module.
+import { SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
+export { SESSION_COOKIE_NAME };
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 /**

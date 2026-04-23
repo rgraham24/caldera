@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { signCookie, verifyCookie, type SessionPayload } from "@/lib/auth/cookie";
+import { signCookie, type SessionPayload } from "@/lib/auth/cookie-sign";
+import { verifyCookie } from "@/lib/auth/cookie-verify";
 
 const KEY = "dK7n2FhG9pQ8_wR3sLpY5vKmXtZ4bC1eN6oUjH0aI2M";
 const OTHER_KEY = "pZ9f3GxK8hL2_mN4sTqW7vBdEj5cR1aY6uIiF0oX9E8";

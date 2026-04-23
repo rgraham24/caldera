@@ -1,20 +1,20 @@
 /**
- * Session cookie HMAC-SHA256 sign + verify.
+ * Session cookie verification — Edge-compatible (WebCrypto).
  *
- * Cookie format: <base64url(hmac)>.<base64url(payload)>
- *
- * - signCookie: synchronous, uses Node.js crypto (runs in API routes)
- * - verifyCookie: async, uses WebCrypto (runs in Edge middleware AND
- *   Node routes — single code path, environment-agnostic)
+ * Safe to import from Next.js middleware. Uses only WebCrypto APIs
+ * available in both Edge runtime and Node.
  *
  * Never throws on invalid cookie input; returns null instead.
  * Throws only on programmer error (missing/short signing key).
- *
- * See docs/P2-1-auth-middleware-design.md for full architecture.
  */
 
-import { createHmac } from "node:crypto";
+// Cookie name constant lives here so middleware can import it without
+// pulling in cookie-helpers.ts (which imports cookie-sign.ts → node:crypto).
+export const SESSION_COOKIE_NAME = "caldera-session";
 
+// Re-export SessionPayload for callers' convenience — the shape is
+// identical to cookie-sign's, and keeping them in sync is easier if
+// consumers import the type from whichever side they use.
 export type SessionPayload = {
   publicKey: string;
   iat: number;
@@ -27,26 +27,24 @@ function assertKey(key: string): void {
   if (!key) {
     throw new Error("cookie signing key is missing");
   }
-  const bytes = Buffer.from(key, "base64url");
-  if (bytes.length < MIN_KEY_BYTES) {
+  // base64url-decode to count bytes. WebCrypto equivalents of atob
+  // exist in both Edge and Node.
+  const decoded = atob(key.replace(/-/g, "+").replace(/_/g, "/"));
+  if (decoded.length < MIN_KEY_BYTES) {
     throw new Error(
-      `cookie signing key must be at least ${MIN_KEY_BYTES} bytes; got ${bytes.length}`
+      `cookie signing key must be at least ${MIN_KEY_BYTES} bytes; got ${decoded.length}`
     );
   }
-}
-
-function toBase64Url(buf: Buffer | string | Uint8Array): string {
-  if (typeof buf === "string") return Buffer.from(buf, "utf8").toString("base64url");
-  if (buf instanceof Uint8Array && !(buf instanceof Buffer)) {
-    return Buffer.from(buf).toString("base64url");
-  }
-  return (buf as Buffer).toString("base64url");
 }
 
 function fromBase64Url(s: string): Uint8Array | null {
   if (!/^[A-Za-z0-9_-]*$/.test(s)) return null;
   try {
-    return new Uint8Array(Buffer.from(s, "base64url"));
+    // Edge runtime: atob returns binary string; convert to Uint8Array
+    const binary = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
   } catch {
     return null;
   }
@@ -65,19 +63,6 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-export function signCookie(payload: SessionPayload, key: string): string {
-  assertKey(key);
-  const payloadJson = JSON.stringify(payload);
-  const payloadB64 = toBase64Url(payloadJson);
-  const mac = createHmac("sha256", key).update(payloadB64).digest();
-  const macB64 = toBase64Url(mac);
-  return `${macB64}.${payloadB64}`;
-}
-
-/**
- * Async verify using WebCrypto (works in Edge AND Node.js).
- * Runtime-agnostic so middleware can call the same function as routes.
- */
 export async function verifyCookie(
   cookie: string,
   key: string
@@ -119,18 +104,14 @@ export async function verifyCookie(
 }
 
 /**
- * HMAC-SHA256 using WebCrypto. Uses the base64url-decoded key bytes
- * (same bytes Node.js's createHmac would use when given the string).
+ * HMAC-SHA256 using WebCrypto. Key bytes come from UTF-8-encoded
+ * string, matching Node's createHmac(alg, utf8str) behavior so
+ * signCookie (Node) and verifyCookie (WebCrypto) agree on bytes.
  */
 async function hmacSha256Webcrypto(
   keyStr: string,
   message: string
 ): Promise<Uint8Array> {
-  // Node and WebCrypto disagree on how createHmac("sha256", keyString)
-  // converts keyString to bytes. Node treats it as UTF-8; if we want
-  // sign and verify to agree, we must use identical key bytes.
-  // Node's createHmac(alg, utf8str) uses Buffer.from(utf8str, "utf8").
-  // We mirror that here to keep signCookie and verifyCookie compatible.
   const keyBytes = new TextEncoder().encode(keyStr);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
