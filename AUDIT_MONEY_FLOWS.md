@@ -1498,14 +1498,241 @@ Key properties:
 
 ---
 
-<!-- Cross-cutting concerns -->
+## Cross-cutting Concerns
+
+Themes that span multiple paths. Each per-path section above references
+these but duplicates the framing. This section is the single place to
+understand infrastructure-level fixes that solve multiple path-level
+findings at once.
+
+### Authentication & identity verification
+
+**Appears in:** BUY-1, SELL-1, CLAIM-2.
+
+All routes that accept a `desoPublicKey` in the request body treat
+that value as authoritative without verifying the requester owns the
+wallet. There is no auth middleware at any edge.
+
+**Root cause:** The codebase has no concept of an authenticated session
+backed by a cryptographic proof of wallet ownership. DeSo Identity sits
+on the client; the server has never been taught to trust it only after
+verification.
+
+**Fix (one piece of infrastructure, many paths resolved):**
+
+- Build a Next.js `middleware.ts` at repo root that:
+    - Extracts session from a signed cookie or Authorization header
+    - Verifies the session was created via DeSo Identity signing a
+      known challenge (the challenge contains the DeSo public key it
+      authorizes)
+    - Attaches the verified `desoPublicKey` to the request context
+- Route handlers retrieve the verified public key from context instead
+  of request body
+- Any discrepancy between `body.desoPublicKey` and the session's
+  verified key is either an error (401) or a flat reject (ignore body
+  value entirely — safer)
+- Specific auth pattern (session-cookie vs. signed-message-per-request)
+  is documented in Open Questions below
+
+### Rate limiting
+
+**Appears in:** BUY-5 directly. Implied for every other money-movement
+route (sell, winner claim, holder rewards claim, creator claim).
+
+No `middleware.ts` exists. The only rate-limited routes today are
+`autonomous-cycle` and `markets/[id]/news`.
+
+**Fix:**
+- Edge middleware with per-user and per-IP limits
+- Per-user key from the authenticated session (depends on auth fix
+  above; the two ship together)
+- Tighter limits on claim routes (creator claim: 5/min/user;
+  winner claim: 30/min/user; buy: 60/min/user; sell: 60/min/user)
+- Backing store: Upstash Redis is the common Vercel choice
+
+### Atomicity of money-movement writes
+
+**Appears in:** BUY-4 directly. Required but not-yet-stated-so for
+every other multi-table write flow: sell (trade + payout + position
+settle), winner claim (payout + position transition), holder claim
+(multiple ledger rows + coin transfer), creator claim (payout row +
+creator state update).
+
+**Root cause:** Supabase's JS client does not expose transactions over
+its request-per-call interface. Every multi-statement flow in the
+codebase is sequentially-issued independent calls with no rollback.
+
+**Fix pattern (applies everywhere):**
+- Postgres stored procedure (Supabase RPC) wraps any multi-row write
+  that must be all-or-nothing
+- Function takes all inputs, returns the new row IDs
+- RPC is called from TypeScript via `supabase.rpc(...)` with service
+  role (because these writes should not be RLS-gated)
+- Explicit in SQL: `BEGIN ... COMMIT` inside the function
+- Names we'll use: `atomic_record_trade`, `atomic_open_sell_trade`,
+  `atomic_settle_sell_trade`, `atomic_resolve_market`,
+  `atomic_start_creator_claim`, `atomic_settle_creator_claim`,
+  plus per-claim helpers for holder/winner flows as needed
+
+### On-chain transaction verification
+
+**Appears in:** BUY-2, BUY-3 specifically — the only path that ever
+takes an incoming client-submitted tx_hash.
+
+**Root cause:** Server never queries DeSo to confirm an incoming
+transfer matches the claimed shape.
+
+**Fix:**
+- New primitive: `lib/deso/verifyTx.ts` with
+  `verifyDesoTransfer(txHash, expectedSender, expectedRecipient, expectedAmountNanos): Promise<VerifyResult>`
+- Checks: tx exists on-chain; sender/recipient match; amount ≥ expected
+  (to handle rate rounding); tx not already consumed by another trade
+- Uniqueness via DB UNIQUE constraint on `trades.tx_hash` enforces
+  "not already consumed"
+- Network failure handling: if DeSo API is unavailable, REJECT the
+  trade (do not admit under uncertainty) — better to frustrate a real
+  user for 30 seconds than to admit a spoofed trade
+- Sole consumer today is `/api/trades` POST
+
+### Redundant route consolidation
+
+**Appears in:** RESOLUTION-2 (3 redundant routes), CLAIM-3 (5 redundant
+routes).
+
+Pattern: feature was iterated on without consolidating. Each iteration
+added a new route alongside the old rather than replacing.
+
+**Fix pattern:**
+- Extract shared logic to `lib/<domain>/<action>.ts`
+- Routes become thin wrappers (auth + parse + call + response)
+- Delete obsolete routes in the same PR as the extraction
+- Migration ordering: do the extraction-and-delete as a pure refactor
+  commit BEFORE any behavior-change commits; easier to review
+- Specific work: `lib/markets/resolution.ts` (consolidates 3 routes);
+  `lib/creators/claim.ts` (consolidates 4 backend routes);
+  `app/api/creators/[slug]/claim/route.ts` becomes the single
+  canonical endpoint
+
+### Reconciliation & pending-state visibility
+
+**Appears in:** BUY-7 (5 trades with null tx_hash), REWARDS-4 (5 stale
+pending auto_buy_pool rows), and implicitly every path that introduces
+an 'in_flight' intermediate status.
+
+**Root cause:** No tooling exists to detect ledger rows stuck in a
+non-terminal state. When a fire-and-forget fails silently, the row
+sits forever.
+
+**Fix (Phase 4 work, named now):**
+- Scheduled job finds rows in non-terminal status older than N minutes
+- Categorizes: retryable (transient failures), stuck (needs human),
+  abandoned (pre-migration legacy)
+- Admin dashboard surfaces counts per category per path
+- Alerts (email or similar) on thresholds
+- Explicit "mark abandoned" action for operator intervention
+- Tables to watch: `fee_earnings` (status='pending' or 'failed'),
+  `holder_rewards` (same), `position_payouts` (once introduced),
+  `creator_claim_payouts` (once introduced), `trades` (with new
+  `payout_status='pending'` column)
+
+### Ledger discipline
+
+**Appears in:** CLAIM-1 most egregiously (actively destroys ledger
+records on claim). Implicit pattern in every path.
+
+**Principle:** the money-movement ledger is append-only with
+status transitions. Never zero, never delete. Every amount stored is
+preserved forever with its accrual context.
+
+**Where it applies:**
+- `fee_earnings` (✅ already follows this — status only transitions)
+- `holder_rewards` (✅ accrual correct; claim must preserve rows with
+  status='claimed' not delete)
+- `position_payouts` (new — follow the pattern from day one)
+- `creator_claim_payouts` (new — follow the pattern from day one)
+- `creators.unclaimed_earnings_escrow` — the ONE exception, because
+  it's a "currently claimable" counter, not a ledger row. Must agree
+  with the sum of `creator_claim_payouts` WHERE status='paid' for
+  that creator.
+
+Anywhere else that wants to represent a liability, prefer a new
+ledger table over a column-on-an-existing-table.
+
+### Marketing / copy integrity
+
+**Appears in:** REWARDS-2 specifically (terms page + footer promise
+"manual claim" feature that doesn't exist). Implicit audit needed
+across all site copy.
+
+**Fix:**
+- Before each path's P0 fix lands and ships to main, audit every
+  `app/` page, component, and public-facing string for claims that
+  presume unfixed behavior
+- Update in the same commit as the backend fix
+- Legal/compliance principle: no promise in user-facing copy
+  should describe behavior not implemented in code
+
+### Legacy data cleanup
+
+**Appears in:** BUY-7 (5 null-tx_hash trades), REWARDS-4 (5 stale
+pending auto_buy_pool rows), SELL-8 (unused `deso_staked_nanos` +
+`txn_hash` columns on positions), CLAIM-5 (lying
+`total_creator_earnings` column).
+
+**Fix principle:**
+- Each piece of legacy gets an explicit resolution: kept (documented
+  why), migrated (to new canonical location), or removed (with safety
+  check in the migration)
+- Never silently drop columns or rows
+- Document in CHANGELOG of this doc when each legacy cleanup lands
+
+### Observability
+
+**Appears in:** Implicit across all paths — no dedicated finding
+because it's a shared gap, not a per-path bug.
+
+Current state:
+- Error logging inconsistent: some supabase.insert() calls destructure
+  `{error}` and log via console.error; many historically did not
+- No structured logging; Vercel logs are text blobs
+- No metrics (e.g., count of rejected trades per minute, count of
+  successful creator claims per day)
+- No alerts on platform wallet balance or solvency conditions
+
+**Fix (phased):**
+- Phase 3 hygiene: every route that writes to a money-movement table
+  must destructure `{error}` and log. This is already established
+  pattern post Step 3 — just needs to be audited against older code.
+- Phase 4 observability infrastructure:
+    - Structured logs (JSON to Vercel or Upstash)
+    - Aggregated metrics (Sentry or similar)
+    - Platform wallet balance monitoring (originally Step 3d.4 scope;
+      now a cross-cutting requirement)
+    - Alert thresholds: wallet balance low, pending rows growing,
+      failed-status count spike
+
+### Security hardening beyond auth
+
+**Appears in:** Implicit — not specifically surfaced as findings
+because they're at a different architectural layer.
+
+- No CSRF protection on mutating POST routes. Once auth cookies exist
+  (from the auth middleware fix above), CSRF matters. Use same-site
+  cookies as a baseline; add explicit CSRF tokens on claim routes.
+- Signed-nonce challenge pattern (proposed for CLAIM-2) is a useful
+  pattern for any high-value mutation. Consider applying to:
+    - creator_claim (locked in)
+    - winner_claim (large payouts)
+    - holder_rewards_claim (bulk payout events)
+- Input sanitization: Zod parsing is sufficient for JSON body
+  validation. SQL injection is not a direct concern (Supabase client
+  parameterizes). XSS concerns only apply to content-rendering paths,
+  not money-movement routes.
+
+---
 
 <!-- Prioritized fix list -->
 
 <!-- Open questions -->
 
-<!-- Changelog -->
-<!-- Cross-cutting concerns -->
-<!-- Prioritized fix list -->
-<!-- Open questions -->
 <!-- Changelog -->
