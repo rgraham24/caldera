@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getTradeQuote } from "@/lib/trading/amm";
 import { calculateFees, getMarketFeeType, calculateBuyFees } from "@/lib/fees/calculator";
 import { resolveRelevantToken } from "@/lib/fees/relevantToken";
+import { snapshotHolders } from "@/lib/fees/holderSnapshot";
 import { z } from "zod";
 
 async function executeCreatorCoinBuyback(params: {
@@ -375,6 +376,26 @@ export async function POST(req: NextRequest) {
       console.warn(
         `[trades] Dropping $${v2Fees.autoBuy.toFixed(4)} auto-buy for trade ` +
         `${trade.id}: relevantToken has no deso_public_key.`
+      );
+    }
+
+    // ── Per-holder reward snapshot (fire-and-forget) ─────────────────
+    // Writes one holder_rewards row per holder of relevantToken with
+    // their pro-rata share of v2Fees.holderRewards. Runs async;
+    // failures don't block the trade response. See
+    // lib/fees/holderSnapshot.ts and DECISIONS.md 2026-04-21.
+    // Unique index on (trade_id, holder_deso_public_key) protects
+    // against double-writes if this somehow runs twice.
+    if (v2Fees.holderRewards > 0 && relevantToken?.deso_public_key) {
+      void snapshotHolders(
+        {
+          trade_id: trade.id,
+          market_id: marketId,
+          relevantToken,
+          totalAmountUsd: v2Fees.holderRewards,
+          desoUsdRate: null,  // snapshotHolders fetches its own rate
+        },
+        createServiceClient()
       );
     }
 

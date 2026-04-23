@@ -76,10 +76,39 @@ export function computeHolderShares(
     .filter(s => s.share_usd > 0);
 }
 
-// ─── DeSo API: fetch all holders ───────────────────────────────────
+// ─── DeSo API helpers ──────────────────────────────────────────────
 
 const DESO_API_BASE = 'https://api.deso.org';
 const MAX_HOLDER_COUNT = 50_000;
+
+/**
+ * Fetch the current DESO → USD exchange rate.
+ * Returns the rate as dollars-per-DESO, or null on any failure.
+ *
+ * Used at snapshot time to capture a point-in-time rate that can be
+ * denormalized on every holder_rewards row, preserving the conversion
+ * that was in effect when the reward was accrued.
+ */
+export async function fetchDesoUsdRate(): Promise<number | null> {
+  try {
+    const response = await fetch(`${DESO_API_BASE}/api/v0/get-exchange-rate`);
+    if (!response.ok) {
+      console.error(
+        `[fetchDesoUsdRate] DeSo returned ${response.status}`
+      );
+      return null;
+    }
+    const data = await response.json();
+    const cents = data.USDCentsPerDeSoExchangeRate ?? 0;
+    return cents > 0 ? cents / 100 : null;
+  } catch (err) {
+    console.error(
+      '[fetchDesoUsdRate] fetch failed:',
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
+}
 
 /**
  * Fetches all holders of a DeSo creator coin using FetchAll=true.
@@ -169,19 +198,128 @@ export async function fetchAllHolders(
 // ─── Entry point ───────────────────────────────────────────────────
 
 /**
- * STUB for 3c.1 — real implementation lands in 3c.3.
+ * Takes a snapshot of all holders of relevantToken at trade time and
+ * writes one holder_rewards row per holder with their pro-rata share.
  *
- * Fire-and-forget from trade route:
- *   1. fetchAllHolders(relevantToken.deso_public_key)
- *   2. computeHolderShares(holders, totalAmountUsd)
- *   3. Bulk insert into holder_rewards
+ * CALLED FIRE-AND-FORGET from app/api/trades/route.ts. The trade has
+ * already completed by the time this runs. Errors are logged but never
+ * thrown — a failed snapshot does not undo the trade.
  *
- * All errors caught and logged — never thrown.
+ * Flow:
+ *   1. Fetch DeSo USD rate once (used for all rows in this snapshot)
+ *   2. fetchAllHolders (already filters out issuer)
+ *   3. computeHolderShares (pro-rata math; already truncates dust)
+ *   4. Bulk insert all rows in a single Supabase call
+ *
+ * If DeSo rate fetch fails, we still write the rows with NULL rate fields.
+ * amount_usd is the authoritative value; amount_deso_nanos and
+ * deso_usd_rate_at_accrual are denormalized for historical accounting.
+ *
+ * Idempotency: holder_rewards has a unique index on
+ * (trade_id, holder_deso_public_key) WHERE trade_id IS NOT NULL.
+ * If this function runs twice for the same trade (retry, cold-start),
+ * the second insert fails loudly instead of double-crediting.
  */
 export async function snapshotHolders(
-  _input: SnapshotInput,
-  _supabase: SupabaseClient
+  input: SnapshotInput,
+  supabase: SupabaseClient
 ): Promise<void> {
-  // TODO(3c.3): wire fetchAllHolders + computeHolderShares + DB insert
-  throw new Error('snapshotHolders not implemented — see 3c.3');
+  const { trade_id, market_id, relevantToken, totalAmountUsd } = input;
+
+  try {
+    if (!relevantToken.deso_public_key) {
+      console.warn(
+        `[snapshotHolders] skipped — relevantToken has no deso_public_key ` +
+        `(slug=${relevantToken.slug}, trade=${trade_id})`
+      );
+      return;
+    }
+
+    // Rate first — one call, used for every row in this snapshot.
+    // If it fails, we still proceed and write NULL rate fields.
+    const desoUsdRate = await fetchDesoUsdRate();
+    if (!desoUsdRate) {
+      console.warn(
+        `[snapshotHolders] DeSo rate fetch failed — writing rows with ` +
+        `NULL amount_deso_nanos and deso_usd_rate_at_accrual ` +
+        `(trade=${trade_id})`
+      );
+    }
+
+    const holders = await fetchAllHolders(relevantToken.deso_public_key);
+    if (holders.length === 0) {
+      console.warn(
+        `[snapshotHolders] 0 holders for ${relevantToken.slug} ` +
+        `(trade=${trade_id}, amount=$${totalAmountUsd}) — ` +
+        `slice dropped per 2026-04-21 no-holders policy.`
+      );
+      return;
+    }
+
+    const shares = computeHolderShares(holders, totalAmountUsd);
+    if (shares.length === 0) {
+      console.warn(
+        `[snapshotHolders] 0 non-zero shares after compute for ` +
+        `${relevantToken.slug} (trade=${trade_id}, holders=${holders.length}, ` +
+        `amount=$${totalAmountUsd}) — likely dust-only result.`
+      );
+      return;
+    }
+
+    // Total supply among qualifying holders (for ledger traceability).
+    const totalSupply = holders
+      .filter(h => h.BalanceNanos > 0)
+      .reduce((acc, h) => acc + h.BalanceNanos, 0);
+
+    // Build rows. Include DeSo-denominated fields when rate is available.
+    const rows = shares.map(s => ({
+      holder_deso_public_key: s.holder_public_key,
+      token_slug: relevantToken.slug,
+      token_type: relevantToken.type,
+      amount_usd: s.share_usd,
+      amount_deso_nanos: desoUsdRate
+        ? Math.floor((s.share_usd / desoUsdRate) * 1e9)
+        : null,
+      deso_usd_rate_at_accrual: desoUsdRate,
+      trade_id,
+      market_id,
+      holder_coins_at_accrual: s.holder_balance,
+      total_coins_at_accrual: totalSupply,
+      status: 'pending',
+    }));
+
+    const { error } = await supabase.from('holder_rewards').insert(rows);
+
+    if (error) {
+      // Unique-violation error (23505 in Postgres) on our partial index
+      // means this snapshot already ran for this trade. Log as WARN not
+      // ERROR — it's expected deduplication, not a bug.
+      if (error.code === '23505') {
+        console.warn(
+          `[snapshotHolders] duplicate snapshot for trade ${trade_id} ` +
+          `(${relevantToken.slug}) — unique constraint prevented ` +
+          `double-credit; no action needed.`
+        );
+      } else {
+        console.error(
+          `[snapshotHolders] bulk insert failed for ${relevantToken.slug} ` +
+          `(trade=${trade_id}, rows=${rows.length}):`,
+          error.message,
+          error.details
+        );
+      }
+      return;
+    }
+
+    console.log(
+      `[snapshotHolders] wrote ${rows.length} rows for trade ${trade_id} ` +
+      `(${relevantToken.slug} $${totalAmountUsd} @ deso_rate=$${desoUsdRate ?? 'NULL'})`
+    );
+  } catch (err) {
+    console.error(
+      `[snapshotHolders] unexpected error for trade ${trade_id}:`,
+      err instanceof Error ? err.message : String(err),
+      err instanceof Error ? err.stack : undefined
+    );
+  }
 }
