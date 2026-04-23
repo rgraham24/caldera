@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getTradeQuote } from "@/lib/trading/amm";
 import { calculateFees, getMarketFeeType, calculateBuyFees } from "@/lib/fees/calculator";
 import { resolveRelevantToken } from "@/lib/fees/relevantToken";
@@ -424,8 +424,10 @@ export async function POST(req: NextRequest) {
 
       // Atomic increment on creators.unclaimed_earnings_escrow.
       // The function sets unclaimed_escrow_first_accrued_at on first accrual only.
+      // Must use the service-role client — the function is REVOKED from anon/authenticated
+      // (see migration 20260422_increment_unclaimed_escrow_fn.sql).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: rpcErr } = await (supabase as any).rpc('increment_unclaimed_escrow', {
+      const { error: rpcErr } = await (createServiceClient() as any).rpc('increment_unclaimed_escrow', {
         p_creator_id: v2Fees.creatorId,
         p_amount: v2Fees.creatorSlice,
       });
