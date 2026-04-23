@@ -2202,6 +2202,229 @@ No rush, only right.
 
 ---
 
-<!-- Open questions -->
+## Open Questions
 
-<!-- Changelog -->
+Decisions we've intentionally deferred. Each one has context + tradeoffs
++ my recommendation, but is NOT locked. Before the associated Phase 2 or
+Phase 3 work begins, these get resolved and the resolution added to the
+Changelog below with a short rationale.
+
+### OQ-1. Auth pattern: session cookie vs. signed-message-per-request
+
+**Context:** P2-1 (auth middleware) is the foundational primitive. Two
+common patterns for wallet-backed auth:
+
+- **Session cookie** — User signs a one-time challenge, server issues
+  a signed HTTP-only cookie, cookie proves identity on subsequent
+  requests (with expiry)
+- **Signed-message-per-request** — Every mutating request includes a
+  fresh signature over the request body + timestamp; server verifies
+  signature before accepting
+
+**Tradeoffs:**
+- Session cookie: simpler UX (no popup per action), weaker per-request
+  security (cookie replay possible if stolen), easier to reason about
+- Per-request signatures: no replay possible (nonce/timestamp bounded),
+  heavier UX (some DeSo Identity flows popup per sign), more bugs to
+  handle on edge cases
+
+**Recommendation:** Session cookie for most routes + per-request signed
+nonce for high-value claim operations (P2-5). Hybrid matches the
+per-claim nonce pattern we already locked for CLAIM-2. Defer specific
+DeSo Identity integration details until P2-1 starts.
+
+**Locks before:** P2-1 begins.
+
+### OQ-2. Amount snapshot for holder rewards (REWARDS-7)
+
+**Context:** Per Path 4 design, holder rewards pay out in creator
+coins (not DESO). At claim time, we compute the coin nanos from the
+accrued USD amount. Two options:
+
+- **Compute at claim time** — `amount_usd / current_coin_price` →
+  coin nanos. Holder bears price fluctuation of the creator coin
+  between accrual and claim.
+- **Snapshot at accrual time** — capture `amount_creator_coin_nanos`
+  plus `creator_coin_price_at_accrual` on each holder_rewards row.
+  Pay out the snapshotted amount regardless of later price change.
+
+**Tradeoffs:**
+- Compute-at-claim: simpler schema (no extra columns), matches the
+  "USD is canonical" principle, but price movement between accrual
+  and claim shifts coins to/from the platform pool unpredictably
+- Snapshot-at-accrual: matches how `amount_deso_nanos` already works;
+  platform can reason about how many coins are earmarked for holders
+  at any moment; slightly more math at accrual time
+
+**Recommendation:** Snapshot at accrual. Matches existing pattern for
+`amount_deso_nanos` in `holder_rewards`. Makes platform-side reasoning
+about "how many coins are allocated to pending holder rewards" trivial
+to answer from the DB. Adds two columns via migration in P3-4a.
+
+**Locks before:** P3-4a begins.
+
+### OQ-3. Dispute mechanism for market resolution
+
+**Context:** RESOLUTION-4 flags that once resolved, outcomes are
+final. For crypto markets (price-based, cron-resolved from a feed),
+this is defensible. For future subjective markets (sports, politics,
+streamer events), contested resolutions are a product-level concern.
+
+**Tradeoffs:**
+- Ignore for MVP: crypto markets don't need it. Ship faster.
+- Build minimum-viable dispute (e.g., 24-hour challenge window, admin
+  review): adds a non-trivial module but enables broader market
+  categories sooner.
+
+**Recommendation:** Defer entirely until non-crypto markets are on
+the roadmap. Add to the product backlog but not the audit fix plan.
+
+**Locks before:** Non-crypto markets are prioritized (undated).
+
+### OQ-4. Creator coin nanos floor for TransferCreatorCoin
+
+**Context:** DeSo has a 1000-nanos floor for DeSo transfers. We don't
+yet know if the same floor applies to creator-coin transfers. If it
+does, some holder_rewards rows with sub-floor share amounts can't
+be individually paid out.
+
+**Tradeoffs:**
+- Assume same floor: skip rows below 1000 coin nanos at claim time,
+  leave them at status='pending' indefinitely (essentially lost from
+  the holder's perspective)
+- Aggregate then pay: the per-token claim pattern we locked already
+  aggregates across rows — the risk is an aggregated total still below
+  floor for a light holder
+- Introduce a per-user minimum claim threshold (e.g., $0.01) to smooth
+  the UX: holders accumulate until claim is worth it
+
+**Recommendation:** During P3-4a, smoke-test a sub-floor creator coin
+transfer on DeSo preview to answer the factual question. Then decide
+between behaviors above. Very likely: honor the floor at claim time,
+show holders a "minimum $X needed to claim" message if their aggregated
+balance is below floor.
+
+**Locks before:** P3-4b begins.
+
+### OQ-5. Platform wallet solvency alert thresholds
+
+**Context:** P2-6 introduces solvency check helpers. Alert thresholds
+(healthy / warning / critical) need specific dollar or nanos values.
+
+**Tradeoffs:**
+- Low thresholds ($1 warning, $0.50 critical): sensitive, lots of
+  alerts at low volume
+- High thresholds ($50 warning, $10 critical): quiet under low volume,
+  but warning comes late when volume grows
+
+**Recommendation:** Start conservative and iterate. Initial values:
+warning at < $10 DESO equivalent, critical at < $2. Revisit after
+platform sees sustained usage. These are configurable via env; no
+code change required to adjust.
+
+**Locks before:** P2-6 begins. Values documented in env config.
+
+### OQ-6. Twitter/URL verification fallback for creator claims
+
+**Context:** CLAIM-6 — the tweet/URL verification for creator claims
+is brittle. Already dependent on Twitter's paid v2 API or HTML
+scraping quirks.
+
+**Tradeoffs:**
+- Status quo: works today, breaks with Twitter API changes
+- Add alternative verification methods (e.g., DNS TXT record, a signed
+  message posted in a specific way)
+- Gate the claim behind an admin review queue
+
+**Recommendation:** Keep tweet verification as primary with URL
+scraping fallback. Add an admin-override path for edge cases
+(creator's account suspended, URL inaccessible). Build the admin
+override as part of P3-5c (admin dashboard scope).
+
+**Locks before:** P3-5c UI scope is finalized.
+
+### OQ-7. Resolution of the 5 pre-audit null-tx_hash trades
+
+**Context:** BUY-7 — 5 trades in the DB from before the tx_hash
+field was enforced. Cannot be retroactively verified on-chain.
+
+**Tradeoffs:**
+- Delete them: cleanest, loses any historical context
+- Sentinel value (e.g., `tx_hash='LEGACY-PRE-VERIFY'`): preserves
+  rows but explicitly marks them non-verifiable
+- Flag column (e.g., `tx_hash_verified=false`): most data but more
+  schema complexity
+
+**Recommendation:** Sentinel value. Preserves the historical record
+without complicating the schema. The migration in P3-1 that adds
+`NOT NULL` to tx_hash first updates any NULL rows to the sentinel,
+then adds the constraint. Document in the migration file explicitly.
+
+**Locks before:** P3-1 tx_hash migration.
+
+### OQ-8. Rate limit specific values
+
+**Context:** P2-3 proposed specific per-user limits (buy 60/min,
+sell 60/min, winner claim 30/min, holder claim 30/min, creator
+claim 5/min). These are opinions, not data.
+
+**Tradeoffs:**
+- Too tight: legitimate users see 429s during flurry of activity
+- Too loose: minimal defense against automated attacks
+
+**Recommendation:** Start with proposed values. Instrument rate-limit
+hits via Phase 4 observability. Iterate based on real usage patterns.
+All values env-configurable.
+
+**Locks before:** P2-3 begins. Values can be tuned without code
+changes thereafter.
+
+---
+
+## Changelog
+
+Audit findings as they are resolved. Every branch that resolves one or
+more findings adds an entry here as part of its merge to main.
+
+Entry format:
+```
+| YYYY-MM-DD | FINDING-ID | Status | Commit | Notes |
+```
+
+Status values:
+- **Resolved** — fix shipped and verified
+- **Mitigated** — partial fix, remaining work tracked
+- **Obsolete** — finding no longer applies (e.g., due to architecture change)
+- **Deferred** — intentionally not yet addressed (P2 items usually)
+
+### Resolved
+
+| Date | Finding | Status | Commit | Notes |
+|------|---------|--------|--------|-------|
+| | | | | |
+
+*(Empty until first Phase 2/3 fix lands.)*
+
+### In Progress
+
+*(Track active branches here to prevent parallel work on same findings.)*
+
+### Deferred
+
+| Finding | Rationale | Revisit when |
+|---------|-----------|--------------|
+| RESOLUTION-4 | No non-crypto markets on MVP roadmap | Non-crypto markets prioritized |
+| CLAIM-6 (long-term) | Tweet verification works today; admin override lands in P3-5c | Twitter API breakage observed |
+
+---
+
+## Document History
+
+| Date | Action | Commits |
+|------|--------|---------|
+| 2026-04-23 | Doc created, Phase 1 complete | 950c83f → <this commit> |
+
+---
+
+*End of AUDIT_MONEY_FLOWS.md.*
+*Phase 1 complete. Phase 2 begins with P2-1 (auth middleware).*
