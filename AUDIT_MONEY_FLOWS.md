@@ -1731,7 +1731,476 @@ because they're at a different architectural layer.
 
 ---
 
-<!-- Prioritized fix list -->
+## Prioritized Fix List
+
+The sequenced plan for turning the audit findings into correct code.
+Organized by phase, then by dependency order within each phase.
+
+**Legend:**
+- **P0** — Launch blocker. Must be resolved before real users.
+- **P1** — Hardening / correctness. Required for production quality,
+  not strictly for launch.
+- **P2** — Future / nice-to-have.
+- **[scope: X sessions]** — rough estimate of pair-programming sessions
+  at the current pace. Not deadlines — sanity checks.
+
+Phases reference the overall rebuild plan:
+- **Phase 2** — Shared primitives (foundation)
+- **Phase 3** — Per-path fixes (build on primitives)
+- **Phase 4** — Operational tooling (reconciliation, observability)
+- **Phase 5** — Integration tests
+- **Phase 6** — Merge to main
+
+---
+
+### Phase 2 — Shared Primitives (build in this order)
+
+Each primitive unblocks one or more Phase 3 path fixes. Build in
+dependency order; parallelize only where explicitly noted.
+
+#### P2-1. Auth middleware [P0] [scope: 1-2 sessions]
+
+**What it is:** Next.js edge middleware (`middleware.ts` at repo root)
+that verifies the requester owns the `desoPublicKey` they're acting
+as. Session-backed or signed-message-per-request (specific pattern in
+Open Questions). Attaches a verified `desoPublicKey` to request
+context; rejects anything that can't be verified.
+
+**Unblocks:** BUY-1, SELL-1, CLAIM-2. Also protects every new route
+introduced in Phase 3 by default.
+
+**Dependencies:** None. First piece to build.
+
+**Done when:**
+- `middleware.ts` live at repo root
+- All current `/api/trades`, `/api/trades/sell`, creator claim routes
+  require auth (401 without valid session)
+- Session key matching the request body's `desoPublicKey` is enforced
+- Unit tests for the middleware logic (valid session, expired session,
+  missing session, mismatched public key)
+- Integration test on preview: a request with no session returns 401;
+  a valid session is attached to req.context
+
+#### P2-2. `lib/deso/verifyTx.ts` [P0] [scope: 1 session]
+
+**What it is:** New module with `verifyDesoTransfer(txHash,
+expectedSender, expectedRecipient, expectedAmountNanos)` that queries
+DeSo on-chain for a tx by hash, returns typed success/failure.
+
+**Unblocks:** BUY-2, BUY-3 (closes the free-money glitch in buy).
+
+**Dependencies:** None. Can be built in parallel with P2-1.
+
+**Done when:**
+- Module exports `verifyDesoTransfer(...)` returning tagged union
+  (matches `signAndSubmit` tagged-result pattern)
+- Handles: tx not found, sender mismatch, recipient mismatch, amount
+  less than claimed, DeSo API unavailable (rejects under uncertainty)
+- Unit tests cover each rejection path
+- Smoke test against a real DeSo tx on preview (the Step 3d
+  `51fb45f8...` tx, or any known tx) verifies the happy path
+
+#### P2-3. Rate limiting infrastructure [P0] [scope: 1 session]
+
+**What it is:** Per-user and per-IP rate limits on money-movement
+routes. Lives in the same `middleware.ts` as P2-1 or adjacent.
+Backing store: Upstash Redis or equivalent.
+
+**Unblocks:** BUY-5 directly. Defense in depth for every claim route.
+
+**Dependencies:** P2-1 (needs verified user identity for per-user keys).
+
+**Done when:**
+- Per-user limits live: buy 60/min, sell 60/min, winner claim 30/min,
+  holder rewards claim 30/min, creator claim 5/min
+- Per-IP baseline for unauthenticated attempts
+- Rejection returns 429 with Retry-After header
+- Metrics surfaced for rate-limit hits (ties into Phase 4
+  observability)
+
+#### P2-4. `lib/deso/transfer.ts` [P0] [scope: 1-2 sessions]
+
+**What it is:** New module with `transferCreatorCoin(fromSeed,
+recipientPublicKey, creatorCoinPublicKey, amountCoinNanos)` that
+signs + submits a DeSo `TransferCreatorCoin` operation. Pattern
+mirrors `lib/deso/buyback.ts` (shipped 3d.2c): fire-and-forget
+contract, never throws, writes status/tx_hash back to ledger row.
+
+**Unblocks:** REWARDS-3 → which blocks Path 4 (holder rewards claim).
+
+**Dependencies:** None for the primitive itself; consumers depend on
+Phase 3 path work.
+
+**Done when:**
+- Module exports `executeTokenTransfer({...})` matching the shape of
+  `executeTokenBuyback`
+- Handles: invalid inputs, rate fetch, too-small-amount floor,
+  DeSo API failure, sign failure, submit failure
+- Writes status ('paid'/'failed') and tx_hash to a caller-specified
+  ledger row on completion
+- Unit tests for `validateTransferInputs`
+- Smoke test on preview: transfer ~0.0001 $bitcoin from platform
+  wallet to a test wallet, verify on-chain
+
+#### P2-5. Signed-nonce challenge flow [P0] [scope: 1 session]
+
+**What it is:** Small infrastructure for issuing a random challenge
+nonce and verifying the client's signed response proves they control
+a given DeSo wallet. Used at critical state-change moments beyond
+bare auth.
+
+**Unblocks:** CLAIM-2 wallet-ownership proof. Also available to
+future sensitive operations (e.g., wallet un-linking, admin-level
+creator profile changes).
+
+**Dependencies:** P2-1 (auth exists; nonce is a stronger per-action
+proof on top).
+
+**Done when:**
+- `POST /api/auth/challenge` returns a nonce tied to a desoPublicKey
+  and an action type
+- Server stores nonce with TTL (Upstash or Supabase)
+- Verification helper: `verifyChallengeSignature(nonce, signature,
+  publicKey)` validates the signature was produced by the wallet
+- Single-use: nonce invalidated after first verification
+- Unit tests for nonce generation, signature verification, replay
+  rejection
+
+#### P2-6. Platform wallet solvency helpers [P1] [scope: 1 session]
+
+**What it is:** `lib/deso/platformWalletHealth.ts` — originally scoped
+for Step 3d.4 (the commit that didn't land). Functions:
+`getPlatformDesoBalance()`, `getPlatformCreatorCoinBalance(coinPk)`,
+`isSolventFor(amountNanos, coinPk?)`.
+
+**Unblocks:** RESOLUTION-3, CLAIM-1 (solvency checks), plus Phase 4
+observability dashboards.
+
+**Dependencies:** None. Pure read-side queries against DeSo.
+
+**Done when:**
+- Module exports the three functions above
+- Results cached for ~30s to avoid DeSo API spam
+- Admin endpoint `GET /api/admin/platform-wallet-health` exposes JSON
+  status (for manual inspection and Phase 4 dashboard)
+- Unit tests for threshold logic (healthy/warning/critical)
+
+#### P2-7. Atomic transaction RPC pattern [P0] [scope: baked into Phase 3]
+
+**What it is:** Not a standalone commit. The Liability-Ledger pattern
+for any money-movement flow requires Postgres stored procedures
+wrapping multi-row writes. Every Phase 3 fix introduces one or more
+such RPCs following the same naming and shape conventions.
+
+**Unblocks:** BUY-4 (trade+position+fees atomicity) and the equivalent
+atomicity need in every other path.
+
+**Dependencies:** None — baked into each Phase 3 path fix.
+
+**Shape for future writers:**
+- Function name: `atomic_<verb>_<object>` (e.g., `atomic_record_trade`,
+  `atomic_resolve_market`, `atomic_settle_creator_claim`)
+- Takes all required inputs as arguments
+- Explicit `BEGIN` / `COMMIT` with meaningful error raises
+- SECURITY DEFINER with revoke from anon/authenticated, grant to
+  service_role only (pattern from `increment_unclaimed_escrow`,
+  Step 3b.1)
+- Migration file + rollback file pair per function
+
+---
+
+### Phase 3 — Per-Path Fixes (in order)
+
+Each path is a branch off main, reviewed and merged independently.
+Scope includes schema migrations, route changes, UI updates, tests.
+
+#### P3-1. Buy flow hardening [P0] [scope: 2-3 sessions]
+
+**Resolves:** BUY-1, BUY-2, BUY-3, BUY-4, BUY-5, BUY-6, BUY-8
+(BUY-7 handled as part of migration safety check).
+
+**Dependencies:** P2-1 (auth), P2-2 (verifyTx), P2-3 (rate limit),
+P2-7 (atomic RPC pattern).
+
+**Changes:**
+- `app/api/trades/route.ts` — uses auth context, calls verifyTx
+  before any DB writes, uses atomic_record_trade RPC
+- New migration: `UNIQUE` constraint on `trades.tx_hash` (include
+  safety check that no duplicate exists)
+- New migration: `NOT NULL` constraint on `trades.tx_hash` (handle
+  the 5 legacy rows — likely delete them or add sentinel value)
+- New migration: Supabase RPC `atomic_record_trade(...)`
+- Zod schema: `amount` gets max bound; `desoPublicKey` removed from
+  request body (derived from auth context)
+- Client: `TradeTicket.tsx` continues to send DeSo payment before
+  POSTing trade (unchanged); POST body no longer includes
+  `desoPublicKey`
+
+**Testing:**
+- Unit: verifyTx logic, atomic RPC correctness
+- Preview: happy-path trade succeeds; attempt with bad tx_hash rejected;
+  attempt to replay same tx_hash rejected; rate limit enforced;
+  amount > claimed tx amount rejected
+- Regression: Step 3 fee accrual and auto-buy still work end-to-end
+
+#### P3-2. Sell flow rewrite [P0] [scope: 2 sessions]
+
+**Resolves:** SELL-1, SELL-2, SELL-3, SELL-4, SELL-6, SELL-7, SELL-8
+(SELL-5 is informational, no change needed).
+
+**Dependencies:** P2-1 (auth), P2-3 (rate limit), P2-7 (atomic RPC).
+
+**Changes:**
+- `app/api/trades/sell/route.ts` rewrite:
+  - Uses auth context
+  - Flips order: insert trade with `payout_status='pending'` first
+  - Attempts on-chain send via `signAndSubmit`
+  - On success: atomic RPC closes/reduces position AND updates trade
+    to `payout_status='paid'` + `payout_tx_hash`
+  - On failure: updates trade to `payout_status='failed'` + reason;
+    position untouched
+- New migration: add `payout_status`, `payout_tx_hash`, `payout_at`,
+  `payout_failed_reason` columns to `trades`; CHECK constraint on
+  `payout_status`; partial index for pending/failed rows
+- Canonicalize `api.deso.org` (drop `node.deso.org` usage)
+- Nanos floor constant moved to shared location
+- Drop or document `positions.deso_staked_nanos` and `positions.txn_hash`
+
+**Testing:**
+- Unit: atomic settle RPC, payout_status transition rules
+- Preview: happy-path sell, simulated DeSo failure (via env override
+  or test hook) leaves position open and trade marked failed
+
+#### P3-3. Resolution consolidation + winner claim [P0] [scope: 3-4 sessions]
+
+**Resolves:** RESOLUTION-1, RESOLUTION-2, RESOLUTION-3, RESOLUTION-6
+(RESOLUTION-4/5 are P2 future work).
+
+**Sub-order:**
+
+##### P3-3a. Consolidate resolution routes (pure refactor) [scope: 1 session]
+
+- Extract shared logic to `lib/markets/resolution.ts`
+- `app/api/admin/resolve-market/route.ts` and
+  `app/api/markets/[id]/resolve/route.ts` and
+  `app/api/admin/auto-resolve/route.ts` become thin wrappers
+- Cron route calls shared lib directly
+- Delete nothing yet — just extraction. Deletion happens in
+  P3-3b after the new routes are proven live.
+- No behavior change. Tests still pass. Green preview.
+
+##### P3-3b. Position payouts ledger + atomic_resolve_market [scope: 1 session]
+
+- New table: `position_payouts` (append-only ledger for winning
+  positions; `claim_status` enum: pending, in_flight, paid, failed,
+  blocked_insolvent, abandoned)
+- New migration: Supabase RPC `atomic_resolve_market(marketId, outcome)`
+  that transitions market + positions + inserts position_payouts in
+  one transaction
+- Update `lib/markets/resolution.ts` to call the new RPC
+- After P3-3b lands: resolved markets now have ledger rows
+- Still no payout happens (claim flow is P3-3c); UI should start
+  showing "$X claimable" on settled winning positions
+
+##### P3-3c. Winner claim API + UI [scope: 2 sessions]
+
+- New route: `POST /api/positions/[id]/claim-winnings` (uses auth
+  + rate limit + solvency check)
+- Flow per Path 3 target behavior: load payout row, mark in_flight,
+  send DESO, mark paid/failed
+- New UI component: "Claim $X" button on settled winning positions
+- Email/push notification: "Your position won $X — claim anytime"
+- After P3-3c lands: winners can actually receive DESO
+
+**Testing:**
+- Unit: atomic_resolve_market, claim-winnings idempotency
+- Preview: resolve a small market with a winning position, claim it,
+  verify DESO lands on-chain (same pattern as Step 3d test trade)
+
+#### P3-4. Holder rewards claim [P0] [scope: 3-4 sessions]
+
+**Resolves:** REWARDS-1, REWARDS-2, REWARDS-3, REWARDS-4, REWARDS-5,
+REWARDS-6, REWARDS-7.
+
+**Dependencies:** P2-1, P2-3, P2-4 (transferCreatorCoin), P2-6
+(solvency), P2-7.
+
+**Sub-order:**
+
+##### P3-4a. Schema updates [scope: 0.5 session]
+
+- Migration: add `amount_creator_coin_nanos` and
+  `creator_coin_price_at_accrual` columns to `holder_rewards`
+- Migration: expand `holder_rewards.status` CHECK to include
+  `in_flight`, `claimed`, `failed`, `blocked_insolvent`, `abandoned`
+- Update `snapshotHolders` in `lib/fees/holderSnapshot.ts` to
+  populate the new columns at accrual time (requires fetching the
+  relevant token's coin price; extend existing rate fetch)
+
+##### P3-4b. Holder claim API + SQL view + UI [scope: 2 sessions]
+
+- New SQL view: `v_holder_rewards_pending_by_user`
+- New route: `GET /api/holder-rewards/balance` — returns aggregated
+  pending per token for current user
+- New route: `POST /api/holder-rewards/claim` — aggregates per-token,
+  locks rows as in_flight, calls `executeTokenTransfer`, transitions
+  to claimed/failed based on result
+- New UI: rewards dashboard showing claimable tokens, per-token claim
+  button
+- Copy update: terms and footer match reality
+
+##### P3-4c. Legacy cleanup [scope: 0.5 session]
+
+- Address REWARDS-4 (5 stale auto_buy_pool rows): mark 'abandoned'
+  via a one-off script with explicit audit reason
+
+**Testing:**
+- Unit: claim aggregation math, rounding correctness with new
+  creator-coin nanos field
+- Preview: trigger several holder rewards accruals, claim them, verify
+  creator coin arrives in the holder's DeSo wallet on-chain
+
+#### P3-5. Creator profile claim rewrite [P0] [scope: 3-4 sessions]
+
+**Resolves:** CLAIM-1, CLAIM-2, CLAIM-3, CLAIM-5, CLAIM-6
+(acknowledged P2), CLAIM-7.
+
+**Dependencies:** P2-1, P2-3, P2-5 (nonce challenge), P2-6 (solvency),
+P2-7. Intentionally last because it benefits from the claim-flow
+template established in P3-3 and P3-4.
+
+**Sub-order:**
+
+##### P3-5a. Consolidate claim routes (pure refactor) [scope: 1 session]
+
+- Extract shared claim logic to `lib/creators/claim.ts`
+- Keep the canonical `POST /api/creators/[slug]/claim` as the
+  single entry point
+- Delete `/api/claim/verify`, `/api/creators/[slug]/verify-claim`,
+  `/api/creators/claim` stub
+- `ClaimProfileModal.tsx` calls only the canonical route
+- No behavior change yet. Tests pass. The existing bug is still
+  present but in one place now.
+
+##### P3-5b. Creator claim payouts ledger + rewrite flow [scope: 2 sessions]
+
+- New table: `creator_claim_payouts` (append-only; statuses match
+  the standard set). Unique partial index on creator_id where
+  status IN ('in_flight', 'paid') enforces idempotency.
+- New migrations:
+  - `atomic_start_creator_claim(...)` RPC
+  - `atomic_settle_creator_claim(...)` RPC — zeros
+    `unclaimed_earnings_escrow` ONLY after DESO confirmed sent
+- Rewrite `lib/creators/claim.ts`:
+  - Uses signed-nonce challenge for wallet-ownership proof
+  - Writes creator_claim_payouts row with `in_flight`
+  - Calls `signAndSubmit` for DESO send
+  - Transitions row + creator state via atomic_settle
+- Drop or view-replace `creators.total_creator_earnings` (CLAIM-5
+  resolution)
+
+##### P3-5c. UI and copy [scope: 1 session]
+
+- Update `ClaimProfileModal.tsx` to surface nonce challenge step
+- Show pending/succeeded/failed claim state
+- Admin dashboard shows claims in progress and stuck claims
+
+**Testing:**
+- Unit: atomic_start/settle RPCs, idempotency (double-submit rejected)
+- Preview: claim a test shadow profile, verify DESO arrives in claimer's
+  wallet, verify escrow zeroed AFTER confirmation, verify ledger row
+  status is `paid` with real tx_hash
+
+---
+
+### Phase 4 — Operational Tooling (mostly parallel with late Phase 3)
+
+#### P4-1. Reconciliation tooling [P1] [scope: 1-2 sessions]
+
+Scheduled job finds ledger rows in non-terminal status older than N
+minutes. Surfaces counts per path on admin dashboard. Allows operator
+retry or mark-abandoned actions. Tables watched:
+`fee_earnings`, `holder_rewards`, `position_payouts`,
+`creator_claim_payouts`, `trades.payout_status`.
+
+**Dependencies:** Phase 3 path fixes introduce each ledger.
+
+#### P4-2. Structured logging + metrics [P1] [scope: 1 session]
+
+JSON structured logs from all money-movement code paths. Metrics for:
+trade success rate, claim success rate, failed-status counts per path.
+Platform wallet balance + solvency alerts.
+
+**Dependencies:** Ongoing throughout Phase 3.
+
+#### P4-3. Marketing/copy integrity audit [P0 for launch] [scope: 0.5 session]
+
+Before any path's P0 fix ships to main: audit all user-facing copy,
+terms, FAQ, and marketing for claims about unimplemented behavior.
+Update in the same commit as the backing code lands.
+
+**Dependencies:** Each Phase 3 merge triggers this check.
+
+#### P4-4. Legacy data cleanup (scheduled as paths land) [P1] [scope: 0.5 session total]
+
+Per-path legacy items handled as part of each Phase 3 path fix:
+- BUY-7: 5 null-tx_hash trades → delete or sentinel in P3-1
+- REWARDS-4: 5 stale auto_buy_pool pending → mark abandoned in P3-4c
+- SELL-8: unused position columns → drop or document in P3-2
+- CLAIM-5: `total_creator_earnings` column → view-replace in P3-5b
+
+---
+
+### Phase 5 — Integration Tests [P0] [scope: 1-2 sessions]
+
+Full end-to-end flows on a preview deploy:
+
+- Buy → Sell round trip (same user, single position, verify all on-chain)
+- Buy → Hold through resolution → Winner claim (verify DESO received)
+- Multiple trades → Holder rewards accrue → Claim (verify creator coins
+  received)
+- Unclaimed creator market → Creator claim (verify escrow released,
+  DESO received, escrow zeroed in ledger)
+
+Attack simulations:
+- Replay same tx_hash (should reject)
+- Spoof desoPublicKey (should 401)
+- Trade amount > on-chain send (should reject)
+- Double-submit claim (second should no-op idempotently)
+- Rate limit overflow (should 429)
+
+**Dependencies:** All Phase 3 paths shipped.
+
+---
+
+### Phase 6 — Merge to Main [P0] [scope: 0.5 session]
+
+Once Phase 5 passes cleanly on preview:
+
+- Merge `feat/tokenomics-v2` to main (Step 3 work — 26 commits)
+- Merge each Phase 3 path's branch in dependency order
+- Final staging smoke test on production
+- Update DECISIONS.md and CLAUDE.md to reference this doc
+- Archive this doc's "Changelog" section with final status per finding
+
+---
+
+### Summary — estimated total scope
+
+Phase 2 primitives: 5-8 sessions
+Phase 3 path fixes: 13-16 sessions
+Phase 4 operational: 2-3 sessions
+Phase 5 integration tests: 1-2 sessions
+Phase 6 merge: 0.5 session
+
+**Total: 21-30 pair-programming sessions** to ship a verified,
+correctly-architected Caldera. Consistent with the original 10-15
+estimate at project kickoff for "fix everything" — the audit
+refinement roughly doubled visible scope. Still bounded. Still right.
+
+No rush, only right.
+
+---
 
 <!-- Open questions -->
 
