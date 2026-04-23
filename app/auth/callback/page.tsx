@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppStore } from "@/store";
+import { getDesoIdentity } from "@/lib/deso/identity";
 
 function AuthCallbackInner() {
   const router = useRouter();
@@ -79,11 +80,27 @@ function AuthCallbackInner() {
         const username = profileRes.Profile?.Username || publicKey.substring(0, 8);
         const avatarUrl = `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`;
 
-        await fetch("/api/auth/deso-login", {
+        const identity = getDesoIdentity();
+        let desoJwt: string;
+        try {
+          desoJwt = await identity.jwt();
+        } catch (jwtErr) {
+          console.error("[auth/callback] identity.jwt() failed:", jwtErr);
+          const returnTo = localStorage.getItem("caldera_auth_return") || "/";
+          localStorage.removeItem("caldera_auth_return");
+          router.push(returnTo);
+          return;
+        }
+
+        const loginRes = await fetch("/api/auth/deso-login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ publicKey, username, avatarUrl }),
-        }).catch((e) => console.warn("[auth/callback] supabase upsert failed:", e));
+          body: JSON.stringify({ publicKey, desoJwt, username, avatarUrl }),
+        });
+
+        if (!loginRes.ok) {
+          console.error("[auth/callback] deso-login failed:", loginRes.status);
+        }
 
         // Extract derived key params if present
         const derivedPublicKey = searchParams.get("derivedPublicKey") ?? undefined;
