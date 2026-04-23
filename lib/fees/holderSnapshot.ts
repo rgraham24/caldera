@@ -76,20 +76,94 @@ export function computeHolderShares(
     .filter(s => s.share_usd > 0);
 }
 
-// ─── DeSo API: fetch all holders (paginated) ───────────────────────
+// ─── DeSo API: fetch all holders ───────────────────────────────────
+
+const DESO_API_BASE = 'https://api.deso.org';
+const MAX_HOLDER_COUNT = 50_000;
 
 /**
- * STUB for 3c.1 — real implementation lands in 3c.2.
+ * Fetches all holders of a DeSo creator coin using FetchAll=true.
  *
- * Will paginate DeSo /api/v0/get-hodlers-for-public-key with
- * NumToFetch=100 and LastPublicKeyBase58Check cursor until we've
- * fetched all holders.
+ * Filters out the issuer's own holding (founder reward).
+ * The issuer is identified by matching HODLerPublicKeyBase58Check
+ * to the coin's own public key — this is the creator holding their
+ * own supply, not an organic holder, and rewarding it would be
+ * self-dealing (especially for platform-issued crypto coins and
+ * category tokens).
+ *
+ * Returns empty array on API error — logs but doesn't throw. The
+ * caller (snapshotHolders) is fire-and-forget and should gracefully
+ * handle no holders.
+ *
+ * Sanity cap: if we get more than MAX_HOLDER_COUNT holders, log a
+ * warning but still proceed. No DeSo coin is anywhere near this yet
+ * but guards against future runaway.
  */
 export async function fetchAllHolders(
-  _desoPublicKey: string
+  desoPublicKey: string
 ): Promise<DesoHolder[]> {
-  // TODO(3c.2): implement pagination against DeSo API
-  throw new Error('fetchAllHolders not implemented — see 3c.2');
+  try {
+    const response = await fetch(
+      `${DESO_API_BASE}/api/v0/get-hodlers-for-public-key`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          PublicKeyBase58Check: desoPublicKey,
+          LastPublicKeyBase58Check: '',
+          FetchAll: true,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error(
+        `[fetchAllHolders] DeSo API returned ${response.status} for ${desoPublicKey}`
+      );
+      return [];
+    }
+
+    const json = await response.json();
+    const rawHolders: Array<DesoHolder & { CreatorPublicKeyBase58Check?: string }> =
+      json.Hodlers || [];
+
+    if (rawHolders.length > MAX_HOLDER_COUNT) {
+      console.warn(
+        `[fetchAllHolders] ${desoPublicKey} has ${rawHolders.length} holders ` +
+        `(cap ${MAX_HOLDER_COUNT}) — snapshot may be slow.`
+      );
+    }
+
+    // Filter: exclude the issuer's self-holding (founder reward).
+    // The issuer is identified by HODLerPublicKeyBase58Check === desoPublicKey
+    // (the creator coin's own public key). DeSo also returns CreatorPublicKeyBase58Check
+    // per entry; we cross-check when available.
+    const filtered = rawHolders.filter(h => {
+      // Primary: self-holding by public key equality
+      if (h.HODLerPublicKeyBase58Check === desoPublicKey) return false;
+      // Defensive: if CreatorPublicKeyBase58Check is present and matches the
+      // holder, also filter. (DeSo uses this to mark the creator's own row.)
+      if (
+        h.CreatorPublicKeyBase58Check &&
+        h.CreatorPublicKeyBase58Check === h.HODLerPublicKeyBase58Check
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    // Map to our clean DesoHolder shape (drop any extra fields).
+    return filtered.map(h => ({
+      HODLerPublicKeyBase58Check: h.HODLerPublicKeyBase58Check,
+      BalanceNanos: h.BalanceNanos,
+    }));
+  } catch (err) {
+    console.error(
+      `[fetchAllHolders] fetch failed for ${desoPublicKey}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+    return [];
+  }
 }
 
 // ─── Entry point ───────────────────────────────────────────────────
