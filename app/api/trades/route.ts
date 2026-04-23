@@ -396,6 +396,48 @@ export async function POST(req: NextRequest) {
       if (error) console.error('[trades] fee_earnings insert failed for creator:', error.message, error.details);
     }
 
+    // 5. Creator escrow accrual — unclaimed creators.
+    //    Writes both a fee_earnings row (for audit trail) AND increments
+    //    creators.unclaimed_earnings_escrow via the atomic RPC (race-safe).
+    //    Rolls over to $Caldera<Category> holder rewards after 12 months.
+    //    See DECISIONS.md 2026-04-21.
+    if (
+      v2Fees.creatorSlice > 0 &&
+      v2Fees.creatorSliceDestination === "escrow" &&
+      v2Fees.creatorId
+    ) {
+      // Ledger row first — unified audit trail.
+      const { error: feeErr } = await supabase.from("fee_earnings").insert({
+        recipient_type: "creator_escrow",
+        recipient_id: v2Fees.creatorId,
+        source_type: "trade",
+        source_id: trade.id,
+        amount: v2Fees.creatorSlice,
+        currency: "USD",
+      });
+      if (feeErr) {
+        console.error(
+          '[trades] fee_earnings insert failed for creator_escrow:',
+          feeErr.message, feeErr.details
+        );
+      }
+
+      // Atomic increment on creators.unclaimed_earnings_escrow.
+      // The function sets unclaimed_escrow_first_accrued_at on first accrual only.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: rpcErr } = await (supabase as any).rpc('increment_unclaimed_escrow', {
+        p_creator_id: v2Fees.creatorId,
+        p_amount: v2Fees.creatorSlice,
+      });
+      if (rpcErr) {
+        console.error(
+          '[trades] increment_unclaimed_escrow RPC failed:',
+          rpcErr.message,
+          `creator_id=${v2Fees.creatorId} amount=${v2Fees.creatorSlice}`
+        );
+      }
+    }
+
     // Coin holder pool distribution
     if (fees.coinHolderPoolFee > 0 && market.creator_id) {
       const { data: creator } = await supabase
