@@ -7,6 +7,7 @@ import { snapshotHolders } from "@/lib/fees/holderSnapshot";
 import { executeTokenBuyback } from "@/lib/deso/buyback";
 import { z } from "zod";
 import { getAuthenticatedUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyDesoTransfer, type VerifyFailReason } from "@/lib/deso/verifyTx";
 import { fetchDesoUsdRate, usdToDesoNanos } from "@/lib/deso/rate";
 
@@ -42,6 +43,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const desoPublicKey = authed.publicKey;
+
+    // ── P2-3.3: per-user rate limit ──────────────────────────────
+    // Prevents cost-amplification DoS (spamming triggers verifyTx +
+    // DeSo rate fetch + DB writes). Fails open on Upstash errors.
+    const rl = await checkRateLimit(`trades:${desoPublicKey}`, "trades");
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests", resetAt: rl.resetAt },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": String(rl.remaining),
+            "X-RateLimit-Reset": String(rl.resetAt),
+          },
+        }
+      );
+    }
+    // ── end P2-3.3 ───────────────────────────────────────────────
 
     // ── P2-2.4: verify the DeSo tx on-chain ───────────────────────
     // Closes BUY-2 (fake txHash → free positions) and BUY-3

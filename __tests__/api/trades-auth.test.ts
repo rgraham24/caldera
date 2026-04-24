@@ -45,6 +45,14 @@ vi.mock("@/lib/deso/verifyTx", () => ({
   verifyDesoTransfer: vi.fn(),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 9,
+    resetAt: Date.now() + 60_000,
+  }),
+}));
+
 import { POST as tradesPOST } from "@/app/api/trades/route";
 import { POST as sellPOST } from "@/app/api/trades/sell/route";
 import { verifyDesoTransfer } from "@/lib/deso/verifyTx";
@@ -332,5 +340,155 @@ describe("POST /api/trades — P2-2.4 verification", () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.reason).toBe("duplicate-tx-hash");
+  });
+});
+
+describe("POST /api/trades — P2-3.3 rate limiting", () => {
+  // Re-import the mocked checkRateLimit so we can change its behavior
+  // per-test without resetting the whole mock.
+  const getMockedCheckRateLimit = async () => {
+    const mod = await import("@/lib/rate-limit");
+    return mod.checkRateLimit as ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(async () => {
+    mockFrom.mockReset();
+    process.env.DESO_PLATFORM_PUBLIC_KEY =
+      "BC1YLjFkekgEqyLsghWfhHpJidmyanfa3cvxxA933EgVDu9YuaAwaH7";
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockReset();
+  });
+
+  it("returns 429 when rate limit denies", async () => {
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 30_000,
+    });
+
+    const validBody = {
+      marketId: "m1",
+      side: "yes",
+      amount: 1,
+      txnHash: "3459d59cc8efa4dc76c8802cc6b72510e7c90bf2af31da85edc8d8c2fdee6116",
+    };
+    const req = makeReq(
+      "http://localhost/api/trades",
+      validBody,
+      { authed: true }
+    );
+
+    const res = await tradesPOST(req as never);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
+    expect(res.headers.get("X-RateLimit-Reset")).toBeTruthy();
+  });
+
+  it("proceeds past rate limit when allowed=true", async () => {
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 60_000,
+    });
+
+    // Everything downstream can fail; we just need to prove we got
+    // past the 429 gate (status !== 429).
+    const validBody = {
+      marketId: "m1",
+      side: "yes",
+      amount: 1,
+      txnHash: "3459d59cc8efa4dc76c8802cc6b72510e7c90bf2af31da85edc8d8c2fdee6116",
+    };
+    const req = makeReq(
+      "http://localhost/api/trades",
+      validBody,
+      { authed: true }
+    );
+
+    const res = await tradesPOST(req as never);
+    expect(res.status).not.toBe(429);
+  });
+
+  it("uses the correct bucketKey format trades:{publicKey}", async () => {
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 60_000,
+    });
+
+    const validBody = {
+      marketId: "m1",
+      side: "yes",
+      amount: 1,
+      txnHash: "3459d59cc8efa4dc76c8802cc6b72510e7c90bf2af31da85edc8d8c2fdee6116",
+    };
+    const req = makeReq(
+      "http://localhost/api/trades",
+      validBody,
+      { authed: true }
+    );
+
+    await tradesPOST(req as never);
+
+    expect(mocked).toHaveBeenCalledWith(
+      expect.stringMatching(/^trades:BC1Y/),
+      "trades"
+    );
+  });
+});
+
+describe("POST /api/trades/sell — P2-3.3 rate limiting", () => {
+  const getMockedCheckRateLimit = async () => {
+    const mod = await import("@/lib/rate-limit");
+    return mod.checkRateLimit as ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(async () => {
+    mockFrom.mockReset();
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockReset();
+  });
+
+  it("returns 429 when rate limit denies on sell route", async () => {
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 30_000,
+    });
+
+    const req = makeReq(
+      "http://localhost/api/trades/sell",
+      { marketId: "m1", side: "yes", shares: 5 },
+      { authed: true }
+    );
+
+    const res = await sellPOST(req as never);
+    expect(res.status).toBe(429);
+  });
+
+  it("uses sell:{publicKey} bucket, separate from trades:", async () => {
+    const mocked = await getMockedCheckRateLimit();
+    mocked.mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 60_000,
+    });
+
+    const req = makeReq(
+      "http://localhost/api/trades/sell",
+      { marketId: "m1", side: "yes", shares: 5 },
+      { authed: true }
+    );
+
+    await sellPOST(req as never);
+
+    expect(mocked).toHaveBeenCalledWith(
+      expect.stringMatching(/^sell:BC1Y/),
+      "trades"
+    );
   });
 });
