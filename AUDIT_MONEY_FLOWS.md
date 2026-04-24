@@ -2428,6 +2428,7 @@ Status values:
 | 2026-04-23 | Doc created, Phase 1 complete | 950c83f → b0903c1 |
 | 2026-04-24 | P2-1 shipped (auth middleware). BUY-1, SELL-1 resolved; CLAIM-2 mitigated. | 81b9ef3 → 379c51d |
 | 2026-04-25 | P2-2 shipped (tx verification + replay defense). BUY-2, BUY-3 resolved; BUY-5 mitigated. | d962b33 → 62e9187 |
+| 2026-04-26 | P2-4 shipped (creator-coin transfer primitive). Infrastructure — unblocks Phase 3 Path 4 (holder rewards claim). No audit finding closes here; waits for route wiring. | d90b080 → 26f12e5 |
 
 ---
 
