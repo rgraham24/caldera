@@ -2407,6 +2407,8 @@ Status values:
 | 2026-04-25 | BUY-2 | Resolved | 62e9187 | `/api/trades` now calls `verifyDesoTransfer` from `lib/deso/verifyTx.ts` before any DB writes. Verifier queries DeSo's `api/v1/transaction-info`, checks tx exists, is BASIC_TRANSFER, sender matches authenticated user, recipient is platform wallet, amount ≥ expected (2% tolerance for rate drift). Fails closed on DeSo API unreachable. E2E validated on preview: legit $1 trade 200; random explorer tx hash rejected with `tx-not-basic-transfer`; fake hash rejected with validation error. |
 | 2026-04-25 | BUY-3 | Resolved | 62e9187, 00ad130 | Two-layer defense: (1) DB UNIQUE constraint on `trades.tx_hash` added in P2-2.3 migration — Postgres error 23505 → HTTP 409 in route. (2) `verifyDesoTransfer` sender-check rejects replays of someone else's tx (sender would not match authenticated user). E2E validated: reusing own valid tx_hash returned 409 `duplicate-tx-hash`. |
 | 2026-04-25 | BUY-5 (partial) | Mitigated | 62e9187 | Route now uses server-side authoritative DeSo rate from `fetchDesoUsdRate()` to compute `expectedNanosTolerant` for the verification check. Client rate still used for fee splits (Step 3) — full BUY-5 fix requires moving fee math server-side in Phase 3 route rewrite. |
+| 2026-04-26 | BUY-4 | Mitigated | 876b09a → 06aa1ec | Per-user Upstash sliding-window rate limit on `/api/trades` (10 req/60s, bucket `trades:{pubkey}`). Checked after auth, before tx verification + DB ops. Fail-open preserves availability if Upstash is unreachable. Full DoS hardening (stricter limits, CAPTCHA) deferred to production ops. |
+| 2026-04-26 | SELL-4 | Mitigated | 876b09a → 06aa1ec | Per-user Upstash sliding-window rate limit on `/api/trades/sell` (10 req/60s, bucket `sell:{pubkey}`). Same fail-open pattern as BUY-4. Separate bucket so buy/sell don't compete for the same budget. |
 
 ### In Progress
 
@@ -2429,6 +2431,7 @@ Status values:
 | 2026-04-24 | P2-1 shipped (auth middleware). BUY-1, SELL-1 resolved; CLAIM-2 mitigated. | 81b9ef3 → 379c51d |
 | 2026-04-25 | P2-2 shipped (tx verification + replay defense). BUY-2, BUY-3 resolved; BUY-5 mitigated. | d962b33 → 62e9187 |
 | 2026-04-26 | P2-4 shipped (creator-coin transfer primitive). Infrastructure — unblocks Phase 3 Path 4 (holder rewards claim). No audit finding closes here; waits for route wiring. | d90b080 → 26f12e5 |
+| 2026-04-26 | P2-3 shipped (rate limiting). BUY-4 and SELL-4 mitigated. `/api/trades` (10/60s per pubkey), `/api/trades/sell` (10/60s per pubkey), `/api/auth/deso-login` (5/60s per IP), `/api/markets/[id]/news` fixed (30/60s per IP, replaced broken in-memory Map). Fail-open: Upstash unreachable → routes proceed. | 876b09a → 06aa1ec |
 
 ---
 

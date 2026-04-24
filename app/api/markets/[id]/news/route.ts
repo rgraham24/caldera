@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const rateLimitMap = new Map<string, number>();
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
-  const now = Date.now();
-  const last = rateLimitMap.get(ip) ?? 0;
-  if (now - last < 60000) {
-    return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
+  // ── P2-3.5: per-IP rate limit (30/60s) ──────────────────────────
+  const clientIp =
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown';
+  const rl = await checkRateLimit(`news-ip:${clientIp}`, 'news');
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limited' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Remaining': String(rl.remaining),
+          'X-RateLimit-Reset': String(rl.resetAt),
+        },
+      }
+    );
   }
-  rateLimitMap.set(ip, now);
+  // ── end P2-3.5 ───────────────────────────────────────────────────
 
   try {
     const { id } = await params;
