@@ -2404,6 +2404,9 @@ Status values:
 | 2026-04-24 | BUY-1 | Resolved | 410a506 | Buy route now reads verified publicKey from middleware-stamped `x-deso-pubkey` header (P2-1.5). Body-supplied `desoPublicKey` is ignored. Validated E2E on preview: $1 BTC buy with real wallet returned 200, fee accrual + auto-buyback completed correctly. |
 | 2026-04-24 | SELL-1 | Resolved | 410a506 | Sell route uses the same auth pattern as buy. Identity comes from middleware-verified session cookie, not request body. |
 | 2026-04-24 | CLAIM-2 | Mitigated | 410a506 | Cookie-based identity layer done (see P2-1 branch). Wallet-ownership proof via DeSo JWT signature verification at login. Signed-nonce challenge for high-value actions (CLAIM-2 target per audit) is deferred to P2-5 per the locked hybrid-auth design (OQ-1). Creator-claim route itself still rewrites in P3-5. |
+| 2026-04-25 | BUY-2 | Resolved | 62e9187 | `/api/trades` now calls `verifyDesoTransfer` from `lib/deso/verifyTx.ts` before any DB writes. Verifier queries DeSo's `api/v1/transaction-info`, checks tx exists, is BASIC_TRANSFER, sender matches authenticated user, recipient is platform wallet, amount ≥ expected (2% tolerance for rate drift). Fails closed on DeSo API unreachable. E2E validated on preview: legit $1 trade 200; random explorer tx hash rejected with `tx-not-basic-transfer`; fake hash rejected with validation error. |
+| 2026-04-25 | BUY-3 | Resolved | 62e9187, 00ad130 | Two-layer defense: (1) DB UNIQUE constraint on `trades.tx_hash` added in P2-2.3 migration — Postgres error 23505 → HTTP 409 in route. (2) `verifyDesoTransfer` sender-check rejects replays of someone else's tx (sender would not match authenticated user). E2E validated: reusing own valid tx_hash returned 409 `duplicate-tx-hash`. |
+| 2026-04-25 | BUY-5 (partial) | Mitigated | 62e9187 | Route now uses server-side authoritative DeSo rate from `fetchDesoUsdRate()` to compute `expectedNanosTolerant` for the verification check. Client rate still used for fee splits (Step 3) — full BUY-5 fix requires moving fee math server-side in Phase 3 route rewrite. |
 
 ### In Progress
 
@@ -2424,6 +2427,7 @@ Status values:
 |------|--------|---------|
 | 2026-04-23 | Doc created, Phase 1 complete | 950c83f → b0903c1 |
 | 2026-04-24 | P2-1 shipped (auth middleware). BUY-1, SELL-1 resolved; CLAIM-2 mitigated. | 81b9ef3 → 379c51d |
+| 2026-04-25 | P2-2 shipped (tx verification + replay defense). BUY-2, BUY-3 resolved; BUY-5 mitigated. | d962b33 → 62e9187 |
 
 ---
 
