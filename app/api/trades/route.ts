@@ -7,13 +7,16 @@ import { snapshotHolders } from "@/lib/fees/holderSnapshot";
 import { executeTokenBuyback } from "@/lib/deso/buyback";
 import { z } from "zod";
 import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyDesoTransfer, type VerifyFailReason } from "@/lib/deso/verifyTx";
+import { fetchDesoUsdRate, usdToDesoNanos } from "@/lib/deso/rate";
 
 const tradeSchema = z.object({
   marketId: z.string().min(1),
   side: z.enum(["yes", "no"]),
   amount: z.number().positive(),
-  txnHash: z.string().optional(),
-  desoPublicKey: z.string().optional(),
+  txnHash: z.string().regex(/^[0-9a-f]{64}$/i, "Invalid DeSo tx hash format"),
+  // desoPublicKey removed (P2-2.4) — identity comes from session cookie
+  // via getAuthenticatedUser. Body-supplied publicKey is no longer accepted.
 });
 
 export async function POST(req: NextRequest) {
@@ -39,6 +42,64 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const desoPublicKey = authed.publicKey;
+
+    // ── P2-2.4: verify the DeSo tx on-chain ───────────────────────
+    // Closes BUY-2 (fake txHash → free positions) and BUY-3
+    // (replay protection at app layer). DB UNIQUE on tx_hash is
+    // the defense-in-depth floor.
+    const platformPublicKey = process.env.DESO_PLATFORM_PUBLIC_KEY;
+    if (!platformPublicKey) {
+      console.error("[trades] DESO_PLATFORM_PUBLIC_KEY env var missing");
+      return NextResponse.json(
+        { error: "Server misconfiguration" },
+        { status: 500 }
+      );
+    }
+
+    const usdPerDeso = await fetchDesoUsdRate();
+    if (!usdPerDeso || usdPerDeso <= 0) {
+      console.error("[trades] Could not fetch DeSo rate for verification");
+      return NextResponse.json(
+        { error: "Rate unavailable; please retry" },
+        { status: 503 }
+      );
+    }
+
+    const expectedNanosExact = usdToDesoNanos(amount, usdPerDeso);
+    if (expectedNanosExact === null) {
+      return NextResponse.json(
+        { error: "Invalid amount for nanos conversion" },
+        { status: 400 }
+      );
+    }
+    // 2% tolerance absorbs rate drift between client-side rate
+    // lookup (at trade-signing time) and server-side rate lookup
+    // (now). If on-chain amount >= 98% of expected, accept.
+    const expectedNanosTolerant = Math.floor(
+      Number(expectedNanosExact) * 0.98
+    );
+
+    const verification = await verifyDesoTransfer(
+      txnHash,
+      desoPublicKey,
+      platformPublicKey,
+      expectedNanosTolerant
+    );
+    if (!verification.ok) {
+      console.warn("[trades] tx verification failed", {
+        reason: verification.reason,
+        txnHash,
+        desoPublicKey,
+        marketId,
+        amount,
+        expectedNanosTolerant,
+      });
+      return NextResponse.json(
+        { error: "Transaction verification failed", reason: verification.reason },
+        { status: 400 }
+      );
+    }
+    // ── end P2-2.4 verify block ───────────────────────────────────
 
     const supabase = await createClient();
 
@@ -215,6 +276,17 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (tradeError) {
+      console.error("Error inserting trade:", tradeError);
+      // Postgres unique_violation on trades.tx_hash (P2-2.3 constraint).
+      // This is the defense-in-depth catch if verifyTx somehow allows
+      // a replay. Map to HTTP 409 so client knows it's a duplicate,
+      // not a server fault.
+      if (tradeError.code === "23505") {
+        return NextResponse.json(
+          { error: "Duplicate transaction", reason: "duplicate-tx-hash" },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: "Failed to record trade" },
         { status: 500 }
