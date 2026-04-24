@@ -16,6 +16,11 @@ vi.mock("@/lib/auth/deso-jwt", () => ({
   verifyDesoJwt: (...args: unknown[]) => mockVerifyDesoJwt(...args),
 }));
 
+const mockCheckRateLimit = vi.fn();
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...args),
+}));
+
 // Must set before route module is first imported (route reads env at
 // runtime from process.env, not at import time, so setting here is OK).
 process.env.COOKIE_SIGNING_KEY =
@@ -67,6 +72,8 @@ const VALID_JWT = "fake.jwt.signature"; // contents don't matter, verifier is mo
 beforeEach(() => {
   mockSupabaseFrom.mockReset();
   mockVerifyDesoJwt.mockReset();
+  // Default: rate limit allows through
+  mockCheckRateLimit.mockResolvedValue({ allowed: true, remaining: 4, resetAt: Date.now() + 60_000 });
 });
 
 // ─── tests ────────────────────────────────────────────────────────────
@@ -150,5 +157,55 @@ describe("POST /api/auth/logout", () => {
     expect(setCookie).toBeTruthy();
     expect(setCookie).toContain("caldera-session=");
     expect(setCookie).toContain("Max-Age=0");
+  });
+});
+
+// ─── P2-3.4: per-IP rate limiting ─────────────────────────────────────
+
+function makeReqWithHeaders(body: unknown, headers: Record<string, string>): Request {
+  return new Request("http://localhost/api/auth/deso-login", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("POST /api/auth/deso-login — P2-3.4 rate limiting", () => {
+  it("returns 429 with headers when rate limit is exceeded", async () => {
+    const resetAt = Date.now() + 30_000;
+    mockCheckRateLimit.mockResolvedValue({ allowed: false, remaining: 0, resetAt });
+    const res = await loginPOST(
+      makeReqWithHeaders({ publicKey: VALID_PK, desoJwt: VALID_JWT }, { "x-forwarded-for": "1.2.3.4" }) as unknown as Parameters<typeof loginPOST>[0]
+    );
+    expect(res.status).toBe(429);
+    const body = await res.json() as { error: string; resetAt: number };
+    expect(body.error).toBe("Too many login attempts");
+    expect(body.resetAt).toBe(resetAt);
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
+    expect(res.headers.get("X-RateLimit-Reset")).toBe(String(resetAt));
+  });
+
+  it("reads IP from x-forwarded-for (first entry)", async () => {
+    mockVerifyDesoJwt.mockResolvedValue({ ok: false, reason: "irrelevant" });
+    await loginPOST(
+      makeReqWithHeaders({ publicKey: VALID_PK, desoJwt: VALID_JWT }, { "x-forwarded-for": "10.0.0.1, 10.0.0.2" }) as unknown as Parameters<typeof loginPOST>[0]
+    );
+    expect(mockCheckRateLimit).toHaveBeenCalledWith("login-ip:10.0.0.1", "login");
+  });
+
+  it("falls back to x-real-ip when x-forwarded-for is absent", async () => {
+    mockVerifyDesoJwt.mockResolvedValue({ ok: false, reason: "irrelevant" });
+    await loginPOST(
+      makeReqWithHeaders({ publicKey: VALID_PK, desoJwt: VALID_JWT }, { "x-real-ip": "5.6.7.8" }) as unknown as Parameters<typeof loginPOST>[0]
+    );
+    expect(mockCheckRateLimit).toHaveBeenCalledWith("login-ip:5.6.7.8", "login");
+  });
+
+  it("falls back to 'unknown' when no IP header is present", async () => {
+    mockVerifyDesoJwt.mockResolvedValue({ ok: false, reason: "irrelevant" });
+    await loginPOST(
+      makeReqWithHeaders({ publicKey: VALID_PK, desoJwt: VALID_JWT }, {}) as unknown as Parameters<typeof loginPOST>[0]
+    );
+    expect(mockCheckRateLimit).toHaveBeenCalledWith("login-ip:unknown", "login");
   });
 });
