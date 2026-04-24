@@ -168,7 +168,6 @@ export function TradeTicket({
             side,
             amount: amountNum,
             txnHash,
-            desoPublicKey: desoPublicKey ?? useAppStore.getState().desoPublicKey,
           }),
         });
 
@@ -191,7 +190,6 @@ export function TradeTicket({
             marketId: market.id,
             side: userPosition.side,
             shares: sellSharesNum,
-            desoPublicKey: desoPublicKey ?? useAppStore.getState().desoPublicKey,
           }),
         });
 

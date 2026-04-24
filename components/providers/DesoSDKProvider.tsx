@@ -35,11 +35,25 @@ export function DesoSDKProvider({ children }: { children: React.ReactNode }) {
           const username = profileRes.Profile?.Username || publicKey.substring(0, 8);
           const avatarUrl = `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`;
 
-          await fetch("/api/auth/deso-login", {
+          const identity = getDesoIdentity();
+          let desoJwt: string;
+          try {
+            desoJwt = await identity.jwt();
+          } catch (jwtErr) {
+            console.error("[DesoSDK] identity.jwt() failed:", jwtErr);
+            return;
+          }
+
+          const loginRes = await fetch("/api/auth/deso-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ publicKey, username, avatarUrl }),
-          }).catch(() => {});
+            body: JSON.stringify({ publicKey, desoJwt, username, avatarUrl }),
+          });
+
+          if (!loginRes.ok) {
+            console.error("[DesoSDK] login failed:", loginRes.status);
+            return;
+          }
 
           const derivedKey = notification.currentUser?.primaryDerivedKey;
           setConnected({
@@ -52,18 +66,17 @@ export function DesoSDKProvider({ children }: { children: React.ReactNode }) {
             accessSignature: derivedKey?.accessSignature,
             expirationBlock: derivedKey?.expirationBlock,
           });
-        } catch {
-          setConnected({
-            publicKey,
-            username: publicKey.substring(0, 8),
-            profilePicUrl: "",
-            balanceUSD: 0,
-            balanceDeso: 0,
-          });
+        } catch (e) {
+          console.error("[DesoSDK] LOGIN_END handler failed:", e);
         }
       }
 
       if (notification.event === NOTIFICATION_EVENTS.LOGOUT_END) {
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+        } catch (e) {
+          console.warn("[DesoSDK] logout endpoint failed (proceeding anyway):", e);
+        }
         setDisconnected();
       }
     };

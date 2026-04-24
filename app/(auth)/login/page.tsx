@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deso } from "@/lib/deso";
+import { getDesoIdentity } from "@/lib/deso/identity";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -28,12 +29,17 @@ export default function LoginPage() {
       // Get DeSo profile
       const profile = await deso.getProfile(publicKey);
 
+      // Get JWT to prove wallet ownership to the server
+      const identity = getDesoIdentity();
+      const desoJwt = await identity.jwt();
+
       // Create or get user in our backend
       const res = await fetch("/api/auth/deso-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           publicKey,
+          desoJwt,
           username: profile?.Username,
           avatarUrl: profile?.ExtraData?.LargeProfilePicURL,
         }),
