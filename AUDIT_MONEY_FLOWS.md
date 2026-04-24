@@ -2401,9 +2401,9 @@ Status values:
 
 | Date | Finding | Status | Commit | Notes |
 |------|---------|--------|--------|-------|
-| | | | | |
-
-*(Empty until first Phase 2/3 fix lands.)*
+| 2026-04-24 | BUY-1 | Resolved | 410a506 | Buy route now reads verified publicKey from middleware-stamped `x-deso-pubkey` header (P2-1.5). Body-supplied `desoPublicKey` is ignored. Validated E2E on preview: $1 BTC buy with real wallet returned 200, fee accrual + auto-buyback completed correctly. |
+| 2026-04-24 | SELL-1 | Resolved | 410a506 | Sell route uses the same auth pattern as buy. Identity comes from middleware-verified session cookie, not request body. |
+| 2026-04-24 | CLAIM-2 | Mitigated | 410a506 | Cookie-based identity layer done (see P2-1 branch). Wallet-ownership proof via DeSo JWT signature verification at login. Signed-nonce challenge for high-value actions (CLAIM-2 target per audit) is deferred to P2-5 per the locked hybrid-auth design (OQ-1). Creator-claim route itself still rewrites in P3-5. |
 
 ### In Progress
 
@@ -2422,7 +2422,8 @@ Status values:
 
 | Date | Action | Commits |
 |------|--------|---------|
-| 2026-04-23 | Doc created, Phase 1 complete | 950c83f → <this commit> |
+| 2026-04-23 | Doc created, Phase 1 complete | 950c83f → b0903c1 |
+| 2026-04-24 | P2-1 shipped (auth middleware). BUY-1, SELL-1 resolved; CLAIM-2 mitigated. | 81b9ef3 → 379c51d |
 
 ---
 
