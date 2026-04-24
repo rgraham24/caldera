@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,6 +14,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const desoPublicKey = authed.publicKey;
+
+    // ── P2-3.3: per-user rate limit ──────────────────────────────
+    const rl = await checkRateLimit(`sell:${desoPublicKey}`, "trades");
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests", resetAt: rl.resetAt },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": String(rl.remaining),
+            "X-RateLimit-Reset": String(rl.resetAt),
+          },
+        }
+      );
+    }
+    // ── end P2-3.3 ───────────────────────────────────────────────
 
     if (!marketId || !shares || shares <= 0) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });

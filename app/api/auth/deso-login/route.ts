@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyDesoJwt } from "@/lib/auth/deso-jwt";
 import { buildSetSessionCookie } from "@/lib/auth/cookie-helpers";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 type LoginBody = {
   publicKey?: string;
@@ -11,6 +12,26 @@ type LoginBody = {
 };
 
 export async function POST(req: NextRequest) {
+  // ── P2-3.4: per-IP rate limit ────────────────────────────────────
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const rl = await checkRateLimit(`login-ip:${clientIp}`, "login");
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many login attempts", resetAt: rl.resetAt },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": String(rl.remaining),
+          "X-RateLimit-Reset": String(rl.resetAt),
+        },
+      }
+    );
+  }
+  // ── end P2-3.4 ───────────────────────────────────────────────────
+
   try {
     const body = (await req.json()) as LoginBody;
     const { publicKey, desoJwt, username, avatarUrl } = body;
