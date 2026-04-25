@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   }
 
   // ── 3. Fetch pending rewards from view ─────────────────────
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   // View not yet in generated types — cast to escape type-checking.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: pendingRows, error: viewErr } = (await (supabase as any)

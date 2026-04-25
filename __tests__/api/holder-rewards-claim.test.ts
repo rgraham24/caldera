@@ -85,7 +85,7 @@ const fromMock = vi.fn((table: string) => {
 });
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({ from: fromMock })),
+  createServiceClient: vi.fn(() => ({ from: fromMock })),
 }));
 
 import { POST } from "@/app/api/holder-rewards/claim/route";

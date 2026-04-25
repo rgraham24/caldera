@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { transferCreatorCoin } from "@/lib/deso/transfer";
 import { checkCreatorCoinSolvency } from "@/lib/deso/solvency";
 import { getCreatorCoinData } from "@/lib/deso/api";
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // ── 4. Resolve creator pubkey for tokenSlug ────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
