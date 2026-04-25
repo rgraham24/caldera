@@ -130,6 +130,7 @@ export async function getUserDesoBalance(
       body: JSON.stringify({
         PublicKeysBase58Check: [publicKey],
         SkipForLeaderboard: true,
+        IncludeBalance: true,
       }),
     }),
     getDesoPrice(),
@@ -153,7 +154,8 @@ export async function getCreatorCoinHoldings(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         PublicKeysBase58Check: [userPublicKey],
-        SkipForLeaderboard: true,
+        SkipForLeaderboard: false,
+        IncludeBalance: true,
       }),
     }),
     getDesoPrice(),
