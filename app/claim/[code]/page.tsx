@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
+import { getDesoIdentity } from "@/lib/deso/identity";
 
 type Step = "loading" | "invalid" | "already_claimed" | "landing" | "verifying" | "tweet_verified" | "connecting" | "success";
 
@@ -114,10 +115,26 @@ export default function ClaimPage() {
     setStep("connecting");
     setError(null);
     try {
+      // ── P2-5.5: Fresh-JWT auth for claim verification ─────────────
+      // Backend (P2-5.4) requires desoJwt that proves the caller
+      // controls the wallet they're claiming under. Sign right before
+      // the POST so iat is fresh (within the 60s recency window).
+      const identity = getDesoIdentity();
+      let desoJwt: string;
+      try {
+        desoJwt = await identity.jwt();
+      } catch (err) {
+        console.error("[claim] identity.jwt() failed:", err);
+        setError("Couldn't sign your claim. Please try again or refresh.");
+        setStep("tweet_verified");
+        return;
+      }
+      // ── end P2-5.5 ───────────────────────────────────────────────
+
       const res = await fetch("/api/claim/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, desoPublicKey, desoUsername, handle: info?.twitterHandle ?? "" }),
+        body: JSON.stringify({ code, desoPublicKey, desoUsername, handle: info?.twitterHandle ?? "", desoJwt }),
       });
       const data = await res.json();
       if (!res.ok) {

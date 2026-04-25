@@ -234,3 +234,15 @@ async function checkDerivedKeyBinding(
   }
   return { ok: true };
 }
+
+// ─────────────────────────────────────────────────────────────────
+// P2-5: Fresh-JWT recency check — re-exported from fresh-jwt.ts.
+// Implementation lives in a separate file so vi.mock("@/lib/auth/deso-jwt")
+// can intercept verifyDesoJwt calls made inside verifyFreshDesoJwt.
+// ─────────────────────────────────────────────────────────────────
+export {
+  verifyFreshDesoJwt,
+  type FreshJwtVerifyResult,
+  type FreshJwtFailReason,
+  type FreshJwtVerifyOptions,
+} from "./fresh-jwt";

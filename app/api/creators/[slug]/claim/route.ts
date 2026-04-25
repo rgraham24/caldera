@@ -1,16 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyFreshDesoJwt } from "@/lib/auth/deso-jwt";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const { desoPublicKey } = await req.json();
 
-  if (!desoPublicKey) {
-    return NextResponse.json({ error: "DeSo public key required" }, { status: 400 });
+  // ── P2-5.3: Fresh-JWT verification for high-value action ─────────
+  // Closes CLAIM-2: claim route now requires:
+  //  1. Valid session cookie (P2-1, via middleware)
+  //  2. Fresh DeSo JWT (this) — proves wallet ownership in last 60s
+  //  3. Cookie pubkey == JWT pubkey (cryptographic agreement)
+  //
+  // Body-supplied desoPublicKey (if present) is IGNORED. All
+  // identity comes from cryptographic sources (cookie + JWT).
+  const authed = getAuthenticatedUser(req);
+  if (!authed) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const body = await req.json().catch(() => ({}));
+  const desoJwt = typeof body?.desoJwt === "string" ? body.desoJwt : null;
+  if (!desoJwt) {
+    return NextResponse.json(
+      { error: "Missing desoJwt", reason: "missing-jwt" },
+      { status: 401 }
+    );
+  }
+
+  const fresh = await verifyFreshDesoJwt(desoJwt, authed.publicKey);
+  if (!fresh.ok) {
+    return NextResponse.json(
+      { error: "Authentication failed", reason: fresh.reason },
+      { status: 401 }
+    );
+  }
+
+  const desoPublicKey = authed.publicKey;
+  // ── end P2-5.3 ───────────────────────────────────────────────────
 
   const supabase = await createClient();
 
