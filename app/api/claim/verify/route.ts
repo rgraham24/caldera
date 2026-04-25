@@ -1,13 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { verifyFreshDesoJwt } from "@/lib/auth/deso-jwt";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { code, desoPublicKey, desoUsername, handle } = await req.json();
+  const { code, desoPublicKey, desoUsername, handle, desoJwt } = await req.json();
 
-  if (!code || !desoPublicKey) {
+  if (!code) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  // ── P2-5.4: Fresh-JWT verification — closes CLAIM-2 ──────────────────────
+  // Body supplies desoPublicKey (the owner key the caller claims to control).
+  // We verify that claim cryptographically before any DB writes:
+  //   1. JWT signature must verify against the derived key in the JWT payload
+  //      (proves caller has the derived private key)
+  //   2. DeSo API must confirm the derived key is registered under the claimed
+  //      owner pubkey (proves owner consented)
+  //   3. JWT iat must be within 60 seconds (recency — defeats replay)
+  // If all three pass, the body's desoPublicKey is now trusted.
+  if (!desoJwt) {
+    return NextResponse.json(
+      { error: "Missing desoJwt", reason: "missing-jwt" },
+      { status: 401 }
+    );
+  }
+  if (!desoPublicKey) {
+    return NextResponse.json(
+      { error: "Missing desoPublicKey", reason: "missing-pubkey" },
+      { status: 401 }
+    );
+  }
+  const fresh = await verifyFreshDesoJwt(desoJwt, desoPublicKey);
+  if (!fresh.ok) {
+    return NextResponse.json(
+      { error: "Authentication failed", reason: fresh.reason },
+      { status: 401 }
+    );
+  }
+  // ── end P2-5.4 ───────────────────────────────────────────────────────────
 
   const now = new Date().toISOString();
 
