@@ -29,6 +29,27 @@ const HolderLeaderboard = dynamic(
 );
 import { FollowButton } from "@/components/shared/FollowButton";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { useAppStore } from "@/store";
+import { getDesoIdentity } from "@/lib/deso/identity";
+
+const REASON_MESSAGES: Record<string, string> = {
+  "profile-not-verified": "Profile not yet verified for claim.",
+  "not-claimer": "Only the verified claimer can claim this profile.",
+  "no-balance": "No balance to claim.",
+  "claim-in-progress": "Another claim is already in progress.",
+  "amount-too-small": "Amount too small to claim — accrue more first.",
+  "platform-insufficient-funds":
+    "Platform funds too low — admin notified. Try again later.",
+  "price-fetch-failed": "Couldn't fetch current DESO price. Try again.",
+  "ledger-update-failed":
+    "Sent on-chain but ledger update failed. Admin will reconcile.",
+  "concurrent-claim-or-state-changed":
+    "Profile state changed during claim. Refresh and try again.",
+};
+
+function reasonToMessage(reason: string): string {
+  return REASON_MESSAGES[reason] ?? `Claim failed: ${reason}`;
+}
 
 type BuybackEvent = {
   id: string;
@@ -69,8 +90,19 @@ export function CreatorProfileClient({
   recentTrades,
   claimUrl,
 }: CreatorProfileClientProps) {
+  const { desoPublicKey } = useAppStore();
+
   const [showStakeModal, setShowStakeModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
+
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<null | {
+    profileClaimed: boolean;
+    txHashHex: string | null;
+    amountNanos: string;
+    escrowUsd: string;
+  }>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [marketTitle, setMarketTitle] = useState('');
   const [resolveDate, setResolveDate] = useState('');
@@ -82,6 +114,49 @@ export function CreatorProfileClient({
   const [desoUser, setDesoUser] = useState<string | null>(creator.deso_username);
   const [isLive, setIsLive] = useState(false);
   const [buybacks, setBuybacks] = useState<{ events: BuybackEvent[]; totalBuyback: number }>({ events: [], totalBuyback: 0 });
+
+  async function handleClaim() {
+    setClaimError(null);
+    setClaimLoading(true);
+    try {
+      const identity = getDesoIdentity();
+      let desoJwt: string;
+      try {
+        desoJwt = await identity.jwt();
+      } catch (e) {
+        setClaimError(
+          e instanceof Error ? e.message : "Failed to get wallet signature"
+        );
+        setClaimLoading(false);
+        return;
+      }
+
+      const res = await fetch(`/api/creators/${creator.slug}/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ desoJwt }),
+      });
+      const json = await res.json();
+
+      if (res.ok && json.ok) {
+        setClaimResult({
+          profileClaimed: !!json.profileClaimed,
+          txHashHex: json.txHashHex ?? null,
+          amountNanos: json.amountNanos ?? "0",
+          escrowUsd: json.escrowUsd ?? "0",
+        });
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
+      } else {
+        setClaimError(reasonToMessage(json.reason ?? json.error ?? "Claim failed"));
+      }
+    } catch (e) {
+      setClaimError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setClaimLoading(false);
+    }
+  }
 
   const handleCreateMarket = async () => {
     if (!marketTitle.trim() || !resolveDate) return;
@@ -159,6 +234,39 @@ export function CreatorProfileClient({
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+        {/* ── Claim success banner ── */}
+        {claimResult && (
+          <div className="rounded-xl border border-yes/30 bg-yes/10 p-4 mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-yes">
+                ✓ {claimResult.profileClaimed ? "Profile claimed" : "Withdrawn"}
+                {Number(claimResult.escrowUsd) > 0 &&
+                  ` · $${Number(claimResult.escrowUsd).toFixed(4)} sent`}
+              </div>
+              {claimResult.txHashHex && (
+                <div className="text-xs text-text-muted mt-1">
+                  <a
+                    href={`https://explorer.deso.org/?transaction-id=${claimResult.txHashHex}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    view tx
+                  </a>
+                  {" · refreshing in 5s…"}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setClaimResult(null)}
+              className="text-text-muted hover:text-text-primary text-lg leading-none"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* ── Unclaimed earnings claim banner (approved creators only) ── */}
         {creator.verification_status === "approved" && creator.claim_status !== "claimed" && (
           <div
@@ -180,14 +288,35 @@ export function CreatorProfileClient({
                   earning <span className="text-orange-400 font-medium">0.5%</span> of every future market trade —
                   sent directly to your wallet.
                 </p>
-                {claimUrl && (
-                  <a
-                    href={claimUrl}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
-                  >
-                    Claim ${coinSymbol ?? creator.name} →
-                  </a>
-                )}
+                {(() => {
+                  const isVerifiedClaimer =
+                    desoPublicKey &&
+                    (creator.claim_attempted_by === desoPublicKey ||
+                      creator.deso_public_key === desoPublicKey);
+
+                  if (!isVerifiedClaimer) return null;
+
+                  const escrowAmount = unclaimedEarnings ?? 0;
+                  const buttonLabel =
+                    escrowAmount > 0
+                      ? `Claim profile and $${escrowAmount.toFixed(4)}`
+                      : "Claim profile";
+
+                  return (
+                    <div>
+                      <button
+                        onClick={handleClaim}
+                        disabled={claimLoading || !!claimResult}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+                      >
+                        {claimLoading ? "Claiming…" : buttonLabel}
+                      </button>
+                      {claimError && (
+                        <div className="text-xs text-no mt-2">{claimError}</div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -294,6 +423,28 @@ export function CreatorProfileClient({
             </p>
           </div>
         )}
+        {creator.claim_status === "claimed" &&
+          desoPublicKey === creator.deso_public_key &&
+          (unclaimedEarnings ?? 0) > 0 && (
+            <div className="rounded-xl border border-border-subtle/30 bg-surface p-5 mb-6">
+              <h3 className="text-base font-semibold text-text-primary mb-1">
+                Earnings ready to withdraw
+              </h3>
+              <p className="text-xs text-text-muted mb-3">
+                ${(unclaimedEarnings ?? 0).toFixed(4)} as DESO to your wallet.
+              </p>
+              <button
+                onClick={handleClaim}
+                disabled={claimLoading || !!claimResult}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {claimLoading ? "Withdrawing…" : `Withdraw $${(unclaimedEarnings ?? 0).toFixed(4)}`}
+              </button>
+              {claimError && (
+                <div className="text-xs text-no mt-2">{claimError}</div>
+              )}
+            </div>
+          )}
 
         {/* Earnings Preview — prominent for shadow profiles (hide if pending_review) */}
         {(creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
