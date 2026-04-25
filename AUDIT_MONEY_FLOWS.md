@@ -1292,6 +1292,16 @@ Notably NOT touched:
   column before DESO confirmed sent. Introduce `creator_claim_payouts`
   ledger table (append-only per the Liability-Ledger pattern). Follow
   target flow below.
+- **Status: ✅ RESOLVED (2026-04-26, P3-5)**
+  `POST /api/creators/[slug]/claim` (12-gate combined flow) atomically
+  zeroes escrow ONLY after on-chain DESO send confirmed. Audit row in
+  `creator_claim_payouts` created BEFORE on-chain attempt (status:
+  `in_flight`). Failure paths leave row `failed` with escrow untouched.
+  Catastrophic post-send DB failure leaves row `in_flight` and is
+  logged CRITICAL for Phase 4 reconciliation sweep — escrow is NEVER
+  zeroed without on-chain confirmation. Commits: `878ecad` (schema +
+  `creator_claim_payouts` table + RPC v1), `a0e9d35` (RPC v2 with
+  profile-claim branch), `131586a` (route body).
 
 #### CLAIM-2: Identity and wallet-ownership verification both client-trusted (P0)
 
@@ -1314,6 +1324,13 @@ Notably NOT touched:
   with your wallet" pattern). The tweet/URL verification proves
   "this person owns the creator identity"; the signed challenge proves
   "this wallet is theirs." Both required.
+- **Status: ✅ RESOLVED (2026-04-26, P3-5)**
+  P2-5 (commit `a87c616`) shipped fresh-JWT to canonical
+  `/api/creators/[slug]/claim` and `/api/claim/verify`. P3-5.4
+  (commit `d391321`) deleted the legacy stub `/api/creators/claim`
+  that lacked fresh-JWT. The canonical claim route (P3-5.5,
+  `131586a`) enforces both P2-1 cookie auth and P2-5 fresh-JWT
+  before any state mutation.
 
 #### CLAIM-3: Five redundant claim routes (P1)
 
@@ -1333,6 +1350,13 @@ Notably NOT touched:
   Stub route `/api/creators/claim/route.ts` deleted with an explicit
   "this TODO is obsolete — see /api/creators/[slug]/claim" note in
   the commit message.
+- **Status: ✅ RESOLVED (2026-04-26, P3-5, partial-as-designed)**
+  P3-5.4 (commit `d391321`) deleted the legacy stub
+  `/api/creators/claim` with zero callers. `POST /api/creators/[slug]/claim`
+  is now the single money-path route. The remaining claim-related
+  routes (`verify-claim`, `tweet-verify`, `generate-claim-code`,
+  `watch-claim`) handle verification/notification, NOT the money path
+  — they remain by design (separate concern).
 
 #### CLAIM-4: TransferCreatorCoin primitive not needed for this path (informational)
 
@@ -1368,6 +1392,11 @@ Notably NOT touched:
   Recommendation: option 1 (view-based). Eliminates the lie surface.
   Migration ordering: build the view, migrate any consumers, then
   drop the column.
+- **Note (2026-04-26):** `total_creator_earnings` is no longer a
+  "lying aggregate" — every increment is now paired with confirmed
+  on-chain DESO via the `mark_creator_claim_complete` RPC (P3-5.4b).
+  Replacing the column with a view over `creator_claim_payouts`
+  remains deferred hygiene work (CLAIM-5 stays open).
 
 #### CLAIM-6: Tweet/URL verification is brittle
 
@@ -1398,6 +1427,15 @@ Notably NOT touched:
   current state rather than starting a second claim. Unique
   constraint on `creator_claim_payouts.creator_id WHERE status IN
   ('in_flight', 'paid')` to enforce at the DB level.
+- **Status: ✅ RESOLVED (2026-04-26, P3-5)**
+  Idempotency enforced at three layers:
+  1. DB: partial UNIQUE index `uq_creator_claim_payouts_active` on
+     `creator_id WHERE status IN ('pending', 'in_flight')` — second
+     concurrent INSERT fails with 23505 duplicate key violation.
+     (P3-5.2, commit `878ecad`. Verified live in Supabase.)
+  2. Route Gate 7: SELECT lookup returns 409 `claim-in-progress`
+     if any active row already exists. (P3-5.5, commit `131586a`.)
+  3. Route Gate 10: 23505 violation caught and returned as 409.
 
 ### Target behavior (after fixes)
 
@@ -2418,6 +2456,9 @@ Status values:
 | 2026-04-26 | CLAIM-2 | Resolved | a87c616 | P2-5 fresh-JWT recency check shipped. Two-route fix: (1) /api/claim/verify (live route — frontend caller is app/claim/[code]/page.tsx) now requires desoJwt in body, verified via verifyFreshDesoJwt → DeSo signature + derived-key binding API check + iat within 60s. Body-supplied desoPublicKey is now a CLAIM that gets cryptographically verified, not trusted wholesale. (2) /api/creators/[slug]/claim (orphaned — no frontend caller) also wired with same primitive (P2-5.3, d8bec99) for future Phase 3 consolidation. Pattern C chosen over true nonce challenge because DeSo Identity has no signArbitrary primitive — only identity.jwt(). 60s recency window mitigated by TLS + rate limiting (P2-3). |
 | 2026-04-25 | BUY-2 | Resolved | 62e9187 | `/api/trades` now calls `verifyDesoTransfer` from `lib/deso/verifyTx.ts` before any DB writes. Verifier queries DeSo's `api/v1/transaction-info`, checks tx exists, is BASIC_TRANSFER, sender matches authenticated user, recipient is platform wallet, amount ≥ expected (2% tolerance for rate drift). Fails closed on DeSo API unreachable. E2E validated on preview: legit $1 trade 200; random explorer tx hash rejected with `tx-not-basic-transfer`; fake hash rejected with validation error. |
 | 2026-04-25 | BUY-3 | Resolved | 62e9187, 00ad130 | Two-layer defense: (1) DB UNIQUE constraint on `trades.tx_hash` added in P2-2.3 migration — Postgres error 23505 → HTTP 409 in route. (2) `verifyDesoTransfer` sender-check rejects replays of someone else's tx (sender would not match authenticated user). E2E validated: reusing own valid tx_hash returned 409 `duplicate-tx-hash`. |
+| 2026-04-26 | CLAIM-1 | Resolved | 878ecad, a0e9d35, 131586a | P3-5 combined-flow rewrite. Escrow zeroed only after on-chain DESO confirmed. `creator_claim_payouts` audit ledger created BEFORE transfer attempt; failure paths leave row `failed` with escrow untouched. `mark_creator_claim_complete` RPC (v2, 6 args) wraps escrow-zero + earnings-bump + optional profile-claim in single transaction. Catastrophic post-send DB failure logged CRITICAL with txHashHex for Phase 4 reconciliation. |
+| 2026-04-26 | CLAIM-3 | Resolved | d391321, 131586a | P3-5.4 deleted legacy stub `/api/creators/claim` (zero callers). `POST /api/creators/[slug]/claim` is now the single money-path route. Verification routes (`verify-claim`, `tweet-verify`, `generate-claim-code`, `watch-claim`) remain by design — separate concern from the money path. |
+| 2026-04-26 | CLAIM-7 | Resolved | 878ecad, 131586a | Three-layer idempotency: (1) partial UNIQUE index `uq_creator_claim_payouts_active` on `creator_id WHERE status IN ('pending','in_flight')` — verified live in Supabase; (2) Route Gate 7 SELECT lookup → 409 before any DB write; (3) Route Gate 10 catches 23505 → 409. |
 | 2026-04-25 | BUY-5 (partial) | Mitigated | 62e9187 | Route now uses server-side authoritative DeSo rate from `fetchDesoUsdRate()` to compute `expectedNanosTolerant` for the verification check. Client rate still used for fee splits (Step 3) — full BUY-5 fix requires moving fee math server-side in Phase 3 route rewrite. |
 | 2026-04-26 | BUY-5 | Mitigated | 876b09a → 06aa1ec | Per-user Upstash sliding-window rate limit on `/api/trades` (10 req/60s, bucket `trades:{pubkey}`) and `/api/trades/sell` (bucket `sell:{pubkey}`). Per-IP limit on `/api/auth/deso-login` (5 req/60s). Checked after auth (trades) / before body parse (login). Fail-open preserves availability if Upstash is unreachable. Auth middleware (edge) was already landed in P2-1; this commit adds the rate limit layer. Full DoS hardening (stricter limits, CAPTCHA) deferred to production ops. |
 
