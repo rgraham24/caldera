@@ -963,6 +963,10 @@ documented in Target behavior below.
 - **Fix:** Build the claim system per Target behavior below. New API
   route, new UI, new `lib/deso/transfer.ts` primitive. Net-new feature,
   not a fix to existing code.
+- **Status: ✅ RESOLVED (2026-04-24, P3-4)**
+  `POST /api/holder-rewards/claim` (8-gate money path), `PendingRewards`
+  UI on /portfolio, `lib/deso/transfer.ts` primitive. Commits:
+  6d0a4c2 (route + 15 tests), 67f7856 (frontend).
 
 #### REWARDS-2: Marketing copy promises an undelivered feature (P0)
 
@@ -977,6 +981,10 @@ documented in Target behavior below.
 - **Fix:** Strictly paired with REWARDS-1. When the claim system lands,
   update the copy to match actual behavior. If launch happens before
   the claim is built (not the current plan), remove the copy first.
+- **Status: ✅ RESOLVED (2026-04-24, P3-4)**
+  Claim system is now live (see REWARDS-1). Copy accurately describes
+  delivered behavior. No copy changes needed — terms language ("manually
+  claim") matches the pull-based UX shipped in P3-4.5.
 
 #### REWARDS-3: `TransferCreatorCoin` primitive does not exist in codebase (P0)
 
@@ -1022,6 +1030,9 @@ documented in Target behavior below.
 - **Fix:** Trivial SQL view (`v_holder_rewards_pending_by_user`) and
   API endpoint (`GET /api/holder-rewards/balance`). Lands with the
   claim UI in Phase 3.
+- **Status: ✅ RESOLVED (2026-04-24, P3-4)**
+  `v_holder_rewards_pending_by_user` SQL view (P3-4.2, commit 18b510d),
+  `GET /api/holder-rewards/balance` (P3-4.3, commit 0d20fc9, 9 tests).
 
 #### REWARDS-6: Claim payment unit requires clear UX
 
