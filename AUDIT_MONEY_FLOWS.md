@@ -2433,6 +2433,7 @@ Status values:
 | 2026-04-26 | P2-4 shipped (creator-coin transfer primitive). Infrastructure — unblocks Phase 3 Path 4 (holder rewards claim). No audit finding closes here; waits for route wiring. | d90b080 → 26f12e5 |
 | 2026-04-26 | P2-3 shipped (rate limiting). BUY-5 mitigated. `/api/trades` (10/60s per pubkey), `/api/trades/sell` (10/60s per pubkey), `/api/auth/deso-login` (5/60s per IP), `/api/markets/[id]/news` fixed (30/60s per IP, replaced broken in-memory Map). Fail-open: Upstash unreachable → routes proceed. | 876b09a → d45b4d6 |
 | 2026-04-26 | P2-5 shipped (fresh-JWT recency check). CLAIM-2 Resolved. Two routes secured: /api/claim/verify (live) and /api/creators/[slug]/claim (orphaned, future-secured). | b3f1b48 → 5d20400 |
+| 2026-04-26 | P2-6 shipped (wallet solvency helpers). Infrastructure — no audit finding closes with P2-6 alone. Provides typed preflight balance checks (checkDesoSolvency, checkCreatorCoinSolvency) for Phase 3 Paths 4+5 to consume. Also fixes getUserDesoBalance (missing IncludeBalance: true → was silently returning 0) and getCreatorCoinHoldings (wrong API flags). | bd265c6 → cd3f1a4 |
 
 ---
 
