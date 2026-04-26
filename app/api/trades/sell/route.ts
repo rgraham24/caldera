@@ -9,7 +9,7 @@ import { checkDesoSolvency } from "@/lib/deso/solvency";
 export const dynamic = "force-dynamic";
 
 const sellSchema = z.object({
-  marketId: z.string().uuid(),
+  marketId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
   side: z.enum(["yes", "no"]),
   shares: z.number().positive().max(1_000_000),
   idempotencyKey: z.string().uuid(),
