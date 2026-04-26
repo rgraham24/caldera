@@ -287,6 +287,7 @@ export async function POST(req: NextRequest) {
     // 1. Platform (always)
     if (v2Fees.platform > 0) {
       feeRows.push({
+        id: crypto.randomUUID(),
         recipient_type: 'platform',
         source_type: 'trade',
         source_id: tradeId,
@@ -299,6 +300,7 @@ export async function POST(req: NextRequest) {
     //    Dropped per 2026-04-21 decision: "no holders → log warning, platform keeps."
     if (v2Fees.holderRewards > 0 && relevantToken?.deso_public_key) {
       feeRows.push({
+        id: crypto.randomUUID(),
         recipient_type: 'holder_rewards_pool',
         source_type: 'trade',
         source_id: tradeId,
@@ -338,6 +340,7 @@ export async function POST(req: NextRequest) {
       v2Fees.creatorSlicePublicKey
     ) {
       feeRows.push({
+        id: crypto.randomUUID(),
         recipient_type: 'creator',
         recipient_id: creatorForFees?.id ?? null,
         source_type: 'trade',
@@ -357,6 +360,7 @@ export async function POST(req: NextRequest) {
       v2Fees.creatorId
     ) {
       feeRows.push({
+        id: crypto.randomUUID(),
         recipient_type: 'creator_escrow',
         recipient_id: v2Fees.creatorId,
         source_type: 'trade',
