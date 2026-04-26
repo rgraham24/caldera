@@ -139,7 +139,12 @@ describe("POST /api/trades/sell — auth enforcement", () => {
   it("returns 401 when x-deso-pubkey header is absent", async () => {
     const req = makeReq(
       "http://localhost/api/trades/sell",
-      { marketId: "m1", side: "yes", shares: 5 },
+      {
+        marketId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        side: "yes",
+        shares: 5,
+        idempotencyKey: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      },
       { authed: false }
     );
     const res = await sellPOST(req as never);
@@ -150,9 +155,10 @@ describe("POST /api/trades/sell — auth enforcement", () => {
     const req = makeReq(
       "http://localhost/api/trades/sell",
       {
-        marketId: "m1",
+        marketId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         side: "yes",
         shares: 5,
+        idempotencyKey: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
         desoPublicKey: TEST_PK,
       },
       { authed: false }
@@ -451,7 +457,12 @@ describe("POST /api/trades/sell — P2-3.3 rate limiting", () => {
 
     const req = makeReq(
       "http://localhost/api/trades/sell",
-      { marketId: "m1", side: "yes", shares: 5 },
+      {
+        marketId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        side: "yes",
+        shares: 5,
+        idempotencyKey: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      },
       { authed: true }
     );
 
@@ -469,7 +480,12 @@ describe("POST /api/trades/sell — P2-3.3 rate limiting", () => {
 
     const req = makeReq(
       "http://localhost/api/trades/sell",
-      { marketId: "m1", side: "yes", shares: 5 },
+      {
+        marketId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        side: "yes",
+        shares: 5,
+        idempotencyKey: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      },
       { authed: true }
     );
 

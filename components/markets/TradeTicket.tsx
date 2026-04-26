@@ -190,6 +190,7 @@ export function TradeTicket({
             marketId: market.id,
             side: userPosition.side,
             shares: sellSharesNum,
+            idempotencyKey: crypto.randomUUID(),
           }),
         });
 
