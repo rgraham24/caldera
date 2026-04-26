@@ -17,9 +17,9 @@ import { AUTH_HEADER } from "@/lib/auth";
 // the route either (a) 401s when no header, or (b) proceeds past
 // the auth check when the header is present.
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({ from: mockFrom })),
-  createServiceClient: vi.fn(() => ({ from: mockFrom })),
+  createServiceClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
 
 vi.mock("@/lib/fees/relevantToken", () => ({
@@ -78,6 +78,7 @@ function makeReq(
 
 beforeEach(() => {
   mockFrom.mockReset();
+  mockRpc.mockReset();
 });
 
 describe("POST /api/trades — auth enforcement", () => {
@@ -191,6 +192,7 @@ describe("POST /api/trades — P2-2.4 verification", () => {
 
   beforeEach(() => {
     mockFrom.mockReset();
+    mockRpc.mockReset();
     (verifyDesoTransfer as ReturnType<typeof vi.fn>).mockReset();
     // Set required env vars for the verification block
     process.env.DESO_PLATFORM_PUBLIC_KEY =
@@ -269,6 +271,19 @@ describe("POST /api/trades — P2-2.4 verification", () => {
       blockHashHex: "abc123",
     });
 
+    // P3-1.3: the 23505 now comes from the atomic_record_trade RPC, not from
+    // a direct trades INSERT. Mock rpc to return the 23505 error.
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { code: "23505", message: "duplicate key value violates unique constraint" },
+    });
+
+    const thenableInsert = {
+      select: () => ({
+        single: async () => ({ data: { id: "u1" }, error: null }),
+      }),
+      then: (fn: (v: { error: null }) => unknown) => fn({ error: null }),
+    };
     mockFrom.mockImplementation((table: string) => {
       if (table === "markets") {
         return {
@@ -289,31 +304,8 @@ describe("POST /api/trades — P2-2.4 verification", () => {
               }),
             }),
           }),
-          update: () => ({
-            eq: async () => ({ error: null }),
-          }),
         };
       }
-      if (table === "trades") {
-        return {
-          insert: () => ({
-            select: () => ({
-              single: async () => ({
-                data: null,
-                error: { code: "23505", message: "duplicate key value" },
-              }),
-            }),
-          }),
-        };
-      }
-      // default: return stubs for users, platform_config, positions, etc.
-      const thenableInsert = {
-        select: () => ({
-          single: async () => ({ data: { id: "u1" }, error: null }),
-        }),
-        // Make insert thenable so fire-and-forget .then(fn) calls don't throw
-        then: (fn: (v: { error: null }) => unknown) => fn({ error: null }),
-      };
       return {
         select: () => ({
           eq: () => ({
@@ -325,9 +317,6 @@ describe("POST /api/trades — P2-2.4 verification", () => {
             fn({ data: [], error: null }),
         }),
         insert: () => thenableInsert,
-        update: () => ({
-          eq: () => ({ data: null, error: null }),
-        }),
       };
     });
 
@@ -339,7 +328,7 @@ describe("POST /api/trades — P2-2.4 verification", () => {
     const res = await tradesPOST(req as never);
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.reason).toBe("duplicate-tx-hash");
+    expect(body.reason).toBe("replay");
   });
 });
 
