@@ -480,6 +480,12 @@ Notably NOT touched:
 - **Impact:** Anyone can POST `/api/trades/sell` with any user's `desoPublicKey` and close that user's positions. Payout goes to that user's wallet (not the attacker's) — but the attacker has now forcibly liquidated someone's position, potentially at unfavorable AMM pricing. Griefing attack on par with theft in user experience.
 - **Severity:** P0 launch blocker. Fix shares with BUY-1 (single auth middleware serves both routes).
 - **Fix:** Auth middleware that verifies `desoPublicKey` matches the authenticated session. Same fix as BUY-1.
+- **Status: ✅ RESOLVED (2026-04-24, P2-1)** commit `410a506` (same commit as BUY-1).
+  Identity now comes from the middleware-verified HTTP-only signed session cookie.
+  The sell route calls `getAuthenticatedUser(req)` which reads the cookie-stamped
+  `x-deso-pubkey` header — never the request body. Body-supplied `desoPublicKey`
+  is ignored. P3-2.3 (commit `5ca9de4`) further wired this with service-role client
+  and Zod schema validation.
 
 #### SELL-2: Payout failure is silently swallowed (P0)
 
@@ -494,6 +500,12 @@ Notably NOT touched:
 - **Fix:** Two-part:
     1. Don't close the position until payout confirmed (see Target behavior below)
     2. Never return success when payout failed — return 500 with a support-ticket-able error code. Add retry mechanism for stuck payouts (Phase 4 reconciliation tooling).
+- **Status: ✅ RESOLVED (2026-04-26, P3-2)** commits `cb42018` (schema), `5ca9de4` (route).
+  Failed `transferDeso` now marks `trades.payout_status = 'failed'` with reason and
+  returns HTTP 500. The position is NEVER transitioned (closed or reduced) without
+  on-chain confirmation. Position changes happen exclusively inside the `mark_sell_complete`
+  SETTLE RPC, which runs AFTER `transferDeso` confirms success. State machine:
+  `payout_status`: pending → paid | failed.
 
 #### SELL-3: `payout_tx_hash` is not persisted (P0)
 
@@ -501,6 +513,11 @@ Notably NOT touched:
 - **Impact:** Zero on-chain verifiability for any sell payout. Cannot answer "did user X actually receive their sell proceeds?" without digging through Vercel logs (which rotate). Parallel to the `fee_earnings.tx_hash` gap we fixed in Step 3d.1 for auto-buys — sell flow is missing the same feature.
 - **Severity:** P0 launch blocker. Even if SELL-2 is fixed, without persisting tx_hash we can't audit sell payouts.
 - **Fix:** Add `payout_tx_hash`, `payout_status`, `payout_at`, `payout_failed_reason` columns to `trades` via migration. On successful DeSo send, write `payout_tx_hash` and status='paid'. On failure, write status='failed' with reason.
+- **Status: ✅ RESOLVED (2026-04-26, P3-2)** commit `cb42018` (P3-2.2 migration).
+  New columns `payout_tx_hash` (TEXT), `payout_status` (TEXT), `payout_at` (TIMESTAMPTZ),
+  `payout_failed_reason` (TEXT) added to `trades` — all nullable for back-compat with
+  existing buy rows. `payout_tx_hash` is written by the `mark_sell_complete` RPC during
+  SETTLE, enabling full reconciliation between platform DESO outflows and the trade ledger.
 
 ### 🟡 Concerns
 
@@ -510,30 +527,50 @@ Notably NOT touched:
 - **Impact:** The wrong order for this flow. If the payout fails, the position is already closed — user has no retry option without manual intervention.
 - **Fix:** Correct order (see Target behavior): insert sell trade with payout_status='pending' → attempt on-chain payout → on success, close position + update trade; on failure, update trade to 'failed', leave position open.
 - **Note:** This fix is entwined with SELL-2's fix; they land together in the same branch.
+- **Status: ✅ RESOLVED (2026-04-26, P3-2)** commit `5ca9de4` (P3-2.3 route rewrite).
+  Correct order enforced: (1) INSERT trade with `payout_status='pending'` — no position
+  change yet; (2) `transferDeso` on-chain send; (3) on success, `mark_sell_complete` RPC
+  atomically marks trade `paid` AND closes/reduces the position. A failed transfer marks
+  the trade `failed` and leaves the position fully intact — user can retry with a fresh
+  `idempotencyKey`.
 
 #### SELL-5: No sell fees — correct per tokenomics, worth documenting
 
 - **Evidence:** Sell route inserts `trades` rows with all `fee_*` fields set to 0.
 - **Impact:** None — this is the correct behavior per 2026-04-21 tokenomics lock-in (sells are 0% fee). But the code actively writes zeroes rather than omitting the columns, which is a slight readability issue.
 - **Fix:** Not a fix — verify the intent by making the zero-writes explicit with a comment referencing DECISIONS.md. No behavior change.
+- **Note (2026-04-26):** Confirmed correct per locked tokenomics (DECISIONS.md 2026-04-21):
+  sells are 0% fee on all markets. Buys carry the 2.5% split. The P3-2.3 route
+  continues to write fee fields as 0. No action required.
 
 #### SELL-6: 10,000 nanos minimum floor (inconsistent with buy's 1000)
 
 - **Evidence:** Sell route floors the computed payout nanos at 10000. Buy route / `lib/deso/buyback.ts` uses a floor of 1000.
 - **Impact:** Minor. A user selling a position worth < ~$0.000047 wouldn't receive a payout. Probably never happens in real usage.
 - **Fix:** Decide on a canonical floor (the 1000 nanos value from DeSo's native floor is the right choice) and apply consistently across both routes. Add as a shared constant in `lib/deso/transaction.ts` or similar.
+- **Status: ✅ RESOLVED (2026-04-26, P3-2)** commit `5ca9de4` (P3-2.3 route rewrite).
+  Sell route now uses `MIN_PAYOUT_NANOS = BigInt(1_000)` — matches the floor used in
+  `lib/deso/buyback.ts`. Inconsistent 10,000-nano threshold eliminated.
 
 #### SELL-7: Uses `node.deso.org` not `api.deso.org`
 
 - **Evidence:** Sell route's on-chain calls go to `node.deso.org`; buy's go to `api.deso.org`.
 - **Impact:** Usually harmless — both resolve to DeSo's infrastructure. But if one's load-balanced differently or one gets deprecated, only one route breaks. Maintenance hazard.
 - **Fix:** Canonicalize on `api.deso.org` via the shared `DESO_API_BASE` constant from `lib/deso/rate.ts`. Already done for new code; sell route needs migrating.
+- **Status: ✅ RESOLVED (2026-04-26, P3-2)** commit `5ca9de4` (P3-2.3 route rewrite).
+  Entire inline send-deso/submit-transaction block removed. Replaced with
+  `lib/deso/transferDeso.ts` (the P3-5.3 primitive), which uses canonical `api.deso.org`
+  throughout. No more `node.deso.org` references in the sell path.
 
 #### SELL-8: Unused fields on positions table
 
 - **Evidence:** Positions table has `deso_staked_nanos` and `txn_hash` columns that are always null. Never written. Possibly dead from an earlier architecture.
 - **Impact:** None functionally. Schema clutter. Could also be confusing — "is this meant to be populated?"
 - **Fix:** Either drop in a migration or document in a comment on the table what they're for / why they exist. Low priority.
+- **Note (2026-04-26):** Confirmed unused by any active code path. Column drops deferred
+  to a separate hygiene migration — out of P3-2 scope. Tracked for a future hygiene
+  branch alongside `trades.coin_holder_pool_amount` and the `coin_holder_distributions`
+  table drops.
 
 ### Target behavior (after fixes)
 
@@ -2461,6 +2498,11 @@ Status values:
 | 2026-04-26 | CLAIM-7 | Resolved | 878ecad, 131586a | Three-layer idempotency: (1) partial UNIQUE index `uq_creator_claim_payouts_active` on `creator_id WHERE status IN ('pending','in_flight')` — verified live in Supabase; (2) Route Gate 7 SELECT lookup → 409 before any DB write; (3) Route Gate 10 catches 23505 → 409. |
 | 2026-04-26 | BUY-4 | Resolved | abe892f, f94a786, 2a81a48 | P3-1 atomic RPC pattern. `atomic_record_trade` PostgreSQL SECURITY DEFINER function (P3-1.2, deployed live) wraps trade INSERT + market UPDATE + position upsert + fee_earnings × N + optional escrow increment in a single transaction. Either all commit or all roll back. Route (P3-1.3) collapses 10+ sequential awaits into one `supabase.rpc('atomic_record_trade', ...)` call. Pre-generated UUIDs eliminate post-RPC SELECT for autoBuyFeeId. Error mapping: 23505 → 409 reason:replay, market-not-found → 404. |
 | 2026-04-26 | BUY-6 | Resolved | 2a81a48 | Amount cap folded into P3-1.3: `amount: z.number().positive().max(10_000)`. Zod rejects oversized amounts at schema parse (400) before rate limit or on-chain verification are hit. |
+| 2026-04-26 | SELL-2 | Resolved | cb42018, 5ca9de4 | P3-2 atomic sell flow. Failed `transferDeso` marks `trades.payout_status='failed'` with reason; route returns 500. Position is NEVER closed without on-chain confirmation — position transitions happen only inside `mark_sell_complete` SETTLE RPC, after payout confirmed. State machine: payout_status: pending → paid \| failed. |
+| 2026-04-26 | SELL-3 | Resolved | cb42018 | New `payout_tx_hash`, `payout_status`, `payout_at`, `payout_failed_reason` columns on `trades` (P3-2.2 migration, all nullable). `payout_tx_hash` written by `mark_sell_complete` RPC on SETTLE — enables full reconciliation between platform DESO outflows and trade ledger. |
+| 2026-04-26 | SELL-4 | Resolved | 5ca9de4 | Correct order enforced in P3-2.3 route: OPEN INSERT (payout_status=pending, no position change) → transferDeso → on success, SETTLE RPC closes/reduces position atomically. Failed transfer leaves position intact; user retries with fresh idempotencyKey. |
+| 2026-04-26 | SELL-6 | Resolved | 5ca9de4 | `MIN_PAYOUT_NANOS = BigInt(1_000)` in P3-2.3 route — matches floor in `lib/deso/buyback.ts`. Inconsistent 10,000-nano threshold eliminated. |
+| 2026-04-26 | SELL-7 | Resolved | 5ca9de4 | Inline `node.deso.org` send-deso/submit-transaction block removed. Replaced with `lib/deso/transferDeso.ts` (P3-5.3 primitive), which uses canonical `api.deso.org`. |
 | 2026-04-25 | BUY-5 (partial) | Mitigated | 62e9187 | Route now uses server-side authoritative DeSo rate from `fetchDesoUsdRate()` to compute `expectedNanosTolerant` for the verification check. Client rate still used for fee splits (Step 3) — full BUY-5 fix requires moving fee math server-side in Phase 3 route rewrite. |
 | 2026-04-26 | BUY-5 | Mitigated | 876b09a → 06aa1ec | Per-user Upstash sliding-window rate limit on `/api/trades` (10 req/60s, bucket `trades:{pubkey}`) and `/api/trades/sell` (bucket `sell:{pubkey}`). Per-IP limit on `/api/auth/deso-login` (5 req/60s). Checked after auth (trades) / before body parse (login). Fail-open preserves availability if Upstash is unreachable. Auth middleware (edge) was already landed in P2-1; this commit adds the rate limit layer. Full DoS hardening (stricter limits, CAPTCHA) deferred to production ops. |
 
@@ -2489,6 +2531,7 @@ Status values:
 | 2026-04-26 | P2-5 shipped (fresh-JWT recency check). CLAIM-2 Resolved. Two routes secured: /api/claim/verify (live) and /api/creators/[slug]/claim (orphaned, future-secured). | b3f1b48 → 5d20400 |
 | 2026-04-26 | P2-6 shipped (wallet solvency helpers). Infrastructure — no audit finding closes with P2-6 alone. Provides typed preflight balance checks (checkDesoSolvency, checkCreatorCoinSolvency) for Phase 3 Paths 4+5 to consume. Also fixes getUserDesoBalance (missing IncludeBalance: true → was silently returning 0) and getCreatorCoinHoldings (wrong API flags). | bd265c6 → cd3f1a4 |
 | 2026-04-26 | P3-1 shipped (buy atomicity + BUY-6 cap). BUY-4 Resolved; BUY-6 Resolved. `atomic_record_trade` RPC deployed live. Route collapsed to single atomic call. Dead v1 coin_holder_distributions path deleted. Service-role client swap. 13 new atomicity tests + auth test updates. 30 trade tests pass, tsc clean. | f5a7e51 → 2a81a48 |
+| 2026-04-26 | P3-2 shipped (sell atomicity). SELL-2 (P0), SELL-3 (P0), SELL-4, SELL-6, SELL-7 Resolved. SELL-1 note added (resolved by P2-1). SELL-5 note added (no sell fees — correct per tokenomics). SELL-8 deferred (hygiene). `mark_sell_complete` RPC + payout columns deployed live. Sell route rewritten: 12-gate flow, Zod schema, service-role client, `transferDeso` + `checkDesoSolvency` primitives wired. 18 new sell-atomicity tests; 322 total passing. tsc clean, build green. | 6a4067d → 0c2df25 |
 
 ---
 
