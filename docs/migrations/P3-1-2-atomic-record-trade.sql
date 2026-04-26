@@ -49,7 +49,7 @@ BEGIN
     no_pool          = (p_market->>'no_pool')::NUMERIC,
     yes_price        = (p_market->>'yes_price')::NUMERIC,
     no_price         = (p_market->>'no_price')::NUMERIC,
-    total_volume_usd = COALESCE(total_volume_usd, 0) + (p_market->>'volume_delta')::NUMERIC,
+    total_volume     = COALESCE(total_volume, 0) + (p_market->>'volume_delta')::NUMERIC,
     updated_at       = NOW()
   WHERE id = (p_market->>'id')::UUID;
 
@@ -143,3 +143,13 @@ COMMENT ON FUNCTION atomic_record_trade IS
 --    Build a synthetic invocation in TypeScript route tests
 --    rather than testing in raw SQL (the route's tests will
 --    exercise the function via supabase.rpc()).
+
+-- =============================================================
+-- P3-1.2b correction (2026-04-26)
+-- Original P3-1.2 referenced markets.total_volume_usd, but the
+-- actual column is markets.total_volume (verified via
+-- information_schema.columns). The function above has been
+-- updated. To apply this fix to an existing database, run the
+-- entire CREATE OR REPLACE block again — the old definition is
+-- harmlessly replaced.
+-- =============================================================
