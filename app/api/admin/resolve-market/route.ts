@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { ADMIN_KEYS } from "@/lib/admin/market-generator";
+import { resolveMarket } from "@/lib/markets/resolution";
+import { isAdminAuthorized } from "@/lib/admin/auth";
 
 export async function POST(req: NextRequest) {
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "caldera-admin-2026";
-
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -12,7 +11,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { marketId, outcome, adminPassword: pw, desoPublicKey, resolutionNote } = body as {
+  const {
+    marketId,
+    outcome,
+    adminPassword: pw,
+    desoPublicKey,
+    resolutionNote,
+  } = body as {
     marketId?: string;
     outcome?: string;
     adminPassword?: string;
@@ -20,24 +25,24 @@ export async function POST(req: NextRequest) {
     resolutionNote?: string;
   };
 
-  const isAdmin =
-    ADMIN_KEYS.includes(desoPublicKey || "") ||
-    pw === adminPassword;
-
-  if (!isAdmin) {
+  if (!isAdminAuthorized(pw, desoPublicKey)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!marketId) {
     return NextResponse.json({ error: "marketId required" }, { status: 400 });
   }
   if (outcome !== "yes" && outcome !== "no") {
-    return NextResponse.json({ error: "outcome must be 'yes' or 'no'" }, { status: 400 });
+    return NextResponse.json(
+      { error: "outcome must be 'yes' or 'no'" },
+      { status: 400 }
+    );
   }
 
   const supabase = await createClient();
 
-  // Fetch market
-  const { data: market, error: marketErr } = await supabase
+  // Fetch market for the response payload
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: market, error: marketErr } = await (supabase as any)
     .from("markets")
     .select("id, title, status")
     .eq("id", marketId)
@@ -47,70 +52,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Market not found" }, { status: 404 });
   }
 
-  const now = new Date().toISOString();
+  // Atomic resolution via shared lib (P3-3.3 / P3-3.2 RPC)
+  const result = await resolveMarket(supabase, {
+    marketId,
+    outcome,
+    resolutionNote: resolutionNote ?? null,
+    sourceUrl: null,
+    resolvedByUserId: null,
+  });
 
-  // Update market to resolved
-  const { data: updatedMarket, error: updateErr } = await supabase
-    .from("markets")
-    .update({
-      status: "resolved",
-      resolution_outcome: outcome,
-      resolved_at: now,
-      ...(resolutionNote ? { resolution_source_url: resolutionNote } : {}),
-    })
-    .eq("id", marketId)
-    .select()
-    .single();
-
-  if (updateErr) {
-    return NextResponse.json({ error: updateErr.message }, { status: 500 });
-  }
-
-  // Settle all open positions
-  const { data: positions } = await supabase
-    .from("positions")
-    .select("id, side, quantity, total_cost")
-    .eq("market_id", marketId)
-    .eq("status", "open");
-
-  let winnersCount = 0;
-  let totalPaidOut = 0;
-
-  if (positions && positions.length > 0) {
-    for (const pos of positions) {
-      const isWinner = pos.side === outcome;
-      // Winners get $1 per share; pnl = payout - cost
-      const realizedPnl = isWinner
-        ? (pos.quantity ?? 0) * 1.0 - (pos.total_cost ?? 0)
-        : -(pos.total_cost ?? 0);
-
-      await supabase
-        .from("positions")
-        .update({ status: "settled", realized_pnl: realizedPnl })
-        .eq("id", pos.id);
-
-      if (isWinner) {
-        winnersCount++;
-        totalPaidOut += (pos.quantity ?? 0) * 1.0;
-      }
+  if (!result.ok) {
+    if (result.reason === "market-already-resolved-or-not-found") {
+      return NextResponse.json(
+        { error: "Market is not open for resolution", reason: result.reason },
+        { status: 409 }
+      );
     }
+    if (result.reason === "invalid-outcome") {
+      return NextResponse.json(
+        { error: result.detail, reason: result.reason },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { error: result.detail, reason: result.reason },
+      { status: 500 }
+    );
   }
 
-  // Insert resolution record (non-critical)
-  try {
-    await supabase.from("market_resolutions").insert({
-      market_id: marketId,
-      outcome,
-      notes: resolutionNote ?? null,
-      created_at: now,
-    });
-  } catch { /* non-critical */ }
+  // Re-fetch the market for response payload (unchanged contract)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: updatedMarket } = await (supabase as any)
+    .from("markets")
+    .select()
+    .eq("id", marketId)
+    .single();
 
   return NextResponse.json({
     success: true,
     market: updatedMarket,
-    positionsSettled: positions?.length ?? 0,
-    winnersCount,
-    totalPaidOut: Math.round(totalPaidOut * 100) / 100,
+    positionsSettled: result.positionsSettled,
+    winnersCount: result.winnersCount,
+    totalPaidOut: Math.round(result.totalPayoutUsd * 100) / 100,
   });
 }
