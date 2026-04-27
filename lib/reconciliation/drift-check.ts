@@ -208,7 +208,6 @@ export async function driftCheckPositionPayouts(
     }
     result.claimedRows++;
     const expectedNanos = Number(row.payout_amount_nanos);
-    ledgerSum += BigInt(row.payout_amount_nanos);
 
     let verifyResult;
     try {
@@ -229,11 +228,15 @@ export async function driftCheckPositionPayouts(
     }
 
     if (verifyResult.ok) {
-      // verifyResult.actualAmountNanos may be number or stringy — coerce
+      // Both sums get this row — confirmed match.
+      ledgerSum += BigInt(row.payout_amount_nanos!);
       onchainSum += BigInt(verifyResult.actualAmountNanos);
     } else {
       // Drift signal: claimed row, but verifyTx says no
       if (verifyResult.reason === "tx-not-found") {
+        // Real drift signal: ledger says we paid, chain says we didn't.
+        // Add to ledgerSum so the coarse-sum check ALSO flags it.
+        ledgerSum += BigInt(row.payout_amount_nanos!);
         result.unmatched.push({
           rowId: row.id,
           txHash: row.claim_tx_hash,
@@ -262,7 +265,9 @@ export async function driftCheckPositionPayouts(
       } else {
         // sender-mismatch, recipient-not-found, amount-too-low, etc.
         // The row is in 'claimed' but on-chain says it doesn't match.
+        // Real drift signal. Add to ledgerSum.
         // CRITICAL drift.
+        ledgerSum += BigInt(row.payout_amount_nanos!);
         result.unmatched.push({
           rowId: row.id,
           txHash: row.claim_tx_hash,
@@ -412,7 +417,6 @@ export async function driftCheckCreatorClaimPayouts(
     }
     result.claimedRows++;
     const expectedNanos = Number(row.amount_nanos);
-    ledgerSum += BigInt(row.amount_nanos);
 
     let verifyResult;
     try {
@@ -433,9 +437,12 @@ export async function driftCheckCreatorClaimPayouts(
     }
 
     if (verifyResult.ok) {
+      ledgerSum += BigInt(row.amount_nanos!);
       onchainSum += BigInt(verifyResult.actualAmountNanos);
     } else {
       if (verifyResult.reason === "tx-not-found") {
+        // Real drift signal — add to ledgerSum.
+        ledgerSum += BigInt(row.amount_nanos!);
         result.unmatched.push({
           rowId: row.id,
           txHash: row.tx_hash,
@@ -461,6 +468,8 @@ export async function driftCheckCreatorClaimPayouts(
       } else if (verifyResult.reason === "deso-api-unreachable") {
         result.errors++;
       } else {
+        // Real drift signal — add to ledgerSum.
+        ledgerSum += BigInt(row.amount_nanos!);
         result.unmatched.push({
           rowId: row.id,
           txHash: row.tx_hash,
