@@ -7,7 +7,7 @@
  */
 
 import { ImageResponse } from "next/og";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const alt = "Caldera — Creator claim";
@@ -20,7 +20,7 @@ export default async function Image({
   params: { code: string };
 }) {
   const { code } = params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: creator } = await (supabase as any)
