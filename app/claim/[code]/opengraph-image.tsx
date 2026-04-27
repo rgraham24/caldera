@@ -17,19 +17,19 @@ export const contentType = "image/png";
 export default async function Image({
   params,
 }: {
-  params: { code: string };
+  params: Promise<{ code: string }>;
 }) {
-  const { code } = params;
+  const { code } = await params;
   const supabase = createServiceClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = (await (supabase as any)
+  const { data: creator } = await (supabase as any)
     .from("creators")
     .select(
       "name, slug, claim_status, twitter_handle, unclaimed_earnings_escrow"
     )
     .eq("claim_code", code)
-    .maybeSingle()) as {
+    .maybeSingle() as {
     data: {
       name: string;
       slug: string;
@@ -37,18 +37,7 @@ export default async function Image({
       twitter_handle: string | null;
       unclaimed_earnings_escrow: string | null;
     } | null;
-    error: { message: string } | null;
   };
-
-  console.log("[og-image] code:", code);
-  console.log("[og-image] supabase result:", JSON.stringify({
-    data: result.data,
-    error: result.error,
-    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-  }));
-
-  const creator = result.data;
 
   // Fallback: generic Caldera card.
   if (!creator || creator.claim_status === "claimed") {
