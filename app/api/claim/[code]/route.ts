@@ -11,7 +11,7 @@ export async function GET(
   // ── New system: look up by creators.claim_code ────────────────────────────
   const { data: creatorByCode } = await supabase
     .from("creators")
-    .select("id, name, slug, creator_coin_symbol, markets_count, total_volume, twitter_handle, claim_code, claim_status, unclaimed_earnings_usd")
+    .select("id, name, slug, creator_coin_symbol, markets_count, total_volume, twitter_handle, claim_code, claim_status, unclaimed_earnings_escrow")
     .eq("claim_code", code)
     .maybeSingle();
 
@@ -27,7 +27,7 @@ export async function GET(
         twitterHandle: creatorByCode.twitter_handle,
         claimCode: code,
         marketsCount: creatorByCode.markets_count ?? 0,
-        unclaimedEarnings: Number(creatorByCode.unclaimed_earnings_usd ?? 0),
+        unclaimedEarnings: Number(creatorByCode.unclaimed_earnings_escrow ?? 0),
         total_volume: creatorByCode.total_volume ?? 0,
       },
     });
@@ -50,7 +50,7 @@ export async function GET(
 
   const { data: creator } = await supabase
     .from("creators")
-    .select("name, slug, creator_coin_symbol, markets_count, total_volume, twitter_handle, unclaimed_earnings_usd")
+    .select("name, slug, creator_coin_symbol, markets_count, total_volume, twitter_handle, unclaimed_earnings_escrow")
     .eq("slug", claim.slug)
     .maybeSingle();
 
@@ -66,7 +66,7 @@ export async function GET(
       twitterHandle: creator.twitter_handle,
       claimCode: code,
       marketsCount: creator.markets_count ?? 0,
-      unclaimedEarnings: Number(creator.unclaimed_earnings_usd ?? 0),
+      unclaimedEarnings: Number(creator.unclaimed_earnings_escrow ?? 0),
       total_volume: creator.total_volume ?? 0,
     },
   });

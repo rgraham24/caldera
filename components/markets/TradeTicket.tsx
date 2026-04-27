@@ -423,7 +423,7 @@ export function TradeTicket({
               ))}
             </div>
             {(() => {
-              const burnToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
+              const holderToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
               const burnSlug = getCategoryTokenSlug(market.category, market.crypto_ticker, market.creator_slug);
               const isClaimed = !!creatorTokenSymbol;
               return (
@@ -435,22 +435,22 @@ export function TradeTicket({
                       <span className="text-white">1%</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-text-muted">{burnToken} burn</span>
+                      <span className="text-text-muted">{holderToken} rewards</span>
                       <span className="relative group cursor-help">
-                        <span className="text-orange-400">{isClaimed ? "0.5%" : "1%"} burn 🔥</span>
+                        <span className="text-orange-400">{isClaimed ? "0.5%" : "1%"} holder rewards 💰</span>
                         <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                          {isClaimed ? "0.5%" : "1%"} of this trade permanently reduces the token supply, making remaining tokens scarcer.
+                          {isClaimed ? "0.5%" : "1%"} of this trade is distributed as rewards to holders of the relevant token.
                         </span>
                       </span>
                     </div>
                     {isClaimed && (
                       <>
                         <div className="flex justify-between text-xs">
-                          <span className="text-text-muted">${creatorTokenSymbol} burn</span>
+                          <span className="text-text-muted">${creatorTokenSymbol} holder rewards</span>
                           <span className="relative group cursor-help">
-                            <span className="text-orange-400">0.5% burn 🔥</span>
+                            <span className="text-orange-400">0.5% holder rewards 💰</span>
                             <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                              0.5% of this trade auto-buys ${creatorTokenSymbol} and permanently removes it from circulation.
+                              0.5% of this trade auto-buys ${creatorTokenSymbol} and holds it as price support for existing token holders.
                             </span>
                           </span>
                         </div>
@@ -463,7 +463,7 @@ export function TradeTicket({
                   </div>
                   <a href={`/creators/${burnSlug}`}
                      className="mt-2 text-xs text-orange-400 hover:underline block">
-                    View {burnToken} token →
+                    View {holderToken} token →
                   </a>
                 </div>
               );

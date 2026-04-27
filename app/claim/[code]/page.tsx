@@ -18,6 +18,13 @@ type ClaimInfo = {
   marketsCount: number;
 };
 
+type ClaimResult = {
+  profileClaimed: boolean;
+  txHashHex: string | null;
+  amountNanos: string;
+  escrowUsd: string;
+};
+
 function CopyBox({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -50,6 +57,7 @@ export default function ClaimPage() {
   const [step, setStep] = useState<Step>("loading");
   const [info, setInfo] = useState<ClaimInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCount = useRef(0);
 
@@ -142,6 +150,12 @@ export default function ClaimPage() {
         setStep("tweet_verified");
         return;
       }
+      setClaimResult({
+        profileClaimed: !!data.profileClaimed,
+        txHashHex: data.txHashHex ?? null,
+        amountNanos: String(data.amountNanos ?? "0"),
+        escrowUsd: String(data.escrowUsd ?? "0"),
+      });
       setStep("success");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -183,14 +197,47 @@ export default function ClaimPage() {
   }
 
   if (step === "success") {
+    const escrowUsdNum = claimResult ? Number(claimResult.escrowUsd) : 0;
+    const hasPayout = escrowUsdNum > 0 && claimResult?.txHashHex;
+    const explorerUrl = claimResult?.txHashHex
+      ? `https://explorer.deso.com/?query-node=https%3A%2F%2Fnode.deso.org&query=${claimResult.txHashHex}`
+      : null;
+
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
         <div className="text-center max-w-md px-6">
           <div className="text-5xl mb-4">🎉</div>
           <p className="text-3xl font-bold text-white mb-3">${info?.symbol ?? info?.name} is yours!</p>
-          <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-            You&apos;ll now earn <span className="text-orange-400 font-semibold">0.5%</span> of every future market trade about you — sent directly to your DeSo wallet.
-          </p>
+
+          {hasPayout ? (
+            <>
+              <div className="rounded-xl border p-4 mb-5" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+                <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>Sent to your wallet</p>
+                <p className="text-3xl font-bold text-amber-400 mb-1">
+                  ${escrowUsdNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                {explorerUrl && (
+                  <a
+                    href={explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs underline"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    View transaction →
+                  </a>
+                )}
+              </div>
+              <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+                Plus you&apos;ll earn <span className="text-orange-400 font-semibold">0.5%</span> of every future trade — sent directly to your DeSo wallet.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+              You&apos;ll now earn <span className="text-orange-400 font-semibold">0.5%</span> of every future market trade about you — sent directly to your DeSo wallet.
+            </p>
+          )}
+
           <p className="text-xs mb-8" style={{ color: "var(--text-tertiary)" }}>Connected as @{desoUsername}</p>
           <button
             onClick={() => router.push(`/creators/${info?.slug}`)}
@@ -243,7 +290,7 @@ export default function ClaimPage() {
             </div>
           </div>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            After claiming, you earn <span className="text-white font-medium">0.5%</span> per trade sent to your wallet, plus <span className="text-white font-medium">0.5%</span> in token burns benefiting all holders.
+            After claiming, you earn <span className="text-white font-medium">0.5%</span> per trade sent to your wallet, plus <span className="text-white font-medium">0.5%</span> in holder rewards on your token — auto-distributed to fans who hold your coin.
           </p>
         </div>
 
