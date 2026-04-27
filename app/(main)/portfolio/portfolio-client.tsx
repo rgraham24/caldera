@@ -8,6 +8,7 @@ import { connectDeSoWallet } from "@/lib/deso/auth";
 import { TradeTicket } from "@/components/markets/TradeTicket";
 import { StakeModal } from "@/components/markets/StakeModal";
 import PendingRewards from "@/components/portfolio/PendingRewards";
+import PendingPayouts from "@/components/portfolio/PendingPayouts";
 import type { Market } from "@/types";
 
 type Position = {
@@ -280,6 +281,7 @@ export function PortfolioClient() {
       </div>
 
       <PendingRewards />
+      <PendingPayouts />
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-lg bg-surface p-1">

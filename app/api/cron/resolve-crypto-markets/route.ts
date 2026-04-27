@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolveMarket } from "@/lib/markets/resolution";
 
 export const dynamic = "force-dynamic";
 
@@ -62,12 +63,21 @@ export async function GET(req: Request) {
         ? "yes"
         : "no";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("markets").update({
-      status: "resolved",
-      resolution_outcome: outcome,
-      resolved_at: now,
-    }).eq("id", market.id);
+    const result = await resolveMarket(supabase, {
+      marketId: market.id,
+      outcome,
+      resolutionNote: "CRON_CRYPTO_AUTO_RESOLVED",
+      sourceUrl: null,
+      resolvedByUserId: null,
+    });
+    if (!result.ok) {
+      console.error("[crypto-cron] resolveMarket failed", {
+        marketId: market.id,
+        reason: result.reason,
+        detail: result.detail,
+      });
+      continue;
+    }
 
     resolved++;
     console.log(
