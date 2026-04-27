@@ -152,8 +152,8 @@ export function HowItWorksModal() {
                 </div>
               </div>
               <div className="bg-[var(--bg-elevated)] rounded-xl p-3">
-                <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest burn</div>
-                <div className="text-sm font-medium text-[var(--text-primary)]">🔥 $0.87 burned just now</div>
+                <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest rewards</div>
+                <div className="text-sm font-medium text-[var(--text-primary)]">💰 $0.87 to holders just now</div>
                 <div className="text-xs text-[var(--text-tertiary)] mt-0.5">from a LeBron market trade</div>
               </div>
             </div>
@@ -168,13 +168,13 @@ export function HowItWorksModal() {
               <div className="text-center text-[var(--text-tertiary)]">↓</div>
               <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)] space-y-1">
                 <div className="text-xs text-[var(--text-tertiary)]">2% fee splits</div>
-                <div className="text-sm font-medium text-green-500">$1 → burns $SPORTS tokens 🔥</div>
+                <div className="text-sm font-medium text-green-500">$1 → holder rewards ($SPORTS) 💰</div>
                 <div className="text-sm text-[var(--text-tertiary)]">$1 → platform</div>
               </div>
               <div className="text-center text-[var(--text-tertiary)]">↓</div>
               <div className="bg-[var(--bg-elevated)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">
                 <div className="text-xs font-medium text-[var(--text-primary)] text-center leading-relaxed">
-                  Token burn happens automatically<br />on every single trade
+                  Holder rewards distributed automatically<br />on every single trade
                 </div>
               </div>
             </div>

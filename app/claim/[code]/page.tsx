@@ -243,7 +243,7 @@ export default function ClaimPage() {
             </div>
           </div>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            After claiming, you earn <span className="text-white font-medium">0.5%</span> per trade sent to your wallet, plus <span className="text-white font-medium">0.5%</span> in token burns benefiting all holders.
+            After claiming, you earn <span className="text-white font-medium">0.5%</span> per trade sent to your wallet, plus <span className="text-white font-medium">0.5%</span> in holder rewards on your token — auto-distributed to fans who hold your coin.
           </p>
         </div>
 

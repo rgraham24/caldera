@@ -242,7 +242,7 @@ export function MarketDetailClient({
               )}
 
               {(() => {
-                const burnToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
+                const holderToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
                 const burnSlug = getCategoryTokenSlug(market.category, market.crypto_ticker, market.creator_slug);
                 return (
                   <div className="text-center">
@@ -250,7 +250,7 @@ export function MarketDetailClient({
                       href={`/creators/${burnSlug}`}
                       className="text-xs text-[var(--accent)] hover:underline"
                     >
-                      View {burnToken} token →
+                      View {holderToken} token →
                     </a>
                   </div>
                 );

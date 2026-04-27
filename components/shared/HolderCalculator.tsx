@@ -46,7 +46,7 @@ export function HolderCalculator({
       {creatorName && creatorSlug && (
         <div className="mb-4 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
           <p className="text-xs text-orange-300 font-medium mb-1">
-            How the token burn works
+            How holder rewards work
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Every time someone trades a prediction market about{" "}
