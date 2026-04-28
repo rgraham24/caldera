@@ -14,8 +14,7 @@
  * Coverage:
  *   ✓ position_payouts
  *   ✓ creator_claim_payouts
- *   ✗ holder_rewards (same deferred reason as sweep — needs
- *     verifyCreatorCoinTransfer primitive)
+ *   ✓ holder_rewards (HRV-5, uses verifyCreatorCoinTransfer)
  *
  * Tolerance: network_fee_nanos × claimed_count + 1000 nanos buffer.
  * DeSo network fee is typically 168 nanos per tx.
@@ -24,6 +23,7 @@
  */
 
 import { verifyDesoTransfer } from "@/lib/deso/verifyTx";
+import { verifyCreatorCoinTransfer } from "@/lib/deso/verifyCreatorCoinTransfer";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ── Public types ────────────────────────────────────────────────
@@ -518,6 +518,225 @@ export async function driftCheckCreatorClaimPayouts(
       diff_nanos: result.diffNanos,
       detail: {
         reason: "ledger vs on-chain sum exceeds tolerance",
+        claimed_rows: result.claimedRows,
+        tolerance_nanos: result.toleranceNanos,
+        unmatched_count: result.unmatched.length,
+      },
+      triggered_by: triggeredBy,
+    });
+  }
+
+  return result;
+}
+
+// ── holder_rewards drift check ──────────────────────────────────
+
+type HolderRewardDriftRow = {
+  id: string;
+  holder_deso_public_key: string;
+  token_slug: string;
+  amount_creator_coin_nanos: string | number | null;
+  claimed_tx_hash: string | null;
+};
+
+/**
+ * Coarse drift check for holder_rewards.
+ *
+ * Selects all rows in 'claimed' status with a non-null claimed_tx_hash.
+ * For each row, calls verifyCreatorCoinTransfer to confirm the
+ * on-chain CREATOR_COIN_TRANSFER matches the ledger entry. Sums
+ * are accumulated in CREATOR COIN NANOS, not DESO nanos.
+ *
+ * Per-row CRITICAL drift_alerts on tx_hash mismatches (chain says
+ * "didn't happen" or "wrong sender/recipient/amount/coin"). Coarse
+ * WARN drift_alert if the ledger-vs-onchain sum diverges past
+ * tolerance.
+ *
+ * Note on amount comparison: unlike DESO transfers which use >= for
+ * rate drift absorption, creator coin transfers are exact-match
+ * verified. Successful verify means actualAmountNanos === expected.
+ * The tolerance formula is reused from the DESO siblings for code
+ * symmetry, but creator coin drift should in practice always be zero
+ * for confirmed rows; only deso-api-unreachable errors create gaps.
+ */
+export async function driftCheckHolderRewards(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+  options: DriftCheckOptions = {}
+): Promise<DriftCheckResult> {
+  const triggeredBy: DriftCheckTrigger = options.triggeredBy ?? "cron";
+  const limit = options.limit;
+
+  const result: DriftCheckResult = {
+    table: "holder_rewards",
+    claimedRows: 0,
+    ledgerSumNanos: "0",
+    onchainSumNanos: "0",
+    diffNanos: "0",
+    toleranceNanos: "0",
+    withinThreshold: true,
+    unmatched: [],
+    errors: 0,
+  };
+
+  const platformPubkey = process.env.DESO_PLATFORM_PUBLIC_KEY ?? "";
+  if (!platformPubkey) {
+    console.error(
+      "[reconciliation/drift-check] DESO_PLATFORM_PUBLIC_KEY missing — abort"
+    );
+    result.errors = 1;
+    return result;
+  }
+
+  // No JOIN needed — holder_deso_public_key + token_slug live on
+  // holder_rewards directly.
+  let query =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("holder_rewards")
+      .select(
+        "id, holder_deso_public_key, token_slug, amount_creator_coin_nanos, claimed_tx_hash"
+      )
+      .eq("status", "claimed")
+      .not("claimed_tx_hash", "is", null);
+
+  if (limit && limit > 0) {
+    query = query.limit(limit);
+  }
+
+  const { data: rows, error: fetchErr } = await query;
+
+  if (fetchErr) {
+    console.error(
+      "[reconciliation/drift-check] holder_rewards fetch failed:",
+      fetchErr
+    );
+    result.errors = 1;
+    return result;
+  }
+
+  if (!rows || rows.length === 0) {
+    return result;
+  }
+
+  let ledgerSum = BigInt(0);
+  let onchainSum = BigInt(0);
+
+  for (const row of rows as HolderRewardDriftRow[]) {
+    if (row.amount_creator_coin_nanos == null || !row.claimed_tx_hash) {
+      // Already filtered by query but defensive
+      continue;
+    }
+    result.claimedRows++;
+    const expectedNanos = Number(row.amount_creator_coin_nanos);
+
+    let verifyResult;
+    try {
+      verifyResult = await verifyCreatorCoinTransfer(
+        row.claimed_tx_hash,
+        platformPubkey,
+        row.holder_deso_public_key,
+        row.token_slug,
+        expectedNanos
+      );
+    } catch (e) {
+      result.errors++;
+      console.error(
+        "[reconciliation/drift-check] verify threw for row:",
+        row.id,
+        e
+      );
+      continue;
+    }
+
+    if (verifyResult.ok) {
+      ledgerSum += BigInt(row.amount_creator_coin_nanos!);
+      onchainSum += BigInt(verifyResult.actualAmountNanos);
+    } else {
+      if (verifyResult.reason === "tx-not-found") {
+        // Real drift signal — add to ledgerSum so coarse-sum check ALSO flags.
+        ledgerSum += BigInt(row.amount_creator_coin_nanos!);
+        result.unmatched.push({
+          rowId: row.id,
+          txHash: row.claimed_tx_hash,
+          expectedNanos,
+          verifyReason: verifyResult.reason,
+        });
+        await recordDriftAlert(supabase, {
+          alert_type: "drift_detected",
+          severity: "CRITICAL",
+          table_name: "holder_rewards",
+          row_id: row.id,
+          before_status: "claimed",
+          tx_hash: row.claimed_tx_hash,
+          detail: {
+            reason: "claimed row has tx_hash that DeSo cannot find",
+            verify_reason: verifyResult.reason,
+            verify_detail: verifyResult.detail,
+            expected_creator_coin_nanos: expectedNanos,
+            holder_deso_public_key: row.holder_deso_public_key,
+            token_slug: row.token_slug,
+          },
+          triggered_by: triggeredBy,
+        });
+      } else if (verifyResult.reason === "deso-api-unreachable") {
+        // Don't sample-bias the on-chain sum; treat as error.
+        result.errors++;
+      } else {
+        // sender-mismatch, recipient-not-found, creator-username-mismatch,
+        // amount-mismatch, tx-not-creator-coin-transfer, etc.
+        // The row is in 'claimed' but on-chain says it doesn't match.
+        // Real drift signal — add to ledgerSum.
+        ledgerSum += BigInt(row.amount_creator_coin_nanos!);
+        result.unmatched.push({
+          rowId: row.id,
+          txHash: row.claimed_tx_hash,
+          expectedNanos,
+          verifyReason: verifyResult.reason,
+        });
+        await recordDriftAlert(supabase, {
+          alert_type: "drift_detected",
+          severity: "CRITICAL",
+          table_name: "holder_rewards",
+          row_id: row.id,
+          before_status: "claimed",
+          tx_hash: row.claimed_tx_hash,
+          detail: {
+            reason:
+              "claimed row tx mismatch (recipient/amount/coin/sender or other)",
+            verify_reason: verifyResult.reason,
+            verify_detail: verifyResult.detail,
+            expected_creator_coin_nanos: expectedNanos,
+            holder_deso_public_key: row.holder_deso_public_key,
+            token_slug: row.token_slug,
+          },
+          triggered_by: triggeredBy,
+        });
+      }
+    }
+  }
+
+  const diff = abs(ledgerSum - onchainSum);
+  const tolerance = computeTolerance(result.claimedRows);
+  const withinThreshold = diff <= tolerance;
+
+  result.ledgerSumNanos = ledgerSum.toString();
+  result.onchainSumNanos = onchainSum.toString();
+  result.diffNanos = diff.toString();
+  result.toleranceNanos = tolerance.toString();
+  result.withinThreshold = withinThreshold;
+
+  if (!withinThreshold) {
+    await recordDriftAlert(supabase, {
+      alert_type: "drift_detected",
+      severity: "WARN",
+      table_name: "holder_rewards",
+      ledger_sum_nanos: result.ledgerSumNanos,
+      onchain_sum_nanos: result.onchainSumNanos,
+      diff_nanos: result.diffNanos,
+      detail: {
+        reason:
+          "ledger vs on-chain sum exceeds tolerance (CREATOR COIN NANOS)",
         claimed_rows: result.claimedRows,
         tolerance_nanos: result.toleranceNanos,
         unmatched_count: result.unmatched.length,
