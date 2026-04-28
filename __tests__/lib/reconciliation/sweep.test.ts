@@ -10,8 +10,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   mapVerifyOutcome,
+  mapCctVerifyOutcome,
   sweepPositionPayouts,
   sweepCreatorClaimPayouts,
+  sweepHolderRewards,
 } from "@/lib/reconciliation/sweep";
 
 // ── verifyTx mock ────────────────────────────────────────────────
@@ -20,8 +22,14 @@ vi.mock("@/lib/deso/verifyTx", () => ({
   verifyDesoTransfer: vi.fn(),
 }));
 
+vi.mock("@/lib/deso/verifyCreatorCoinTransfer", () => ({
+  verifyCreatorCoinTransfer: vi.fn(),
+}));
+
 import { verifyDesoTransfer } from "@/lib/deso/verifyTx";
+import { verifyCreatorCoinTransfer } from "@/lib/deso/verifyCreatorCoinTransfer";
 const mockVerify = vi.mocked(verifyDesoTransfer);
+const mockVerifyCct = vi.mocked(verifyCreatorCoinTransfer);
 
 // ── Supabase mock factory ────────────────────────────────────────
 
@@ -597,6 +605,339 @@ describe("sweepCreatorClaimPayouts", () => {
       const result = await sweepCreatorClaimPayouts(supabase as any);
       expect(result.swept).toBe(0);
       expect(mockVerify).not.toHaveBeenCalled();
+    })
+  );
+});
+
+// ════════════════════════════════════════════════════════════════
+// mapCctVerifyOutcome — pure unit tests (no mocks)
+// ════════════════════════════════════════════════════════════════
+
+describe("mapCctVerifyOutcome", () => {
+  it("ok:true + blockHashHex set → mark_claimed INFO", () => {
+    const result = mapCctVerifyOutcome({
+      ok: true,
+      blockHashHex: "abc123",
+      actualAmountNanos: 500,
+    });
+    expect(result).toEqual({ kind: "mark_claimed", severity: "INFO" });
+  });
+
+  it("ok:true + blockHashHex null → leave_pending_chain_pending INFO", () => {
+    const result = mapCctVerifyOutcome({
+      ok: true,
+      blockHashHex: null,
+      actualAmountNanos: 500,
+    });
+    expect(result).toEqual({
+      kind: "leave_pending_chain_pending",
+      severity: "INFO",
+    });
+  });
+
+  it("ok:false reason tx-not-found → mark_failed WARN", () => {
+    const result = mapCctVerifyOutcome({ ok: false, reason: "tx-not-found" });
+    expect(result).toEqual({
+      kind: "mark_failed",
+      reason: "reconciliation: tx not found on chain",
+      severity: "WARN",
+    });
+  });
+
+  it("ok:false reason deso-api-unreachable → leave_pending_api_down WARN", () => {
+    const result = mapCctVerifyOutcome({
+      ok: false,
+      reason: "deso-api-unreachable",
+    });
+    expect(result).toEqual({
+      kind: "leave_pending_api_down",
+      severity: "WARN",
+    });
+  });
+
+  it("ok:false reason sender-mismatch → drift_critical", () => {
+    const result = mapCctVerifyOutcome({
+      ok: false,
+      reason: "sender-mismatch",
+      detail: "expected platform got other",
+    });
+    expect(result.kind).toBe("drift_critical");
+  });
+
+  it("ok:false reason recipient-not-found → drift_critical", () => {
+    const result = mapCctVerifyOutcome({
+      ok: false,
+      reason: "recipient-not-found",
+    });
+    expect(result.kind).toBe("drift_critical");
+  });
+
+  it("ok:false reason creator-username-mismatch → drift_critical", () => {
+    const result = mapCctVerifyOutcome({
+      ok: false,
+      reason: "creator-username-mismatch",
+    });
+    expect(result.kind).toBe("drift_critical");
+  });
+
+  it("ok:false reason amount-mismatch → drift_critical", () => {
+    const result = mapCctVerifyOutcome({
+      ok: false,
+      reason: "amount-mismatch",
+    });
+    expect(result.kind).toBe("drift_critical");
+  });
+
+  it("ok:false reason tx-not-creator-coin-transfer → drift_critical", () => {
+    const result = mapCctVerifyOutcome({
+      ok: false,
+      reason: "tx-not-creator-coin-transfer",
+    });
+    expect(result.kind).toBe("drift_critical");
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// sweepHolderRewards
+// ════════════════════════════════════════════════════════════════
+
+describe("sweepHolderRewards", () => {
+  beforeEach(() => {
+    mockVerifyCct.mockReset();
+  });
+
+  it(
+    "returns errors:1 when DESO_PLATFORM_PUBLIC_KEY is missing",
+    async () => {
+      const orig = process.env.DESO_PLATFORM_PUBLIC_KEY;
+      delete process.env.DESO_PLATFORM_PUBLIC_KEY;
+      const state: MockState = {
+        selectRows: {},
+        selectError: {},
+        updateResult: {},
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any, {
+        triggeredBy: "manual",
+      });
+      expect(result.errors).toBe(1);
+      expect(result.swept).toBe(0);
+      expect(result.table).toBe("holder_rewards");
+      process.env.DESO_PLATFORM_PUBLIC_KEY = orig;
+    }
+  );
+
+  it(
+    "returns zeroed result when no stale rows",
+    withPlatformKey(async () => {
+      const state: MockState = {
+        selectRows: { holder_rewards: [] },
+        selectError: {},
+        updateResult: {},
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any);
+      expect(result).toEqual({
+        table: "holder_rewards",
+        swept: 0,
+        confirmed: 0,
+        failed: 0,
+        stillPending: 0,
+        driftAlerts: 0,
+        errors: 0,
+      });
+    })
+  );
+
+  it(
+    "confirmed++ when verifyCreatorCoinTransfer returns ok:true + blockHashHex",
+    withPlatformKey(async () => {
+      mockVerifyCct.mockResolvedValue({
+        ok: true,
+        blockHashHex: "deadbeef",
+        actualAmountNanos: 455400,
+      });
+      const row = {
+        id: "hr-1",
+        holder_deso_public_key: "BC1YLholder1",
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "455400",
+        claimed_tx_hash: "aabbcc",
+        status: "in_flight",
+      };
+      const state: MockState = {
+        selectRows: { holder_rewards: [row] },
+        selectError: {},
+        updateResult: {
+          holder_rewards: { data: [{ id: "hr-1" }], error: null },
+        },
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any, {
+        triggeredBy: "cron",
+      });
+      expect(result.swept).toBe(1);
+      expect(result.confirmed).toBe(1);
+      expect(result.failed).toBe(0);
+      expect(result.table).toBe("holder_rewards");
+    })
+  );
+
+  it(
+    "failed++ when verifyCreatorCoinTransfer returns tx-not-found",
+    withPlatformKey(async () => {
+      mockVerifyCct.mockResolvedValue({ ok: false, reason: "tx-not-found" });
+      const row = {
+        id: "hr-2",
+        holder_deso_public_key: "BC1YLholder2",
+        token_slug: "calderamusic",
+        amount_creator_coin_nanos: "200000",
+        claimed_tx_hash: "ccddee",
+        status: "in_flight",
+      };
+      const state: MockState = {
+        selectRows: { holder_rewards: [row] },
+        selectError: {},
+        updateResult: {
+          holder_rewards: { data: [{ id: "hr-2" }], error: null },
+        },
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any, {
+        triggeredBy: "cron",
+      });
+      expect(result.swept).toBe(1);
+      expect(result.failed).toBe(1);
+      expect(result.confirmed).toBe(0);
+    })
+  );
+
+  it(
+    "stillPending++ when verifyCreatorCoinTransfer returns deso-api-unreachable",
+    withPlatformKey(async () => {
+      mockVerifyCct.mockResolvedValue({
+        ok: false,
+        reason: "deso-api-unreachable",
+      });
+      const row = {
+        id: "hr-3",
+        holder_deso_public_key: "BC1YLholder3",
+        token_slug: "calderatech",
+        amount_creator_coin_nanos: "100000",
+        claimed_tx_hash: "eeff00",
+        status: "in_flight",
+      };
+      const state: MockState = {
+        selectRows: { holder_rewards: [row] },
+        selectError: {},
+        updateResult: {},
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any);
+      expect(result.swept).toBe(1);
+      expect(result.stillPending).toBe(1);
+      expect(result.confirmed).toBe(0);
+      expect(result.failed).toBe(0);
+    })
+  );
+
+  it(
+    "driftAlerts++ when verifyCreatorCoinTransfer returns sender-mismatch (CRITICAL)",
+    withPlatformKey(async () => {
+      mockVerifyCct.mockResolvedValue({
+        ok: false,
+        reason: "sender-mismatch",
+        detail: "expected platform got other",
+      });
+      const row = {
+        id: "hr-4",
+        holder_deso_public_key: "BC1YLholder4",
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "300000",
+        claimed_tx_hash: "112233",
+        status: "in_flight",
+      };
+      const state: MockState = {
+        selectRows: { holder_rewards: [row] },
+        selectError: {},
+        updateResult: {},
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any);
+      expect(result.swept).toBe(1);
+      expect(result.driftAlerts).toBe(1);
+      expect(result.confirmed).toBe(0);
+      expect(result.failed).toBe(0);
+    })
+  );
+
+  it(
+    "driftAlerts++ and no verifyCreatorCoinTransfer call when claimed_tx_hash is null",
+    withPlatformKey(async () => {
+      const row = {
+        id: "hr-5",
+        holder_deso_public_key: "BC1YLholder5",
+        token_slug: "calderamusic",
+        amount_creator_coin_nanos: "50000",
+        claimed_tx_hash: null,
+        status: "in_flight",
+      };
+      const state: MockState = {
+        selectRows: { holder_rewards: [row] },
+        selectError: {},
+        updateResult: {},
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any);
+      expect(result.driftAlerts).toBe(1);
+      expect(mockVerifyCct).not.toHaveBeenCalled();
+    })
+  );
+
+  it(
+    "confirmed stays 0 when UPDATE returns 0 rows (concurrent sweep)",
+    withPlatformKey(async () => {
+      mockVerifyCct.mockResolvedValue({
+        ok: true,
+        blockHashHex: "deadbeef",
+        actualAmountNanos: 455400,
+      });
+      const row = {
+        id: "hr-6",
+        holder_deso_public_key: "BC1YLholder6",
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "455400",
+        claimed_tx_hash: "aabbcc",
+        status: "in_flight",
+      };
+      const state: MockState = {
+        selectRows: { holder_rewards: [row] },
+        selectError: {},
+        updateResult: {
+          // 0 rows → concurrent sweep beat us
+          holder_rewards: { data: [], error: null },
+        },
+        insertError: null,
+      };
+      const supabase = makeSupabaseMock(state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await sweepHolderRewards(supabase as any);
+      expect(result.confirmed).toBe(0);
+      expect(result.errors).toBe(0);
     })
   );
 });
