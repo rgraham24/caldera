@@ -4,13 +4,20 @@ vi.mock("@/lib/deso/verifyTx", () => ({
   verifyDesoTransfer: vi.fn(),
 }));
 
+vi.mock("@/lib/deso/verifyCreatorCoinTransfer", () => ({
+  verifyCreatorCoinTransfer: vi.fn(),
+}));
+
 import {
   driftCheckPositionPayouts,
   driftCheckCreatorClaimPayouts,
+  driftCheckHolderRewards,
 } from "@/lib/reconciliation/drift-check";
 import { verifyDesoTransfer } from "@/lib/deso/verifyTx";
+import { verifyCreatorCoinTransfer } from "@/lib/deso/verifyCreatorCoinTransfer";
 
 const mockedVerify = verifyDesoTransfer as ReturnType<typeof vi.fn>;
+const mockedVerifyCct = verifyCreatorCoinTransfer as ReturnType<typeof vi.fn>;
 
 const PLATFORM_PUBKEY = "BC1YLPLATFORM";
 const USER_PUBKEY = "BC1YLUSER";
@@ -369,5 +376,214 @@ describe("driftCheckCreatorClaimPayouts", () => {
       (a: any) => a.severity === "CRITICAL"
     );
     expect(criticalAlert).toBeDefined();
+  });
+});
+
+// ─── driftCheckHolderRewards tests ──────────────────────────────
+
+const HOLDER_PUBKEY = "BC1YLHOLDER";
+const HR_ROW_A = "hraaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const HR_ROW_B = "hrbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const HR_TX_A = "hr_txhash_a";
+const HR_TX_B = "hr_txhash_b";
+
+describe("driftCheckHolderRewards", () => {
+  beforeEach(() => {
+    mockedVerifyCct.mockReset();
+    process.env.DESO_PLATFORM_PUBLIC_KEY = PLATFORM_PUBKEY;
+  });
+
+  it("returns errors=1 if DESO_PLATFORM_PUBLIC_KEY missing", async () => {
+    delete process.env.DESO_PLATFORM_PUBLIC_KEY;
+    const { supabase } = makeSupabaseMocks();
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.errors).toBe(1);
+    expect(result.claimedRows).toBe(0);
+    expect(result.table).toBe("holder_rewards");
+  });
+
+  it("empty rows → all sums 0, withinThreshold=true", async () => {
+    const { supabase, state } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [];
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.claimedRows).toBe(0);
+    expect(result.ledgerSumNanos).toBe("0");
+    expect(result.onchainSumNanos).toBe("0");
+    expect(result.withinThreshold).toBe(true);
+    expect(result.unmatched).toEqual([]);
+  });
+
+  it("single confirmed row → sums match exactly, no drift alert", async () => {
+    const { supabase, state, driftAlertInserts } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [
+      {
+        id: HR_ROW_A,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "455400",
+        claimed_tx_hash: HR_TX_A,
+      },
+    ];
+    mockedVerifyCct.mockResolvedValue({
+      ok: true,
+      actualAmountNanos: 455400,
+      blockHashHex: "block",
+    });
+
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.claimedRows).toBe(1);
+    expect(result.ledgerSumNanos).toBe("455400");
+    expect(result.onchainSumNanos).toBe("455400");
+    expect(result.diffNanos).toBe("0");
+    expect(result.withinThreshold).toBe(true);
+    expect(result.unmatched).toEqual([]);
+    expect(driftAlertInserts).toHaveLength(0);
+  });
+
+  it("sums diverge beyond tolerance → WARN drift_alert fired", async () => {
+    const { supabase, state, driftAlertInserts } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [
+      {
+        id: HR_ROW_A,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "500000000",
+        claimed_tx_hash: HR_TX_A,
+      },
+    ];
+    // diff of 100,000 vs tolerance of 1168 → exceeds
+    mockedVerifyCct.mockResolvedValue({
+      ok: true,
+      actualAmountNanos: 500100000,
+      blockHashHex: "block",
+    });
+
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.diffNanos).toBe("100000");
+    expect(result.withinThreshold).toBe(false);
+    expect(driftAlertInserts).toHaveLength(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const alert = driftAlertInserts[0] as any;
+    expect(alert.alert_type).toBe("drift_detected");
+    expect(alert.severity).toBe("WARN");
+    expect(alert.diff_nanos).toBe("100000");
+  });
+
+  it("row tx-not-found → CRITICAL alert + unmatched[] populated", async () => {
+    const { supabase, state, driftAlertInserts } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [
+      {
+        id: HR_ROW_A,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "500000000",
+        claimed_tx_hash: HR_TX_A,
+      },
+    ];
+    mockedVerifyCct.mockResolvedValue({
+      ok: false,
+      reason: "tx-not-found",
+    });
+
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.unmatched).toHaveLength(1);
+    expect(result.unmatched[0].rowId).toBe(HR_ROW_A);
+    expect(result.unmatched[0].verifyReason).toBe("tx-not-found");
+    // CRITICAL per-row + WARN coarse-sum
+    expect(driftAlertInserts).toHaveLength(2);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const criticalAlert = (driftAlertInserts as any[]).find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (a: any) => a.severity === "CRITICAL"
+    );
+    expect(criticalAlert).toBeDefined();
+  });
+
+  it("row sender-mismatch → CRITICAL alert + unmatched[] populated", async () => {
+    const { supabase, state, driftAlertInserts } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [
+      {
+        id: HR_ROW_A,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderamusic",
+        amount_creator_coin_nanos: "200000000",
+        claimed_tx_hash: HR_TX_A,
+      },
+    ];
+    mockedVerifyCct.mockResolvedValue({
+      ok: false,
+      reason: "sender-mismatch",
+      detail: "wrong sender",
+    });
+
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.unmatched).toHaveLength(1);
+    expect(result.unmatched[0].verifyReason).toBe("sender-mismatch");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const alert = (driftAlertInserts as any[])[0];
+    expect(alert.severity).toBe("CRITICAL");
+  });
+
+  it("API unreachable → errors++, no drift alarm, no unmatched entry", async () => {
+    const { supabase, state, driftAlertInserts } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [
+      {
+        id: HR_ROW_A,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "500000000",
+        claimed_tx_hash: HR_TX_A,
+      },
+    ];
+    mockedVerifyCct.mockResolvedValue({
+      ok: false,
+      reason: "deso-api-unreachable",
+    });
+
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.errors).toBe(1);
+    expect(result.unmatched).toHaveLength(0);
+    expect(driftAlertInserts).toHaveLength(0);
+  });
+
+  it("multiple rows mixed outcomes → counts all correctly", async () => {
+    const { supabase, state, driftAlertInserts } = makeSupabaseMocks();
+    state.selectRows["holder_rewards"] = [
+      {
+        id: HR_ROW_A,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "300000000",
+        claimed_tx_hash: HR_TX_A,
+      },
+      {
+        id: HR_ROW_B,
+        holder_deso_public_key: HOLDER_PUBKEY,
+        token_slug: "calderasports",
+        amount_creator_coin_nanos: "400000000",
+        claimed_tx_hash: HR_TX_B,
+      },
+    ];
+    // First row: confirmed; Second row: tx-not-found
+    mockedVerifyCct
+      .mockResolvedValueOnce({
+        ok: true,
+        actualAmountNanos: 300000000,
+        blockHashHex: "block_a",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        reason: "tx-not-found",
+      });
+
+    const result = await driftCheckHolderRewards(supabase);
+    expect(result.claimedRows).toBe(2);
+    expect(result.ledgerSumNanos).toBe("700000000");
+    // onchain sum only adds the confirmed row
+    expect(result.onchainSumNanos).toBe("300000000");
+    expect(result.unmatched).toHaveLength(1);
+    expect(result.unmatched[0].rowId).toBe(HR_ROW_B);
+    // CRITICAL for ROW_B + WARN for sum drift
+    expect(driftAlertInserts.length).toBeGreaterThanOrEqual(2);
   });
 });

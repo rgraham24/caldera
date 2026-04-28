@@ -20,11 +20,13 @@ import { createServiceClient } from "@/lib/supabase/server";
 import {
   sweepPositionPayouts,
   sweepCreatorClaimPayouts,
+  sweepHolderRewards,
   type SweepResult,
 } from "@/lib/reconciliation/sweep";
 import {
   driftCheckPositionPayouts,
   driftCheckCreatorClaimPayouts,
+  driftCheckHolderRewards,
   type DriftCheckResult,
 } from "@/lib/reconciliation/drift-check";
 
@@ -121,6 +123,43 @@ export async function GET(req: Request) {
     console.error("[cron/reconcile] drift creator_claim_payouts threw:", e);
     driftResults.push({
       table: "creator_claim_payouts",
+      claimedRows: 0,
+      ledgerSumNanos: "0",
+      onchainSumNanos: "0",
+      diffNanos: "0",
+      toleranceNanos: "0",
+      withinThreshold: true,
+      unmatched: [],
+      errors: 1,
+    });
+  }
+
+  // holder_rewards
+  try {
+    sweepResults.push(
+      await sweepHolderRewards(supabase, { triggeredBy: "cron" })
+    );
+  } catch (e) {
+    console.error("[cron/reconcile] sweep holder_rewards threw:", e);
+    sweepResults.push({
+      table: "holder_rewards",
+      swept: 0,
+      confirmed: 0,
+      failed: 0,
+      stillPending: 0,
+      driftAlerts: 0,
+      errors: 1,
+    });
+  }
+
+  try {
+    driftResults.push(
+      await driftCheckHolderRewards(supabase, { triggeredBy: "cron" })
+    );
+  } catch (e) {
+    console.error("[cron/reconcile] drift holder_rewards threw:", e);
+    driftResults.push({
+      table: "holder_rewards",
       claimedRows: 0,
       ledgerSumNanos: "0",
       onchainSumNanos: "0",
