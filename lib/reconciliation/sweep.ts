@@ -23,13 +23,15 @@
  */
 
 import { verifyDesoTransfer } from "@/lib/deso/verifyTx";
+import { verifyCreatorCoinTransfer } from "@/lib/deso/verifyCreatorCoinTransfer";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ── Public types ────────────────────────────────────────────────
 
 export type SweepTable =
   | "position_payouts"
-  | "creator_claim_payouts";
+  | "creator_claim_payouts"
+  | "holder_rewards";
 
 export type SweepTrigger = "cron" | "admin" | "manual";
 
@@ -108,6 +110,48 @@ export function mapVerifyOutcome(
     // amount-too-low, tx-not-basic-transfer, invalid-hex,
     // invalid-encoding) means our ledger is inconsistent with the
     // on-chain state. Don't auto-transition. Log CRITICAL.
+    default:
+      return {
+        kind: "drift_critical",
+        reason: result.reason,
+        detail: result.detail ?? "no detail",
+      };
+  }
+}
+
+/**
+ * Map a verifyCreatorCoinTransfer outcome to a sweep decision.
+ * Pure function — easy to unit test.
+ *
+ * Sister of mapVerifyOutcome. The decision shape is identical
+ * (mark_claimed / mark_failed / leave_pending / drift_critical)
+ * but the recoverable reasons differ (creator coin verifier has
+ * different fail reasons).
+ */
+export function mapCctVerifyOutcome(
+  result: Awaited<ReturnType<typeof verifyCreatorCoinTransfer>>
+): SweepDecision {
+  if (result.ok) {
+    if (result.blockHashHex) {
+      return { kind: "mark_claimed", severity: "INFO" };
+    }
+    return { kind: "leave_pending_chain_pending", severity: "INFO" };
+  }
+  // result.ok === false
+  switch (result.reason) {
+    case "tx-not-found":
+      return {
+        kind: "mark_failed",
+        reason: "reconciliation: tx not found on chain",
+        severity: "WARN",
+      };
+    case "deso-api-unreachable":
+      return { kind: "leave_pending_api_down", severity: "WARN" };
+    // Everything else (sender-mismatch, recipient-not-found,
+    // creator-username-mismatch, amount-mismatch,
+    // tx-not-creator-coin-transfer, invalid-hex, invalid-encoding)
+    // means our ledger is inconsistent with the on-chain state.
+    // Don't auto-transition. Log CRITICAL.
     default:
       return {
         kind: "drift_critical",
@@ -665,6 +709,280 @@ async function processCreatorClaimPayoutRow(
           verify_detail: decision.detail,
           amount_nanos: row.amount_nanos,
           creator_deso_public_key: row.creator_deso_public_key,
+          action: "left_alone_human_review_required",
+        },
+        triggered_by: triggeredBy,
+      });
+      return;
+    }
+  }
+}
+
+// ── holder_rewards sweep ────────────────────────────────────────
+
+type HolderRewardSweepRow = {
+  id: string;
+  holder_deso_public_key: string;
+  token_slug: string;
+  amount_creator_coin_nanos: string | number | null;
+  claimed_tx_hash: string | null;
+  status: string;
+};
+
+/**
+ * Sweep stale in_flight holder_rewards rows.
+ *
+ * Recipient is holder_deso_public_key (already on the row, no JOIN).
+ * Amount is amount_creator_coin_nanos. Sender is the platform wallet.
+ * Coin is identified by token_slug (compared case-insensitively
+ * against the on-chain CreatorUsername).
+ *
+ * Uses verifyCreatorCoinTransfer (HRV-2) instead of verifyDesoTransfer
+ * because holder rewards are paid in creator coins, not DESO.
+ *
+ * Note on staleness cutoff: holder_rewards has no claimed_at-set-at-
+ * in_flight column, so we use accrued_at (the row's birth timestamp).
+ * Worst case is sweeping a row that just transitioned in_flight whose
+ * accrued_at is old; the verifier handles both confirmed and pending
+ * outcomes correctly so this is harmless.
+ *
+ * Failure reason is NOT written to the row (no error_reason column on
+ * holder_rewards). The reason is captured in drift_alerts.detail for
+ * forensics.
+ */
+export async function sweepHolderRewards(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+  options: SweepOptions = {}
+): Promise<SweepResult> {
+  const staleMinutes = options.staleMinutes ?? DEFAULT_STALE_MINUTES;
+  const limit = options.limit ?? DEFAULT_LIMIT;
+  const triggeredBy: SweepTrigger = options.triggeredBy ?? "cron";
+
+  const result: SweepResult = {
+    table: "holder_rewards",
+    swept: 0,
+    confirmed: 0,
+    failed: 0,
+    stillPending: 0,
+    driftAlerts: 0,
+    errors: 0,
+  };
+
+  const platformPubkey = process.env.DESO_PLATFORM_PUBLIC_KEY ?? "";
+  if (!platformPubkey) {
+    console.error(
+      "[reconciliation/sweep] DESO_PLATFORM_PUBLIC_KEY missing — abort"
+    );
+    result.errors = 1;
+    return result;
+  }
+
+  const cutoffIso = new Date(
+    Date.now() - staleMinutes * 60_000
+  ).toISOString();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rows, error: fetchErr } = await (supabase as any)
+    .from("holder_rewards")
+    .select(
+      "id, holder_deso_public_key, token_slug, amount_creator_coin_nanos, claimed_tx_hash, status"
+    )
+    .eq("status", "in_flight")
+    .lt("accrued_at", cutoffIso)
+    .limit(limit);
+
+  if (fetchErr) {
+    console.error(
+      "[reconciliation/sweep] holder_rewards fetch failed:",
+      fetchErr
+    );
+    result.errors = 1;
+    return result;
+  }
+
+  if (!rows || rows.length === 0) {
+    return result;
+  }
+
+  for (const row of rows as HolderRewardSweepRow[]) {
+    result.swept++;
+    try {
+      await processHolderRewardRow(
+        supabase,
+        row,
+        platformPubkey,
+        triggeredBy,
+        result
+      );
+    } catch (e) {
+      result.errors++;
+      console.error(
+        "[reconciliation/sweep] holder_rewards row error:",
+        row.id,
+        e
+      );
+    }
+  }
+
+  return result;
+}
+
+async function processHolderRewardRow(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>,
+  row: HolderRewardSweepRow,
+  platformPubkey: string,
+  triggeredBy: SweepTrigger,
+  result: SweepResult
+): Promise<void> {
+  // Sanity: must have tx_hash and amount to verify
+  if (!row.claimed_tx_hash || row.amount_creator_coin_nanos == null) {
+    await recordDriftAlert(supabase, {
+      alert_type: "drift_detected",
+      severity: "CRITICAL",
+      table_name: "holder_rewards",
+      row_id: row.id,
+      before_status: row.status,
+      detail: {
+        reason: "in_flight row missing claimed_tx_hash or amount_creator_coin_nanos",
+        claimed_tx_hash: row.claimed_tx_hash,
+        amount_creator_coin_nanos: row.amount_creator_coin_nanos,
+      },
+      triggered_by: triggeredBy,
+    });
+    result.driftAlerts++;
+    return;
+  }
+
+  const amountNanos = Number(row.amount_creator_coin_nanos);
+  const verifyResult = await verifyCreatorCoinTransfer(
+    row.claimed_tx_hash,
+    platformPubkey,
+    row.holder_deso_public_key,
+    row.token_slug,
+    amountNanos
+  );
+  const decision = mapCctVerifyOutcome(verifyResult);
+
+  switch (decision.kind) {
+    case "mark_claimed": {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("holder_rewards")
+        .update({
+          status: "claimed",
+          claimed_at: new Date().toISOString(),
+        })
+        .eq("id", row.id)
+        .eq("status", "in_flight")
+        .select("id");
+      if (error) {
+        result.errors++;
+        console.error(
+          "[reconciliation/sweep] holder_rewards mark_claimed UPDATE failed:",
+          row.id,
+          error
+        );
+        return;
+      }
+      const transitioned = (data?.length ?? 0) > 0;
+      if (transitioned) {
+        result.confirmed++;
+        await recordDriftAlert(supabase, {
+          alert_type: "reconciliation_action",
+          severity: decision.severity,
+          table_name: "holder_rewards",
+          row_id: row.id,
+          before_status: "in_flight",
+          after_status: "claimed",
+          tx_hash: row.claimed_tx_hash,
+          detail: { action: "confirmed_via_sweep" },
+          triggered_by: triggeredBy,
+        });
+      }
+      return;
+    }
+
+    case "mark_failed": {
+      // No error_reason column on holder_rewards — failure context
+      // is captured in the drift_alerts row's detail field instead.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("holder_rewards")
+        .update({
+          status: "failed",
+        })
+        .eq("id", row.id)
+        .eq("status", "in_flight")
+        .select("id");
+      if (error) {
+        result.errors++;
+        console.error(
+          "[reconciliation/sweep] holder_rewards mark_failed UPDATE failed:",
+          row.id,
+          error
+        );
+        return;
+      }
+      const transitioned = (data?.length ?? 0) > 0;
+      if (transitioned) {
+        result.failed++;
+        await recordDriftAlert(supabase, {
+          alert_type: "reconciliation_action",
+          severity: decision.severity,
+          table_name: "holder_rewards",
+          row_id: row.id,
+          before_status: "in_flight",
+          after_status: "failed",
+          tx_hash: row.claimed_tx_hash,
+          detail: {
+            action: "tx_not_found_via_sweep",
+            failure_reason: decision.reason,
+          },
+          triggered_by: triggeredBy,
+        });
+      }
+      return;
+    }
+
+    case "leave_pending_chain_pending":
+    case "leave_pending_api_down": {
+      result.stillPending++;
+      await recordDriftAlert(supabase, {
+        alert_type: "reconciliation_action",
+        severity: decision.severity,
+        table_name: "holder_rewards",
+        row_id: row.id,
+        before_status: "in_flight",
+        after_status: "in_flight",
+        tx_hash: row.claimed_tx_hash,
+        detail: {
+          action:
+            decision.kind === "leave_pending_chain_pending"
+              ? "tx_pending_on_chain"
+              : "deso_api_unreachable",
+        },
+        triggered_by: triggeredBy,
+      });
+      return;
+    }
+
+    case "drift_critical": {
+      result.driftAlerts++;
+      await recordDriftAlert(supabase, {
+        alert_type: "drift_detected",
+        severity: "CRITICAL",
+        table_name: "holder_rewards",
+        row_id: row.id,
+        before_status: "in_flight",
+        tx_hash: row.claimed_tx_hash,
+        detail: {
+          verify_reason: decision.reason,
+          verify_detail: decision.detail,
+          amount_creator_coin_nanos: row.amount_creator_coin_nanos,
+          holder_deso_public_key: row.holder_deso_public_key,
+          token_slug: row.token_slug,
           action: "left_alone_human_review_required",
         },
         triggered_by: triggeredBy,

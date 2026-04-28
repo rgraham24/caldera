@@ -30,7 +30,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type DriftCheckTable =
   | "position_payouts"
-  | "creator_claim_payouts";
+  | "creator_claim_payouts"
+  | "holder_rewards";
 
 export type DriftCheckTrigger = "cron" | "admin" | "manual";
 
