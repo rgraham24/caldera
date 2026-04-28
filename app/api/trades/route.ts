@@ -199,9 +199,12 @@ export async function POST(req: NextRequest) {
       supabase
     );
 
-    // Look up the creator for claim-status + creator-slice routing
+    // Look up the creator for claim-status + creator-slice routing.
+    // Crypto markets use creator_slug for token routing only (e.g. 'bitcoin' for BTC
+    // markets), not to identify a human creator. Skip the lookup so calculateBuyFees
+    // receives creator=null and correctly routes to holder_rewards_topup.
     let creatorForFees = null;
-    if (market.creator_slug) {
+    if (market.creator_slug && !mktFields.crypto_ticker) {
       const { data: creatorRow } = await supabase
         .from('creators')
         .select('id, token_status, claim_status, deso_public_key, deso_username')
