@@ -14,7 +14,7 @@
  * Body (all fields optional):
  *   - adminPassword: string (or use DeSo pubkey via desoPublicKey)
  *   - desoPublicKey: string
- *   - tables: ["position_payouts" | "creator_claim_payouts"]
+ *   - tables: ["position_payouts" | "creator_claim_payouts" | "holder_rewards"]
  *
  * Response:
  *   {
@@ -24,8 +24,9 @@
  *     driftResults: DriftCheckResult[]
  *   }
  *
- * Coverage matches sweep + drift-check (excludes holder_rewards
- * pending verifyCreatorCoinTransfer primitive).
+ * Coverage matches sweep + drift-check across all three audit
+ * tables: position_payouts, creator_claim_payouts, holder_rewards
+ * (HRV-6 added holder_rewards).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -35,6 +36,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import {
   sweepPositionPayouts,
   sweepCreatorClaimPayouts,
+  sweepHolderRewards,
   type SweepResult,
   type SweepTable,
   type SweepTrigger,
@@ -42,6 +44,7 @@ import {
 import {
   driftCheckPositionPayouts,
   driftCheckCreatorClaimPayouts,
+  driftCheckHolderRewards,
   type DriftCheckResult,
 } from "@/lib/reconciliation/drift-check";
 
@@ -51,6 +54,7 @@ export const maxDuration = 60;
 const SUPPORTED_TABLES = [
   "position_payouts",
   "creator_claim_payouts",
+  "holder_rewards",
 ] as const;
 
 const ReconcileBody = z.object({
@@ -123,6 +127,7 @@ export async function POST(req: NextRequest) {
   const targetTables: SweepTable[] = tables ?? [
     "position_payouts",
     "creator_claim_payouts",
+    "holder_rewards",
   ];
 
   // ── 8. Run sweep then drift-check per table, with per-step
@@ -139,8 +144,12 @@ export async function POST(req: NextRequest) {
         sweepResult = await sweepPositionPayouts(supabase, {
           triggeredBy,
         });
-      } else {
+      } else if (table === "creator_claim_payouts") {
         sweepResult = await sweepCreatorClaimPayouts(supabase, {
+          triggeredBy,
+        });
+      } else {
+        sweepResult = await sweepHolderRewards(supabase, {
           triggeredBy,
         });
       }
@@ -164,8 +173,12 @@ export async function POST(req: NextRequest) {
         driftResult = await driftCheckPositionPayouts(supabase, {
           triggeredBy,
         });
-      } else {
+      } else if (table === "creator_claim_payouts") {
         driftResult = await driftCheckCreatorClaimPayouts(supabase, {
+          triggeredBy,
+        });
+      } else {
+        driftResult = await driftCheckHolderRewards(supabase, {
           triggeredBy,
         });
       }

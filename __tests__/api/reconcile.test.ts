@@ -12,11 +12,13 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/reconciliation/sweep", () => ({
   sweepPositionPayouts: vi.fn(),
   sweepCreatorClaimPayouts: vi.fn(),
+  sweepHolderRewards: vi.fn(),
 }));
 
 vi.mock("@/lib/reconciliation/drift-check", () => ({
   driftCheckPositionPayouts: vi.fn(),
   driftCheckCreatorClaimPayouts: vi.fn(),
+  driftCheckHolderRewards: vi.fn(),
 }));
 
 import { POST } from "@/app/api/admin/reconcile/route";
@@ -24,17 +26,21 @@ import { isAdminAuthorized } from "@/lib/admin/auth";
 import {
   sweepPositionPayouts,
   sweepCreatorClaimPayouts,
+  sweepHolderRewards,
 } from "@/lib/reconciliation/sweep";
 import {
   driftCheckPositionPayouts,
   driftCheckCreatorClaimPayouts,
+  driftCheckHolderRewards,
 } from "@/lib/reconciliation/drift-check";
 
 const mockedAuth = isAdminAuthorized as ReturnType<typeof vi.fn>;
 const mockedSweepPP = sweepPositionPayouts as ReturnType<typeof vi.fn>;
 const mockedSweepCC = sweepCreatorClaimPayouts as ReturnType<typeof vi.fn>;
+const mockedSweepHR = sweepHolderRewards as ReturnType<typeof vi.fn>;
 const mockedDriftPP = driftCheckPositionPayouts as ReturnType<typeof vi.fn>;
 const mockedDriftCC = driftCheckCreatorClaimPayouts as ReturnType<typeof vi.fn>;
+const mockedDriftHR = driftCheckHolderRewards as ReturnType<typeof vi.fn>;
 
 function emptySweep(table: string) {
   return {
@@ -82,10 +88,12 @@ beforeEach(() => {
   mockedSweepCC.mockReset().mockResolvedValue(
     emptySweep("creator_claim_payouts")
   );
+  mockedSweepHR.mockReset().mockResolvedValue(emptySweep("holder_rewards"));
   mockedDriftPP.mockReset().mockResolvedValue(emptyDrift("position_payouts"));
   mockedDriftCC.mockReset().mockResolvedValue(
     emptyDrift("creator_claim_payouts")
   );
+  mockedDriftHR.mockReset().mockResolvedValue(emptyDrift("holder_rewards"));
 
   process.env.DESO_PLATFORM_PUBLIC_KEY = "BC1YLPLATFORM";
 });
@@ -103,7 +111,7 @@ describe("POST /api/admin/reconcile", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       makeReq({
         adminPassword: "x",
-        tables: ["holder_rewards"], // not in supported set
+        tables: ["invalid_table"], // not in supported set
       }) as any
     );
     expect(res.status).toBe(400);
@@ -125,19 +133,21 @@ describe("POST /api/admin/reconcile", () => {
     expect((await res.json()).reason).toBe("platform-wallet-unavailable");
   });
 
-  it("Happy path: 200 + both tables swept + drift-checked", async () => {
+  it("Happy path: 200 + all three tables swept + drift-checked", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await POST(makeReq({ adminPassword: "x" }) as any);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.ok).toBe(true);
     expect(json.triggeredBy).toBe("manual");
-    expect(json.sweepResults).toHaveLength(2);
-    expect(json.driftResults).toHaveLength(2);
+    expect(json.sweepResults).toHaveLength(3);
+    expect(json.driftResults).toHaveLength(3);
     expect(mockedSweepPP).toHaveBeenCalledTimes(1);
     expect(mockedSweepCC).toHaveBeenCalledTimes(1);
+    expect(mockedSweepHR).toHaveBeenCalledTimes(1);
     expect(mockedDriftPP).toHaveBeenCalledTimes(1);
     expect(mockedDriftCC).toHaveBeenCalledTimes(1);
+    expect(mockedDriftHR).toHaveBeenCalledTimes(1);
   });
 
   it("tables filter: only position_payouts → libs called for only that table", async () => {
