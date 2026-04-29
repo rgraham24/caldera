@@ -20,14 +20,14 @@ const STEPS = [
     number: "3",
     title: "Every person has a token",
     description:
-      "Every public figure on Caldera has a real token. When markets are traded, 1% of every fee automatically buys back that token.",
+      "Every public figure on Caldera has a real token. When markets are traded, 0.5% of every fee rewards token holders and 0.5% auto-buys that token on DeSo.",
     visual: "token",
   },
   {
     number: "4",
     title: "Fees flow back into tokens",
     description:
-      "Hold any token on Caldera. As markets about that person are traded, fees automatically buy back that token — on every single trade.",
+      "Hold any token on Caldera. As markets about that person are traded, 0.5% rewards you as a holder and 0.5% auto-buys the token on DeSo — on every single trade.",
     visual: "earn",
   },
 ];
@@ -167,9 +167,10 @@ export function HowItWorksModal() {
               </div>
               <div className="text-center text-[var(--text-tertiary)]">↓</div>
               <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)] space-y-1">
-                <div className="text-xs text-[var(--text-tertiary)]">2% fee splits</div>
-                <div className="text-sm font-medium text-green-500">$1 → holder rewards ($SPORTS) 💰</div>
-                <div className="text-sm text-[var(--text-tertiary)]">$1 → platform</div>
+                <div className="text-xs text-[var(--text-tertiary)]">2.5% fee splits</div>
+                <div className="text-sm font-medium text-green-500">$0.50 → holder rewards 💰</div>
+                <div className="text-sm font-medium text-green-400">$0.50 → on-chain auto-buy 📈</div>
+                <div className="text-sm text-[var(--text-tertiary)]">$1.00 → platform</div>
               </div>
               <div className="text-center text-[var(--text-tertiary)]">↓</div>
               <div className="bg-[var(--bg-elevated)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">

@@ -20,6 +20,7 @@ const StakeModal = dynamic(
 );
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -451,7 +452,6 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
           {doubled.map((c, i) => {
             const rank = i % creators.length;
             const isTop3 = rank < 3;
-            const sym = c.deso_username ?? c.creator_coin_symbol ?? c.name;
             const price = c.creator_coin_price ?? 0;
             const mcap = c.creator_coin_market_cap ?? 0;
             const holders = c.creator_coin_holders ?? 0;
@@ -489,7 +489,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
                     <span className="w-4 shrink-0 text-center text-[10px] font-bold text-[var(--text-tertiary)]">{rank + 1}</span>
                   )}
                   <CreatorAvatar creator={c} size="sm" />
-                  <span className="truncate text-xs font-semibold text-[var(--text-primary)]">${sym}</span>
+                  <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{getTokenSymbolDisplay(c)}</span>
                 </div>
 
                 {/* Row 2+3: Price and Mkt Cap columns with labels */}
@@ -599,13 +599,13 @@ function MarketCard({ market }: { market: Market }) {
             onClick={(e) => e.stopPropagation()}
             className="text-xs text-orange-400 font-medium hover:underline"
           >
-            ${market.category_token_slug.replace("caldera-", "").toUpperCase()}
+            ${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}
           </a>
-          <span className="relative group cursor-help text-xs text-muted-foreground">
-            · 1% burn 🔥
-            <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-52 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-              1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
-            </span>
+          <span
+            className="text-[10px] text-[var(--text-tertiary)]"
+            title={`1% of every trade flows to $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.\nHalf goes to holders as rewards.\nHalf buys $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.`}
+          >
+            · 0.5% → holders + on-chain buy
           </span>
         </div>
       )}
@@ -854,7 +854,6 @@ export function HomeClient({
           <div className="mb-8">
             <div className="mb-4">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">⚡ Featured</h2>
-              <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Hand-picked by our AI</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {featuredMarkets.map((market) => {
@@ -880,14 +879,14 @@ export function HomeClient({
                     {market.category_token_slug && (
                       <div className="flex items-center gap-1 mt-1.5">
                         <span className="text-xs text-orange-400 font-medium">
-                          ${market.category_token_slug.replace("caldera-", "").toUpperCase()}
+                          ${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}
                         </span>
-                        <span className="relative group cursor-help text-xs text-muted-foreground">
-            · 1% burn 🔥
-            <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-52 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-              1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
+                        <span
+              className="text-[10px] text-[var(--text-tertiary)]"
+              title={`1% of every trade flows to $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.\nHalf goes to holders as rewards.\nHalf buys $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.`}
+            >
+              · 0.5% → holders + on-chain buy
             </span>
-          </span>
                       </div>
                     )}
                     <div className="mt-3">

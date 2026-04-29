@@ -123,7 +123,7 @@ async function main() {
         existed++;
         continue;
       }
-      const description = `${token.emoji} Official ${token.name} category token on Caldera. Every ${token.name.toLowerCase()} prediction market trade automatically buys and burns this token — permanently reducing supply. caldera.market`;
+      const description = `${token.emoji} Official ${token.name} category token on Caldera. Every ${token.name.toLowerCase()} prediction market trade automatically rewards ${token.name.toLowerCase()} token holders and triggers an on-chain buy on DeSo. caldera.market`;
       const txHex = await buildUpdateProfileTx(token.username, description);
       console.log(`  📝 Transaction built`);
       const txHash = await signAndSubmit(txHex);

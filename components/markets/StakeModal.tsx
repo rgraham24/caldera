@@ -294,12 +294,12 @@ export function StakeModal({
                 <div className="mb-4 rounded-xl bg-surface p-3 space-y-2">
                   <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What happens now</p>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
-                    <span className="text-orange-400 shrink-0">🔥</span>
-                    <span>1% of every prediction trade on {creator.name}&apos;s markets auto-buys &amp; burns ${coinSymbol}</span>
+                    <span className="text-caldera shrink-0">💰</span>
+                    <span>Every trade on {creator.name}&apos;s markets auto-buys ${coinSymbol} on DeSo and rewards ${coinSymbol} holders.</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
                     <span className="text-caldera shrink-0">📈</span>
-                    <span>As supply decreases, fewer tokens exist in circulation</span>
+                    <span>Holder rewards and on-chain buys accumulate with every prediction made.</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
                     <span className="text-yes shrink-0">🏆</span>
@@ -530,19 +530,27 @@ export function StakeModal({
             {/* Fee breakdown (buy only) */}
             {tab === "buy" && (
               <div className="mb-4 rounded-xl border border-caldera/10 bg-caldera/5 p-3 text-xs">
-                <p className="text-[9px] uppercase tracking-widest text-caldera font-semibold mb-2">Where your 2% fee goes</p>
+                <p className="text-[9px] uppercase tracking-widest text-caldera font-semibold mb-2">Where your 2.5% fee goes</p>
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
                     <span className="text-text-muted">Caldera platform</span>
                     <span className="text-text-primary">1%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">${coinSymbol} burn</span>
-                    <span className="text-orange-400 font-semibold">1% burn 🔥</span>
+                    <span className="text-text-muted">${coinSymbol} holder rewards</span>
+                    <span className="text-caldera font-semibold">0.5%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Token holders benefit</span>
-                    <span className="text-caldera font-semibold">from buy &amp; burn</span>
+                    <span className="text-text-muted">${coinSymbol} on-chain auto-buy</span>
+                    <span className="text-caldera font-semibold">0.5%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">
+                      {creator.claim_status === "claimed"
+                        ? `@${creator.deso_username ?? creator.name}`
+                        : "Creator escrow"}
+                    </span>
+                    <span className="text-caldera font-semibold">0.5%</span>
                   </div>
                 </div>
               </div>

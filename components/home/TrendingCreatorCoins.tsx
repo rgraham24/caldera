@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Creator } from "@/types";
 import { formatCurrency, formatCompactCurrency } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
@@ -72,7 +73,7 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
                     {creator.name}
                   </Link>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] tracking-widest text-text-muted">${coinSymbol}</span>
+                    <span className="text-[10px] tracking-widest text-text-muted">{getTokenSymbolDisplay(creator)}</span>
                   </div>
                 </div>
               </div>

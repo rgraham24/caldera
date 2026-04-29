@@ -4,6 +4,20 @@ Append-only. Newest at top. Never edit or delete past entries — if a decision 
 
 ---
 
+## 2026-04-29: Cleanup backlog — token symbol surfaces
+
+5. **Slug-derived token symbols in non-priority surfaces.**
+   Three sites still display token symbols by deriving from slug rather than using `getTokenSymbol()` helper. All lower-traffic / not-yet-launched:
+   - `app/(main)/admin/admin-actions.tsx:700` — admin-only UI
+   - `app/api/markets/[id]/share-card/route.ts:83` — OG share card image
+   - `app/api/claim/[code]/route.ts:26,65` — claim flow API response
+   Migrate when touching these surfaces for other reasons.
+
+6. **`symbol` prop on HolderCalculator may be redundant.**
+   Post Session-1-followup, the prop is no longer used in the rewards paragraph (replaced by `getTokenSymbolDisplay({ slug: creatorSlug })`). It may still be used elsewhere in the component. Audit and remove if fully unused.
+
+---
+
 ## 2026-04-16: No $CALDRA token
 We are NOT launching a $CALDRA token. The caldra_token, caldra_holdings, and caldra_trades tables in Supabase are dormant schema artifacts from an earlier exploration. No live code references them. They will be dropped in a future migration but kept for now to avoid breaking anything.
 

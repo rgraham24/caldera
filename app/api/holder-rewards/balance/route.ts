@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest) {
     return {
       tokenSlug: row.token_slug,
       tokenType: row.token_type,
-      displayLabel: `$${row.token_slug}`,
+      displayLabel: getTokenSymbolDisplay({ slug: row.token_slug }),
       rowCount: row.row_count,
       totalUsd: row.total_usd,
       creatorPublicKey: c?.deso_public_key ?? null,

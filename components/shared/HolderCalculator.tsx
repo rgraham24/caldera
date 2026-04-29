@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 type HolderCalculatorProps = {
   symbol: string;
@@ -33,10 +34,10 @@ export function HolderCalculator({
     ? marketCount * 5000  // assume $5k per market per week as baseline
     : weeklyVolume;
 
-  const projectedEarnings = projectedWeeklyVolume * 0.01 * userSharePercent;
+  const projectedEarnings = projectedWeeklyVolume * 0.005 * userSharePercent;
   const isProjection = !hasRealVolume && marketCount > 0;
 
-  const weeklyEarnings = weeklyVolume * 0.01 * userSharePercent;
+  const weeklyEarnings = weeklyVolume * 0.005 * userSharePercent;
   const annualEarnings = (isProjection ? projectedEarnings : weeklyEarnings) * 52;
   const costToBuy = coins * coinPrice;
 
@@ -51,9 +52,10 @@ export function HolderCalculator({
           <p className="text-xs text-muted-foreground leading-relaxed">
             Every time someone trades a prediction market about{" "}
             <span className="text-foreground font-medium">{creatorName}</span>,
-            1% of the fee automatically buys back{" "}
-            <span className="text-orange-400">${creatorSlug}</span> on-chain.
-            The more markets trade, the more buybacks accumulate.
+            0.5% of the fee accrues as rewards to{" "}
+            <span className="text-orange-400">{getTokenSymbolDisplay({ slug: creatorSlug })}</span> holders. Another 0.5% auto-buys{" "}
+            <span className="text-orange-400">{getTokenSymbolDisplay({ slug: creatorSlug })}</span> on DeSo.
+            The more markets trade, the more rewards and on-chain demand accumulate.
           </p>
         </div>
       )}
@@ -106,7 +108,7 @@ export function HolderCalculator({
         )}
         {!isProjection && (
           <p className="text-[10px] text-text-faint font-mono">
-            {formatCurrency(weeklyVolume)} × 1% × {pctOfSupply.toFixed(2)}% = {formatCurrency(weeklyEarnings)}/wk
+            {formatCurrency(weeklyVolume)} × 0.5% × {pctOfSupply.toFixed(2)}% = {formatCurrency(weeklyEarnings)}/wk
           </p>
         )}
         <div className="flex justify-between">

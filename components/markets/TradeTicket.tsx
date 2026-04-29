@@ -236,12 +236,9 @@ export function TradeTicket({
           <div className="text-xs text-orange-400 font-medium">Trading on</div>
           <div className="text-sm font-semibold">{selectedOutcome.label}</div>
           {selectedOutcome.creator_slug && (
-            <div className="relative group cursor-help text-xs text-muted-foreground inline-block">
-              1% burn 🔥
-              <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden w-52 -translate-x-1/2 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                1% of this trade permanently reduces the token supply, making remaining tokens scarcer.
-              </span>
-            </div>
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              · 0.5% → holder rewards · 0.5% auto-buys on DeSo
+            </span>
           )}
         </div>
       )}
@@ -446,11 +443,11 @@ export function TradeTicket({
                     {isClaimed && (
                       <>
                         <div className="flex justify-between text-xs">
-                          <span className="text-text-muted">${creatorTokenSymbol} holder rewards</span>
+                          <span className="text-text-muted">{creatorTokenSymbol} holder rewards</span>
                           <span className="relative group cursor-help">
                             <span className="text-orange-400">0.5% holder rewards 💰</span>
                             <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                              0.5% of this trade auto-buys ${creatorTokenSymbol} and holds it as price support for existing token holders.
+                              0.5% of this trade auto-buys {creatorTokenSymbol} and holds it as price support for existing token holders.
                             </span>
                           </span>
                         </div>
@@ -605,8 +602,8 @@ export function TradeTicket({
                 <span>Your DESO was transferred on-chain to the Caldera platform wallet</span>
               </div>
               <div className="flex items-start gap-2 text-text-muted">
-                <span className="shrink-0">🔥</span>
-                <span>1% of your trade automatically buys & burns the category token — permanently</span>
+                <span className="shrink-0">📈</span>
+                <span>0.5% rewards token holders · 0.5% auto-buys the category token on DeSo</span>
               </div>
               <div className="flex items-start gap-2 text-text-muted">
                 <span className="shrink-0">📈</span>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Zap } from 'lucide-react';
 import Link from 'next/link';
+import { getTokenSymbolDisplay } from '@/lib/utils/tokenSymbol';
 
 export default function BreakingPage() {
   const [markets, setMarkets] = useState<any[]>([]);
@@ -67,7 +68,7 @@ export default function BreakingPage() {
                   </div>
                 </div>
                 {market.creator_slug && (
-                  <div className="mt-2 text-xs text-orange-400">${market.creator_slug}</div>
+                  <div className="mt-2 text-xs text-orange-400">{getTokenSymbolDisplay({ slug: market.creator_slug })}</div>
                 )}
               </Link>
             );

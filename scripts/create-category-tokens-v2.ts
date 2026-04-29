@@ -166,7 +166,7 @@ async function main() {
       await new Promise(r => setTimeout(r, 4000));
 
       // Create profile signed by the new wallet's key
-      const description = `${token.emoji} Official ${token.name} category token on Caldera. Every ${token.name.toLowerCase()} prediction market trade automatically buys and burns this token — permanently reducing supply. caldera.market`;
+      const description = `${token.emoji} Official ${token.name} category token on Caldera. Every ${token.name.toLowerCase()} prediction market trade automatically rewards ${token.name.toLowerCase()} token holders and triggers an on-chain buy on DeSo. caldera.market`;
       await createProfile(newPublicKey, privKeyHex, token.username, description);
       console.log(`  ✅ Profile created`);
 

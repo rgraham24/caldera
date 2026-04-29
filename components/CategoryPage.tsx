@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Market } from "@/types";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 import { Search } from "lucide-react";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 type CategoryPageProps = {
   category: string;
@@ -209,7 +210,7 @@ function MarketCard({ market, onTrade }: { market: Market; onTrade: (slug: strin
 
       {/* Creator tag */}
       {market.creator_slug && (
-        <p className="mt-1 text-xs text-caldera">${market.creator_slug}</p>
+        <p className="mt-1 text-xs text-caldera">{getTokenSymbolDisplay({ slug: market.creator_slug })}</p>
       )}
 
       {/* Probability bar */}

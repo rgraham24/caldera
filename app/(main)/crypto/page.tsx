@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Market } from "@/types";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 type DurationTab = "all" | "5min" | "1hr" | "daily";
 
@@ -179,7 +180,7 @@ function CryptoMarketCard({
 
       {/* Creator tag */}
       {market.creator_slug && (
-        <p className="mt-1 text-xs text-caldera">${market.creator_slug}</p>
+        <p className="mt-1 text-xs text-caldera">{getTokenSymbolDisplay({ slug: market.creator_slug })}</p>
       )}
 
       {/* Probability bar */}

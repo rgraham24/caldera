@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { useAppStore } from "@/store";
 import { Search, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, Suspense } from "react";
@@ -270,8 +271,8 @@ function SearchBox({
                     </div>
                   )}
                   <span className="flex-1 truncate text-sm">{c.name}</span>
-                  {c.creator_coin_symbol && (
-                    <span className="shrink-0 font-mono text-xs" style={{ color: "#8888a0" }}>${c.creator_coin_symbol}</span>
+                  {getTokenSymbolDisplay({ slug: c.slug, creator_coin_symbol: c.creator_coin_symbol }) && (
+                    <span className="shrink-0 font-mono text-xs" style={{ color: "#8888a0" }}>{getTokenSymbolDisplay({ slug: c.slug, creator_coin_symbol: c.creator_coin_symbol })}</span>
                   )}
                 </Link>
               ))}

@@ -207,7 +207,7 @@ export default function ClaimPage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
         <div className="text-center max-w-md px-6">
           <div className="text-5xl mb-4">🎉</div>
-          <p className="text-3xl font-bold text-white mb-3">${info?.symbol ?? info?.name} is yours!</p>
+          <p className="text-3xl font-bold text-white mb-3">{info?.symbol ?? info?.name} is yours!</p>
 
           {hasPayout ? (
             <>
@@ -286,7 +286,7 @@ export default function ClaimPage() {
             </div>
             <div>
               <p className="text-xs mb-1" style={{ color: "var(--text-tertiary)" }}>TOKEN</p>
-              <p className="text-2xl font-bold text-white">${info?.symbol ?? "—"}</p>
+              <p className="text-2xl font-bold text-white">{info?.symbol ?? "—"}</p>
             </div>
           </div>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>

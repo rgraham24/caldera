@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { Creator, Market } from "@/types";
 import { formatCurrency, formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { MarketCard } from "@/components/markets/MarketCard";
 import dynamic from "next/dynamic";
 
@@ -382,13 +383,13 @@ export function CreatorProfileClient({
           isCryptoCreator ? (
             <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
               <p className="text-sm text-text-muted">
-                Every trade on ${coinSymbol} markets burns ${coinSymbol} tokens automatically.
+                Every trade on ${coinSymbol} markets buys ${coinSymbol} on DeSo and rewards holders. When {creator.name} claims their account, they&apos;ll earn 0.5% per trade directly.
               </p>
             </div>
           ) : categoryTokenSymbol ? (
             <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
               <p className="text-sm text-text-muted">
-                Trade markets. Burn <span className="font-medium text-caldera">${categoryTokenSymbol}</span> tokens.
+                Trade markets. Reward <span className="font-medium text-caldera">${categoryTokenSymbol}</span> holders.
               </p>
             </div>
           ) : null
@@ -404,13 +405,13 @@ export function CreatorProfileClient({
           isCryptoCreator ? (
             <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
               <p className="text-sm text-text-muted">
-                Every trade on ${coinSymbol} markets burns ${coinSymbol} tokens automatically.
+                Every trade on ${coinSymbol} markets rewards ${coinSymbol} holders and buys ${coinSymbol} on DeSo.
               </p>
             </div>
           ) : categoryTokenSymbol ? (
             <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
               <p className="text-sm text-text-muted">
-                Trade markets. Burn <span className="font-medium text-caldera">${categoryTokenSymbol}</span> tokens.
+                Trade markets. Reward <span className="font-medium text-caldera">${categoryTokenSymbol}</span> holders.
               </p>
             </div>
           ) : null
@@ -418,8 +419,7 @@ export function CreatorProfileClient({
         {creator.token_status === "claimed" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
-              ✅ Caldera verified — {creator.name} earns <span className="text-caldera font-medium">0.75%</span>.
-              Token holders earn <span className="text-caldera font-medium">0.75%</span>.
+              ✅ Caldera verified — {creator.name} earns <span className="text-caldera font-medium">0.5%</span> directly. {getTokenSymbolDisplay(creator)} holders earn <span className="text-caldera font-medium">0.5%</span>. Plus 0.5% auto-buys {getTokenSymbolDisplay(creator)} on DeSo.
             </p>
           </div>
         )}
@@ -471,7 +471,7 @@ export function CreatorProfileClient({
                   isCalderaVerified={creator.is_caldera_verified ?? false}
                 />
               </div>
-              <p className="mt-1 text-sm text-text-muted">${coinSymbol}</p>
+              <p className="mt-1 text-sm text-text-muted">{getTokenSymbolDisplay(creator)}</p>
               <div className="mt-3 flex items-center gap-4 flex-wrap">
                 <div>
                   <span className="font-display text-2xl font-bold tracking-normal text-text-primary">
@@ -571,7 +571,7 @@ export function CreatorProfileClient({
         {(buybacks.totalBuyback > 0 || creator.token_status === "shadow" || !creator.token_status) && (
           <div className="mb-8 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-orange-400">🔄 Token Buyback Activity</span>
+              <span className="text-sm font-medium text-orange-400">🔄 On-Chain Buys</span>
               <span className="text-xs text-text-muted">Last 20 trades</span>
             </div>
             {buybacks.totalBuyback > 0 ? (
@@ -581,7 +581,7 @@ export function CreatorProfileClient({
               </p>
             ) : (
               <p className="text-xs text-text-muted mb-3">
-                No buybacks yet — every trade on this profile&apos;s markets triggers an auto-buy.
+                No on-chain buys recorded yet — every trade on this profile&apos;s markets triggers an auto-buy.
               </p>
             )}
             {buybacks.events.length > 0 ? (
@@ -616,7 +616,7 @@ export function CreatorProfileClient({
         )}
 
         {/* Holder Leaderboard */}
-        <HolderLeaderboard creatorSlug={creator.slug} coinSymbol={coinSymbol || creator.name} />
+        <HolderLeaderboard creatorSlug={creator.slug} coinSymbol={coinSymbol || creator.name} creator={creator} />
 
         {/* Active Markets */}
         <div className="mb-8">
@@ -738,19 +738,19 @@ export function CreatorProfileClient({
               {creator.claim_status === "claimed" ? (
                 <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
                   <div className="text-xs font-medium text-orange-400 mb-1">
-                    💰 Token Buyback Active
+                    💰 Token Rewards Active
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    1% of every trade auto-buys ${coinSymbol} and permanently removes it from circulation.
+                    0.5% of every trade rewards ${coinSymbol} holders. Another 0.5% auto-buys ${coinSymbol} on DeSo.
                   </div>
                 </div>
               ) : (
                 <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
                   <div className="text-xs font-medium text-orange-400 mb-1">
-                    🔥 $CREATORS Burn Active
+                    $CREATORS Rewards Active
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    1% of every trade permanently burns $CREATORS tokens. When {creator.name} claims their profile, they&apos;ll also earn 0.5% per trade.
+                    0.5% of every trade rewards $CREATORS holders. Another 0.5% auto-buys $CREATORS on DeSo. When {creator.name} claims their profile, they&apos;ll also earn 0.5% per trade directly.
                   </div>
                 </div>
               )}

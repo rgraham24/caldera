@@ -15,6 +15,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 type Holder = {
   deso_public_key: string;
@@ -26,9 +27,16 @@ type Holder = {
 type Props = {
   creatorSlug: string;
   coinSymbol: string;
+  creator?: {
+    slug?: string | null;
+    deso_username?: string | null;
+    creator_coin_symbol?: string | null;
+    token_symbol?: string | null;
+  };
 };
 
-export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
+export function HolderLeaderboard({ creatorSlug, coinSymbol, creator }: Props) {
+  const tokenDisplay = creator ? getTokenSymbolDisplay(creator) : `$${coinSymbol}`;
   const [holders, setHolders] = useState<Holder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +60,7 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
   if (loading) {
     return (
       <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-        <h2 className="section-header mb-4">On-Chain Holders</h2>
+        <h2 className="section-header mb-4">Top Holders</h2>
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-10 rounded-lg bg-surface-2 animate-pulse" />
@@ -65,9 +73,9 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
   if (holders.length === 0) {
     return (
       <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-        <h2 className="section-header mb-2">On-Chain Holders</h2>
+        <h2 className="section-header mb-2">Top Holders</h2>
         <p className="text-sm text-text-muted">
-          No holders yet — be the first to buy ${coinSymbol}.
+          No holders yet. Hold {tokenDisplay} and earn from every trade in this market.
         </p>
       </div>
     );
@@ -90,8 +98,8 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
   return (
     <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="section-header">On-Chain Holders</h2>
-        <span className="text-xs text-text-muted">${coinSymbol} holders</span>
+        <h2 className="section-header">Top Holders</h2>
+        <span className="text-xs text-text-muted">{tokenDisplay} holders</span>
       </div>
 
       <div className="space-y-2">
@@ -138,7 +146,7 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
               {/* Coin count */}
               <span className="text-xs font-mono text-text-muted shrink-0">
                 {holder.coins_held.toFixed(4)}{" "}
-                <span className="text-text-faint">${coinSymbol}</span>
+                <span className="text-text-faint">{tokenDisplay}</span>
               </span>
             </div>
           );
@@ -146,7 +154,7 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol }: Props) {
       </div>
 
       <p className="mt-3 text-[10px] text-text-faint text-center">
-        Hold ${coinSymbol} to appear on this leaderboard
+        Hold {tokenDisplay} to appear on this leaderboard
       </p>
     </div>
   );

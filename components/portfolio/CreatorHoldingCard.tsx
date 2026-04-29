@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { formatCurrency, cn } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 type CreatorHolding = {
@@ -51,7 +52,6 @@ export function CreatorHoldingCard({
       ? (coinsHeld / creator.total_coins_in_circulation) * 100
       : 0;
   const weeklyEarnings = percentOfSupply > 0 ? (percentOfSupply / 100) * weeklyVolume * 0.01 : 0;
-  const sym = creator.deso_username || creator.name;
 
   useEffect(() => {
     if (expanded && holders.length === 0 && creator.slug) {
@@ -73,7 +73,7 @@ export function CreatorHoldingCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary truncate">{creator.name}</span>
-            <span className="text-[10px] text-text-muted">${sym}</span>
+            <span className="text-[10px] text-text-muted">{getTokenSymbolDisplay(creator)}</span>
           </div>
           <span className="text-xs text-text-muted">
             {coinsHeld.toFixed(4)} coins · {creator.creator_coin_holders} holders
@@ -103,7 +103,7 @@ export function CreatorHoldingCard({
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-text-muted">Coins held</span>
-                <span className="font-mono text-text-primary">{coinsHeld.toFixed(4)} ${sym}</span>
+                <span className="font-mono text-text-primary">{coinsHeld.toFixed(4)} {getTokenSymbolDisplay(creator)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted">% of supply</span>

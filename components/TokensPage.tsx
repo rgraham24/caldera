@@ -8,6 +8,7 @@ import { Search } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { useLivePrices } from "@/hooks/useLivePrices";
@@ -256,7 +257,6 @@ export default function TokensPage() {
           </div>
           <div className="space-y-2">
             {filtered.map((c, i) => {
-              const sym = c.deso_username || c.creator_coin_symbol;
               const hasToken = !!c.deso_username;
 
               // Merge live SSE prices over static DB values
@@ -290,7 +290,7 @@ export default function TokensPage() {
                         />
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] tracking-widest text-text-muted">${sym}</span>
+                        <span className="text-[10px] tracking-widest text-text-muted">{getTokenSymbolDisplay(c)}</span>
                         {c.league && (
                           <span className="rounded-full bg-caldera/10 px-1 py-0.5 text-[9px] font-semibold text-caldera">
                             {c.league}
