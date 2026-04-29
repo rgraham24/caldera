@@ -8,6 +8,7 @@ import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { X, Check, Loader2, ExternalLink } from "lucide-react";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 type StakeModalProps = {
   creator: Creator;
@@ -43,7 +44,11 @@ export function StakeModal({
   const [balanceFetching, setBalanceFetching] = useState(false);
 
   const coinPrice = livePrice ?? creator.creator_coin_price ?? 0;
-  const coinSymbol = desoUsername || creator.creator_coin_symbol;
+  const coinSymbol = getTokenSymbolDisplay({
+    deso_username: desoUsername,
+    creator_coin_symbol: creator.creator_coin_symbol,
+    slug: creator.slug,
+  });
   const founderReward = creator.founder_reward_basis_points ?? 0;
   const amountNum = parseFloat(amountUSD) || 0;
   const amountDesoNanos = desoPrice > 0 ? Math.floor((amountNum / desoPrice) * 1e9) : 0;
@@ -232,7 +237,7 @@ export function StakeModal({
                   isCalderaVerified={creator.is_caldera_verified ?? false}
                 />
               </div>
-              <p className="text-xs text-text-muted">${coinSymbol} · {formatCurrency(coinPrice)}</p>
+              <p className="text-xs text-text-muted">{coinSymbol} · {formatCurrency(coinPrice)}</p>
             </div>
           </Link>
           <button onClick={onClose} className="rounded-lg p-1.5 text-text-muted hover:bg-surface hover:text-text-primary transition-colors">
@@ -255,9 +260,9 @@ export function StakeModal({
               </p>
               <p className="mt-1 text-sm text-text-muted">
                 {tab === "buy" ? (
-                  <>You now hold <span className="font-semibold text-caldera">${coinSymbol}</span></>
+                  <>You now hold <span className="font-semibold text-caldera">{coinSymbol}</span></>
                 ) : (
-                  <>You sold <span className="font-semibold text-amber-400">{coinsToSellNum.toFixed(4)} ${coinSymbol}</span></>
+                  <>You sold <span className="font-semibold text-amber-400">{coinsToSellNum.toFixed(4)} {coinSymbol}</span></>
                 )}
               </p>
             </div>
@@ -295,7 +300,7 @@ export function StakeModal({
                   <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What happens now</p>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
                     <span className="text-caldera shrink-0">💰</span>
-                    <span>Every trade on {creator.name}&apos;s markets auto-buys ${coinSymbol} on DeSo and rewards ${coinSymbol} holders.</span>
+                    <span>Every trade on {creator.name}&apos;s markets auto-buys {coinSymbol} on DeSo and rewards {coinSymbol} holders.</span>
                   </div>
                   <div className="flex items-start gap-2 text-xs text-text-muted">
                     <span className="text-caldera shrink-0">📈</span>
@@ -324,12 +329,12 @@ export function StakeModal({
               className="w-full mb-2 border-border-subtle text-text-primary hover:bg-surface"
               onClick={async () => {
                 const shareText = tab === "buy"
-                  ? `I just bought $${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\ncaldera.market/creators/${creator.slug}`
-                  : `I just sold $${coinSymbol} on Caldera.\n\nCheck prediction markets for ${creator.name}:\ncaldera.market/creators/${creator.slug}`;
+                  ? `I just bought ${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\ncaldera.market/creators/${creator.slug}`
+                  : `I just sold ${coinSymbol} on Caldera.\n\nCheck prediction markets for ${creator.name}:\ncaldera.market/creators/${creator.slug}`;
                 const shareUrl = `https://caldera.market/creators/${creator.slug}`;
                 try {
                   if (typeof navigator !== "undefined" && navigator.share) {
-                    await navigator.share({ title: `$${coinSymbol} on Caldera`, text: shareText, url: shareUrl });
+                    await navigator.share({ title: `${coinSymbol} on Caldera`, text: shareText, url: shareUrl });
                   } else {
                     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
                   }
@@ -429,7 +434,7 @@ export function StakeModal({
                   <span className="text-xs text-text-muted">
                     {balanceFetching
                       ? "Loading balance…"
-                      : `Your balance: ${userCoinBalance.toFixed(4)} $${coinSymbol}`}
+                      : `Your balance: ${userCoinBalance.toFixed(4)} ${coinSymbol}`}
                   </span>
                   <button
                     onClick={() => {
@@ -485,7 +490,7 @@ export function StakeModal({
                     <div className="flex justify-between">
                       <span className="text-text-muted">Coins</span>
                       <span className="font-mono text-text-primary">
-                        {coinsToSellNum.toFixed(6)} ${coinSymbol}
+                        {coinsToSellNum.toFixed(6)} {coinSymbol}
                       </span>
                     </div>
                   </div>
@@ -510,9 +515,9 @@ export function StakeModal({
                     {quoteFetching
                       ? "Calculating..."
                       : quote
-                        ? `${quoteIsEstimate ? "~" : ""}${quote.coinsToReceive.toFixed(6)} $${coinSymbol}`
+                        ? `${quoteIsEstimate ? "~" : ""}${quote.coinsToReceive.toFixed(6)} ${coinSymbol}`
                         : coinPrice > 0
-                          ? `~${(amountNum / coinPrice).toFixed(6)} $${coinSymbol}`
+                          ? `~${(amountNum / coinPrice).toFixed(6)} ${coinSymbol}`
                           : "—"}
                   </span>
                 </div>
@@ -537,11 +542,11 @@ export function StakeModal({
                     <span className="text-text-primary">1%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">${coinSymbol} holder rewards</span>
+                    <span className="text-text-muted">{coinSymbol} holder rewards</span>
                     <span className="text-caldera font-semibold">0.5%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">${coinSymbol} on-chain auto-buy</span>
+                    <span className="text-text-muted">{coinSymbol} on-chain auto-buy</span>
                     <span className="text-caldera font-semibold">0.5%</span>
                   </div>
                   <div className="flex justify-between">
@@ -588,7 +593,7 @@ export function StakeModal({
               <p className="mt-3 text-center text-[10px] text-text-muted">
                 {tab === "buy"
                   ? `Your balance: ${(desoBalanceNanos / 1e9).toFixed(4)} DESO (${formatCurrency(desoBalanceUSD)})`
-                  : `Holding: ${userCoinBalance.toFixed(4)} $${coinSymbol}`}
+                  : `Holding: ${userCoinBalance.toFixed(4)} ${coinSymbol}`}
               </p>
             )}
           </>
