@@ -6,15 +6,6 @@ export const metadata = {
   title: "Caldera — Trade what you know. Own what you love.",
 };
 
-const CATEGORY_TOKENS = [
-  { symbol: "$SPORTS", slug: "caldera-sports", description: "Every sports market on Caldera" },
-  { symbol: "$MUSIC", slug: "caldera-music", description: "Music, artists & album drops" },
-  { symbol: "$POLITICS", slug: "caldera-politics", description: "Elections, policy & world events" },
-  { symbol: "$ENTERTAINMENT", slug: "caldera-entertainment", description: "Film, TV & celebrity culture" },
-  { symbol: "$TECH", slug: "caldera-tech", description: "Crypto, AI & company markets" },
-  { symbol: "$CLIMATE", slug: "caldera-climate", description: "Climate policy & clean energy" },
-];
-
 const FEATURES = [
   {
     icon: "🔥",
@@ -59,7 +50,7 @@ export default function AboutPage() {
           <span className="text-caldera">Own what you love.</span>
         </h1>
         <p className="mx-auto max-w-2xl text-lg text-text-muted">
-          The prediction market for internet culture. Every market is tied to a creator, athlete, or event — and every trade makes the associated token more scarce.
+          The prediction market for internet culture. Every market is tied to a creator, athlete, or event — and every trade flows value back into the associated token.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link
@@ -102,35 +93,20 @@ export default function AboutPage() {
           The token mechanic
         </h2>
         <p className="mb-8 text-text-muted">
-          Every market on Caldera is linked to either a category token or an
-          individual creator token. Here&apos;s why that matters.
+          Every market on Caldera is linked to a creator token. Here&apos;s why that matters.
         </p>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-xl border border-border-subtle/50 bg-surface-2 p-5">
-            <h3 className="mb-2 font-semibold text-text-primary">
-              Category tokens — index-level exposure
-            </h3>
-            <p className="text-sm leading-relaxed text-text-muted">
-              Hold <span className="font-mono text-caldera">$SPORTS</span> or{" "}
-              <span className="font-mono text-caldera">$ENTERTAINMENT</span> and
-              participate in rewards from every trade across that entire category. Every prediction
-              market in the category rewards holders of that token and triggers an on-chain buy — the more
-              active the category, the more rewards accrue.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border-subtle/50 bg-surface-2 p-5">
-            <h3 className="mb-2 font-semibold text-text-primary">
-              Creator tokens — on-chain holder record
-            </h3>
-            <p className="text-sm leading-relaxed text-text-muted">
-              Hold a creator&apos;s token like{" "}
-              <span className="font-mono text-caldera">$KAICENAT</span> and
-              your holding history is recorded on-chain. Every time someone trades
-              a market about that creator, a fraction of fees rewards token holders and auto-buys the token on DeSo.
-              The earlier you hold, the longer your on-chain record.
-            </p>
-          </div>
+        <div className="rounded-xl border border-border-subtle/50 bg-surface-2 p-5">
+          <h3 className="mb-2 font-semibold text-text-primary">
+            Creator tokens — on-chain holder record
+          </h3>
+          <p className="text-sm leading-relaxed text-text-muted">
+            Hold a creator&apos;s token like{" "}
+            <span className="font-mono text-caldera">$KAICENAT</span> and
+            your holding history is recorded on-chain. Every time someone trades
+            a market about that creator, a fraction of fees rewards token holders and auto-buys the token on DeSo.
+            The earlier you hold, the longer your on-chain record.
+          </p>
         </div>
 
         <div className="mt-6 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
@@ -139,27 +115,6 @@ export default function AboutPage() {
             token holders and the open market. Rewards accrue to holders. On-chain buys create consistent buy pressure with every trade.
             No team allocation, no promises of return. Every trade moves real value to token holders.
           </p>
-        </div>
-      </div>
-
-      {/* Category tokens grid */}
-      <div className="mb-20">
-        <h2 className="mb-8 font-display text-2xl font-bold text-text-primary">
-          Category tokens
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CATEGORY_TOKENS.map((t) => (
-            <Link
-              key={t.symbol}
-              href={`/profile/${t.slug}`}
-              className="flex items-center gap-4 rounded-2xl border border-border-subtle bg-surface p-4 transition-colors hover:border-caldera/40 hover:bg-surface-2"
-            >
-              <span className="font-mono text-lg font-bold text-caldera">
-                {t.symbol}
-              </span>
-              <span className="text-sm text-text-muted">{t.description}</span>
-            </Link>
-          ))}
         </div>
       </div>
 
