@@ -3,27 +3,26 @@
 import { useState, useMemo, useEffect } from "react";
 import type { Market, MarketOutcome } from "@/types";
 import { getTradeQuote } from "@/lib/trading/amm";
-import { calculateFees, getMarketFeeType } from "@/lib/fees/calculator";
+import {
+  FEE_RATE_TOTAL,
+  FEE_RATE_PLATFORM,
+  FEE_RATE_CREATOR_AUTO_BUY,
+} from "@/lib/fees/calculator";
 import { formatCurrency, formatPercentDecimal, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAppStore } from "@/store";
-import { Info } from "lucide-react";
 import { connectDeSoWallet, sendDesoPayment } from "@/lib/deso/auth";
 
 type TradeTicketProps = {
   market: Market;
-  feeConfig: Record<string, string>;
   onTradeComplete?: () => void;
   selectedOutcome?: MarketOutcome | null;
-  /** Set when the creator is claimed — enables 2.5% fee breakdown with creator token rows */
+  /** Display label for the creator coin (e.g. "$ALICE" or "Alice"). Optional. */
   creatorTokenSymbol?: string;
+  /** Creator's display name. Optional — used in fee-breakdown copy. */
   creatorName?: string;
+  /** True if the creator has claimed their profile. Drives "Buys $X" vs "Builds claim bounty for $X". */
+  creatorClaimed?: boolean;
   initialMode?: "buy" | "sell";
 };
 
@@ -35,32 +34,17 @@ type UserPosition = {
   unrealizedPnl: number;
 } | null;
 
-function getCategoryTokenSlug(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
-  if (cryptoTicker && creatorSlug) return creatorSlug;
-  const map: Record<string, string> = {
-    Sports: 'caldera-sports',
-    Music: 'caldera-music',
-    Politics: 'caldera-politics',
-    Entertainment: 'caldera-entertainment',
-    Companies: 'caldera-companies',
-    Climate: 'caldera-climate',
-    Tech: 'caldera-tech',
-  };
-  return map[category] || 'caldera-creators';
-}
-
-function getCategoryTokenDisplay(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
-  const slug = getCategoryTokenSlug(category, cryptoTicker, creatorSlug);
-  return '$' + slug.replace('caldera-', '').toUpperCase();
+function round8(n: number): number {
+  return Math.round(n * 1e8) / 1e8;
 }
 
 export function TradeTicket({
   market,
-  feeConfig,
   onTradeComplete,
   selectedOutcome,
   creatorTokenSymbol,
   creatorName,
+  creatorClaimed,
   initialMode,
 }: TradeTicketProps) {
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">(initialMode ?? "buy");
@@ -90,7 +74,6 @@ export function TradeTicket({
       .then((d) => {
         setUserPosition(d.data ?? null);
         setPositionFetching(false);
-        // Pre-fill side based on position
         if (d.data?.side) setSide(d.data.side);
       })
       .catch(() => setPositionFetching(false));
@@ -99,18 +82,21 @@ export function TradeTicket({
   const quote = useMemo(() => {
     if (tradeMode !== "buy" || amountNum <= 0) return null;
     try {
-      const feeType = getMarketFeeType(market);
-      const fees = calculateFees(amountNum, feeType, feeConfig);
+      const total = round8(amountNum * FEE_RATE_TOTAL);
+      const platform = round8(amountNum * FEE_RATE_PLATFORM);
+      const creatorAutoBuy = round8(amountNum * FEE_RATE_CREATOR_AUTO_BUY);
+      const netAmount = round8(amountNum - total);
+
       const tradeQuote = getTradeQuote(
         { yesPool: market.yes_pool ?? 0, noPool: market.no_pool ?? 0 },
         side,
-        fees.netAmount
+        netAmount
       );
-      return { ...tradeQuote, fees };
+      return { ...tradeQuote, fees: { total, platform, creatorAutoBuy, netAmount } };
     } catch {
       return null;
     }
-  }, [amountNum, side, market, feeConfig, tradeMode]);
+  }, [amountNum, side, market, tradeMode]);
 
   // Estimated sell return (rough AMM calc)
   const sellEstimate = useMemo(() => {
@@ -180,7 +166,6 @@ export function TradeTicket({
         setAmount("");
         onTradeComplete?.();
       } else {
-        // Sell
         if (!userPosition) throw new Error("No position to sell");
 
         const res = await fetch("/api/trades/sell", {
@@ -201,7 +186,6 @@ export function TradeTicket({
         setTradeSuccess({ shares: sellSharesNum, side: userPosition.side, mode: "sell" });
         setSellShares("");
         onTradeComplete?.();
-        // Refresh position
         setUserPosition(null);
       }
     } catch (err) {
@@ -220,30 +204,27 @@ export function TradeTicket({
     ? 1 - selectedOutcome.probability
     : 1 - yesPrice;
 
+  // Resolve the creator label used in fee-breakdown copy.
+  // Prefer an explicit symbol (e.g. "$ALICE"); fall back to display name.
+  const creatorLabel = creatorTokenSymbol ?? creatorName ?? "creator's coin";
+  const autoBuyVerb = creatorClaimed ? `Buys ${creatorLabel}` : `Builds claim bounty for ${creatorLabel}`;
+
   return (
     <>
     <div className="relative trade-panel-glow rounded-2xl border border-cyan-500/20 bg-surface p-5">
-      {/* Categorical: no outcome selected yet */}
       {isCategorical && !selectedOutcome ? (
         <div className="text-center py-8 text-muted-foreground text-sm">
           ← Select an outcome to trade
         </div>
       ) : (
       <>
-      {/* Categorical: selected outcome header */}
       {isCategorical && selectedOutcome && (
         <div className="mb-3 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
           <div className="text-xs text-orange-400 font-medium">Trading on</div>
           <div className="text-sm font-semibold">{selectedOutcome.label}</div>
-          {selectedOutcome.creator_slug && (
-            <span className="text-[10px] text-[var(--text-tertiary)]">
-              · 0.5% → holder rewards · 0.5% auto-buys on DeSo
-            </span>
-          )}
         </div>
       )}
 
-      {/* Buy / Sell mode tabs */}
       {!isCategorical && market.status === "open" && (
         <div className="mb-4 flex rounded-lg bg-background p-1 gap-1">
           <button
@@ -271,7 +252,6 @@ export function TradeTicket({
         </div>
       )}
 
-      {/* ── SELL mode ── */}
       {tradeMode === "sell" && !isCategorical && (
         <div className="mb-4">
           {positionFetching ? (
@@ -282,7 +262,6 @@ export function TradeTicket({
             <p className="text-xs text-text-muted py-4 text-center">You have no open position in this market.</p>
           ) : (
             <>
-              {/* Position info */}
               <div className="mb-3 rounded-xl bg-background border border-border-subtle p-3 text-xs space-y-1.5">
                 <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold mb-2">Your Position</p>
                 <div className="flex justify-between">
@@ -305,7 +284,6 @@ export function TradeTicket({
                 </div>
               </div>
 
-              {/* Shares to sell input */}
               <label className="mb-1.5 block text-xs text-text-muted">Shares to sell</label>
               <div className="relative mb-2">
                 <input
@@ -319,7 +297,6 @@ export function TradeTicket({
                   className="w-full rounded-lg border border-border-subtle bg-background py-2.5 px-4 font-mono text-sm text-text-primary placeholder:text-text-faint focus:border-no focus:outline-none focus:ring-1 focus:ring-no"
                 />
               </div>
-              {/* Quick % buttons */}
               <div className="flex gap-2 mb-3">
                 {[25, 50, 75].map((pct) => (
                   <button
@@ -338,7 +315,6 @@ export function TradeTicket({
                 </button>
               </div>
 
-              {/* Sell estimate */}
               {sellEstimate !== null && sellSharesNum > 0 && (
                 <div className="mb-3 rounded-lg bg-background border border-border-subtle p-3 text-xs space-y-1">
                   <div className="flex justify-between">
@@ -357,10 +333,8 @@ export function TradeTicket({
         </div>
       )}
 
-      {/* ── BUY mode ── */}
       {(tradeMode === "buy" || isCategorical) && (
         <>
-          {/* Side toggle */}
           <div className="mb-5 flex gap-2">
             <button
               onClick={() => setSide("yes")}
@@ -386,7 +360,6 @@ export function TradeTicket({
             </button>
           </div>
 
-          {/* Amount input */}
           <div className="mb-4">
             <label className="mb-1.5 block text-xs text-text-muted">Amount</label>
             <div className="relative">
@@ -419,55 +392,22 @@ export function TradeTicket({
                 </button>
               ))}
             </div>
-            {(() => {
-              const holderToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
-              const burnSlug = getCategoryTokenSlug(market.category, market.crypto_ticker, market.creator_slug);
-              const isClaimed = !!creatorTokenSymbol;
-              return (
-                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 mt-2">
-                  <div className="text-xs font-medium text-orange-400 mb-2">Fee Breakdown</div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-text-muted">Caldera platform</span>
-                      <span className="text-white">1%</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-text-muted">{holderToken} rewards</span>
-                      <span className="relative group cursor-help">
-                        <span className="text-orange-400">{isClaimed ? "0.5%" : "1%"} holder rewards 💰</span>
-                        <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                          {isClaimed ? "0.5%" : "1%"} of this trade is distributed as rewards to holders of the relevant token.
-                        </span>
-                      </span>
-                    </div>
-                    {isClaimed && (
-                      <>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-text-muted">{creatorTokenSymbol} holder rewards</span>
-                          <span className="relative group cursor-help">
-                            <span className="text-orange-400">0.5% holder rewards 💰</span>
-                            <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 hidden w-52 rounded-lg border border-border-subtle bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-text-muted shadow-lg group-hover:block">
-                              0.5% of this trade auto-buys {creatorTokenSymbol} and holds it as price support for existing token holders.
-                            </span>
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-text-muted">{creatorName ?? "Creator"} earns</span>
-                          <span className="text-green-400">0.5%</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <a href={`/creators/${burnSlug}`}
-                     className="mt-2 text-xs text-orange-400 hover:underline block">
-                    View {holderToken} token →
-                  </a>
+            <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3 mt-2">
+              <div className="text-xs font-medium text-orange-400 mb-2">Fee Breakdown (2%)</div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-text-muted">Caldera platform</span>
+                  <span className="text-white">1%</span>
                 </div>
-              );
-            })()}
+                <div className="flex justify-between text-xs">
+                  <span className="text-text-muted">{autoBuyVerb}</span>
+                  <span className="text-orange-400">1%</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-text-faint mt-2">Sells are always free.</p>
+            </div>
           </div>
 
-          {/* Quote details */}
           {quote && (
             <div className="mb-4 space-y-2 rounded-lg bg-background p-3 text-xs">
               <div className="flex justify-between">
@@ -497,53 +437,23 @@ export function TradeTicket({
                 <div className="flex justify-between">
                   <span className="text-text-muted">Platform fee</span>
                   <span className="font-mono text-text-primary">
-                    {formatCurrency(quote.fees.platformFee)}
+                    {formatCurrency(quote.fees.platform)}
                   </span>
                 </div>
-                {quote.fees.creatorFee > 0 && (
+                {quote.fees.creatorAutoBuy > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Creator fee</span>
+                    <span className="text-text-muted">{autoBuyVerb}</span>
                     <span className="font-mono text-text-primary">
-                      {formatCurrency(quote.fees.creatorFee)}
-                    </span>
-                  </div>
-                )}
-                {quote.fees.coinHolderPoolFee > 0 && (
-                  <div className="flex justify-between">
-                    <span className="flex items-center gap-1 text-caldera">
-                      Token holders
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="h-3 w-3 text-caldera/60" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs bg-surface border-border-subtle text-text-primary">
-                            <p className="text-xs">
-                              Distributed to all token holders proportional to their holdings
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </span>
-                    <span className="font-mono text-caldera">
-                      {formatCurrency(quote.fees.coinHolderPoolFee)}
-                    </span>
-                  </div>
-                )}
-                {quote.fees.marketCreatorFee > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">Market creator fee</span>
-                    <span className="font-mono text-text-primary">
-                      {formatCurrency(quote.fees.marketCreatorFee)}
+                      {formatCurrency(quote.fees.creatorAutoBuy)}
                     </span>
                   </div>
                 )}
                 <div className="border-t border-border-subtle/50 pt-1.5 flex justify-between font-medium">
-                  <span className="text-text-muted">Total</span>
+                  <span className="text-text-muted">Total fee</span>
                   <span className="font-mono text-text-primary">
-                    {formatCurrency(quote.fees.totalFee)}{" "}
+                    {formatCurrency(quote.fees.total)}{" "}
                     <span className="text-text-muted font-normal">
-                      ({((quote.fees.totalFee / amountNum) * 100).toFixed(1)}%)
+                      ({((quote.fees.total / amountNum) * 100).toFixed(1)}%)
                     </span>
                   </span>
                 </div>
@@ -564,7 +474,6 @@ export function TradeTicket({
 
       {tradeSuccess ? (
         <div className="space-y-3">
-          {/* Hero success card */}
           <div className={cn(
             "rounded-2xl border p-5 text-center relative overflow-hidden",
             tradeSuccess.mode === "buy" && tradeSuccess.side === "yes"
@@ -573,7 +482,6 @@ export function TradeTicket({
               ? "bg-red-500/10 border-red-500/30"
               : "bg-amber-500/10 border-amber-500/20"
           )}>
-            {/* Big emoji */}
             <div className="text-4xl mb-2">
               {tradeSuccess.mode === "buy" && tradeSuccess.side === "yes" ? "🚀" : tradeSuccess.mode === "buy" ? "🎯" : "💰"}
             </div>
@@ -593,7 +501,6 @@ export function TradeTicket({
             <p className="text-xs text-text-faint mt-1">{market.title}</p>
           </div>
 
-          {/* What happens next — only on buy */}
           {tradeSuccess.mode === "buy" && (
             <div className="rounded-xl bg-surface border border-border-subtle p-3 space-y-2 text-xs">
               <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What just happened</p>
@@ -603,7 +510,9 @@ export function TradeTicket({
               </div>
               <div className="flex items-start gap-2 text-text-muted">
                 <span className="shrink-0">📈</span>
-                <span>0.5% rewards token holders · 0.5% auto-buys the category token on DeSo</span>
+                <span>
+                  1% covers Caldera operations · 1% {creatorClaimed ? `goes to ${creatorLabel}` : `builds a claim bounty for ${creatorLabel}`}
+                </span>
               </div>
               <div className="flex items-start gap-2 text-text-muted">
                 <span className="shrink-0">📈</span>
@@ -612,7 +521,6 @@ export function TradeTicket({
             </div>
           )}
 
-          {/* Share button */}
           <button
             onClick={() => {
               const side = tradeSuccess.side.toUpperCase();
@@ -628,7 +536,6 @@ export function TradeTicket({
             🐦 Share on X
           </button>
 
-          {/* View portfolio */}
           <a
             href="/portfolio"
             className="w-full rounded-xl border border-border-subtle text-text-muted font-medium py-3 text-sm hover:text-text-primary hover:border-white/20 transition-colors flex items-center justify-center gap-2"
@@ -636,7 +543,6 @@ export function TradeTicket({
             View My Portfolio →
           </a>
 
-          {/* Dismiss — make another trade */}
           <button
             onClick={() => setTradeSuccess(null)}
             className="w-full text-xs text-text-faint hover:text-text-muted transition-colors py-1"

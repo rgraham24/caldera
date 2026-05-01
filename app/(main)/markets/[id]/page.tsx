@@ -40,17 +40,6 @@ export default async function MarketDetailPage({
     .order("trending_score", { ascending: false })
     .limit(3);
 
-  const { data: configRows } = await supabase
-    .from("platform_config")
-    .select("*");
-
-  const feeConfig: Record<string, string> = {};
-  (configRows as Array<{ key: string; value: string }> | null)?.forEach(
-    (row) => {
-      feeConfig[row.key] = row.value;
-    }
-  );
-
   // Fetch creator if this is a creator market
   let creator: Creator | null = null;
   if (market.creator_id) {
@@ -67,7 +56,6 @@ export default async function MarketDetailPage({
       market={market}
       comments={(rawComments as unknown as CommentWithUser[]) ?? []}
       relatedMarkets={relatedMarkets ?? []}
-      feeConfig={feeConfig}
       creator={creator}
     />
   );

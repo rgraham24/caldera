@@ -32,34 +32,13 @@ type MarketDetailClientProps = {
   market: Market;
   comments: CommentWithUser[];
   relatedMarkets: Market[];
-  feeConfig: Record<string, string>;
   creator: Creator | null;
 };
-
-function getCategoryTokenSlug(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
-  if (cryptoTicker && creatorSlug) return creatorSlug;
-  const map: Record<string, string> = {
-    Sports: 'caldera-sports',
-    Music: 'caldera-music',
-    Politics: 'caldera-politics',
-    Entertainment: 'caldera-entertainment',
-    Companies: 'caldera-companies',
-    Climate: 'caldera-climate',
-    Tech: 'caldera-tech',
-  };
-  return map[category] || 'caldera-creators';
-}
-
-function getCategoryTokenDisplay(category: string, cryptoTicker?: string | null, creatorSlug?: string | null): string {
-  const slug = getCategoryTokenSlug(category, cryptoTicker, creatorSlug);
-  return '$' + slug.replace('caldera-', '').toUpperCase();
-}
 
 export function MarketDetailClient({
   market,
   comments,
   relatedMarkets,
-  feeConfig,
   creator,
 }: MarketDetailClientProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -399,11 +378,11 @@ export function MarketDetailClient({
             {market.status === "open" && (
               <TradeTicket
                 market={market}
-                feeConfig={feeConfig}
                 onTradeComplete={refreshBalance}
                 selectedOutcome={selectedOutcome}
-                creatorTokenSymbol={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? (creator?.deso_username ?? creator?.creator_coin_symbol ?? undefined) : undefined}
-                creatorName={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? creator?.name : undefined}
+                creatorTokenSymbol={creator?.deso_username ? `$${creator.deso_username.toUpperCase()}` : creator?.creator_coin_symbol ?? undefined}
+                creatorName={creator?.name}
+                creatorClaimed={creator?.claim_status === "claimed"}
               />
             )}
 
