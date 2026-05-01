@@ -23,32 +23,18 @@ const CENTER_TABS: Tab[] = [
   { id: "new", label: "New", href: "/new", icon: Clock, title: "Recently created" },
   { id: "following", label: "Following", href: "/following", title: "Markets for creators you follow" },
   { divider: true },
-  { id: "tokens", label: "Tokens", href: "/tokens" },
   { id: "creators", label: "Creators", href: "/creators" },
-  { id: "politics", label: "Politics", href: "/politics" },
-  { id: "sports", label: "Sports", href: "/sports" },
-  { id: "crypto", label: "Crypto", href: "/crypto" },
-  { id: "music", label: "Music", href: "/music" },
-  { id: "climate", label: "Climate", href: "/climate" },
-  { id: "companies", label: "Companies", href: "/companies" },
-  { id: "tech", label: "Tech", href: "/tech" },
-  { id: "entertainment", label: "Entertainment", href: "/entertainment" },
+  { id: "markets", label: "Markets", href: "/markets" },
+  { id: "leaderboard", label: "Leaderboard", href: "/leaderboard" },
 ];
 
 function CenterTabs() {
   const pathname = usePathname();
 
   const activeId = (() => {
-    if (pathname === "/tokens") return "tokens";
     if (pathname === "/creators") return "creators";
-    if (pathname === "/politics") return "politics";
-    if (pathname === "/sports") return "sports";
-    if (pathname === "/crypto") return "crypto";
-    if (pathname === "/music") return "music";
-    if (pathname === "/climate") return "climate";
-    if (pathname === "/companies") return "companies";
-    if (pathname === "/tech") return "tech";
-    if (pathname === "/entertainment") return "entertainment";
+    if (pathname === "/markets") return "markets";
+    if (pathname === "/leaderboard") return "leaderboard";
     if (pathname === "/breaking") return "breaking";
     if (pathname === "/new") return "new";
     if (pathname === "/following") return "following";

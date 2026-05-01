@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { useDesoBalance } from "@/hooks/useDesoBalance";
 import type { Market, CommentWithUser, Creator, MarketOutcome } from "@/types";
@@ -21,7 +21,6 @@ import { TradeTicket } from "@/components/markets/TradeTicket";
 import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
-import { CryptoRealTimeChart } from "@/components/markets/CryptoRealTimeChart";
 import {
   formatCompactCurrency,
   formatRelativeTime,
@@ -67,24 +66,7 @@ export function MarketDetailClient({
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
   const [copied, setCopied] = useState(false);
-  // Crypto 5-min market live state
-  const [cryptoPrice, setCryptoPrice] = useState<number | null>(null);
-  const [cryptoPriceChange, setCryptoPriceChange] = useState<'up' | 'down' | null>(null);
-  const [cryptoTimeLeft, setCryptoTimeLeft] = useState('');
   const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
-
-  // Fetch categorical outcomes client-side when needed
-  useEffect(() => {
-    if (market.market_type !== "categorical") return;
-    fetch(`/api/markets/categorical?market_id=${market.id}`)
-      .then((r) => r.json())
-      .then(({ data }) => {
-        if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0]?.market_outcomes)) {
-          setOutcomes(data[0].market_outcomes as MarketOutcome[]);
-        }
-      })
-      .catch(() => {});
-  }, [market.id, market.market_type]);
 
   // Active balance polling (10s) on trade page — immediate refresh after trade
   const { refresh: refreshBalance } = useDesoBalance(
@@ -92,36 +74,6 @@ export function MarketDetailClient({
     (nanos, usd) => setDesoBalance(nanos, usd),
     true
   );
-
-  // Crypto market: price update callback from chart
-  const handleCryptoPriceUpdate = useCallback((price: number, change: 'up' | 'down' | null) => {
-    setCryptoPrice(price);
-    setCryptoPriceChange(change);
-  }, []);
-
-  // Crypto market: countdown timer
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const resolveAt = (market as any).auto_resolve_at as string | undefined;
-    if (!resolveAt) return;
-    function tick() {
-      const diff = new Date(resolveAt!).getTime() - Date.now();
-      if (diff <= 0) { setCryptoTimeLeft('Resolving…'); return; }
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setCryptoTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`);
-    }
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
-  }, [market]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cryptoTicker = (market as any).crypto_ticker as string | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cryptoTargetPrice = (market as any).crypto_target_price as number | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const autoResolveAt = (market as any).auto_resolve_at as string | undefined;
 
   const yesPercent = Math.round((market.yes_price ?? 0) * 100);
   const isResolved = market.status === "resolved";
@@ -137,150 +89,6 @@ export function MarketDetailClient({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  // ── Polymarket-style crypto 5-min layout ─────────────────────────────────────
-  if (cryptoTicker && cryptoTargetPrice && autoResolveAt) {
-    const isAbove = (cryptoPrice ?? 0) > cryptoTargetPrice;
-    const diffPct = cryptoPrice
-      ? ((cryptoPrice - cryptoTargetPrice) / cryptoTargetPrice) * 100
-      : 0;
-
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          {/* Left — title + chart card with price header inside */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <CategoryPill category={market.category} />
-              <MarketStatusBadge status={market.status} />
-            </div>
-            <h1 className="font-display text-xl font-bold text-text-primary md:text-2xl mb-4">
-              {market.title}
-            </h1>
-
-            {/* Chart card — price header + chart in one card */}
-            <div className="rounded-xl border border-border-subtle bg-surface p-4 mb-4">
-              {/* Price header */}
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
-                      {cryptoTicker} / USD
-                    </span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
-                  </div>
-                  <div className="flex items-baseline gap-3">
-                    <span className={`text-4xl font-bold font-mono transition-colors duration-300 ${
-                      cryptoPriceChange === 'up' ? 'text-yes' :
-                      cryptoPriceChange === 'down' ? 'text-no' : 'text-text-primary'
-                    }`}>
-                      {cryptoPrice
-                        ? `$${cryptoPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : <span className="text-2xl text-text-muted animate-pulse">Loading…</span>}
-                    </span>
-                    {cryptoPrice && (
-                      <span className={`text-sm font-semibold ${isAbove ? 'text-yes' : 'text-no'}`}>
-                        {isAbove ? '▲' : '▼'} {Math.abs(diffPct).toFixed(3)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-text-muted">
-                      Target:{' '}
-                      <span className="text-text-primary font-medium font-mono">
-                        ${cryptoTargetPrice.toLocaleString('en-US', { minimumFractionDigits: cryptoTargetPrice < 1 ? 4 : 2, maximumFractionDigits: cryptoTargetPrice < 1 ? 4 : 2 })}
-                      </span>
-                    </span>
-                    {cryptoPrice && (
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isAbove ? 'bg-yes/10 text-yes' : 'bg-no/10 text-no'}`}>
-                        {isAbove ? '▲ ABOVE' : '▼ BELOW'} TARGET
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-2xl font-mono font-bold text-text-primary">{cryptoTimeLeft || '—'}</div>
-                  <div className="text-xs text-text-muted">remaining</div>
-                </div>
-              </div>
-
-              {/* Chart */}
-              <div className="relative">
-                <CryptoRealTimeChart
-                  ticker={cryptoTicker}
-                  targetPrice={cryptoTargetPrice}
-                  onPriceUpdate={handleCryptoPriceUpdate}
-                />
-                {market.status === 'resolved' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/70 backdrop-blur-sm rounded-xl z-10">
-                    <span className="text-4xl mb-2">
-                      {market.resolution_outcome === 'yes' ? '✅' : '❌'}
-                    </span>
-                    <p className="text-base font-bold text-text-primary">
-                      Resolved {market.resolution_outcome?.toUpperCase()}
-                    </p>
-                    <p className="text-xs text-text-muted mt-1">Market closed</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <MarketTabs marketId={market.id} comments={comments} creator={creator} />
-          </div>
-
-          {/* Right — trade panel only */}
-          <div className="w-full lg:w-80 shrink-0 sticky top-20">
-            <div className="space-y-4">
-              {market.status === 'open' && (
-                <TradeTicket
-                  market={market}
-                  feeConfig={feeConfig}
-                  onTradeComplete={refreshBalance}
-                  selectedOutcome={null}
-                  creatorTokenSymbol={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? (creator?.deso_username ?? creator?.creator_coin_symbol ?? undefined) : undefined}
-                  creatorName={creator?.claim_status === "claimed" && !!creator?.deso_public_key && creator?.token_status === "active_unverified" ? creator?.name : undefined}
-                />
-              )}
-
-              {(() => {
-                const holderToken = getCategoryTokenDisplay(market.category, market.crypto_ticker, market.creator_slug);
-                const burnSlug = getCategoryTokenSlug(market.category, market.crypto_ticker, market.creator_slug);
-                return (
-                  <div className="text-center">
-                    <a
-                      href={`/creators/${burnSlug}`}
-                      className="text-xs text-[var(--accent)] hover:underline"
-                    >
-                      View {holderToken} token →
-                    </a>
-                  </div>
-                );
-              })()}
-
-              <div className="flex items-center justify-center gap-3">
-                <WatchlistButton entityType="market" entityId={market.id} />
-                <button
-                  onClick={handleShare}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors border border-border rounded-lg px-3 py-1.5"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                  Share
-                </button>
-                <button
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-white transition-colors border border-border rounded-lg px-3 py-1.5"
-                >
-                  {copied ? '✓ Copied' : '🔗 Copy Link'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">

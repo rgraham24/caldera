@@ -77,7 +77,7 @@ export default function TermsPage() {
             6. Holder Rewards and Token Buyback
           </h2>
           <p>
-            Each prediction market on Caldera is associated with a relevant token — typically a category token (e.g. $CalderaSports, $CalderaEntertainment), the underlying asset for crypto markets, or $CalderaCreators for markets about unclaimed creators. On every buy trade, 0.5% of the gross trade value accrues to holders of that relevant token as on-chain rewards (holders must manually claim accrued rewards). An additional 0.5% is used to purchase the relevant token on the open market and is held by Caldera; this purchased supply is <strong className="text-text-primary">not burned and is not removed from circulation</strong>. No token supply reduction occurs at any time.
+            Each prediction market on Caldera is associated with a relevant creator token. On every buy trade, a portion of the fee is used to purchase the relevant token on the open market and is held by Caldera; this purchased supply is <strong className="text-text-primary">not burned and is not removed from circulation</strong>. No token supply reduction occurs at any time.
           </p>
           <p className="mt-3">
             <strong className="text-text-primary">

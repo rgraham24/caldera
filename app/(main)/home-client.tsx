@@ -284,7 +284,7 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
 
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
-const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "crypto", "companies", "climate", "tokens", "new", "following"];
+const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "companies", "climate", "new", "following"];
 
 // ─── Trending tokens sidebar ──────────────────────────────────────────────────
 
@@ -683,7 +683,6 @@ export function HomeClient({
   const marketsRef = useRef<HTMLDivElement>(null);
   const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
   const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
-  const [sportsMarkets, setSportsMarkets] = useState<Market[]>([]);
   const [trendingMarkets, setTrendingMarkets] = useState<Market[]>([]);
 
   // Deduplicate trending tokens by slug
@@ -701,9 +700,8 @@ export function HomeClient({
     Promise.all([
       fetch("/api/markets?status=open&sort=resolving_soon&limit=14").then((r) => r.json()),
       fetch("/api/markets?status=open&sort=trending&limit=12").then((r) => r.json()),
-      fetch("/api/markets?category=sports&status=open&sort=newest&limit=4").then((r) => r.json()),
       fetch("/api/markets?status=open&sort=trending&limit=6").then((r) => r.json()),
-    ]).then(([endingData, volumeData, sportsData, trendingData]) => {
+    ]).then(([endingData, volumeData, trendingData]) => {
       const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
       const endingSoon = (endingData.data ?? []).filter((m: Market) => {
         if (!m.resolve_at) return false;
@@ -722,7 +720,6 @@ export function HomeClient({
         setFeaturedMarkets([...withFeatured, ...fill].slice(0, 6));
       }
 
-      setSportsMarkets(sportsData.data ?? []);
       setTrendingMarkets(trendingData.data ?? []);
     }).catch(() => {});
   }, []);
@@ -905,45 +902,6 @@ export function HomeClient({
           </div>
         )}
 
-        {/* SPORTS */}
-        {sportsMarkets.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">🏆 Sports</h2>
-              <Link href="/sports" className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors">
-                View all →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {sportsMarkets.map((market) => {
-                const yes = Math.round((market.yes_price ?? 0.5) * 100);
-                return (
-                  <Link
-                    key={market.id}
-                    href={`/markets/${market.slug}`}
-                    className="flex flex-col rounded-xl p-4 transition-colors"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-                  >
-                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-orange-400">{market.category}</div>
-                    <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
-                    <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="font-mono text-lg font-bold tabular-nums" style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}>{yes}%</span>
-                        <span className="text-xs text-[var(--text-tertiary)]">YES</span>
-                      </div>
-                      <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
-                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${yes}%` }} />
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* ALL MARKETS */}
         <div ref={marketsRef} className="mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -963,11 +921,9 @@ export function HomeClient({
                 { value: "breaking", label: "⚡ Breaking" },
                 { value: "new", label: "🕐 New" },
                 { value: "following", label: "Following" },
-                { value: "tokens", label: "Tokens" },
                 { value: "creators", label: "Creators" },
                 { value: "politics", label: "Politics" },
                 { value: "sports", label: "Sports" },
-                { value: "crypto", label: "Crypto" },
                 { value: "music", label: "Music" },
                 { value: "climate", label: "Climate" },
                 { value: "companies", label: "Companies" },
