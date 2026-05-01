@@ -1,12 +1,20 @@
-import CategoryPage from "@/components/CategoryPage";
+import { createClient } from "@/lib/supabase/server";
+import { CreatorsClient } from "./creators-client";
 
-export default function CreatorsPage() {
-  return (
-    <CategoryPage
-      category="Creators"
-      title="Creators"
-      icon="🎥"
-      description="Predict what your favorite creators will do next"
-    />
-  );
+export const revalidate = 0;
+
+export const metadata = {
+  title: "Creators — Caldera",
+};
+
+export default async function CreatorsPage() {
+  const supabase = await createClient();
+
+  const { data: creators } = await supabase
+    .from("creators")
+    .select("*")
+    .order("creator_coin_price", { ascending: false })
+    .limit(200);
+
+  return <CreatorsClient creators={creators ?? []} />;
 }
