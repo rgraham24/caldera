@@ -4,6 +4,40 @@ Append-only. Newest at top. Never edit or delete past entries — if a decision 
 
 ---
 
+## 2026-05-01: Tokenomics simplified to creator-first MVP
+
+Supersedes 2026-04-21 tokenomics. New model:
+
+- **Buys: 2.0%** (down from 2.5%). Split: 1.0% platform + 1.0% creator coin auto-buy.
+- **Sells: 0%** (unchanged).
+- **Holder rewards system: deleted.** No more 0.5% slice. No more per-trade
+  snapshotting. No more pull-claim flow. The `holder_rewards` table is archived
+  and dropped.
+- **"Relevant token" routing: deleted.** Every market routes to its creator's
+  DeSo coin. No category-token routing. The 8 category tokens
+  ($CalderaSports, $CalderaMusic, etc.) are deprecated.
+- **Auto-buy routing simplified.** On every buy: the platform buys 1% worth of
+  the market's creator's DeSo coin. If the creator is claimed, coins are sent
+  directly to their wallet. If unclaimed, coins are held in the platform wallet
+  and accumulate as a "claim bounty" until the creator claims their profile.
+- **DESO escrow (`creators.unclaimed_earnings_escrow`) is no longer
+  incremented on new trades.** The auto-bought coins ARE the creator's
+  compensation. The escrow column remains for legacy DESO that accrued under
+  the old model and is still claimable by creators.
+- **Crypto markets: deleted** (Phase A). All future markets must be
+  creator-attached.
+
+Why: the previous 4-bucket / 11-token-routing tokenomics was too complex to
+explain to creators or users, and undercut the creator-first narrative by
+sending fees to category-token holders unrelated to the market. The new model
+sends every dollar of fee to either the platform or the specific creator the
+market is about. One sentence: "2% fee on buys. 1% runs the platform. 1%
+buys the creator's coin — for them."
+
+See `CALDERA_SIMPLIFICATION_AUDIT.md` for the full file-level plan.
+
+---
+
 ## 2026-04-29: Cleanup backlog — token symbol surfaces
 
 5. **Slug-derived token symbols in non-priority surfaces.**
