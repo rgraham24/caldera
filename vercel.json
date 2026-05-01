@@ -17,22 +17,6 @@
       "schedule": "0 * * * *"
     },
     {
-      "path": "/api/cron/generate-crypto-markets",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/resolve-crypto-markets",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/snapshot-crypto-prices",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/check-category-health",
-      "schedule": "0 8 * * *"
-    },
-    {
       "path": "/api/cron/generate-markets",
       "schedule": "0 9 * * *"
     },
