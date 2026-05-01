@@ -68,22 +68,31 @@ export default function TermsPage() {
             5. Platform Fees
           </h2>
           <p>
-            Caldera charges a total fee of <strong className="text-text-primary">2.5% on every buy trade</strong>. Sell trades are free. The 2.5% is split as follows: 1% funds platform operations, 0.5% accrues as on-chain holder rewards for holders of the relevant token associated with the market, 0.5% is used to buy the relevant token on the open market and hold it (no supply is reduced — see Section 6), and 0.5% is routed to the claimed creator's DeSo wallet if the creator has claimed their profile, otherwise it accrues in escrow and is released to the creator upon successful claim. Fees are deducted at time of trade and are non-refundable.
+            Caldera charges a total fee of <strong className="text-text-primary">2% on every buy trade</strong>. Sell trades are free. The 2% is split evenly: 1% funds platform operations, and 1% is used to buy the market&apos;s creator&apos;s DeSo coin on the open market. Fees are deducted at time of trade and are non-refundable.
           </p>
         </section>
 
         <section>
           <h2 className="mb-3 font-display text-xl font-semibold text-text-primary">
-            6. Holder Rewards and Token Buyback
+            6. Creator Coin Auto-Buy
           </h2>
           <p>
-            Each prediction market on Caldera is associated with a relevant creator token. On every buy trade, a portion of the fee is used to purchase the relevant token on the open market and is held by Caldera; this purchased supply is <strong className="text-text-primary">not burned and is not removed from circulation</strong>. No token supply reduction occurs at any time.
+            Every prediction market on Caldera is associated with a creator. On every buy trade, 1% of the gross trade amount is used by the platform to purchase the creator&apos;s DeSo coin on the open market. The amount of creator coins received depends on the creator&apos;s bonding curve at the moment of purchase and may vary trade-by-trade.
+          </p>
+          <p className="mt-3">
+            <strong className="text-text-primary">For claimed creators</strong> — i.e. creators who have proven ownership of their profile via the claim flow — the purchased coins are transferred directly from the platform wallet to the creator&apos;s wallet on every trade.
+          </p>
+          <p className="mt-3">
+            <strong className="text-text-primary">For unclaimed creators</strong>, the purchased coins are held in the platform wallet as a claim bounty. When the creator successfully claims their profile, all accumulated coins held in the platform wallet remain available to be transferred or used as the creator directs.
+          </p>
+          <p className="mt-3">
+            Purchased coins are <strong className="text-text-primary">not burned and are not removed from circulation</strong>. DeSo creator coins cannot be burned. No token supply reduction occurs at any time.
           </p>
           <p className="mt-3">
             <strong className="text-text-primary">
-              Holding a token does not guarantee any return or monetary value.
+              Holding a creator coin does not guarantee any return or monetary value.
             </strong>{" "}
-            Accrued rewards may be zero if trading activity in the relevant category is low. The buyback-and-hold mechanic may provide upward price pressure on a token via bonding-curve dynamics but does not guarantee any price increase. Tokens are utility tokens that represent participation in the Caldera ecosystem, not securities or investment contracts. Past trading activity and past reward accrual do not predict future results.
+            The buyback mechanic may provide upward price pressure on a coin via bonding-curve dynamics but does not guarantee any price increase. DeSo creator coins represent participation in a creator&apos;s economy on the DeSo blockchain, not securities or investment contracts. Past trading activity does not predict future results.
           </p>
         </section>
 

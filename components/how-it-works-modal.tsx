@@ -18,16 +18,16 @@ const STEPS = [
   },
   {
     number: "3",
-    title: "Every person has a token",
+    title: "Every market is about a creator",
     description:
-      "Every public figure on Caldera has a real token. When markets are traded, 0.5% of every fee rewards token holders and 0.5% auto-buys that token on DeSo.",
+      "Every market on Caldera is attached to a creator. When markets are traded, 1% of every fee buys that creator's DeSo coin on the open market.",
     visual: "token",
   },
   {
     number: "4",
-    title: "Fees flow back into tokens",
+    title: "Creators always benefit",
     description:
-      "Hold any token on Caldera. As markets about that person are traded, 0.5% rewards you as a holder and 0.5% auto-buys the token on DeSo — on every single trade.",
+      "If the creator has claimed their profile, the bought coin lands in their wallet on every trade. If not, it builds a claim bounty in the platform wallet — waiting for them.",
     visual: "earn",
   },
 ];
@@ -152,8 +152,8 @@ export function HowItWorksModal() {
                 </div>
               </div>
               <div className="bg-[var(--bg-elevated)] rounded-xl p-3">
-                <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest rewards</div>
-                <div className="text-sm font-medium text-[var(--text-primary)]">💰 $0.87 to holders just now</div>
+                <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest buy</div>
+                <div className="text-sm font-medium text-[var(--text-primary)]">📈 $1.00 of $lebronjames bought</div>
                 <div className="text-xs text-[var(--text-tertiary)] mt-0.5">from a LeBron market trade</div>
               </div>
             </div>
@@ -167,15 +167,14 @@ export function HowItWorksModal() {
               </div>
               <div className="text-center text-[var(--text-tertiary)]">↓</div>
               <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)] space-y-1">
-                <div className="text-xs text-[var(--text-tertiary)]">2.5% fee splits</div>
-                <div className="text-sm font-medium text-green-500">$0.50 → holder rewards 💰</div>
-                <div className="text-sm font-medium text-green-400">$0.50 → on-chain auto-buy 📈</div>
+                <div className="text-xs text-[var(--text-tertiary)]">2% fee splits</div>
+                <div className="text-sm font-medium text-green-500">$1.00 → buys $lebronjames 📈</div>
                 <div className="text-sm text-[var(--text-tertiary)]">$1.00 → platform</div>
               </div>
               <div className="text-center text-[var(--text-tertiary)]">↓</div>
               <div className="bg-[var(--bg-elevated)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">
                 <div className="text-xs font-medium text-[var(--text-primary)] text-center leading-relaxed">
-                  Holder rewards distributed automatically<br />on every single trade
+                  Goes straight to LeBron&apos;s wallet<br />on every single trade
                 </div>
               </div>
             </div>
