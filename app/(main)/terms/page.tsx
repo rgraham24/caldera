@@ -83,7 +83,7 @@ export default function TermsPage() {
             <strong className="text-text-primary">For claimed creators</strong> — i.e. creators who have proven ownership of their profile via the claim flow — the purchased coins are transferred directly from the platform wallet to the creator&apos;s wallet on every trade.
           </p>
           <p className="mt-3">
-            <strong className="text-text-primary">For unclaimed creators</strong>, the purchased coins are held in the platform wallet as a claim bounty. When the creator successfully claims their profile, all accumulated coins held in the platform wallet remain available to be transferred or used as the creator directs.
+            <strong className="text-text-primary">For unclaimed creators</strong>, the purchased coins are held in the platform wallet until the creator joins and claims their profile. When the creator successfully claims their profile, all accumulated coins held in the platform wallet remain available to be transferred or used as the creator directs.
           </p>
           <p className="mt-3">
             Purchased coins are <strong className="text-text-primary">not burned and are not removed from circulation</strong>. DeSo creator coins cannot be burned. No token supply reduction occurs at any time.

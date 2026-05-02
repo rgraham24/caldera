@@ -27,7 +27,7 @@ const STEPS = [
     number: "4",
     title: "Creators always benefit",
     description:
-      "If the creator has claimed their profile, the bought coin lands in their wallet on every trade. If not, it builds a claim bounty in the platform wallet — waiting for them.",
+      "If the creator has claimed their profile, the bought coin lands in their wallet on every trade. If not, the coin is held in the platform wallet — waiting for them to join.",
     visual: "earn",
   },
 ];

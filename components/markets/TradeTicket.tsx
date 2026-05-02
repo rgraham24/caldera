@@ -21,7 +21,7 @@ type TradeTicketProps = {
   creatorTokenSymbol?: string;
   /** Creator's display name. Optional — used in fee-breakdown copy. */
   creatorName?: string;
-  /** True if the creator has claimed their profile. Drives "Buys $X" vs "Builds claim bounty for $X". */
+  /** True if the creator has claimed their profile. Drives "Goes to $X on every trade" vs "Buys $X coin (held until they join)". */
   creatorClaimed?: boolean;
   initialMode?: "buy" | "sell";
 };
@@ -207,7 +207,9 @@ export function TradeTicket({
   // Resolve the creator label used in fee-breakdown copy.
   // Prefer an explicit symbol (e.g. "$ALICE"); fall back to display name.
   const creatorLabel = creatorTokenSymbol ?? creatorName ?? "creator's coin";
-  const autoBuyVerb = creatorClaimed ? `Buys ${creatorLabel}` : `Builds claim bounty for ${creatorLabel}`;
+  const autoBuyVerb = creatorClaimed
+    ? `Goes to ${creatorLabel} on every trade`
+    : `Buys ${creatorLabel} coin (held until they join)`;
 
   return (
     <>
@@ -511,7 +513,7 @@ export function TradeTicket({
               <div className="flex items-start gap-2 text-text-muted">
                 <span className="shrink-0">📈</span>
                 <span>
-                  1% covers Caldera operations · 1% {creatorClaimed ? `goes to ${creatorLabel}` : `builds a claim bounty for ${creatorLabel}`}
+                  1% covers Caldera operations · 1% {creatorClaimed ? `goes to ${creatorLabel} on every trade` : `buys ${creatorLabel} coin (held until they join)`}
                 </span>
               </div>
               <div className="flex items-start gap-2 text-text-muted">
