@@ -2,7 +2,7 @@
 
 **Status:** Living document. Updated as fixes land.
 **Branch of origin:** `docs/money-flows-audit` cut from `main` on 2026-04-23.
-**Last updated:** 2026-04-23.
+**Last updated:** 2026-05-01.
 
 ---
 
@@ -1000,10 +1000,13 @@ documented in Target behavior below.
 - **Fix:** Build the claim system per Target behavior below. New API
   route, new UI, new `lib/deso/transfer.ts` primitive. Net-new feature,
   not a fix to existing code.
-- **Status: ✅ RESOLVED (2026-04-24, P3-4)**
+- **Status: ✅ RESOLVED (2026-04-24, P3-4); ⛔ OBSOLETE (2026-05-01, v2)**
   `POST /api/holder-rewards/claim` (8-gate money path), `PendingRewards`
   UI on /portfolio, `lib/deso/transfer.ts` primitive. Commits:
   6d0a4c2 (route + 15 tests), 67f7856 (frontend).
+  **Update 2026-05-01:** entire holder-rewards subsystem removed in v2
+  simplification. Route, UI, snapshot lib, holder_rewards table all
+  deleted/archived. See Changelog 2026-05-01 entry.
 
 #### REWARDS-2: Marketing copy promises an undelivered feature (P0)
 
@@ -1018,10 +1021,14 @@ documented in Target behavior below.
 - **Fix:** Strictly paired with REWARDS-1. When the claim system lands,
   update the copy to match actual behavior. If launch happens before
   the claim is built (not the current plan), remove the copy first.
-- **Status: ✅ RESOLVED (2026-04-24, P3-4)**
+- **Status: ✅ RESOLVED (2026-04-24, P3-4); ⛔ OBSOLETE (2026-05-01, v2)**
   Claim system is now live (see REWARDS-1). Copy accurately describes
   delivered behavior. No copy changes needed — terms language ("manually
   claim") matches the pull-based UX shipped in P3-4.5.
+  **Update 2026-05-01:** holder-rewards system removed. Terms + Footer +
+  how-it-works copy all rewritten in B.2.7 / B.4.2 to reflect the new
+  2-bucket model. "Manually claim" language is gone. See Changelog
+  2026-05-01 entry.
 
 #### REWARDS-3: `TransferCreatorCoin` primitive does not exist in codebase (P0)
 
@@ -1039,6 +1046,13 @@ documented in Target behavior below.
   Follows the same module pattern as `lib/deso/buyback.ts` (shipped
   Step 3d.2c). Unit-tested input validation; integration-tested on
   preview with real creator coin transfers.
+- **Status: ✅ RESOLVED (P2-4); STILL APPLIES under v2.**
+  `lib/deso/transfer.ts` shipped in P2-4 and is consumed by the new
+  v2 post-buyback transfer chain (PB-2.5 / B.2.5). Unlike the other
+  REWARDS-N items, this primitive is not deleted under v2 — the
+  creator-coin transfer it provides is exactly what the v2 model
+  uses to send bought coins to claimed creators. Item is closed and
+  remains relevant.
 
 #### REWARDS-4: 5 stale `auto_buy_pool` rows stuck at 'pending' in prod (P1)
 
@@ -1055,6 +1069,12 @@ documented in Target behavior below.
   or marks as permanently failed with a reason. Specific handling for
   these 5 rows: likely safe to mark `status='abandoned'` with reason
   `'pre-v2-code-path'` and move on.
+- **Status: ⛔ OBSOLETE (2026-05-01, v2)**
+  `auto_buy_pool` recipient_type renamed to `creator_auto_buy` in PB-2;
+  any rows that did not survive the migration's WHERE-IN delete were
+  archived in `fee_earnings_archive_2026_05`. The "stale rows" concern
+  no longer has an active code path that could regenerate it. See
+  Changelog 2026-05-01 entry.
 
 ### 🟡 Concerns
 
@@ -1067,9 +1087,12 @@ documented in Target behavior below.
 - **Fix:** Trivial SQL view (`v_holder_rewards_pending_by_user`) and
   API endpoint (`GET /api/holder-rewards/balance`). Lands with the
   claim UI in Phase 3.
-- **Status: ✅ RESOLVED (2026-04-24, P3-4)**
+- **Status: ✅ RESOLVED (2026-04-24, P3-4); ⛔ OBSOLETE (2026-05-01, v2)**
   `v_holder_rewards_pending_by_user` SQL view (P3-4.2, commit 18b510d),
   `GET /api/holder-rewards/balance` (P3-4.3, commit 0d20fc9, 9 tests).
+  **Update 2026-05-01:** balance route deleted, view dropped alongside
+  the holder_rewards table archive (PB-3). No "claimable balance"
+  concept exists under v2. See Changelog 2026-05-01 entry.
 
 #### REWARDS-6: Claim payment unit requires clear UX
 
@@ -1082,6 +1105,10 @@ documented in Target behavior below.
   (not a DESO balance increase).
 - **Fix:** UX/copy work in Phase 3. Show both the USD-equivalent and
   the coin quantity they'll receive. Link to DeSo explorer post-claim.
+- **Status: ⛔ OBSOLETE (2026-05-01, v2)**
+  No claim flow exists under v2 — coins are sent automatically (claimed)
+  or held in the platform wallet (unclaimed). UX concern is moot.
+  See Changelog 2026-05-01 entry.
 
 #### REWARDS-7: `amount_creator_coin_nanos` not stored at accrual time
 
@@ -1103,6 +1130,14 @@ documented in Target behavior below.
   auditability, and means the platform pool doesn't slowly bleed out
   to holders on price upswings. Add `amount_creator_coin_nanos` +
   `creator_coin_price_at_accrual` columns in a Phase 3 migration.
+- **Status: ⛔ OBSOLETE (2026-05-01, v2)**
+  Holder rewards as a concept is gone. No accrual ledger to snapshot
+  into. The 1% creator-auto-buy slice converts USD → CC nanos at
+  trade time via the DeSo construct response's
+  `ExpectedCreatorCoinReturnedNanos` (captured by PB-2.5 / B.2.5),
+  which is the same problem at a different layer — but now solved
+  per-trade rather than per-holder-per-accrual. See Changelog
+  2026-05-01 entry.
 
 ### Target behavior (after fixes)
 
@@ -2509,6 +2544,13 @@ Status values:
 | 2026-04-27 | RESOLUTION-1 | Resolved | 7f05465, ac47db1 | P3-3.6–7. New route `POST /api/positions/[id]/claim-winnings`. 12-gate pull-based claim flow: UUID validate → auth → rate limit → platform env check → user lookup → payout row load → ownership check → status check → compute nanos at live DESO rate → solvency preflight → idempotent UPDATE lock (pending\|failed → in_flight) → `transferDeso` on-chain → mark claimed. CRITICAL path: tx on-chain but ledger update failed → 500 + txHashHex in response for Phase 4 reconciliation. 19 unit tests covering all gates + happy path + retry-from-failed. |
 | 2026-04-27 | RESOLUTION-3 | Resolved | 7f05465 | Per-claim solvency check in claim-winnings route (Gate 9). `checkDesoSolvency(platformKey, amountNanos)` called before any DB lock or on-chain tx. Insufficient → payout row transitions to `blocked_insolvent`, admin-visible in dashboard. User sees "Pending platform funding" badge with disabled button. Reason `fetch-failed` (DeSo API down) returns 503 without marking blocked. |
 | 2026-04-27 | RESOLUTION-6 | Resolved | 1106707, 5ed8e3a | P3-3.8a–b. `GET /api/positions/payouts` returns all `position_payouts` rows for authenticated user (ordered by resolved_at desc), batch-loading market title/slug and position side. `PendingPayouts.tsx` client component: renders one row per actionable payout (pending\|failed\|in_flight\|blocked_insolvent) with contextual button labels ("Claim" / "Retry" / "Processing…" / "Pending platform funding"). Success banner with DeSo explorer tx link, 8s auto-dismiss. Component wired into portfolio-client.tsx directly after `<PendingRewards />`. |
+| 2026-05-01 | REWARDS-1 | Obsolete | simplify/phase-b-tokenomics | v2 tokenomics simplification. Holder-rewards subsystem deleted (route, UI, snapshot lib, holder_rewards table archived in `holder_rewards_archive_2026_05`). See Document History 2026-05-01 entry for full migration scope. |
+| 2026-05-01 | REWARDS-2 | Obsolete | simplify/phase-b-tokenomics | v2 simplification. Terms / Footer / how-it-works copy rewritten in B.2.7 + B.4.2 to describe the 2-bucket model. "Manually claim" language removed. |
+| 2026-05-01 | REWARDS-3 | Resolved (still applies) | b3f1b48 → P2-4 + B.2.5 | `lib/deso/transfer.ts` shipped in P2-4. Under v2 it's consumed by the new post-buyback transfer chain (PB-2.5 / B.2.5) — the primitive is not deleted; it's exactly what v2 uses to send bought coins to claimed creators. |
+| 2026-05-01 | REWARDS-4 | Obsolete | simplify/phase-b-tokenomics | `auto_buy_pool` recipient_type renamed to `creator_auto_buy` in PB-2; survivors of WHERE-IN delete preserved in `fee_earnings_archive_2026_05`. No active code path can regenerate the stale-rows class. |
+| 2026-05-01 | REWARDS-5 | Obsolete | simplify/phase-b-tokenomics | Balance route + `v_holder_rewards_pending_by_user` view deleted alongside holder_rewards table archive (PB-3). No "claimable balance" concept under v2. |
+| 2026-05-01 | REWARDS-6 | Obsolete | simplify/phase-b-tokenomics | No claim flow exists under v2. Coins flow automatically (claimed) or are held by the platform (unclaimed). UX-clarity concern is moot. |
+| 2026-05-01 | REWARDS-7 | Obsolete | simplify/phase-b-tokenomics | Holder rewards as a concept is gone. The USD→CC-nanos conversion now happens per-trade via the DeSo construct response's `ExpectedCreatorCoinReturnedNanos` (captured by PB-2.5). |
 
 ### In Progress
 
@@ -2545,6 +2587,7 @@ Status values:
 | 2026-04-28 | Stream 1.2 — documentation only. The 2026-04-28 deep audit identified that 6 historic real trades (Apr 21 era, pre-tokenomics-v2 lock) have inconsistent fee_earnings rows: 1 trade with zero fee rows, 2 trades with platform-only (no holder/auto_buy/creator), 4 with 3 rows (no creator on a non-creator market — correct). Total impact ~$5 across $44 of real trade volume. No money lost — every real trade was on-chain verified, platform DESO inflows were correct; only the off-chain accounting ledger was incomplete during the early code path. Fee_earnings is authoritative for solvency/treasury computation from 2026-04-21 forward (the tokenomics-v2 lock date). Pre-v2 trades are NOT backfilled by design — reverse-engineering "what v2 should have written" for $5 of test volume is not worth the risk of corrupting current state. Historical-only, not an active bug. The treasury dashboard (Stream 2) and reconciliation infrastructure (Phase 4 + HRV) all operate on post-v2 data and are unaffected. No new audit finding IDs. | (no commits — historical documentation only) |
 | 2026-04-29 | Stream 3 — wallet topology hardening + treasury operational playbook. (3.1) Generated dedicated cold treasury wallet via untracked one-shot `scripts/generate-cold-wallet.ts` (BIP39 12-word mnemonic, m/44'/0'/0'/0/0, secp256k1 compressed pubkey → DeSo Base58Check via existing `verifyTx.ts` algorithm extended for 33-byte pubkeys). Seed paper + steel-backed (already redundant). Cold wallet pubkey: `BC1YLgjNpL3jAgsydmsksqTcnXxFZ98WgxJmBt2giFG29ettuXxjimj` — never signs programmatically, never has seed in env vars. (3.2) New `SECURITY.md` (445 lines) documenting threat model (in-scope: hot-wallet leak, accidental drain, ops mistakes, insolvency, stolen admin creds, replay; out-of-scope: state actors, physical coercion), wallet topology (3 distinct: hot/cold/personal, never confused), seed handling rules per wallet, 7-step sweep playbook with copy-paste commands, recovery procedures (hot leak: drain immediately + rotate; cold loss: paper destroyed → restore from steel; cold exposure → new wallet + sweep + destroy old paper), alert thresholds tiered critical/warning/informational, growth thresholds (multi-sig at $5k treasury, formal audit at $25k, automated sweep cron at $100/day volume). (3.3) New `scripts/sweep-to-cold.ts` (211 lines) — production sweep tool with hardcoded cold pubkey (no env override path), bounds-checked amount (1M–5B nanos), dry-run mode, 5s countdown, transferDeso + verifyDesoTransfer + fail-loud error handling. First sweep verified on-chain: 0.05 DESO smoke test, tx `6f90d6faf315b085aecfa962b45447a9f7b6cee71ad61ab83f606c384bdbfc85`, block `19bfa587c80e9fab...`, fee 168 nanos. End-to-end verification: treasury dashboard reflected the sweep correctly (wallet 7.259 → 7.209 DESO, status='insolvent' unchanged because worst-case math is independent of where wallet value sits). New `docs/SWEEP-LOG.md` for operational sweep history per SECURITY.md §4 step 7. No new audit finding IDs — preventive infrastructure (custody hardening + ops runbook). | 1d2a75d → 445e10b |
 | 2026-04-29 | Stream 2 Phase 2 — treasury dashboard UI page (final piece deferred from Phase 1). New `app/(main)/admin/treasury/page.tsx` (337 lines, single 'use client' file). Wraps content in existing `<AdminGate>` (localStorage-backed password auth via `caldera_admin_pw` key). Renders `TreasurySnapshot` from `GET /api/admin/treasury` as 3 cards: DESO summary (Wallet / Liability / Extractable with status color applied to extractable), DESO Liability Breakdown sub-table (open positions / pending payouts / creator escrow + TOTAL), Creator Coins table with — placeholders for wallet-only coins. Auto-refreshes every 60s with visible countdown. 401 handler clears stale password from localStorage and surfaces clear error. Defensive bigint string parsing handles negative extractable values (insolvent state). Uses house-style Tailwind tokens (text-text-primary / text-yes / text-no / text-text-muted, bg-surface, border-border-subtle). End-to-end verified in localhost dev: auth → fetch → render → auto-refresh, with real prod data ($30.35 wallet, $46.38 liability, INSOLVENT status correctly displayed in red, $bitcoin HEALTHY in green). No new audit finding IDs — UI layer over already-tested API. | e085924 |
+| 2026-05-01 | **v2 tokenomics migration (Phase A + Phase B).** Branch `simplify/phase-b-tokenomics`. Replaces 2026-04-21 4-bucket / 2.5% model with a 2-bucket / 2.0% creator-first model. **Buys: 2.0% (down from 2.5%).** Split: 1.0% platform + 1.0% creator-coin auto-buy. **Sells: still 0%.** Holder-rewards system deleted (table archived in `holder_rewards_archive_2026_05`). "Relevant token" routing deleted — every market routes to its creator's DeSo coin. Crypto markets deleted (Phase A). Category tokens deprecated (Phase A). 12-month escrow rollover deleted; `creators.unclaimed_earnings_escrow` no longer incremented. Auto-buy routing: claimed creator → coins to creator wallet on every trade; unclaimed creator → coins held in platform wallet until they claim. New `atomic_record_trade_v2` RPC writes 2 fee_earnings rows per trade (`platform`, `creator_auto_buy`). New PB-5 columns on `fee_earnings`: `coin_transfer_status`, `coin_transfer_tx_hash`, `coin_transfer_at`, `coin_transfer_failed_reason` — track on-chain transfer to claimed creators (CHECK constraint enforces `NULL \| 'transferred' \| 'transfer_failed' \| 'skipped_no_amount'`). Schema migrations PB-1 through PB-6 in `docs/migrations/`. **Resolves audit items related to:** holder-rewards complexity (whole subsystem removed → REWARDS-1, -2, -4, -5, -6, -7 all Obsolete; REWARDS-3 / `transferCreatorCoin` Resolved and still in use); category-token routing (removed); 4-bucket fee distribution complexity (now 2 buckets); crypto-market edge cases in fee routing (no more crypto markets — see Stream 1.3a 2026-04-28). **Outstanding (Phase D follow-ups):** schema hygiene (drop `trades.coin_holder_pool_amount`, `creators.total_coins_in_circulation`, `creators.total_fees_distributed`, `users.coin_earnings_balance`, `community_pool` table — all now-unused per v2); stale crypto-market cleanup (admin operation to cancel any pre-Phase-B markets without a `creator_slug` — they now hard-fail at the trade route); `buyback_events` table shape carries v1 vestigial columns (`team_buyback_usd`, `league_buyback_usd`) — should be replaced with a `fee_earnings`-derived view. See `DECISIONS.md` 2026-05-01 entry for the locked decisions and rationale, and `CALDERA_SIMPLIFICATION_AUDIT.md` for the full file-level plan. | 0e94152 → 326f412 |
 
 ---
 
