@@ -34,15 +34,22 @@
 -- ROLLBACK: see PB-2-fee-earnings-recipient-types-v2.rollback.sql
 -- =============================================================
 
--- ─── Step 0: Pre-flight diagnostics (read-only) ──────────────────
--- Run these BEFORE the rest of the migration to confirm the row
--- counts match expectations. If unexpected recipient_type values
--- appear, STOP and add them to Step 3's DELETE list before
--- proceeding — the new constraint in Step 5 will reject any
--- surviving row that is not 'platform' or 'creator_auto_buy'.
+-- ─── Step 0: Pre-flight diagnostics (read-only — run BEFORE BEGIN) ──
+-- Run these BEFORE the transaction below to confirm the row counts
+-- match expectations. If unexpected recipient_type values appear,
+-- STOP and add them to Step 2's DELETE list — the constraint added
+-- in Step 5 will reject any surviving row that is not 'platform'
+-- or 'creator_auto_buy', which would abort the whole transaction.
 --
 -- SELECT recipient_type, COUNT(*) FROM fee_earnings GROUP BY recipient_type;
 -- SELECT COUNT(*) FROM fee_earnings;
+
+-- ─── Transaction wrapper ──────────────────────────────────────────
+-- All five mutation steps run as a single transaction so a failure
+-- at any step leaves the table in its pre-migration state. This
+-- matches what was actually run in Supabase on 2026-05-01.
+
+BEGIN;
 
 -- ─── Step 1: Archive existing rows ───────────────────────────────
 -- CREATE TABLE … AS SELECT preserves data only — not constraints,
@@ -53,18 +60,22 @@
 CREATE TABLE fee_earnings_archive_2026_05 AS
   SELECT * FROM fee_earnings;
 
--- Verification (assert before the destructive steps below):
--- SELECT
---   (SELECT COUNT(*) FROM fee_earnings) AS live,
---   (SELECT COUNT(*) FROM fee_earnings_archive_2026_05) AS archived;
--- → expect: live = archived
-
 -- ─── Step 2: Delete pre-v2 rows that have no v2 equivalent ───────
 
 DELETE FROM fee_earnings
   WHERE recipient_type IN ('holder_rewards_pool', 'creator', 'market_creator', 'creator_escrow');
 
--- ─── Step 3: Rename auto_buy_pool → creator_auto_buy ─────────────
+-- ─── Step 3: Drop the old (wide) CHECK constraint ────────────────
+-- This MUST happen before the rename in Step 4. The old constraint
+-- did not list 'creator_auto_buy' as a valid value, so an UPDATE
+-- introducing that value would be rejected by constraint
+-- validation. Constraint name verified against
+-- supabase/migrations/20260421b_fee_earnings_recipient_types.sql.
+
+ALTER TABLE fee_earnings
+  DROP CONSTRAINT IF EXISTS fee_earnings_recipient_type_check;
+
+-- ─── Step 4: Rename auto_buy_pool → creator_auto_buy ─────────────
 -- The semantic shift: under v1 the auto-buy bought a "relevant
 -- token" (category coin / crypto coin / creator coin depending
 -- on routing). Under v2 it always buys the market's creator's
@@ -75,20 +86,13 @@ UPDATE fee_earnings
   SET recipient_type = 'creator_auto_buy'
   WHERE recipient_type = 'auto_buy_pool';
 
--- ─── Step 4: Drop the old (wide) CHECK constraint ────────────────
--- Constraint name verified against
--- supabase/migrations/20260421b_fee_earnings_recipient_types.sql.
-
-ALTER TABLE fee_earnings
-  DROP CONSTRAINT IF EXISTS fee_earnings_recipient_type_check;
-
 -- ─── Step 5: Add the new (narrow) CHECK constraint ───────────────
 
 ALTER TABLE fee_earnings
   ADD CONSTRAINT fee_earnings_recipient_type_check
   CHECK (recipient_type IN ('platform', 'creator_auto_buy'));
 
--- ─── Step 6: Verification (run after) ────────────────────────────
+-- ─── Step 6: Verification (read-only — runs inside the transaction) ──
 --
 -- 1. Only the two allowed types remain:
 --    SELECT recipient_type, COUNT(*) FROM fee_earnings GROUP BY recipient_type;
@@ -100,6 +104,8 @@ ALTER TABLE fee_earnings
 --    WHERE conname = 'fee_earnings_recipient_type_check';
 --    → expect: CHECK (recipient_type IN ('platform', 'creator_auto_buy'))
 --
--- 3. Archive is intact:
+-- 3. Archive is intact and matches pre-migration row count:
 --    SELECT COUNT(*) FROM fee_earnings_archive_2026_05;
 --    → expect: original pre-migration row count
+
+COMMIT;
