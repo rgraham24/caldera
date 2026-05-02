@@ -44,8 +44,13 @@ BEGIN
   -- ─── Step 1: Insert trade ───────────────────────────────────
   -- jsonb_populate_record maps JSONB keys to columns by name.
   -- Route MUST use snake_case keys matching schema. Unknown keys
-  -- are silently ignored. Don't include id/created_at — DB
-  -- defaults handle them.
+  -- are silently ignored. Routes do not include id (RPC uses the
+  -- DB default gen_random_uuid implicitly via populate_record's
+  -- handling) — but they also do not include created_at, and
+  -- jsonb_populate_record produces NULL for any column missing
+  -- from the JSONB, BYPASSING the column's DEFAULT clause. The
+  -- post-INSERT UPDATE below restores the timestamp the schema
+  -- default would have provided.
   --
   -- Unique violation on tx_hash (code 23505) propagates to caller
   -- which catches as 409 replay.
@@ -53,6 +58,13 @@ BEGIN
   INSERT INTO trades
     SELECT * FROM jsonb_populate_record(NULL::trades, p_trade)
   RETURNING id INTO v_trade_id;
+
+  -- Backfill the column default that jsonb_populate_record nulled out.
+  -- See B.4 smoke-test bug discovered 2026-05-01.
+  UPDATE trades
+     SET created_at = NOW()
+   WHERE id = v_trade_id
+     AND created_at IS NULL;
 
   -- ─── Step 2: Update market ──────────────────────────────────
   -- AMM pool changes are pre-computed in the route from THIS
@@ -127,6 +139,17 @@ BEGIN
       INSERT INTO fee_earnings
         SELECT * FROM jsonb_populate_record(NULL::fee_earnings, v_fee);
     END LOOP;
+
+    -- Same fixup as for the trades INSERT in Step 1: route does not
+    -- pass created_at in the per-fee JSONB blobs, and jsonb_populate_record
+    -- bypasses the column DEFAULT. Match every row this RPC just
+    -- inserted via (source_type, source_id) — both are set explicitly
+    -- by the route per fee row.
+    UPDATE fee_earnings
+       SET created_at = NOW()
+     WHERE source_id = v_trade_id
+       AND source_type = 'trade'
+       AND created_at IS NULL;
   END IF;
 
   -- ─── Step 5: (intentionally removed) ───────────────────────
