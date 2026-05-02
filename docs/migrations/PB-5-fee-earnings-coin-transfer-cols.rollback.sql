@@ -20,6 +20,9 @@
 --   WHERE coin_transfer_status IS NOT NULL;
 -- =============================================================
 
+ALTER TABLE fee_earnings
+  DROP CONSTRAINT IF EXISTS fee_earnings_coin_transfer_status_check;
+
 ALTER TABLE fee_earnings DROP COLUMN IF EXISTS coin_transfer_status;
 ALTER TABLE fee_earnings DROP COLUMN IF EXISTS coin_transfer_tx_hash;
 ALTER TABLE fee_earnings DROP COLUMN IF EXISTS coin_transfer_at;

@@ -51,9 +51,17 @@ ALTER TABLE fee_earnings
 ALTER TABLE fee_earnings
   ADD COLUMN IF NOT EXISTS coin_transfer_failed_reason TEXT;
 
--- Optional: a CHECK constraint to enforce the small enum-like value set
--- on coin_transfer_status. Keeping it loose (no constraint) so future
--- additions don't require a migration; column comments are the contract.
+-- CHECK constraint on coin_transfer_status. Money-flow code, so we
+-- want the DB to reject silent typo corruption rather than absorb it.
+-- The four valid states (NULL + three explicit values) are stable
+-- enough that adding a new value is a migration-worthy event.
+
+ALTER TABLE fee_earnings
+  ADD CONSTRAINT fee_earnings_coin_transfer_status_check
+  CHECK (
+    coin_transfer_status IS NULL
+    OR coin_transfer_status IN ('transferred', 'transfer_failed', 'skipped_no_amount')
+  );
 
 COMMENT ON COLUMN fee_earnings.coin_transfer_status IS
   'PB-5 — Outcome of the post-buyback transfer to a claimed creator. NULL means no transfer was attempted (either buyback failed, or creator is unclaimed). Values: ''transferred'' | ''transfer_failed'' | ''skipped_no_amount''.';

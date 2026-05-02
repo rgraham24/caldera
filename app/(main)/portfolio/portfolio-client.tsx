@@ -609,6 +609,8 @@ export function PortfolioClient() {
           </div>
           {/* TradeTicket */}
           <div className="p-4 max-h-[80vh] overflow-y-auto">
+            {/* creatorClaimed not passed: portfolio modal is a sell flow with 0% fee,
+                so the buy-side fee-breakdown copy never renders. */}
             <TradeTicket
               market={tradeModal.market}
               onTradeComplete={() => { setTradeModal(null); fetchPositions(); }}
