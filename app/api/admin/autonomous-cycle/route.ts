@@ -2,19 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 import {
-  discoverEntities,
-  bulkGenerateAndInsert,
   fixStaleDates,
   curateHomepage,
   resolveExpiredMarkets,
-  generateMarketsForImportedCreators,
   checkPendingClaims,
   backfillCreatorSlugs,
   processPendingDesoCreations,
   auditAndFixReservedProfiles,
 } from "@/lib/admin/pipeline";
-import { getUpcomingGames, generateSportsMarkets } from "@/lib/admin/sports-feed";
-import { getTopStreamers } from "@/lib/admin/twitch-feed";
 
 const rateLimitMap = new Map<string, number>();
 
@@ -32,11 +27,12 @@ async function runCycle() {
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
   const supabase = await createClient();
 
-  // Step 1: Discover trending entities and generate markets
-  const entities = await discoverEntities(apiKey);
-  const marketsCreated = await bulkGenerateAndInsert(entities, apiKey, supabase);
+  // ── Generation steps removed in Phase D-2a (2026-05-02) ──
+  // Steps 1, 1b, 1c, 4 produced creator-less markets that hard-fail
+  // the v2 trade route. The orchestration shell + ledger fixers are
+  // preserved below.
 
-  // Step 1x: Remove exact-title duplicates (keep oldest), run after bulk insert
+  // Step 1x: Remove exact-title duplicates (keep oldest)
   let dupesDeleted = 0;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,47 +47,6 @@ async function runCycle() {
   const backfilled = await backfillCreatorSlugs(supabase, 30);
   if (backfilled > 0) console.log(`[cycle] Backfilled creator slugs: ${backfilled}`);
 
-  // Step 1b: Sports markets from real schedule data
-  const upcomingGames = await getUpcomingGames();
-  const sportsMarkets = await generateSportsMarkets(upcomingGames, apiKey);
-  let sportsInserted = 0;
-  for (const market of sportsMarkets) {
-    try {
-      const slug = market.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
-        + '-' + Date.now().toString(36);
-      await supabase.from('markets').insert({
-        title: market.title,
-        slug,
-        description: market.description,
-        category: market.category,
-        rules_text: market.resolution_criteria,
-        resolve_at: market.resolve_at,
-        status: 'open',
-        yes_price: 0.5,
-        no_price: 0.5,
-        yes_pool: 1000,
-        no_pool: 1000,
-        liquidity: 1000,
-        total_volume: 0,
-      });
-      sportsInserted++;
-    } catch { /* skip dupes */ }
-  }
-  console.log(`[cycle] Sports markets from schedule: ${sportsInserted}`);
-
-  // Step 1c: Add top Twitch streamers to entity discovery
-  const topStreamers = await getTopStreamers();
-  const streamerEntities = topStreamers
-    .filter(s => s.viewerCount > 10000)
-    .slice(0, 5)
-    .map(s => s.displayName);
-
-  // Merge streamers into entities for market generation
-  const streamerMarketsCreated = await bulkGenerateAndInsert(
-    streamerEntities, apiKey, supabase
-  );
-  console.log(`[cycle] Streamer markets: ${streamerMarketsCreated}`);
-
   // Step 2: Resolve expired markets before fixing dates or curating
   const { resolved, flagged } = await resolveExpiredMarkets(apiKey, supabase);
   console.log(`[cycle] Resolution: ${resolved} resolved, ${flagged} flagged for review`);
@@ -99,10 +54,6 @@ async function runCycle() {
   // Step 3: Fix stale dates and curate homepage
   const datesFixed = await fixStaleDates(supabase);
   const featuredUpdated = await curateHomepage(apiKey, supabase);
-
-  // Step 4: Generate markets for imported creators with 0 markets
-  const importedMarketsCreated = await generateMarketsForImportedCreators(apiKey, supabase, 10);
-  console.log(`[cycle] Generated ${importedMarketsCreated} markets for imported creators`);
 
   // Step 5: Auto-void needs_review markets older than 7 days
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -167,17 +118,12 @@ async function runCycle() {
   }
 
   return {
-    entities: entities.length,
-    markets_created: marketsCreated,
     dupes_deleted: dupesDeleted,
     creator_slugs_backfilled: backfilled,
-    sports_markets: sportsInserted,
-    streamer_markets: streamerMarketsCreated,
     markets_resolved: resolved,
     markets_flagged: flagged,
     dates_fixed: datesFixed,
     featured_updated: featuredUpdated,
-    imported_markets_created: importedMarketsCreated,
     auto_voided: autoVoided,
     auto_claimed: autoClaimed,
     deso_profiles_created: desoCreated,
