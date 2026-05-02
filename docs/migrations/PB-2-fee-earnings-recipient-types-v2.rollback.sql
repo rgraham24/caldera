@@ -37,6 +37,13 @@ INSERT INTO fee_earnings
 -- ─── Step 4: Re-add the pre-PB-2 (wide) constraint ───────────────
 -- Restored verbatim from supabase/migrations/20260421b_fee_earnings_recipient_types.sql.
 
+-- Note: 'creator_escrow' is included alongside the original five legacy
+-- types because the production data archived in fee_earnings_archive_2026_05
+-- contains rows of that type (2 rows from 2026-04-21 era 4-bucket testing).
+-- The original 20260421b migration's CHECK didn't list 'creator_escrow', so
+-- those rows pre-date that constraint or were inserted under a transiently
+-- relaxed constraint. Including it here lets the rollback restore the
+-- archive verbatim without violating its own CHECK.
 ALTER TABLE fee_earnings
   ADD CONSTRAINT fee_earnings_recipient_type_check
   CHECK (recipient_type IN (
@@ -44,7 +51,8 @@ ALTER TABLE fee_earnings
     'creator',
     'market_creator',
     'holder_rewards_pool',
-    'auto_buy_pool'
+    'auto_buy_pool',
+    'creator_escrow'
   ));
 
 -- ─── Step 5: Verification ────────────────────────────────────────
@@ -59,7 +67,7 @@ ALTER TABLE fee_earnings
 --   SELECT pg_get_constraintdef(oid)
 --   FROM pg_constraint
 --   WHERE conname = 'fee_earnings_recipient_type_check';
---   → expect: CHECK (recipient_type IN ('platform','creator','market_creator','holder_rewards_pool','auto_buy_pool'))
+--   → expect: CHECK (recipient_type IN ('platform','creator','market_creator','holder_rewards_pool','auto_buy_pool','creator_escrow'))
 --
 -- After verifying, the archive can be dropped manually if desired:
 --   DROP TABLE fee_earnings_archive_2026_05;

@@ -15,6 +15,14 @@
 --   - 'auto_buy_pool'      renamed to 'creator_auto_buy'
 --   - 'holder_rewards_pool' deleted (no v2 equivalent)
 --   - 'creator'            deleted (legacy direct-payout, replaced by auto-buy)
+--   - 'creator_escrow'     deleted. This was the unclaimed-creator slice
+--                          routing under the 2026-04-21 tokenomics. Under v2
+--                          (2026-05-01) the auto-bought coins ARE the
+--                          creator's compensation, so creator_escrow has no
+--                          live equivalent. Pre-flight diagnostic on
+--                          production data found 2 such rows ($0.005 each)
+--                          from old 4-bucket testing. Rows are preserved
+--                          in fee_earnings_archive_2026_05.
 --   - 'market_creator'     pre-v2 only, never written by v2 trade route;
 --                          deleted if any rows exist (verification below)
 --
@@ -54,7 +62,7 @@ CREATE TABLE fee_earnings_archive_2026_05 AS
 -- ─── Step 2: Delete pre-v2 rows that have no v2 equivalent ───────
 
 DELETE FROM fee_earnings
-  WHERE recipient_type IN ('holder_rewards_pool', 'creator', 'market_creator');
+  WHERE recipient_type IN ('holder_rewards_pool', 'creator', 'market_creator', 'creator_escrow');
 
 -- ─── Step 3: Rename auto_buy_pool → creator_auto_buy ─────────────
 -- The semantic shift: under v1 the auto-buy bought a "relevant
