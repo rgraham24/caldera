@@ -7,7 +7,6 @@ import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { TradeTicket } from "@/components/markets/TradeTicket";
 import { StakeModal } from "@/components/markets/StakeModal";
-import PendingRewards from "@/components/portfolio/PendingRewards";
 import PendingPayouts from "@/components/portfolio/PendingPayouts";
 import type { Market } from "@/types";
 
@@ -57,7 +56,6 @@ type CoinHolding = {
 
 type TradeModal = {
   market: Market;
-  feeConfig: Record<string, string>;
   initialMode: "buy" | "sell";
   positionSide: "yes" | "no";
 } | null;
@@ -98,17 +96,9 @@ export function PortfolioClient() {
   const openTradeModal = async (pos: Position, mode: "buy" | "sell") => {
     setModalLoading(true);
     try {
-      const [marketRes, configRes] = await Promise.all([
-        fetch(`/api/markets/${pos.market.slug}`).then((r) => r.json()),
-        fetch("/api/admin/config").then((r) => r.json()).catch(() => ({ data: {} })),
-      ]);
+      const marketRes = await fetch(`/api/markets/${pos.market.slug}`).then((r) => r.json());
       const market: Market = marketRes.data ?? marketRes;
-      const feeConfig: Record<string, string> = configRes.data ?? {
-        standard_platform_fee: "0.02",
-        creator_market_platform_fee: "0.015",
-        creator_market_creator_fee: "0.01",
-      };
-      setTradeModal({ market, feeConfig, initialMode: mode, positionSide: pos.side as "yes" | "no" });
+      setTradeModal({ market, initialMode: mode, positionSide: pos.side as "yes" | "no" });
     } catch {
       // silently fail
     } finally {
@@ -280,7 +270,6 @@ export function PortfolioClient() {
         ))}
       </div>
 
-      <PendingRewards />
       <PendingPayouts />
 
       {/* Tabs */}
@@ -620,9 +609,10 @@ export function PortfolioClient() {
           </div>
           {/* TradeTicket */}
           <div className="p-4 max-h-[80vh] overflow-y-auto">
+            {/* creatorClaimed not passed: portfolio modal is a sell flow with 0% fee,
+                so the buy-side fee-breakdown copy never renders. */}
             <TradeTicket
               market={tradeModal.market}
-              feeConfig={tradeModal.feeConfig}
               onTradeComplete={() => { setTradeModal(null); fetchPositions(); }}
               initialMode={tradeModal.initialMode}
             />

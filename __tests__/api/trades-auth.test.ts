@@ -22,16 +22,9 @@ vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
 }));
 
-vi.mock("@/lib/fees/relevantToken", () => ({
-  resolveRelevantToken: vi.fn().mockResolvedValue({ token: "bitcoin", type: "crypto" }),
-}));
-
-vi.mock("@/lib/fees/holderSnapshot", () => ({
-  snapshotHolders: vi.fn(),
-}));
-
 vi.mock("@/lib/deso/buyback", () => ({
-  executeTokenBuyback: vi.fn(),
+  executeTokenBuyback: vi.fn().mockResolvedValue({ ok: false, reason: "test-mock" }),
+  transferBoughtCoinsToCreator: vi.fn(),
 }));
 
 vi.mock("@/lib/deso/rate", () => ({
@@ -304,7 +297,26 @@ describe("POST /api/trades — P2-2.4 verification", () => {
                   yes_pool: 1000,
                   no_pool: 1000,
                   total_volume: 0,
-                  category: "crypto",
+                  category: "Music",
+                  creator_slug: "test-creator",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "creators") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: "creator-1",
+                  claim_status: "claimed",
+                  deso_public_key: "BC1Y_PLATFORM_HELD",
+                  deso_username: "testcreator",
+                  claimed_deso_key: "BC1Y_USER_WALLET",
                 },
                 error: null,
               }),

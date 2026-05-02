@@ -109,7 +109,7 @@ export function Footer() {
               Risk Disclosure
             </p>
             <p className="text-sm leading-relaxed text-[var(--text-tertiary)]">
-              Caldera is a prediction market platform on the DeSo blockchain. A 2.5% fee applies to every buy trade (sells are free): 1% funds platform operations, 0.5% accrues as rewards to holders of the relevant token, 0.5% is used to buy the relevant token on the open market (no token supply is burned or removed from circulation), and 0.5% is routed to claimed creators or held in escrow for unclaimed creators. Never trade more than you can afford to lose. Not financial advice. Holder rewards and token purchases do not constitute a promise of financial return. Token values may decrease. Past trading activity does not guarantee future price appreciation.
+              Caldera is a prediction market platform on the DeSo blockchain. A 2% fee applies to every buy trade (sells are free): 1% funds platform operations, 1% is used to buy the market&apos;s creator&apos;s coin on DeSo. For claimed creators, the bought coins are sent directly to the creator&apos;s wallet on every trade; for unclaimed creators, coins are held in the platform wallet until the creator joins and claims their profile. No token supply is burned or removed from circulation. Never trade more than you can afford to lose. Not financial advice. Token purchases do not constitute a promise of financial return. Token values may decrease. Past trading activity does not guarantee future price appreciation.
             </p>
           </div>
         </div>

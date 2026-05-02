@@ -125,7 +125,7 @@ export default function HowItWorksPage() {
         <div className="mt-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4 space-y-1.5 text-sm text-text-muted">
           <p className="font-semibold text-text-primary text-xs uppercase tracking-widest">How the 2% is split</p>
           <p>1% funds Caldera&apos;s operations.</p>
-          <p>1% is used to automatically purchase that creator or team&apos;s token on the DeSo blockchain — creating real buy pressure every time someone trades.</p>
+          <p>1% automatically buys the market&apos;s creator&apos;s DeSo coin. Claimed creators receive the bought coins directly on every trade. Unclaimed creators have coins held in the platform wallet until they join and claim their profile.</p>
           <p className="text-yes text-xs font-medium pt-1">Sells are always free. No penalty for exiting.</p>
         </div>
       </section>

@@ -1,312 +1,187 @@
 /**
- * Tests for the LOCKED v2 calculator (2026-04-21).
+ * Tests for the LOCKED v2 calculator (2026-05-01).
  *
  * Covers:
- *   - flat 2.5% fee on every market
- *   - 4-way split (1% + 0.5% + 0.5% + 0.5%)
- *   - creator slice routing (claimed / unclaimed / no-creator)
- *   - legacy compat field derivations
- *   - edge cases (zero amounts, missing inputs)
+ *   - flat 2.0% fee on every buy
+ *   - 2-way split (1.0% platform + 1.0% creator-auto-buy)
+ *   - autoBuyRecipient routing (claimed → creator_wallet, unclaimed → platform_held)
+ *   - sells are always 0%
+ *   - edge cases (zero amounts, negative amounts)
+ *   - rounding to 8 decimal places
  */
 import { describe, it, expect } from 'vitest';
 import {
-  calculateBuyFees,
-  calculateSellFees,
-  calculateMarketFees,
   calculateFees,
-  getMarketFeeType,
+  FEE_RATE_TOTAL,
+  FEE_RATE_PLATFORM,
+  FEE_RATE_CREATOR_AUTO_BUY,
   type CreatorInfo,
-  type RelevantToken,
 } from '@/lib/fees/calculator';
 
 // ─── Fixtures ────────────────────────────────────────────────────────
 
 const claimedCreator: CreatorInfo = {
   id: 'creator-claimed-1',
-  deso_public_key: 'BC1Y_CLAIMED_PUBKEY',
-  claimed_deso_key: 'BC1Y_CLAIMED_PUBKEY',
+  deso_public_key: 'BC1Y_PLATFORM_HELD_KEY',
+  claimed_deso_key: 'BC1Y_USER_WALLET',
   deso_username: 'claimed_user',
-  token_status: 'claimed',
   claim_status: 'claimed',
 };
 
 const unclaimedCreator: CreatorInfo = {
   id: 'creator-unclaimed-1',
-  deso_public_key: 'BC1Y_UNCLAIMED_PUBKEY',
+  deso_public_key: 'BC1Y_PLATFORM_HELD_KEY',
+  claimed_deso_key: null,
   deso_username: 'unclaimed_user',
-  token_status: 'active_unverified',
   claim_status: 'unclaimed',
 };
 
-const categoryToken: RelevantToken = {
-  type: 'category',
-  slug: 'caldera-sports',
-  deso_public_key: 'BC1Y_CATEGORY_SPORTS',
-  display_label: '$CalderaSports',
+const pendingClaimCreator: CreatorInfo = {
+  id: 'creator-pending-1',
+  deso_public_key: 'BC1Y_PLATFORM_HELD_KEY',
+  claimed_deso_key: null,
+  deso_username: 'pending_user',
+  claim_status: 'pending_claim',
 };
 
-const cryptoToken: RelevantToken = {
-  type: 'crypto',
-  slug: 'bitcoin',
-  deso_public_key: 'BC1Y_BITCOIN',
-  display_label: '$Bitcoin',
-};
+// ─── Constants ───────────────────────────────────────────────────────
 
-// ─── Core rates ──────────────────────────────────────────────────────
-
-describe('calculateBuyFees: core rates', () => {
-  it('charges 2.5% flat on every market (claimed)', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.total).toBe(2.5);
+describe('Fee rate constants', () => {
+  it('total fee is 2.0%', () => {
+    expect(FEE_RATE_TOTAL).toBe(0.02);
   });
 
-  it('charges 2.5% flat on every market (unclaimed)', () => {
-    const f = calculateBuyFees(100, unclaimedCreator, categoryToken);
-    expect(f.total).toBe(2.5);
+  it('platform share is 1.0%', () => {
+    expect(FEE_RATE_PLATFORM).toBe(0.01);
   });
 
-  it('charges 2.5% flat on crypto markets (no creator)', () => {
-    const f = calculateBuyFees(100, null, cryptoToken);
-    expect(f.total).toBe(2.5);
+  it('creator-auto-buy share is 1.0%', () => {
+    expect(FEE_RATE_CREATOR_AUTO_BUY).toBe(0.01);
   });
 
-  it('routes 1% to platform on every market', () => {
-    expect(calculateBuyFees(100, claimedCreator, categoryToken).platform).toBe(1);
-    expect(calculateBuyFees(100, unclaimedCreator, categoryToken).platform).toBe(1);
-    expect(calculateBuyFees(100, null, cryptoToken).platform).toBe(1);
-  });
-
-  it('routes 0.5% to auto-buy on every market', () => {
-    expect(calculateBuyFees(100, claimedCreator, categoryToken).autoBuy).toBe(0.5);
-    expect(calculateBuyFees(100, unclaimedCreator, categoryToken).autoBuy).toBe(0.5);
-    expect(calculateBuyFees(100, null, cryptoToken).autoBuy).toBe(0.5);
-  });
-
-  it('sells are always 0%', () => {
-    const f = calculateSellFees(100);
-    expect(f.total).toBe(0);
-    expect(f.platform).toBe(0);
-    expect(f.holderRewards).toBe(0);
-    expect(f.autoBuy).toBe(0);
-    expect(f.creatorSlice).toBe(0);
-  });
-
-  it('zero-amount trades produce zero fees', () => {
-    const f = calculateBuyFees(0, claimedCreator, categoryToken);
-    expect(f.total).toBe(0);
-    expect(f.platform).toBe(0);
-    expect(f.holderRewards).toBe(0);
-  });
-
-  it('$1 unclaimed-crypto trade: slices sum exactly to total (no rounding drift)', () => {
-    const creator: CreatorInfo = {
-      id: 'c1', claim_status: 'unclaimed', token_status: 'active_unverified',
-    };
-    const token: RelevantToken = {
-      type: 'crypto', slug: 'bitcoin',
-      deso_public_key: 'BC1YTEST', display_label: '$Bitcoin',
-    };
-    const f = calculateBuyFees(1, creator, token);
-
-    expect(f.total).toBe(0.025);
-    expect(f.platform).toBe(0.01);
-    expect(f.holderRewards).toBe(0.005);
-    expect(f.autoBuy).toBe(0.005);
-    expect(f.creatorSlice).toBe(0.005);
-
-    // The critical check: sum of slices === total, no drift
-    const sum = f.platform + f.holderRewards + f.autoBuy + f.creatorSlice;
-    expect(sum).toBeCloseTo(f.total, 10);
+  it('the two shares sum to the total', () => {
+    expect(FEE_RATE_PLATFORM + FEE_RATE_CREATOR_AUTO_BUY).toBeCloseTo(FEE_RATE_TOTAL, 10);
   });
 });
 
-// ─── Claimed creator routing ─────────────────────────────────────────
+// ─── Core math ───────────────────────────────────────────────────────
 
-describe('calculateBuyFees: claimed creator routing', () => {
-  it('sends 0.5% to the creator wallet', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.creatorSlice).toBe(0.5);
-    expect(f.creatorSliceDestination).toBe('creator_wallet');
-    expect(f.creatorSlicePublicKey).toBe('BC1Y_CLAIMED_PUBKEY');
-    expect(f.isClaimed).toBe(true);
-  });
-
-  it('sends 0.5% to holderRewards (not 1%)', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.holderRewards).toBe(0.5);
-  });
-
-  it('falls back to deso_public_key if claimed_deso_key missing', () => {
-    const creator = { ...claimedCreator, claimed_deso_key: null };
-    const f = calculateBuyFees(100, creator, categoryToken);
-    expect(f.creatorSlicePublicKey).toBe('BC1Y_CLAIMED_PUBKEY');
-  });
-
-  it('creatorId is null when destination=creator_wallet', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.creatorId).toBeNull();
-  });
-});
-
-// ─── Unclaimed creator routing (→ escrow) ────────────────────────────
-
-describe('calculateBuyFees: unclaimed creator routing', () => {
-  it('sends 0.5% to escrow', () => {
-    const f = calculateBuyFees(100, unclaimedCreator, categoryToken);
-    expect(f.creatorSlice).toBe(0.5);
-    expect(f.creatorSliceDestination).toBe('escrow');
-    expect(f.creatorId).toBe('creator-unclaimed-1');
-    expect(f.isClaimed).toBe(false);
-  });
-
-  it('sends 0.5% to holderRewards (not 1%)', () => {
-    const f = calculateBuyFees(100, unclaimedCreator, categoryToken);
-    expect(f.holderRewards).toBe(0.5);
-  });
-
-  it('creatorSlicePublicKey is null when destination=escrow', () => {
-    const f = calculateBuyFees(100, unclaimedCreator, categoryToken);
-    expect(f.creatorSlicePublicKey).toBeNull();
-  });
-});
-
-// ─── No-creator routing (crypto + pure-category) ─────────────────────
-
-describe('calculateBuyFees: no-creator routing (holder_rewards_topup)', () => {
-  it('folds the creator slice into holderRewards → 1.0% total to holders', () => {
-    const f = calculateBuyFees(100, null, cryptoToken);
-    expect(f.holderRewards).toBe(1.0);
-    expect(f.creatorSlice).toBe(0);
-  });
-
-  it('destination is holder_rewards_topup', () => {
-    const f = calculateBuyFees(100, null, cryptoToken);
-    expect(f.creatorSliceDestination).toBe('holder_rewards_topup');
-  });
-
-  it('no creator fields populated', () => {
-    const f = calculateBuyFees(100, null, cryptoToken);
-    expect(f.creatorSlicePublicKey).toBeNull();
-    expect(f.creatorId).toBeNull();
-    expect(f.isClaimed).toBe(false);
-  });
-
-  it('slices still sum to total', () => {
-    const f = calculateBuyFees(100, null, cryptoToken);
-    const sum = f.platform + f.holderRewards + f.autoBuy + f.creatorSlice;
-    expect(sum).toBe(f.total);
-  });
-});
-
-// ─── Slice sums ──────────────────────────────────────────────────────
-
-describe('calculateBuyFees: slice sums', () => {
-  it('all 4 slices sum exactly to total (claimed)', () => {
-    const f = calculateBuyFees(250, claimedCreator, categoryToken);
-    const sum = f.platform + f.holderRewards + f.autoBuy + f.creatorSlice;
-    expect(sum).toBe(f.total);
-  });
-
-  it('all 4 slices sum exactly to total (unclaimed)', () => {
-    const f = calculateBuyFees(250, unclaimedCreator, categoryToken);
-    const sum = f.platform + f.holderRewards + f.autoBuy + f.creatorSlice;
-    expect(sum).toBe(f.total);
-  });
-
-  it('all 4 slices sum exactly to total (no creator)', () => {
-    const f = calculateBuyFees(250, null, cryptoToken);
-    const sum = f.platform + f.holderRewards + f.autoBuy + f.creatorSlice;
-    expect(sum).toBe(f.total);
-  });
-});
-
-// ─── Legacy compat fields ────────────────────────────────────────────
-
-describe('FeeBreakdown: legacy compat fields', () => {
-  it('totalFee === total, platformFee === platform', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.totalFee).toBe(f.total);
-    expect(f.platformFee).toBe(f.platform);
-  });
-
-  it('creatorFee === creatorSlice when claimed', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.creatorFee).toBe(0.5);
-    expect(f.creatorWalletFee).toBe(0.5);
-    expect(f.creatorEarning).toBe(0.5);
-  });
-
-  it('creatorFee is zero when unclaimed (creator slice is in escrow)', () => {
-    const f = calculateBuyFees(100, unclaimedCreator, categoryToken);
-    expect(f.creatorFee).toBe(0);
-    expect(f.escrowFee).toBe(0.5);
-  });
-
-  it('coinHolderPoolFee === holderRewards + autoBuy', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.coinHolderPoolFee).toBe(f.holderRewards + f.autoBuy);
-  });
-
-  it('marketCreatorFee is always 0 in v2', () => {
-    expect(calculateBuyFees(100, claimedCreator, categoryToken).marketCreatorFee).toBe(0);
-    expect(calculateBuyFees(100, unclaimedCreator, categoryToken).marketCreatorFee).toBe(0);
-    expect(calculateBuyFees(100, null, cryptoToken).marketCreatorFee).toBe(0);
-  });
-
-  it('tier fields are all zero', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.personalToken).toBe(0);
-    expect(f.teamToken).toBe(0);
-    expect(f.leagueToken).toBe(0);
-    expect(f.communityPool).toBe(0);
-    expect(f.personalTokenBlocked).toBe(false);
-  });
-
-  it('netAmount === grossAmount - total', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.netAmount).toBe(100 - 2.5);
-  });
-});
-
-// ─── Legacy wrappers still work ──────────────────────────────────────
-
-describe('Legacy wrappers', () => {
-  it('calculateMarketFees (no relevantToken) still returns sane fees', () => {
-    const f = calculateMarketFees(100, claimedCreator);
-    expect(f.total).toBe(2.5);
+describe('calculateFees: core math', () => {
+  it('charges 2.0% flat on a $100 buy (claimed creator)', () => {
+    const f = calculateFees(100, claimedCreator, 'buy');
+    expect(f.total).toBe(2);
     expect(f.platform).toBe(1);
-    expect(f.creatorSlice).toBe(0.5);
+    expect(f.creatorAutoBuy).toBe(1);
   });
 
-  it('calculateFees with tier=claimed routes creator slice to wallet', () => {
-    const f = calculateFees(100, 'official_creator', {}, 'claimed', 'individual');
-    expect(f.creatorSliceDestination).toBe('creator_wallet');
-    expect(f.creatorSlice).toBe(0.5);
+  it('charges 2.0% flat on a $100 buy (unclaimed creator)', () => {
+    const f = calculateFees(100, unclaimedCreator, 'buy');
+    expect(f.total).toBe(2);
+    expect(f.platform).toBe(1);
+    expect(f.creatorAutoBuy).toBe(1);
   });
 
-  it('calculateFees with tier=unclaimed routes creator slice to escrow', () => {
-    const f = calculateFees(100, 'standard', {}, 'unclaimed', 'individual');
-    expect(f.creatorSliceDestination).toBe('escrow');
-    expect(f.escrowFee).toBe(0.5);
+  it('two slices sum exactly to total (no drift)', () => {
+    const f = calculateFees(73.51, claimedCreator, 'buy');
+    expect(f.platform + f.creatorAutoBuy).toBe(f.total);
   });
 
-  it('getMarketFeeType still classifies correctly', () => {
-    expect(getMarketFeeType({ creator_id: 'c-1', created_by_user_id: null })).toBe('official_creator');
-    expect(getMarketFeeType({ creator_id: null, created_by_user_id: 'u-1' })).toBe('user_created');
-    expect(getMarketFeeType({ creator_id: null, created_by_user_id: null })).toBe('standard');
+  it('returns the input gross amount', () => {
+    const f = calculateFees(50, claimedCreator, 'buy');
+    expect(f.grossAmount).toBe(50);
+  });
+
+  it('rounds to 8 decimal places', () => {
+    // 0.123 * 0.01 = 0.00123 (clean), but 0.07 * 0.01 = 0.0007000000000000001 in float
+    const f = calculateFees(0.07, claimedCreator, 'buy');
+    expect(f.platform).toBe(0.0007);
+    expect(f.creatorAutoBuy).toBe(0.0007);
+    expect(f.total).toBe(0.0014);
   });
 });
 
-// ─── Relevant token pass-through ─────────────────────────────────────
+// ─── autoBuyRecipient routing ────────────────────────────────────────
 
-describe('calculateBuyFees: relevantToken is preserved', () => {
-  it('returns the relevantToken input on the breakdown', () => {
-    const f = calculateBuyFees(100, claimedCreator, categoryToken);
-    expect(f.relevantToken).toEqual(categoryToken);
+describe('calculateFees: autoBuyRecipient routing', () => {
+  it('claimed creator with claimed_deso_key routes to creator_wallet', () => {
+    const f = calculateFees(100, claimedCreator, 'buy');
+    expect(f.autoBuyRecipient).toBe('creator_wallet');
   });
 
-  it('returns null when no relevantToken provided', () => {
-    const f = calculateBuyFees(100, claimedCreator, null);
-    expect(f.relevantToken).toBeNull();
+  it('claimed creator WITHOUT claimed_deso_key falls back to platform_held', () => {
+    // Defensive — a claimed row missing the destination key is bad data,
+    // and we route to platform_held to avoid sending coins to nowhere.
+    const broken: CreatorInfo = { ...claimedCreator, claimed_deso_key: null };
+    const f = calculateFees(100, broken, 'buy');
+    expect(f.autoBuyRecipient).toBe('platform_held');
+  });
+
+  it('unclaimed creator routes to platform_held', () => {
+    const f = calculateFees(100, unclaimedCreator, 'buy');
+    expect(f.autoBuyRecipient).toBe('platform_held');
+  });
+
+  it('pending_claim creator routes to platform_held (not yet claimed)', () => {
+    const f = calculateFees(100, pendingClaimCreator, 'buy');
+    expect(f.autoBuyRecipient).toBe('platform_held');
+  });
+
+  it('passes through creator id and creator coin pubkey', () => {
+    const f = calculateFees(100, claimedCreator, 'buy');
+    expect(f.creatorId).toBe('creator-claimed-1');
+    expect(f.creatorCoinPublicKey).toBe('BC1Y_PLATFORM_HELD_KEY');
+  });
+});
+
+// ─── Sells ───────────────────────────────────────────────────────────
+
+describe('calculateFees: sells', () => {
+  it('sells are always 0%', () => {
+    const f = calculateFees(100, claimedCreator, 'sell');
+    expect(f.total).toBe(0);
+    expect(f.platform).toBe(0);
+    expect(f.creatorAutoBuy).toBe(0);
+  });
+
+  it('sells preserve the input gross amount', () => {
+    const f = calculateFees(100, claimedCreator, 'sell');
+    expect(f.grossAmount).toBe(100);
+  });
+
+  it('sells return platform_held recipient (no transfer attempted)', () => {
+    const f = calculateFees(100, claimedCreator, 'sell');
+    expect(f.autoBuyRecipient).toBe('platform_held');
+  });
+});
+
+// ─── Edge cases ──────────────────────────────────────────────────────
+
+describe('calculateFees: edge cases', () => {
+  it('zero amount produces zero fees', () => {
+    const f = calculateFees(0, claimedCreator, 'buy');
+    expect(f.total).toBe(0);
+    expect(f.platform).toBe(0);
+    expect(f.creatorAutoBuy).toBe(0);
+  });
+
+  it('negative amount produces zero fees (treated as no-op)', () => {
+    const f = calculateFees(-10, claimedCreator, 'buy');
+    expect(f.total).toBe(0);
+    expect(f.platform).toBe(0);
+    expect(f.creatorAutoBuy).toBe(0);
+  });
+
+  it('handles tiny amounts without integer overflow', () => {
+    const f = calculateFees(0.000001, claimedCreator, 'buy');
+    expect(f.total).toBeGreaterThanOrEqual(0);
+    expect(f.platform).toBeGreaterThanOrEqual(0);
+    expect(f.creatorAutoBuy).toBeGreaterThanOrEqual(0);
+  });
+
+  it('handles very large amounts without floating-point drift', () => {
+    const f = calculateFees(10_000, claimedCreator, 'buy');
+    expect(f.total).toBe(200);
+    expect(f.platform).toBe(100);
+    expect(f.creatorAutoBuy).toBe(100);
   });
 });

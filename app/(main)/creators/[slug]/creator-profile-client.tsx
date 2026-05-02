@@ -20,7 +20,6 @@ const MarketChart = dynamic(
 );
 import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
-import { HolderCalculator } from "@/components/shared/HolderCalculator";
 import { InfoTooltip } from "@/components/shared/InfoTooltip";
 import { EarningsPreview } from "@/components/creators/EarningsPreview";
 // Leaderboard — below the fold, deferred
@@ -550,20 +549,6 @@ export function CreatorProfileClient({
             <p className="mt-1 text-xs text-text-faint">
               This profile hasn&apos;t been claimed. Claim to launch your token and start earning.
             </p>
-          </div>
-        )}
-
-        {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
-          <div className="mb-8">
-            <HolderCalculator
-              symbol={coinSymbol || creator.name}
-              coinPrice={livePrice ?? 0}
-              totalCoinsInCirculation={creator.total_coins_in_circulation ?? 0}
-              weeklyVolume={creator.weekly_volume_usd || 0}
-              marketCount={openMarkets.length || markets.length || creator.markets_count || 0}
-              creatorName={creator.name}
-              creatorSlug={creator.slug}
-            />
           </div>
         )}
 
