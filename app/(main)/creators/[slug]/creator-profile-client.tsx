@@ -280,7 +280,7 @@ export function CreatorProfileClient({
                 {unclaimedEarnings > 0 && (
                   <p className="text-sm text-text-muted mb-3">
                     <span className="text-amber-400 font-semibold">${unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    {" "}in fees would have gone to this token&apos;s holder if it were claimed.
+                    {" "}has accumulated in escrow — these are creator coin buys held in the platform wallet, waiting for {creator.name} to claim their profile.
                   </p>
                 )}
                 <p className="text-sm text-text-muted mb-4">
