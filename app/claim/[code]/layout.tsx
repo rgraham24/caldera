@@ -81,7 +81,7 @@ export async function generateMetadata({
     : `${handle} hasn't claimed their Caldera profile yet`;
   const description = escrowStr
     ? `Trades on ${handle} have generated ${escrowStr} in fees. They get paid the moment they claim their profile. Share this link to help them get paid.`
-    : `Markets are live for ${handle} on Caldera. They earn 0.5% of every trade once they claim their profile. Share this link to nudge them.`;
+    : `Markets are live for ${handle} on Caldera. They earn 1% of every trade once they claim their profile. Share this link to nudge them.`;
   const url = `https://www.caldera.market/claim/${code}`;
 
   return {

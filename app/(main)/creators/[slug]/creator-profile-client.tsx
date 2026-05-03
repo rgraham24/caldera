@@ -285,7 +285,7 @@ export function CreatorProfileClient({
                 )}
                 <p className="text-sm text-text-muted mb-4">
                   Are you <span className="text-text-primary font-medium">{creator.name}</span>? Claim your token to start
-                  earning <span className="text-orange-400 font-medium">0.5%</span> of every future market trade —
+                  earning <span className="text-orange-400 font-medium">1%</span> of every future market trade —
                   sent directly to your wallet.
                 </p>
                 {(() => {
@@ -382,7 +382,7 @@ export function CreatorProfileClient({
           isCryptoCreator ? (
             <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
               <p className="text-sm text-text-muted">
-                Every trade on ${coinSymbol} markets buys ${coinSymbol} on DeSo and rewards holders. When {creator.name} claims their account, they&apos;ll earn 0.5% per trade directly.
+                Every buy trade on {creator.name}&apos;s markets uses 1% of the trade to buy ${coinSymbol} on DeSo. When {creator.name} claims their account, those coins flow directly to their wallet on every trade.
               </p>
             </div>
           ) : categoryTokenSymbol ? (
@@ -418,7 +418,7 @@ export function CreatorProfileClient({
         {creator.token_status === "claimed" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
             <p className="text-sm text-text-muted">
-              ✅ Caldera verified — {creator.name} earns <span className="text-caldera font-medium">0.5%</span> directly. {getTokenSymbolDisplay(creator)} holders earn <span className="text-caldera font-medium">0.5%</span>. Plus 0.5% auto-buys {getTokenSymbolDisplay(creator)} on DeSo.
+              ✅ Caldera verified — every buy trade on {creator.name}&apos;s markets sends <span className="text-caldera font-medium">1%</span> directly to their wallet via on-chain ${coinSymbol} purchases.
             </p>
           </div>
         )}
@@ -516,7 +516,7 @@ export function CreatorProfileClient({
         <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
-            { label: "💰 HOLDER REWARDS", value: formatCurrency(holderEarnings), show: true, tip: "Total holder rewards generated from trades on this creator's markets. Distributed to holders of the relevant token." },
+            { label: "💰 PLATFORM FEES", value: formatCurrency(holderEarnings), show: true, tip: "Total platform operations fees generated from trades on this creator's markets. 1% of each buy trade funds Caldera operations." },
             { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to token holders." },
             { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
@@ -726,7 +726,7 @@ export function CreatorProfileClient({
                     💰 Token Rewards Active
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    0.5% of every trade rewards ${coinSymbol} holders. Another 0.5% auto-buys ${coinSymbol} on DeSo.
+                    1% of every buy trade buys ${coinSymbol} on DeSo and sends it directly to {creator.name}&apos;s wallet.
                   </div>
                 </div>
               ) : (
@@ -735,7 +735,7 @@ export function CreatorProfileClient({
                     $CREATORS Rewards Active
                   </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    0.5% of every trade rewards $CREATORS holders. Another 0.5% auto-buys $CREATORS on DeSo. When {creator.name} claims their profile, they&apos;ll also earn 0.5% per trade directly.
+                    1% of every buy trade buys ${coinSymbol} on DeSo, held in escrow. When {creator.name} claims their profile, future trades flow directly to their wallet.
                   </div>
                 </div>
               )}
