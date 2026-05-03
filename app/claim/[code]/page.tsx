@@ -229,12 +229,12 @@ export default function ClaimPage() {
                 )}
               </div>
               <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-                Plus you&apos;ll earn <span className="text-orange-400 font-semibold">0.5%</span> of every future trade — sent directly to your DeSo wallet.
+                Plus you&apos;ll earn <span className="text-orange-400 font-semibold">1%</span> of every future trade — sent directly to your DeSo wallet.
               </p>
             </>
           ) : (
             <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-              You&apos;ll now earn <span className="text-orange-400 font-semibold">0.5%</span> of every future market trade about you — sent directly to your DeSo wallet.
+              You&apos;ll now earn <span className="text-orange-400 font-semibold">1%</span> of every future market trade about you — sent directly to your DeSo wallet.
             </p>
           )}
 
@@ -269,7 +269,7 @@ export default function ClaimPage() {
             </p>
           ) : (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Earn 0.5% of every trade on your markets — automatically.
+              Earn 1% of every trade on your markets — automatically.
             </p>
           )}
         </div>
@@ -290,7 +290,7 @@ export default function ClaimPage() {
             </div>
           </div>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            After claiming, you earn <span className="text-white font-medium">0.5%</span> per trade sent to your wallet, plus <span className="text-white font-medium">0.5%</span> in holder rewards on your token — auto-distributed to fans who hold your coin.
+            After claiming, you earn <span className="text-white font-medium">1%</span> of every buy trade — sent directly to your DeSo wallet.
           </p>
         </div>
 
@@ -355,7 +355,7 @@ export default function ClaimPage() {
               Step 2 — Connect your DeSo wallet
             </p>
             <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-              Connect your DeSo wallet to receive the 0.5% fee on every future trade.
+              Connect your DeSo wallet to receive 1% of every future trade.
             </p>
             {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
             {!isConnected ? (

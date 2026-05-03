@@ -586,7 +586,7 @@ export function TradeTicket({
               : market.status !== "open"
               ? "Market Closed"
               : !isConnected
-              ? "Connect to Trade"
+              ? "Sign in to trade"
               : tradeMode === "sell"
               ? `Sell ${userPosition?.side?.toUpperCase() ?? ""} Shares`
               : isCategorical && selectedOutcome && side === "yes"

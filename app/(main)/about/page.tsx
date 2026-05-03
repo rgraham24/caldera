@@ -19,8 +19,8 @@ const FEATURES = [
   },
   {
     icon: "🪙",
-    title: "Every trade rewards token holders",
-    body: "0.5% of every trade rewards holders of the relevant token. Another 0.5% auto-buys it on DeSo. Plus 0.5% goes to the creator (or accrues in escrow until they claim).",
+    title: "Every trade buys creator coins",
+    body: "Every buy trade has a 2% fee: 1% funds platform operations, and 1% buys the market's creator's coin on DeSo. For claimed creators, the bought coin goes directly to their wallet. For unclaimed creators, it's held in escrow until they join.",
   },
   {
     icon: "📊",
@@ -111,9 +111,9 @@ export default function AboutPage() {
 
         <div className="mt-6 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
           <p className="text-sm text-text-muted">
-            <span className="font-semibold text-caldera">Holder rewards + on-chain buy</span> — 1% of every trade (0.5% rewards + 0.5% on-chain purchase) flows to
-            token holders and the open market. Rewards accrue to holders. On-chain buys create consistent buy pressure with every trade.
-            No team allocation, no promises of return. Every trade moves real value to token holders.
+            <span className="font-semibold text-caldera">On-chain creator coin buys</span> — 1% of every buy trade buys the market&apos;s creator&apos;s coin on DeSo.
+            For claimed creators, coins go directly to the creator&apos;s wallet. For unclaimed creators, coins are held in the platform wallet until the
+            creator joins and claims their profile. No team allocation, no promises of return.
           </p>
         </div>
       </div>

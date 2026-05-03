@@ -17,10 +17,6 @@
       "schedule": "0 * * * *"
     },
     {
-      "path": "/api/cron/generate-markets",
-      "schedule": "0 9 * * *"
-    },
-    {
       "path": "/api/cron/auto-resolve-markets",
       "schedule": "0 10 * * *"
     },

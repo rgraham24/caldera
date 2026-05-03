@@ -535,27 +535,15 @@ export function StakeModal({
             {/* Fee breakdown (buy only) */}
             {tab === "buy" && (
               <div className="mb-4 rounded-xl border border-caldera/10 bg-caldera/5 p-3 text-xs">
-                <p className="text-[9px] uppercase tracking-widest text-caldera font-semibold mb-2">Where your 2.5% fee goes</p>
+                <p className="text-[9px] uppercase tracking-widest text-caldera font-semibold mb-2">Where your 2% fee goes</p>
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Caldera platform</span>
+                    <span className="text-text-muted">Platform operations</span>
                     <span className="text-text-primary">1%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">{coinSymbol} holder rewards</span>
-                    <span className="text-caldera font-semibold">0.5%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">{coinSymbol} on-chain auto-buy</span>
-                    <span className="text-caldera font-semibold">0.5%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">
-                      {creator.claim_status === "claimed"
-                        ? `@${creator.deso_username ?? creator.name}`
-                        : "Creator escrow"}
-                    </span>
-                    <span className="text-caldera font-semibold">0.5%</span>
+                    <span className="text-text-muted">{coinSymbol} on-chain buy</span>
+                    <span className="text-caldera font-semibold">1%</span>
                   </div>
                 </div>
               </div>

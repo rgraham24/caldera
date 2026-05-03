@@ -592,24 +592,6 @@ function MarketCard({ market }: { market: Market }) {
           {market.title}
         </p>
       </Link>
-      {market.category_token_slug && (
-        <div className="flex items-center gap-1 mt-1.5 mb-2">
-          <a
-            href={`/creators/${market.category_token_slug}`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-xs text-orange-400 font-medium hover:underline"
-          >
-            ${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}
-          </a>
-          <span
-            className="text-[10px] text-[var(--text-tertiary)]"
-            title={`1% of every trade flows to $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.\nHalf goes to holders as rewards.\nHalf buys $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.`}
-          >
-            · 0.5% → holders + on-chain buy
-          </span>
-        </div>
-      )}
-
       <div className="mb-1 flex items-center justify-between">
         <span
           className="text-xl font-bold tabular-nums"
@@ -873,19 +855,6 @@ export function HomeClient({
                       )}
                     </div>
                     <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
-                    {market.category_token_slug && (
-                      <div className="flex items-center gap-1 mt-1.5">
-                        <span className="text-xs text-orange-400 font-medium">
-                          ${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}
-                        </span>
-                        <span
-              className="text-[10px] text-[var(--text-tertiary)]"
-              title={`1% of every trade flows to $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.\nHalf goes to holders as rewards.\nHalf buys $${market.category_token_slug.split('-').map((p: string) => p[0].toUpperCase() + p.slice(1)).join('')}.`}
-            >
-              · 0.5% → holders + on-chain buy
-            </span>
-                      </div>
-                    )}
                     <div className="mt-3">
                       <div className="mb-1 flex items-center justify-between">
                         <span className="font-mono text-lg font-bold tabular-nums" style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}>{yes}%</span>
