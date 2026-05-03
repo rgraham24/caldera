@@ -99,8 +99,8 @@ export default async function CreatorProfilePage({
     0
   );
   const holderEarnings = Math.round(totalVolume * 0.01 * 100) / 100;
-  // 0.5% of volume = what the creator would have earned if claimed
-  const unclaimedEarnings = Math.round(totalVolume * 0.005 * 100) / 100;
+  // 1% of volume = what the creator would have earned if claimed (v2: on-chain coin auto-buy direct to wallet)
+  const unclaimedEarnings = Math.round(totalVolume * 0.01 * 100) / 100;
 
   // Persist unclaimed_earnings_usd back to DB (fire-and-forget, non-blocking)
   if (creator.claim_status !== "claimed") {
