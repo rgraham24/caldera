@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { useAppStore } from "@/store";
-import { Search, ChevronDown, TrendingUp, Zap, Clock } from "lucide-react";
+import { Search, ChevronDown, TrendingUp, Clock } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
@@ -19,7 +19,6 @@ type Tab =
 
 const CENTER_TABS: Tab[] = [
   { id: "trending", label: "Trending", href: "/", icon: TrendingUp, title: "Highest volume markets" },
-  { id: "breaking", label: "Breaking", href: "/breaking", icon: Zap, title: "Resolving within 7 days" },
   { id: "new", label: "New", href: "/new", icon: Clock, title: "Recently created" },
   { id: "following", label: "Following", href: "/following", title: "Markets for creators you follow" },
   { divider: true },
@@ -35,7 +34,6 @@ function CenterTabs() {
     if (pathname === "/creators") return "creators";
     if (pathname === "/markets") return "markets";
     if (pathname === "/leaderboard") return "leaderboard";
-    if (pathname === "/breaking") return "breaking";
     if (pathname === "/new") return "new";
     if (pathname === "/following") return "following";
     if (pathname === "/") return "trending";
