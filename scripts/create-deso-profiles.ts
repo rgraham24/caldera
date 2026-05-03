@@ -92,7 +92,7 @@ async function buildUpdateProfileTx(params: {
         NewUsername: params.newUsername,
         NewDescription: params.description ?? "",
         NewProfilePic: params.profilePicBase64 ?? "",
-        NewCreatorBasisPoints: 1000, // 10% creator coin cut
+        NewCreatorBasisPoints: 10000, // 100% founder reward — accumulates to platform until creator claims
         NewStakeMultipleBasisPoints: 12500,
         IsHidden: false,
         MinFeeRateNanosPerKB: 1000,

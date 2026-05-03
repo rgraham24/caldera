@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Copy, Check } from "lucide-react";
 import { slugify } from "@/lib/utils";
 import { useAppStore } from "@/store";
-import { signWithDesoIdentity } from "@/lib/deso/auth";
 
 export function AdminActions() {
-  const { desoPublicKey, isConnected } = useAppStore();
+  const { desoPublicKey } = useAppStore();
   const [cycling, setCycling] = useState(false);
   const [cycleStep, setCycleStep] = useState<string | null>(null);
   const [cycleResult, setCycleResult] = useState<string | null>(null);
@@ -56,10 +55,6 @@ export function AdminActions() {
   const [reservedResult, setReservedResult] = useState<string | null>(null);
   const [reservedPass, setReservedPass] = useState<number | null>(null);
 
-  // Token Tools — founder reward fix
-  const [fixingFounderRewards, setFixingFounderRewards] = useState(false);
-  const [founderRewardStatuses, setFounderRewardStatuses] = useState<Record<string, string>>({});
-
   // Resolution queue
   const [resolutionQueue, setResolutionQueue] = useState<ResolutionMarket[]>([]);
   const [resolutionLoading, setResolutionLoading] = useState(false);
@@ -81,69 +76,6 @@ export function AdminActions() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [singleSlug, setSingleSlug] = useState("");
   const [singleGenerating, setSingleGenerating] = useState(false);
-
-  const CATEGORY_TOKENS = [
-    "EntertainmentMarkets",
-    "CryptoMarkets1",
-    "ViralMarkets",
-    "ConflictMarkets",
-    "ElectionMarkets",
-    "SportsMarkets",
-  ];
-
-  const handleFixFounderRewards = async () => {
-    if (!desoPublicKey) return;
-    setFixingFounderRewards(true);
-    setFounderRewardStatuses({});
-
-    for (const username of CATEGORY_TOKENS) {
-      setFounderRewardStatuses((prev) => ({ ...prev, [username]: "building..." }));
-      try {
-        // Step 1: get unsigned tx
-        const txRes = await fetch("/api/admin/update-founder-reward", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            adminPassword: "caldera-admin-2026",
-            desoPublicKey,
-            username,
-            updaterPublicKey: desoPublicKey,
-          }),
-        });
-        const txData = await txRes.json();
-        if (txData.error) {
-          setFounderRewardStatuses((prev) => ({ ...prev, [username]: `error: ${txData.error}` }));
-          continue;
-        }
-
-        // Step 2: sign via Identity popup
-        setFounderRewardStatuses((prev) => ({ ...prev, [username]: "waiting for signature..." }));
-        const signedHex = await signWithDesoIdentity(txData.transactionHex);
-        if (!signedHex) {
-          setFounderRewardStatuses((prev) => ({ ...prev, [username]: "cancelled" }));
-          break;
-        }
-
-        // Step 3: submit
-        setFounderRewardStatuses((prev) => ({ ...prev, [username]: "submitting..." }));
-        const submitRes = await fetch("/api/admin/submit-transaction", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adminPassword: "caldera-admin-2026", desoPublicKey, transactionHex: signedHex }),
-        });
-        const submitData = await submitRes.json();
-        if (submitData.success) {
-          setFounderRewardStatuses((prev) => ({ ...prev, [username]: "✓ done" }));
-        } else {
-          setFounderRewardStatuses((prev) => ({ ...prev, [username]: `submit failed: ${submitData.error}` }));
-        }
-      } catch (err) {
-        setFounderRewardStatuses((prev) => ({ ...prev, [username]: `error: ${String(err)}` }));
-      }
-    }
-
-    setFixingFounderRewards(false);
-  };
 
   const handleCycle = async () => {
     setCycling(true);
@@ -1208,39 +1140,6 @@ export function AdminActions() {
         )}
       </div>
 
-      {/* Token Tools */}
-      <div className="rounded-xl border border-border-subtle bg-surface p-5">
-        <h2 className="mb-4 font-display text-lg font-semibold text-text-primary">Token Tools</h2>
-        <p className="mb-4 text-xs text-text-muted">
-          Set founder reward to 0% on all 6 category tokens. Requires DeSo Identity signing for each token.
-        </p>
-        <Button
-          onClick={handleFixFounderRewards}
-          disabled={fixingFounderRewards || !isConnected}
-          className="bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 font-semibold"
-        >
-          {fixingFounderRewards && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {!isConnected ? "Connect DeSo Wallet First" : fixingFounderRewards ? "Processing..." : "Fix All (Set to 0%)"}
-        </Button>
-        {Object.keys(founderRewardStatuses).length > 0 && (
-          <ul className="mt-4 space-y-1.5">
-            {CATEGORY_TOKENS.map((username) => {
-              const status = founderRewardStatuses[username];
-              if (!status) return null;
-              const isOk = status === "✓ done";
-              const isErr = status.startsWith("error") || status.startsWith("submit failed");
-              return (
-                <li key={username} className="flex items-center gap-2 text-xs">
-                  <span className="font-mono text-text-muted w-44">{username}</span>
-                  <span className={isOk ? "text-yes" : isErr ? "text-no" : "text-text-muted"}>
-                    {status}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }
