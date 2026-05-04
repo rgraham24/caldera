@@ -1,21 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
-
-const CATEGORY_TOKENS: Record<string, string> = {
-  Sports: "caldera-sports",
-  Music: "caldera-music",
-  Politics: "caldera-politics",
-  Entertainment: "caldera-entertainment",
-  Companies: "caldera-companies",
-  Climate: "caldera-climate",
-  Tech: "caldera-tech",
-  Creators: "caldera-creators",
-  Commentary: "caldera-creators",
-  Streamers: "caldera-creators",
-  Viral: "caldera-creators",
-  Crypto: "caldera-creators",
-};
+import { creatorExistsAndValid } from "@/lib/creators/validity";
 
 export async function POST(req: Request) {
   const adminPassword = process.env.ADMIN_PASSWORD ?? "caldera-admin-2026";
@@ -60,6 +46,9 @@ export async function POST(req: Request) {
   if (!resolveAt) {
     return NextResponse.json({ error: "Resolve date required" }, { status: 400 });
   }
+  if (!creatorSlug || typeof creatorSlug !== "string" || !creatorSlug.trim()) {
+    return NextResponse.json({ error: "Creator is required" }, { status: 400 });
+  }
 
   const yes = typeof yesPrice === "number" ? Math.max(0.1, Math.min(0.9, yesPrice)) : 0.5;
   const no = 1 - yes;
@@ -69,16 +58,20 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
 
-  // Resolve creator_id if creatorSlug provided
-  let creatorId: string | null = null;
-  if (creatorSlug) {
-    const { data: creator } = await supabase
-      .from("creators")
-      .select("id")
-      .eq("slug", creatorSlug)
-      .maybeSingle();
-    creatorId = creator?.id ?? null;
+  // Fail-closed: creator must exist AND be valid (deso_public_key set,
+  // token_status in active set). See lib/creators/validity.ts.
+  const validation = await creatorExistsAndValid(supabase, creatorSlug);
+  if (!validation.valid) {
+    return NextResponse.json(
+      {
+        error: `Invalid creator: ${creatorSlug} — ${validation.reason}${
+          validation.status ? ` (status: ${validation.status})` : ""
+        }`,
+      },
+      { status: 400 }
+    );
   }
+  const creatorId = validation.creator.id;
 
   const { data: market, error } = await supabase
     .from("markets")
@@ -99,7 +92,6 @@ export async function POST(req: Request) {
       total_volume: 0,
       trending_score: isBreaking ? 1000 : 0,
       featured_score: isFeatured ? 1 : 0,
-      category_token_slug: CATEGORY_TOKENS[category] ?? "caldera-creators",
     })
     .select()
     .single();
