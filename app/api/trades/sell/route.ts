@@ -6,8 +6,6 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { transferDeso } from "@/lib/deso/transferDeso";
 import { checkDesoSolvency } from "@/lib/deso/solvency";
 
-export const dynamic = "force-dynamic";
-
 const sellSchema = z.object({
   marketId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
   side: z.enum(["yes", "no"]),
