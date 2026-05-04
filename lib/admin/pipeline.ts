@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { generateMarketsForTopic, GeneratedMarket, classifyEntityType, generateCategoricalMarket, CategoricalMarketDraft } from "./market-generator";
+import { VALID_TOKEN_STATUSES } from "../creators/validity";
 export { generateCategoricalMarket } from "./market-generator";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -520,11 +521,6 @@ export const CATEGORY_TOKENS: Record<string, string> = {
   "Viral": "caldera-creators",
   "Crypto": "caldera-creators",
 };
-
-function getCategoryToken(category: string, cryptoTicker?: string | null): string {
-  if (cryptoTicker) return '';
-  return CATEGORY_TOKENS[category] || 'caldera-creators';
-}
 
 // The category token DeSo usernames to import as active_verified
 export const CATEGORY_TOKEN_PROFILES = [
@@ -1464,6 +1460,15 @@ async function insertMarkets(
     console.log(`[insertMarkets] Fuzzy match: ${entityName} → ${finalCreatorSlug}`);
   }
 
+  // Fail-closed: pre-fetch all valid creator slugs. Markets pinned to slugs
+  // outside this set are skipped. See lib/creators/validity.ts.
+  const { data: validCreators } = await supabase
+    .from("creators")
+    .select("slug")
+    .not("deso_public_key", "is", null)
+    .in("token_status", VALID_TOKEN_STATUSES as unknown as string[]);
+  const validSlugs = new Set((validCreators ?? []).map((c) => c.slug));
+
   let created = 0;
   for (const market of markets) {
     // ── Level 1: Duplicate prevention ─────────────────────────────────────────
@@ -1523,16 +1528,20 @@ async function insertMarkets(
 
     if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
-    const allowedCreatorSlug =
-      finalCreatorSlug &&
-      isValidDesoSlug(finalCreatorSlug) &&
-      !isBlocklisted(finalCreatorSlug, market.title)
-        ? finalCreatorSlug
-        : null;
-    if (allowedCreatorSlug) row.creator_slug = allowedCreatorSlug;
+    if (
+      !finalCreatorSlug ||
+      !isValidDesoSlug(finalCreatorSlug) ||
+      isBlocklisted(finalCreatorSlug, market.title) ||
+      !validSlugs.has(finalCreatorSlug)
+    ) {
+      console.warn(
+        `[pipeline] SKIP market "${market.title}": creator "${finalCreatorSlug ?? "(none)"}" — failed validation`
+      );
+      continue;
+    }
+    row.creator_slug = finalCreatorSlug;
     if (teamSlug) row.team_creator_slug = teamSlug;
     if (effectiveLeagueSlug) row.league_creator_slug = effectiveLeagueSlug;
-    row.category_token_slug = getCategoryToken(market.category);
     const { error } = await supabase.from("markets").insert(row);
     if (!error) created++;
   }
@@ -2067,7 +2076,6 @@ export async function insertCategoricalMarket(
       yes_pool: 500,
       no_pool: 500,
       total_volume: 0,
-      category_token_slug: getCategoryToken(market.category),
     })
     .select()
     .single();

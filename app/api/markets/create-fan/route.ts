@@ -1,25 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
-
-const CATEGORY_TOKENS: Record<string, string> = {
-  Sports: 'caldera-sports',
-  Music: 'caldera-music',
-  Politics: 'caldera-politics',
-  Entertainment: 'caldera-entertainment',
-  Companies: 'caldera-companies',
-  Climate: 'caldera-climate',
-  Tech: 'caldera-tech',
-  Commentary: 'caldera-creators',
-  Streamers: 'caldera-creators',
-  Viral: 'caldera-creators',
-  Crypto: 'caldera-creators',
-  Creators: 'caldera-creators',
-};
-
-function getCategoryTokenSlug(category: string): string {
-  return CATEGORY_TOKENS[category] ?? 'caldera-creators';
-}
+import { creatorExistsAndValid } from '@/lib/creators/validity';
 
 /** Stable 8-char hex fingerprint of the IP — good enough for rate limiting. */
 async function hashIp(ip: string): Promise<string> {
@@ -70,13 +52,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Resolve date must be within 90 days' }, { status: 400 });
     }
 
+    if (!creatorSlug || typeof creatorSlug !== 'string' || !creatorSlug.trim()) {
+      return NextResponse.json(
+        { error: 'Please select a creator for this market.' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createClient();
+
+    // Fail-closed: creator must exist AND be valid. See lib/creators/validity.ts.
+    const validation = await creatorExistsAndValid(supabase, creatorSlug);
+    if (!validation.valid) {
+      return NextResponse.json(
+        {
+          error: `We couldn't find a verified creator with slug "${creatorSlug}". Markets can only be created about verified creators on Caldera.`,
+        },
+        { status: 400 }
+      );
+    }
+
     // 3. IP rate limit — max 3 fan markets per IP per hour.
     // We store the ip_hash in rules_text for fan markets (they have no real rules).
     const ip = getIp(req);
     const ipHash = await hashIp(ip);
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
-
-    const supabase = await createClient();
 
     const { count: recentCount } = await supabase
       .from('markets')
@@ -104,7 +104,6 @@ export async function POST(req: NextRequest) {
         slug: uniqueSlug,
         description: `Community prediction market about ${creatorName}. Created by a fan on Caldera.`,
         category: effectiveCategory,
-        category_token_slug: getCategoryTokenSlug(effectiveCategory),
         creator_slug: creatorSlug ?? null,
         status: 'open',
         resolve_at: resolveDate.toISOString(),
