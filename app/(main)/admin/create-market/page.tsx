@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CreatorPicker, type PickerCreator } from "@/components/admin/CreatorPicker";
 
 const ADMIN_PW_KEY = "caldera_admin_pw";
 const CORRECT_PW = "caldera-admin-2026";
@@ -38,7 +39,7 @@ export default function AdminCreateMarketPage() {
   // Quick-create form state
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Creators");
-  const [creatorSlug, setCreatorSlug] = useState("");
+  const [selectedCreator, setSelectedCreator] = useState<PickerCreator | null>(null);
   const [resolveDate, setResolveDate] = useState(tomorrow());
   const [yesPrice, setYesPrice] = useState(50);
   const [isBreaking, setIsBreaking] = useState(false);
@@ -87,7 +88,7 @@ export default function AdminCreateMarketPage() {
         body: JSON.stringify({
           title,
           category,
-          creatorSlug: creatorSlug.trim() || undefined,
+          creatorSlug: selectedCreator?.slug ?? null,
           resolveAt: new Date(resolveDate).toISOString(),
           yesPrice: yesPrice / 100,
           isBreaking,
@@ -102,6 +103,7 @@ export default function AdminCreateMarketPage() {
       setTitle("");
       setIsBreaking(false);
       setIsFeatured(false);
+      setSelectedCreator(null);
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -209,13 +211,12 @@ export default function AdminCreateMarketPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-[#888] mb-1.5">Creator Slug (optional)</label>
-            <input
-              type="text"
-              value={creatorSlug}
-              onChange={(e) => setCreatorSlug(e.target.value)}
-              placeholder="e.g. kingjames"
-              className="w-full rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-[#555] focus:border-orange-500 focus:outline-none"
+            <label className="block text-xs text-[#888] mb-1.5">
+              Creator <span className="text-[#555]">(required)</span>
+            </label>
+            <CreatorPicker
+              value={selectedCreator}
+              onChange={setSelectedCreator}
             />
           </div>
         </div>
@@ -290,7 +291,7 @@ export default function AdminCreateMarketPage() {
 
         <button
           type="submit"
-          disabled={submitting || title.length < 10}
+          disabled={submitting || title.length < 10 || !selectedCreator}
           className="w-full rounded-lg bg-orange-600 py-3 text-sm font-bold text-white hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? "Creating…" : "⚡ Create Market"}
