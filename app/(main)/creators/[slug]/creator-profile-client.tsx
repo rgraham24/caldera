@@ -217,6 +217,14 @@ export function CreatorProfileClient({
 
   const openMarkets = markets.filter((m) => m.status === "open");
   const resolvedMarkets = markets.filter((m) => m.status === "resolved");
+
+  // Display-side curation: render only the top 15 open markets by trending_score
+  // on the Active Markets list. Aggregates (EarningsPreview, Stats, total volume)
+  // continue to use the full `markets` / `openMarkets` arrays. The long tail
+  // remains accessible via direct URLs.
+  const visibleOpenMarkets = [...openMarkets]
+    .sort((a, b) => (b.trending_score ?? 0) - (a.trending_score ?? 0))
+    .slice(0, 15);
   const coinSymbol = desoUser || creator.creator_coin_symbol;
 
   // Category token symbol for fee burn banner
@@ -518,7 +526,7 @@ export function CreatorProfileClient({
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
             { label: "💰 PLATFORM FEES", value: formatCurrency(holderEarnings), show: true, tip: "Total platform operations fees generated from trades on this creator's markets. 1% of each buy trade funds Caldera operations." },
             { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to token holders." },
-            { label: "Markets", value: String(markets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
+            { label: "Markets", value: String(openMarkets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
               <p className="text-xs uppercase tracking-widest text-text-muted">
@@ -607,9 +615,16 @@ export function CreatorProfileClient({
         <div className="mb-8">
           <h2 className="section-header mb-5">Active Markets</h2>
           {openMarkets.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {openMarkets.map((m) => <MarketCard key={m.id} market={m} />)}
-            </div>
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {visibleOpenMarkets.map((m) => <MarketCard key={m.id} market={m} />)}
+              </div>
+              {openMarkets.length > 15 && (
+                <p className="mt-4 text-xs text-text-muted">
+                  Showing top 15 of {openMarkets.length} active markets, ranked by activity.
+                </p>
+              )}
+            </>
           ) : (
             creator.token_status === "claimed" || creator.token_status === "active_verified" ? (
               <p className="text-sm text-text-muted">No active markets right now.</p>
