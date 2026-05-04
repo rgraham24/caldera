@@ -148,6 +148,7 @@ export function TradeTicket({
 
         const res = await fetch("/api/trades", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             marketId: market.id,
@@ -170,6 +171,7 @@ export function TradeTicket({
 
         const res = await fetch("/api/trades/sell", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             marketId: market.id,
