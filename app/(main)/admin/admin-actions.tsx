@@ -38,9 +38,6 @@ export function AdminActions() {
   const [generatingForImported, setGeneratingForImported] = useState(false);
   const [generateForImportedResult, setGenerateForImportedResult] = useState<string | null>(null);
 
-  const [categoryTokenImporting, setCategoryTokenImporting] = useState(false);
-  const [categoryTokenResult, setCategoryTokenResult] = useState<string | null>(null);
-
   const [generatingCategorical, setGeneratingCategorical] = useState(false);
   const [categoricalResult, setCategoricalResult] = useState<string | null>(null);
 
@@ -255,27 +252,6 @@ export function AdminActions() {
       setCategoricalResult(`Error: ${err instanceof Error ? err.message : "Failed"}`);
     } finally {
       setGeneratingCategorical(false);
-    }
-  };
-
-  const handleCategoryTokenImport = async () => {
-    setCategoryTokenImporting(true);
-    setCategoryTokenResult(null);
-    try {
-      const res = await fetch("/api/admin/import-category-tokens", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ desoPublicKey: desoPublicKey ?? "" }),
-      });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setCategoryTokenResult(
-        "✅ ConflictMarkets, ElectionMarkets, SportsMarkets, ViralMarkets, CryptoMarkets1, EntertainmentMarkets imported as active_verified"
-      );
-    } catch (err) {
-      setCategoryTokenResult(`Error: ${err instanceof Error ? err.message : "Import failed"}`);
-    } finally {
-      setCategoryTokenImporting(false);
     }
   };
 
@@ -842,27 +818,6 @@ export function AdminActions() {
         {generateForImportedResult && (
           <p className={`mt-3 text-xs ${generateForImportedResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
             {generateForImportedResult}
-          </p>
-        )}
-      </div>
-
-      {/* Import Category Tokens */}
-      <div className="rounded-2xl border border-border-subtle bg-surface p-5">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">🎯 Import Category Tokens</h2>
-        <p className="mb-4 text-xs text-text-muted">
-          Imports ConflictMarkets, ElectionMarkets, SportsMarkets, ViralMarkets, CryptoMarkets1, and EntertainmentMarkets as active_verified. These earn auto-buy fees from every market in their category. Safe to re-run.
-        </p>
-        <Button
-          onClick={handleCategoryTokenImport}
-          disabled={categoryTokenImporting}
-          className="bg-caldera text-background font-semibold hover:bg-caldera/90"
-        >
-          {categoryTokenImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {categoryTokenImporting ? "Importing..." : "Import Category Tokens"}
-        </Button>
-        {categoryTokenResult && (
-          <p className={`mt-3 text-xs ${categoryTokenResult.startsWith("Error") ? "text-no" : "text-yes"}`}>
-            {categoryTokenResult}
           </p>
         )}
       </div>

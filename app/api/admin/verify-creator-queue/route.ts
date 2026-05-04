@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
-// Category tokens and well-known non-person slugs — never show in queue
+// Well-known non-person slugs — never show in queue.
+// (v1 category-token slugs were removed in Phase E-10.)
 const EXCLUDED_SLUGS = [
-  "creators", "caldera-creators",
-  "sports", "caldera-sports",
-  "entertainment", "caldera-entertainment",
-  "music", "caldera-music",
-  "politics", "caldera-politics",
-  "tech", "caldera-tech",
-  "companies", "caldera-companies",
-  "climate", "caldera-climate",
-  "crypto",
   "nba", "nfl", "ufc", "f1", "mlb", "nhl",
   "lakers", "chiefs", "yankees", "celtics",
 ];

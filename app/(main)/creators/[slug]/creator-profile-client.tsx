@@ -226,17 +226,6 @@ export function CreatorProfileClient({
     .sort((a, b) => (b.trending_score ?? 0) - (a.trending_score ?? 0))
     .slice(0, 15);
   const coinSymbol = desoUser || creator.creator_coin_symbol;
-
-  // Category token symbol for fee burn banner
-  const categoryTokenSymbol = (() => {
-    const cat = (creator.category ?? "").toLowerCase();
-    const map: Record<string, string> = {
-      sports: "SPORTS", music: "MUSIC", politics: "POLITICS",
-      entertainment: "ENTERTAINMENT", companies: "COMPANIES",
-      climate: "CLIMATE", tech: "TECH", creators: "CREATORS",
-    };
-    return map[cat] ?? null;
-  })();
   const isCryptoCreator = (creator.category ?? "").toLowerCase() === "crypto";
 
   return (
@@ -386,20 +375,12 @@ export function CreatorProfileClient({
             </div>
           </div>
         )}
-        {creator.token_status === "active_unverified" && (
-          isCryptoCreator ? (
-            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-              <p className="text-sm text-text-muted">
-                Every buy trade on {creator.name}&apos;s markets uses 1% of the trade to buy ${coinSymbol} on DeSo. When {creator.name} claims their account, those coins flow directly to their wallet on every trade.
-              </p>
-            </div>
-          ) : categoryTokenSymbol ? (
-            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-              <p className="text-sm text-text-muted">
-                Trade markets. Reward <span className="font-medium text-caldera">${categoryTokenSymbol}</span> holders.
-              </p>
-            </div>
-          ) : null
+        {creator.token_status === "active_unverified" && isCryptoCreator && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              Every buy trade on {creator.name}&apos;s markets uses 1% of the trade to buy ${coinSymbol} on DeSo. When {creator.name} claims their account, those coins flow directly to their wallet on every trade.
+            </p>
+          </div>
         )}
         {creator.token_status === "needs_review" && (
           <div className="mb-6 rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
@@ -408,20 +389,12 @@ export function CreatorProfileClient({
             </p>
           </div>
         )}
-        {creator.token_status === "active_verified" && (
-          isCryptoCreator ? (
-            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-              <p className="text-sm text-text-muted">
-                Every trade on ${coinSymbol} markets rewards ${coinSymbol} holders and buys ${coinSymbol} on DeSo.
-              </p>
-            </div>
-          ) : categoryTokenSymbol ? (
-            <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-              <p className="text-sm text-text-muted">
-                Trade markets. Reward <span className="font-medium text-caldera">${categoryTokenSymbol}</span> holders.
-              </p>
-            </div>
-          ) : null
+        {creator.token_status === "active_verified" && isCryptoCreator && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              Every trade on ${coinSymbol} markets rewards ${coinSymbol} holders and buys ${coinSymbol} on DeSo.
+            </p>
+          </div>
         )}
         {creator.token_status === "claimed" && (
           <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
