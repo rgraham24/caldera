@@ -20,7 +20,6 @@ export type Market = Database["public"]["Tables"]["markets"]["Row"] & {
   crypto_ticker?: string | null;
   crypto_target_price?: number | null;
   auto_resolve_at?: string | null;
-  category_token_slug?: string | null;
 };
 export type Position = Database["public"]["Tables"]["positions"]["Row"];
 export type Trade = Database["public"]["Tables"]["trades"]["Row"];

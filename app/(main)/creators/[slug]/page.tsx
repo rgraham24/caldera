@@ -60,11 +60,11 @@ export default async function CreatorProfilePage({
       .eq("status", "pending")
       .maybeSingle(),
 
-    // Sum total_volume across all markets tied to this creator (by creator_slug OR category_token_slug)
+    // Sum total_volume across all markets tied to this creator
     (supabase as DB)
       .from("markets")
       .select("total_volume")
-      .or(`creator_slug.eq.${creator.slug},category_token_slug.eq.${creator.slug}`)
+      .eq("creator_slug", creator.slug)
       .limit(10000),
   ]);
 

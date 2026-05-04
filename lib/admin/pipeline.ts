@@ -503,85 +503,6 @@ export async function filterStaleMarketsPublic(
 //
 type TokenTier = "hard_reserved" | "speculation_pool" | "shadow";
 
-// Category index tokens — Caldera-owned DeSo profiles that act as
-// league-level tokens for each market category.
-// Fees auto-buy these tokens from every market in their category.
-// If a specific league token exists (e.g. "nba"), it takes priority.
-// These are the fallback league tokens when no specific league is set.
-export const CATEGORY_TOKENS: Record<string, string> = {
-  "Sports": "caldera-sports",
-  "Music": "caldera-music",
-  "Politics": "caldera-politics",
-  "Entertainment": "caldera-entertainment",
-  "Companies": "caldera-companies",
-  "Climate": "caldera-climate",
-  "Tech": "caldera-tech",
-  "Commentary": "caldera-creators",
-  "Streamers": "caldera-creators",
-  "Viral": "caldera-creators",
-  "Crypto": "caldera-creators",
-};
-
-// The category token DeSo usernames to import as active_verified
-export const CATEGORY_TOKEN_PROFILES = [
-  { name: "Conflict Markets", desoUsername: "ConflictMarkets", category: "Commentary" },
-  { name: "Election Markets", desoUsername: "ElectionMarkets", category: "Politics" },
-  { name: "Sports Markets", desoUsername: "SportsMarkets", category: "Sports" },
-  { name: "Viral Markets", desoUsername: "ViralMarkets", category: "Streamers" },
-  { name: "Crypto Markets", desoUsername: "CryptoMarkets1", category: "Tech" },
-  { name: "Entertainment Markets", desoUsername: "EntertainmentMarkets", category: "Entertainment" },
-];
-
-export async function importCategoryTokens(supabase: AnySupabase): Promise<void> {
-  let desoPriceUsd = 5;
-  try {
-    const pr = await fetch("https://api.deso.org/api/v0/get-exchange-rate");
-    const pd = await pr.json();
-    const cents = pd?.USDCentsPerDeSoExchangeRate ?? 0;
-    desoPriceUsd = cents > 0 ? cents / 100 : 5;
-  } catch { /* use fallback */ }
-
-  for (const token of CATEGORY_TOKEN_PROFILES) {
-    try {
-      const res = await fetch("https://api.deso.org/api/v0/get-single-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ Username: token.desoUsername }),
-      });
-      const data = await res.json();
-      const p = data?.Profile;
-      if (!p?.Username) {
-        console.warn(`[categoryTokens] Not found on DeSo: ${token.desoUsername}`);
-        continue;
-      }
-
-      const slug = p.Username.toLowerCase();
-      const coinPriceNanos = p.CoinPriceDeSoNanos ?? 0;
-      const coinPriceUsd = (coinPriceNanos / 1e9) * desoPriceUsd;
-      const publicKey = p.PublicKeyBase58Check;
-
-      await supabase.from("creators").upsert({
-        slug,
-        name: token.name,
-        deso_username: p.Username,
-        deso_public_key: publicKey,
-        creator_coin_symbol: p.Username.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 20),
-        // active_verified because Caldera owns these accounts
-        token_status: "active_verified",
-        creator_coin_price: coinPriceUsd,
-        creator_coin_holders: p.CoinEntry?.NumberOfHolders ?? 0,
-        image_url: `https://node.deso.org/api/v0/get-single-profile-picture/${publicKey}`,
-        bio: `Official ${token.name} token. Earns auto-buy fees from every ${token.category} prediction market on Caldera.`,
-        estimated_followers: 0,
-      }, { onConflict: "slug", ignoreDuplicates: false });
-
-      console.log(`[categoryTokens] Imported ${token.name} (${slug}) as active_verified`);
-    } catch (err) {
-      console.warn(`[categoryTokens] Error importing ${token.desoUsername}:`, err);
-    }
-  }
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any;
 
@@ -1533,12 +1454,7 @@ async function insertMarkets(
       liquidity: isSpeculationPool ? 66 : 1000,
       total_volume: 0,
     };
-    // Use category token as league fallback if no specific league set
-    const effectiveLeagueSlug =
-      finalLeagueSlug ??
-      CATEGORY_TOKENS[market.category] ??
-      CATEGORY_TOKENS["Entertainment"] ??
-      null;
+    const effectiveLeagueSlug = finalLeagueSlug ?? null;
 
     if (isSpeculationPool) row.is_speculation_pool = true;
     if (creatorId) row.creator_id = creatorId;
