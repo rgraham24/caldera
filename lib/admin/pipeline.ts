@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { generateMarketsForTopic, GeneratedMarket, classifyEntityType, generateCategoricalMarket, CategoricalMarketDraft } from "./market-generator";
 import { VALID_TOKEN_STATUSES } from "../creators/validity";
+import { resolveMarket } from "../markets/resolution";
 export { generateCategoricalMarket } from "./market-generator";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -1795,6 +1796,9 @@ export async function resolveExpiredMarkets(
 
   for (const r of resolutions) {
     if (r.outcome === "needs_review" || r.outcome === "void") {
+      // For non-resolution outcomes (review/void), still use direct UPDATE.
+      // These don't trigger position settlement — markets stay open OR
+      // get marked voided. resolveMarket() is for terminal yes/no/cancelled.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any)
         .from("markets")
@@ -1806,17 +1810,21 @@ export async function resolveExpiredMarkets(
         .eq("id", r.id);
       if (!error) flagged++;
     } else if (r.outcome === "yes" || r.outcome === "no") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
-        .from("markets")
-        .update({
-          status: "resolved",
-          resolution_outcome: r.outcome,
-          resolution_note: r.reasoning,
-          resolved_at: now,
-        })
-        .eq("id", r.id);
-      if (!error) resolved++;
+      // Use resolveMarket() helper — wraps atomic_resolve_market RPC which
+      // settles positions AND creates position_payouts in one transaction.
+      const result = await resolveMarket(supabase, {
+        marketId: r.id,
+        outcome: r.outcome,
+        resolutionNote: r.reasoning,
+        resolvedByUserId: null,
+      });
+      if (result.ok) {
+        resolved++;
+      } else {
+        console.error(
+          `[resolveExpiredMarkets] resolveMarket failed for ${r.id}: ${result.reason} (${result.detail})`
+        );
+      }
     }
   }
 
