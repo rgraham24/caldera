@@ -1485,6 +1485,20 @@ async function insertMarkets(
         const [entity1, entity2] = entities;
         const slug1 = entity1.toLowerCase().replace(/[^a-z0-9]/g, '');
         const slug2 = entity2.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        // Fail-closed: every outcome's creator_slug must reference a valid creator.
+        // All-or-nothing semantics — if either outcome fails, skip the entire market.
+        if (!validSlugs.has(slug1) || !validSlugs.has(slug2)) {
+          const invalidSlugs = [
+            !validSlugs.has(slug1) ? slug1 : null,
+            !validSlugs.has(slug2) ? slug2 : null,
+          ].filter(Boolean).join(", ");
+          console.warn(
+            `[pipeline] SKIP categorical market "${market.title}": invalid outcome slug(s) — ${invalidSlugs}`
+          );
+          continue;
+        }
+
         const draft: CategoricalMarketDraft = {
           title: market.title,
           description: market.description,
