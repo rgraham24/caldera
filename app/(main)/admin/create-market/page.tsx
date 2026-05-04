@@ -115,23 +115,14 @@ export default function AdminCreateMarketPage() {
     setGenResult(null);
     setGenRunning(true);
     try {
-      let res: Response;
-      if (genCategory === "Climate") {
-        res = await fetch("/api/admin/generate-climate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password: CORRECT_PW, count: genCount }),
-        });
-      } else {
-        res = await fetch("/api/admin/generate-for-imported", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            password: CORRECT_PW,
-            marketsPerCreator: genCount,
-          }),
-        });
-      }
+      const res = await fetch("/api/admin/generate-for-imported", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: CORRECT_PW,
+          marketsPerCreator: genCount,
+        }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       setGenResult(
