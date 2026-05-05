@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 
 const commentSchema = z.object({
-  marketId: z.string().uuid(),
+  marketId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
   body: z.string().min(1).max(2000),
 });
 
