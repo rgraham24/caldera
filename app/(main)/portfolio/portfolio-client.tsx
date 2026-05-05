@@ -613,7 +613,13 @@ export function PortfolioClient() {
                 so the buy-side fee-breakdown copy never renders. */}
             <TradeTicket
               market={tradeModal.market}
-              onTradeComplete={() => { setTradeModal(null); fetchPositions(); }}
+              // F-12: do NOT close the modal on trade complete. TradeTicket
+              // shows a success card after sell/buy completes. Closing the
+              // modal here unmounts the success view before the user sees
+              // it. Refresh positions in the background and let the user
+              // dismiss via the modal's ✕ button or the success-view
+              // 'View My Portfolio' link.
+              onTradeComplete={() => { fetchPositions(); }}
               initialMode={tradeModal.initialMode}
             />
           </div>
