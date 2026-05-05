@@ -1,11 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 
 export async function GET(req: NextRequest) {
-  const desoPublicKey = req.nextUrl.searchParams.get("desoPublicKey");
-
-  if (!desoPublicKey) {
+  // ── Auth (P2-1 cookie, F-6 direct-verify pattern) ─────────────
+  const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+  if (!cookie || !signingKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  let session;
+  try {
+    session = await verifyCookie(cookie, signingKey);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const verifiedPublicKey = session.publicKey;
+
+  // ── Ownership check ───────────────────────────────────────────
+  const requestedPublicKey = req.nextUrl.searchParams.get("desoPublicKey");
+  if (!requestedPublicKey) {
+    return NextResponse.json({ error: "desoPublicKey required" }, { status: 400 });
+  }
+  if (requestedPublicKey !== verifiedPublicKey) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const supabase = await createClient();
@@ -13,7 +34,7 @@ export async function GET(req: NextRequest) {
   const { data: dbUser } = await supabase
     .from("users")
     .select("id")
-    .eq("deso_public_key", desoPublicKey)
+    .eq("deso_public_key", verifiedPublicKey)
     .single();
 
   if (!dbUser) {

@@ -69,12 +69,25 @@ export function TradeTicket({
       return;
     }
     setPositionFetching(true);
-    fetch(`/api/positions?marketId=${market.id}&desoPublicKey=${desoPublicKey}`)
+    fetch(`/api/positions?marketId=${market.id}&desoPublicKey=${desoPublicKey}`, {
+      credentials: "include",
+    })
       .then((r) => r.json())
       .then((d) => {
-        setUserPosition(d.data ?? null);
+        // Server returns an array (a user may hold both YES and NO). Pick the
+        // largest by share count for display; the side toggle in sell mode
+        // will land on this side automatically.
+        const list: NonNullable<UserPosition>[] = Array.isArray(d.data)
+          ? d.data
+          : d.data
+            ? [d.data]
+            : [];
+        const primary = list.length
+          ? [...list].sort((a, b) => (b.shares ?? 0) - (a.shares ?? 0))[0]
+          : null;
+        setUserPosition(primary);
         setPositionFetching(false);
-        if (d.data?.side) setSide(d.data.side);
+        if (primary?.side) setSide(primary.side);
       })
       .catch(() => setPositionFetching(false));
   }, [tradeMode, desoPublicKey, market.id]);
