@@ -63,7 +63,7 @@ export default function HowItWorksPage() {
           <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Are you on here? Come get your money.</h2>
           <p className="mb-4 text-sm text-text-muted leading-relaxed">
             If you&apos;re a public figure, creator, or athlete with a Caldera profile, your account is already here.
-            Claim it and <span className="font-semibold text-amber-400">receive 0.75% of every prediction about you</span>.
+            Claim it and <span className="font-semibold text-amber-400">earn 1% of every trade on markets about you</span>.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1 rounded-xl bg-background p-3 text-center">
@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
             <div className="flex-1 rounded-xl bg-background p-3 text-center">
               <p className="text-xl">3️⃣</p>
               <p className="mt-1 text-xs font-medium text-text-primary">Receive your fee share</p>
-              <p className="text-[10px] text-text-muted">0.75% of every trade</p>
+              <p className="text-[10px] text-text-muted">1% of every trade</p>
             </div>
           </div>
           <div className="mt-4">

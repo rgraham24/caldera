@@ -23,7 +23,7 @@ export function TierBadge({ tier, size = "sm" }: TierBadgeProps) {
       label: "Public Figure",
       dot: "bg-text-muted",
       text: "text-text-muted",
-      tooltip: "Public Figure — every trade rewards token holders and buys the token on DeSo. When this account claims, they earn 0.5% directly.",
+      tooltip: "Public Figure — every trade buys this account's coin on DeSo. When this account claims, they earn 1% directly.",
     },
     unclaimed: {
       label: "Unclaimed",

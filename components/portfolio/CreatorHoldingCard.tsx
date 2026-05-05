@@ -139,7 +139,7 @@ export function CreatorHoldingCard({
                 <span className="font-mono text-yes">~{formatCurrency(weeklyEarnings)}</span>
               </div>
               <p className="text-[10px] text-text-faint mt-1">
-                {percentOfSupply.toFixed(1)}% × {formatCurrency(weeklyVolume)} weekly vol × 0.75%
+                {percentOfSupply.toFixed(1)}% × {formatCurrency(weeklyVolume)} weekly vol × 1%
               </p>
             </div>
 

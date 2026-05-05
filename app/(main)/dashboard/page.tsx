@@ -107,7 +107,7 @@ export default function DashboardPage() {
       {/* Info */}
       <div className="rounded-2xl border border-border-subtle/30 bg-surface p-5">
         <p className="text-sm text-text-muted">
-          As a verified creator, you earn <span className="text-caldera font-medium">0.75%</span> of every trade on prediction markets about you.
+          As a verified creator, you earn <span className="text-caldera font-medium">1%</span> of every trade on markets about you.
           Earnings are calculated in real-time and displayed here.
         </p>
       </div>
