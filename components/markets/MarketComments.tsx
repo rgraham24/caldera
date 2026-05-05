@@ -19,7 +19,7 @@ export function MarketComments({
   const [body, setBody] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isConnected, user } = useAppStore();
+  const { isConnected } = useAppStore();
 
   const handleSubmit = async () => {
     if (!body.trim() || !isConnected) return;
@@ -34,23 +34,27 @@ export function MarketComments({
         body: JSON.stringify({ marketId, body: body.trim() }),
       });
 
-      if (res.ok) {
-        const { data } = await res.json();
-        setComments((prev) => [
-          {
-            ...data,
-            user: {
-              id: user!.id,
-              username: user!.username,
-              avatar_url: user!.avatar_url,
-              is_verified: user!.is_verified,
-            },
-          },
-          ...prev,
-        ]);
-        setBody("");
-      } else {
+      if (!res.ok) {
         setError("Couldn't post comment. Try again.");
+        return;
+      }
+
+      // Refetch the joined list rather than building an optimistic row —
+      // the POST response is the raw market_comments row with no user join,
+      // so prepending it locally was producing malformed CommentWithUser.
+      setBody("");
+      try {
+        const listRes = await fetch(`/api/comments/${marketId}`, {
+          credentials: "include",
+        });
+        if (listRes.ok) {
+          const { data } = await listRes.json();
+          if (Array.isArray(data)) {
+            setComments(data as CommentWithUser[]);
+          }
+        }
+      } catch {
+        // Swallow — comment is saved server-side; next page load will show it.
       }
     } catch {
       setError("Couldn't post comment. Try again.");
