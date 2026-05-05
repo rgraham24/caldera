@@ -54,7 +54,7 @@ export function TradeTicket({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
-  const [tradeSuccess, setTradeSuccess] = useState<{ shares: number; side: string; mode: "buy" | "sell" } | null>(null);
+  const [tradeSuccess, setTradeSuccess] = useState<{ shares: number; side: string; mode: "buy" | "sell"; payout?: number; txHashHex?: string } | null>(null);
   const [userPosition, setUserPosition] = useState<UserPosition>(null);
   const [positionFetching, setPositionFetching] = useState(false);
   const { isConnected, desoPublicKey } = useAppStore();
@@ -185,7 +185,13 @@ export function TradeTicket({
         if (!res.ok) throw new Error(data.error || "Sell failed");
 
         setTradeStatus(null);
-        setTradeSuccess({ shares: sellSharesNum, side: userPosition.side, mode: "sell" });
+        setTradeSuccess({
+          shares: sellSharesNum,
+          side: userPosition.side,
+          mode: "sell",
+          payout: typeof data?.returnAmount === "number" ? data.returnAmount : (sellEstimate ?? undefined),
+          txHashHex: typeof data?.payoutTxHashHex === "string" ? data.payoutTxHashHex : undefined,
+        });
         setSellShares("");
         onTradeComplete?.();
         setUserPosition(null);
@@ -521,6 +527,40 @@ export function TradeTicket({
               <div className="flex items-start gap-2 text-text-muted">
                 <span className="shrink-0">📈</span>
                 <span>Your position is now live. If {tradeSuccess.side.toUpperCase()} wins, you collect your full payout.</span>
+              </div>
+            </div>
+          )}
+
+          {tradeSuccess.mode === "sell" && (
+            <div className="rounded-xl bg-surface border border-border-subtle p-3 space-y-2 text-xs">
+              <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What just happened</p>
+              <div className="flex items-start gap-2 text-text-muted">
+                <span className="shrink-0">💰</span>
+                <span>
+                  Sold {tradeSuccess.shares.toFixed(2)} {tradeSuccess.side.toUpperCase()} shares
+                  {typeof tradeSuccess.payout === "number" && (
+                    <> for <span className="font-mono text-yes">{formatCurrency(tradeSuccess.payout)}</span></>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-start gap-2 text-text-muted">
+                <span className="shrink-0">🔗</span>
+                <span>
+                  DESO transferred to your wallet
+                  {tradeSuccess.txHashHex && (
+                    <>
+                      {" — "}
+                      <a
+                        href={`https://explorer.deso.org/?transaction-id=${tradeSuccess.txHashHex}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-yes hover:underline"
+                      >
+                        view tx
+                      </a>
+                    </>
+                  )}
+                </span>
               </div>
             </div>
           )}
