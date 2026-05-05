@@ -300,7 +300,6 @@ export function TradeTicket({
                   type="number"
                   min="0"
                   step="any"
-                  max={userPosition.shares}
                   value={sellShares}
                   onChange={(e) => setSellShares(e.target.value)}
                   placeholder="0.00"
