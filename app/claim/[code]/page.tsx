@@ -80,7 +80,7 @@ export default function ClaimPage() {
   }, []);
 
   const tweetText = info
-    ? `I'm claiming my $${info.symbol || info.name} token on @CalderaMarket 🔥 ${info.claimCode}`
+    ? `I'm claiming my $${info.symbol || info.name} coin on @CalderaMarket 🔥 ${info.claimCode}`
     : "";
 
   const startVerification = () => {
@@ -261,11 +261,11 @@ export default function ClaimPage() {
             CALDERA · CREATOR CLAIM
           </p>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Claim your ${info?.symbol ?? info?.name} token
+            Claim your ${info?.symbol ?? info?.name} coin
           </h1>
           {info?.unclaimedEarnings && info.unclaimedEarnings > 0 ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              💰 <span className="text-amber-400 font-semibold">${info.unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> in fees would have gone to token holders so far.
+              💰 <span className="text-amber-400 font-semibold">${info.unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> in fees would have gone to coin holders so far.
             </p>
           ) : (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -285,7 +285,7 @@ export default function ClaimPage() {
               <p className="text-2xl font-bold text-white">{info?.marketsCount ?? 0}</p>
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: "var(--text-tertiary)" }}>TOKEN</p>
+              <p className="text-xs mb-1" style={{ color: "var(--text-tertiary)" }}>COIN</p>
               <p className="text-2xl font-bold text-white">{info?.symbol ?? "—"}</p>
             </div>
           </div>

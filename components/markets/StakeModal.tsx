@@ -504,7 +504,7 @@ export function StakeModal({
             {tab === "buy" && founderReward > 0 && (
               <div className="mb-3 rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 text-xs text-orange-400">
                 ⚠️ {founderReward / 100}% founder reward — creator receives this portion of every purchase.
-                {founderReward >= 9000 && " This token has a very high founder reward."}
+                {founderReward >= 9000 && " This coin has a very high founder reward."}
               </div>
             )}
 

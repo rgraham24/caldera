@@ -37,7 +37,7 @@ const TIERS = [
 ];
 
 const SORTS = [
-  { value: "price", label: "Token Price" },
+  { value: "price", label: "Coin Price" },
   { value: "volume", label: "Market Volume" },
   { value: "holders", label: "Holders" },
   { value: "newest", label: "Newest" },
@@ -145,7 +145,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
       </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/40 mb-2">
-        <span>🔵 Active · 1% of every buy auto-buys token</span>
+        <span>🔵 Active · 1% of every buy auto-buys coin</span>
         <span>✅ Verified on DeSo</span>
         <span>🟡 Unclaimed · prediction markets only</span>
       </div>
@@ -195,9 +195,9 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
                   {c.token_status === "shadow" || c.token_status === "needs_review" ? (
                     <span className="text-amber-400">Unclaimed · prediction markets only</span>
                   ) : c.token_status === "active_verified" ? (
-                    <span className="text-yes">✅ Verified · fees flow back into token on buys</span>
+                    <span className="text-yes">✅ Verified · fees flow back into coin on buys</span>
                   ) : c.token_status === "active_unverified" ? (
-                    <span className="text-caldera">🔵 Active · fees flow back into token on buys</span>
+                    <span className="text-caldera">🔵 Active · fees flow back into coin on buys</span>
                   ) : (
                     <span>{formatCompactCurrency(c.total_holder_earnings ?? 0)} earned by holders</span>
                   )}

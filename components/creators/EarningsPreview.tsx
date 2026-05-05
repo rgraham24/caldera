@@ -39,7 +39,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
           💰 What {creator.name} could earn on Caldera
         </p>
         <p className="text-sm text-text-muted">
-          No prediction markets yet. When markets are created, 1% of every trade will auto-buy {creator.name}&apos;s token if claimed.
+          No prediction markets yet. When markets are created, 1% of every trade will auto-buy {creator.name}&apos;s coin if claimed.
         </p>
       </div>
     );
@@ -64,10 +64,10 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
             {formatCurrency(creatorShareIfClaimed)}
           </p>
           <p className="mt-0.5 text-[10px] text-text-muted">
-            Your platform fee share (if you claim) <span className="text-text-faint cursor-help">ⓘ</span>
+            Your earnings if claimed <span className="text-text-faint cursor-help">ⓘ</span>
           </p>
           <div className="invisible group-hover:visible absolute bottom-full left-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
-            If you claim this profile, 1% of every prediction on your markets auto-buys your token — forever. No action needed after claiming.
+            Earn 1% of every trade on markets about you, paid in ${sym} coins to your DeSo wallet automatically.
             <div className="absolute bottom-[-6px] left-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
           </div>
         </div>
@@ -79,7 +79,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
             Fees accumulate until claimed <span className="text-text-faint cursor-help">ⓘ</span>
           </p>
           <div className="invisible group-hover:visible absolute bottom-full right-0 mb-2 w-[280px] rounded-xl bg-surface-2 border border-border-subtle p-3 text-xs text-text-muted leading-relaxed shadow-xl z-10">
-            While unclaimed, 1% of every prediction goes to a community pool. Once you claim, that 1% auto-buys your token on every trade instead.
+            1% buys your coin and holds it until you claim. Once you claim, that 1% auto-buys your coin and lands in your wallet on every trade instead.
             <div className="absolute bottom-[-6px] right-6 h-3 w-3 rotate-45 bg-surface-2 border-r border-b border-border-subtle" />
           </div>
         </div>

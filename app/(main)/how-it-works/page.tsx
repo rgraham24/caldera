@@ -8,7 +8,7 @@ export default function HowItWorksPage() {
         How Caldera Works
       </h1>
       <p className="mt-3 text-lg text-text-muted">
-        Predict anything. Own the token. Watch it move.
+        Predict anything. Own the coin. Watch it move.
       </p>
 
       <div className="mt-12 space-y-8">
@@ -39,21 +39,21 @@ export default function HowItWorksPage() {
         {/* Section 2 — Own the Token */}
         <section className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
           <div className="mb-4 text-3xl">💎</div>
-          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Own the Token</h2>
+          <h2 className="mb-3 font-display text-2xl font-bold text-text-primary">Own the Coin</h2>
           <p className="mb-4 text-sm text-text-muted leading-relaxed">
-            Every market has a real token behind it. Buy it, hold it, and watch prediction fees flow back into that token automatically.
+            Every market has a real coin behind it. Buy it, hold it, and watch prediction fees flow back into that coin automatically.
           </p>
           <div className="mb-4 rounded-xl border border-caldera/20 bg-caldera/5 p-4">
             <p className="mb-1 text-xs font-semibold text-caldera">Example</p>
             <p className="text-sm text-text-primary">
-              $100,000 trades on Tiger Woods markets → $750 flows back into $tigerwoods automatically.
+              $100,000 trades on Tiger Woods markets → $1,000 flows back into $tigerwoods automatically.
             </p>
             <p className="mt-2 text-xs text-text-muted">
-              No action required. Just hold the token.
+              No action required. Just hold the coin.
             </p>
           </div>
           <p className="text-sm text-text-muted leading-relaxed">
-            The more people predict about someone, the more the token moves. Tokens are stored on-chain — buy them directly on Caldera from each creator&apos;s profile page.
+            The more people predict about someone, the more the coin moves. Coins are stored on-chain — buy them directly on Caldera from each creator&apos;s profile page.
           </p>
         </section>
 

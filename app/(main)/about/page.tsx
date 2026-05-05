@@ -20,7 +20,7 @@ const FEATURES = [
   {
     icon: "🪙",
     title: "Every trade buys creator coins",
-    body: "Every buy trade has a 2% fee: 1% funds platform operations, and 1% buys the market's creator's coin on DeSo. For claimed creators, the bought coin goes directly to their wallet. For unclaimed creators, it's held in escrow until they join.",
+    body: "Every buy trade has a 2% fee: 1% funds platform operations, and 1% buys the market's creator's coin on DeSo. For claimed creators, the bought coin goes directly to their wallet. For unclaimed creators, it's held until they claim their profile.",
   },
   {
     icon: "📊",
@@ -50,7 +50,7 @@ export default function AboutPage() {
           <span className="text-caldera">Own what you love.</span>
         </h1>
         <p className="mx-auto max-w-2xl text-lg text-text-muted">
-          The prediction market for internet culture. Every market is tied to a creator, athlete, or event — and every trade flows value back into the associated token.
+          The prediction market for internet culture. Every market is tied to a creator, athlete, or event — and every trade flows value back into the associated coin.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link
@@ -87,24 +87,24 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* Token mechanics */}
+      {/* Coin mechanics */}
       <div className="mb-20 rounded-2xl border border-border-subtle bg-surface p-6 md:p-8">
         <h2 className="mb-2 font-display text-2xl font-bold text-text-primary">
-          The token mechanic
+          The coin mechanic
         </h2>
         <p className="mb-8 text-text-muted">
-          Every market on Caldera is linked to a creator token. Here&apos;s why that matters.
+          Every market on Caldera is linked to a creator coin. Here&apos;s why that matters.
         </p>
 
         <div className="rounded-xl border border-border-subtle/50 bg-surface-2 p-5">
           <h3 className="mb-2 font-semibold text-text-primary">
-            Creator tokens — on-chain holder record
+            Creator coins — on-chain holder record
           </h3>
           <p className="text-sm leading-relaxed text-text-muted">
-            Hold a creator&apos;s token like{" "}
+            Hold a creator&apos;s coin like{" "}
             <span className="font-mono text-caldera">$KAICENAT</span> and
             your holding history is recorded on-chain. Every time someone trades
-            a market about that creator, a fraction of fees rewards token holders and auto-buys the token on DeSo.
+            a market about that creator, a fraction of fees rewards coin holders and auto-buys the coin on DeSo.
             The earlier you hold, the longer your on-chain record.
           </p>
         </div>

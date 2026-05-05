@@ -274,15 +274,15 @@ export function CreatorProfileClient({
             <div className="flex items-start gap-3">
               <span className="text-xl mt-0.5">🔒</span>
               <div className="flex-1">
-                <p className="font-semibold text-text-primary mb-1">This token is unclaimed</p>
+                <p className="font-semibold text-text-primary mb-1">This coin is unclaimed</p>
                 {unclaimedEarnings > 0 && (
                   <p className="text-sm text-text-muted mb-3">
                     <span className="text-amber-400 font-semibold">${unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    {" "}has accumulated in escrow — these are creator coin buys held in the platform wallet, waiting for {creator.name} to claim their profile.
+                    {" "}has accumulated, held until they claim their profile — these are creator coin buys held in the platform wallet, waiting for {creator.name} to claim.
                   </p>
                 )}
                 <p className="text-sm text-text-muted mb-4">
-                  Are you <span className="text-text-primary font-medium">{creator.name}</span>? Claim your token to start
+                  Are you <span className="text-text-primary font-medium">{creator.name}</span>? Claim your coin to start
                   earning <span className="text-orange-400 font-medium">1%</span> of every future market trade —
                   sent directly to your wallet.
                 </p>
@@ -326,7 +326,7 @@ export function CreatorProfileClient({
             <p className="text-sm font-medium text-text-primary mb-2">📊 Prediction Market</p>
             <p className="text-sm text-text-muted mb-3">
               {openMarkets.length} active market{openMarkets.length !== 1 ? "s" : ""} ·{" "}
-              Token earnings: <span className="text-amber-400">Not yet active</span>
+              Coin earnings: <span className="text-amber-400">Not yet active</span>
             </p>
             <p className="text-xs text-text-muted mb-3">
               Community fees are held until this profile is claimed.
@@ -336,7 +336,7 @@ export function CreatorProfileClient({
             </p>
             <ul className="text-xs text-text-muted space-y-1 mb-3">
               <li>→ Receive a platform fee every time someone predicts about you — automatically</li>
-              <li>→ Let your fans buy your token and hold alongside you</li>
+              <li>→ Let your fans buy your coin and hold alongside you</li>
               <li>→ See everything people are predicting about you</li>
             </ul>
             <div className="flex flex-wrap items-center gap-3">
@@ -362,7 +362,7 @@ export function CreatorProfileClient({
               </p>
               <a
                 href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — fans are making predictions about you on @CalderaMarket and your token is earning fees right now. Claim it free at caldera.market/claim/${creator.slug} 🔥`
+                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — fans are making predictions about you on @CalderaMarket and your coin is earning fees right now. Claim it free at caldera.market/claim/${creator.slug} 🔥`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -386,7 +386,7 @@ export function CreatorProfileClient({
         {creator.token_status === "needs_review" && (
           <div className="mb-6 rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
             <p className="text-sm text-text-muted">
-              ⚠️ This DeSo account has not been verified. Token earnings are paused pending review.
+              ⚠️ This DeSo account has not been verified. Coin earnings are paused pending review.
             </p>
           </div>
         )}
@@ -499,7 +499,7 @@ export function CreatorProfileClient({
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
             { label: "💰 PLATFORM FEES", value: formatCurrency(holderEarnings), show: true, tip: "Total platform operations fees generated from trades on this creator's markets. 1% of each buy trade funds Caldera operations." },
-            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to token holders." },
+            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to coin holders." },
             { label: "Markets", value: String(openMarkets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
@@ -515,7 +515,7 @@ export function CreatorProfileClient({
         {/* Token chart + calculator — only for active tokens, not shadow */}
         {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5 overflow-hidden">
-            <h2 className="section-header mb-4">Token Price <InfoTooltip text="The current price to buy one token. Prices rise as more people buy — early buyers get the lowest price." /></h2>
+            <h2 className="section-header mb-4">Coin Price <InfoTooltip text="The current price to buy one coin. Prices rise as more people buy — early buyers get the lowest price." /></h2>
             <div className="max-w-full overflow-hidden">
               <MarketChart yesPrice={(livePrice ?? 0) / 200} />
             </div>
@@ -526,10 +526,10 @@ export function CreatorProfileClient({
         {(creator.token_status === "shadow" || creator.token_status === "needs_review") && (
           <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
             <p className="text-sm text-text-muted">
-              🔒 <span className="font-medium text-text-primary">Token not yet active</span>
+              🔒 <span className="font-medium text-text-primary">Coin not yet active</span>
             </p>
             <p className="mt-1 text-xs text-text-faint">
-              This profile hasn&apos;t been claimed. Claim to launch your token and start earning.
+              This profile hasn&apos;t been claimed. Claim to launch your coin and start earning.
             </p>
           </div>
         )}
@@ -711,20 +711,14 @@ export function CreatorProfileClient({
               </div>
               {creator.claim_status === "claimed" ? (
                 <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
-                  <div className="text-xs font-medium text-orange-400 mb-1">
-                    💰 Token Rewards Active
-                  </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    1% of every buy trade buys ${coinSymbol} on DeSo and sends it directly to {creator.name}&apos;s wallet.
+                    Every trade: 1% platform fee + 1% buys ${coinSymbol}
                   </div>
                 </div>
               ) : (
                 <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
-                  <div className="text-xs font-medium text-orange-400 mb-1">
-                    $CREATORS Rewards Active
-                  </div>
                   <div className="text-xs text-[var(--color-text-muted)]">
-                    1% of every buy trade buys ${coinSymbol} on DeSo, held in escrow. When {creator.name} claims their profile, future trades flow directly to their wallet.
+                    1% of every trade automatically buys ${coinSymbol} for the creator. They get it all as soon as they join.
                   </div>
                 </div>
               )}

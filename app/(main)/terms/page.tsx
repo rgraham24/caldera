@@ -55,7 +55,7 @@ export default function TermsPage() {
             4. Blockchain Transactions Are Irreversible
           </h2>
           <p>
-            All trades and token purchases on Caldera are executed as real transactions
+            All trades and coin purchases on Caldera are executed as real transactions
             on the <strong className="text-text-primary">DeSo blockchain</strong>. Blockchain
             transactions are irreversible by nature. Once confirmed on-chain, a transaction
             cannot be reversed, cancelled, or refunded by Caldera or any party. You are
@@ -86,7 +86,7 @@ export default function TermsPage() {
             <strong className="text-text-primary">For unclaimed creators</strong>, the purchased coins are held in the platform wallet until the creator joins and claims their profile. When the creator successfully claims their profile, all accumulated coins held in the platform wallet remain available to be transferred or used as the creator directs.
           </p>
           <p className="mt-3">
-            Purchased coins are <strong className="text-text-primary">not burned and are not removed from circulation</strong>. DeSo creator coins cannot be burned. No token supply reduction occurs at any time.
+            Purchased coins are <strong className="text-text-primary">not burned and are not removed from circulation</strong>. DeSo creator coins cannot be burned. No coin supply reduction occurs at any time.
           </p>
           <p className="mt-3">
             <strong className="text-text-primary">

@@ -26,7 +26,7 @@ const dmSerif = DM_Serif_Display({
 export const metadata: Metadata = {
   title: "Caldera — Trade what you know. Own what you love.",
   description:
-    "Every market. Every token. One platform.",
+    "Every market. Every coin. One platform.",
 };
 
 export default function RootLayout({

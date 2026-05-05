@@ -423,7 +423,7 @@ export function DepositModal({ onClose }: DepositModalProps) {
                 {[
                   {
                     label: "Trading (buy)",
-                    note: "2% · 1% platform + 1% token auto-buy",
+                    note: "2% · 1% platform + 1% coin auto-buy",
                   },
                   { label: "Deposit via Solana USDC", note: "~0.5%" },
                   { label: "Deposit via Polygon USDC", note: "~0.5%" },
