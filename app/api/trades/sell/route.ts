@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { transferDeso } from "@/lib/deso/transferDeso";
 import { checkDesoSolvency } from "@/lib/deso/solvency";
@@ -45,12 +45,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 2. Auth (P2-1 cookie) ────────────────────────────────
-  const authed = getAuthenticatedUser(req);
-  if (!authed) {
+  // ── 2. Auth (P2-1 cookie) — verified directly from request cookies. ──
+  // F-6 fix: bypass middleware-stamped header propagation. Same verification
+  // primitive the middleware uses — just inline so the route doesn't depend
+  // on header survival across edge → node runtime boundaries.
+  const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+  if (!cookie || !signingKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const desoPublicKey = authed.publicKey;
+  let session;
+  try {
+    session = await verifyCookie(cookie, signingKey);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const desoPublicKey = session.publicKey;
 
   // ── 3. Rate limit (P2-3) ─────────────────────────────────
   const rl = await checkRateLimit(`sell:${desoPublicKey}`, "trades");
