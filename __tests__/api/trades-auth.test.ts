@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 import { AUTH_HEADER } from "@/lib/auth";
 
 // Mock everything downstream of the auth check. We only care that
@@ -20,6 +21,17 @@ const mockFrom = vi.fn();
 const mockRpc = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: vi.fn(() => ({ from: mockFrom, rpc: mockRpc })),
+}));
+
+// F-6: sell route now verifies cookie directly. Buy still uses the
+// middleware-stamped header. The two routes use different auth paths.
+vi.mock("@/lib/auth/cookie-verify", () => ({
+  verifyCookie: vi.fn().mockResolvedValue({
+    publicKey: "BC1YLgU3MCy5iBsKMHGrfdpZGGwJFEJhAXNmhCDMBFfDMBnCjc8hpNQ",
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  }),
+  SESSION_COOKIE_NAME: "caldera-session",
 }));
 
 vi.mock("@/lib/deso/buyback", () => ({
@@ -56,13 +68,19 @@ function makeReq(
   url: string,
   body: unknown,
   opts: { authed?: boolean } = {}
-): Request {
+): NextRequest {
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
-  if (opts.authed) headers[AUTH_HEADER] = TEST_PK;
+  if (opts.authed) {
+    // Buy route reads the middleware-stamped header.
+    headers[AUTH_HEADER] = TEST_PK;
+    // Sell route reads the session cookie directly (F-6). Value is
+    // arbitrary — verifyCookie is mocked to return a SessionPayload.
+    headers["cookie"] = "caldera-session=fake-cookie";
+  }
 
-  return new Request(url, {
+  return new NextRequest(url, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -72,6 +90,8 @@ function makeReq(
 beforeEach(() => {
   mockFrom.mockReset();
   mockRpc.mockReset();
+  // F-6: sell route verifies cookie directly; needs the signing key env.
+  process.env.COOKIE_SIGNING_KEY = "test-key";
 });
 
 describe("POST /api/trades — auth enforcement", () => {
@@ -129,7 +149,7 @@ describe("POST /api/trades — auth enforcement", () => {
 });
 
 describe("POST /api/trades/sell — auth enforcement", () => {
-  it("returns 401 when x-deso-pubkey header is absent", async () => {
+  it("returns 401 when session cookie is absent", async () => {
     const req = makeReq(
       "http://localhost/api/trades/sell",
       {
@@ -144,7 +164,7 @@ describe("POST /api/trades/sell — auth enforcement", () => {
     expect(res.status).toBe(401);
   });
 
-  it("ignores desoPublicKey in body when header is absent — still 401", async () => {
+  it("ignores desoPublicKey in body when cookie is absent — still 401", async () => {
     const req = makeReq(
       "http://localhost/api/trades/sell",
       {
@@ -160,7 +180,7 @@ describe("POST /api/trades/sell — auth enforcement", () => {
     expect(res.status).toBe(401);
   });
 
-  it("passes auth check when x-deso-pubkey header is present", async () => {
+  it("passes auth check when session cookie is present", async () => {
     mockFrom.mockImplementation(() => ({
       select: () => ({
         eq: () => ({

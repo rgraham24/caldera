@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // ── Mocks BEFORE imports ───────────────────────────────────
-vi.mock("@/lib/auth", () => ({
-  getAuthenticatedUser: vi.fn(),
+// F-6: sell route verifies cookie directly via verifyCookie().
+vi.mock("@/lib/auth/cookie-verify", () => ({
+  verifyCookie: vi.fn(),
+  SESSION_COOKIE_NAME: "caldera-session",
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -78,8 +80,9 @@ vi.mock("@/lib/supabase/server", () => ({
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 
+import { NextRequest } from "next/server";
 import { POST } from "@/app/api/trades/sell/route";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyCookie } from "@/lib/auth/cookie-verify";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { transferDeso } from "@/lib/deso/transferDeso";
 import { checkDesoSolvency } from "@/lib/deso/solvency";
@@ -92,15 +95,21 @@ const MARKET_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const POSITION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const IDEMPOTENCY_KEY = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
-const mockedAuth = getAuthenticatedUser as ReturnType<typeof vi.fn>;
+const mockedVerifyCookie = verifyCookie as ReturnType<typeof vi.fn>;
 const mockedRL = checkRateLimit as ReturnType<typeof vi.fn>;
 const mockedTransfer = transferDeso as ReturnType<typeof vi.fn>;
 const mockedSolvency = checkDesoSolvency as ReturnType<typeof vi.fn>;
 
 function makeReq(body: Record<string, unknown>) {
-  return new Request("http://localhost/api/trades/sell", {
+  // F-6: sell route reads req.cookies (NextRequest API). Plain Request
+  // doesn't have .cookies — use NextRequest. Cookie value is arbitrary
+  // because verifyCookie is mocked.
+  return new NextRequest("http://localhost/api/trades/sell", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "cookie": "caldera-session=fake-cookie",
+    },
     body: JSON.stringify(body),
   });
 }
@@ -137,7 +146,12 @@ function openPosition(quantity: number = 100) {
 }
 
 beforeEach(() => {
-  mockedAuth.mockReset().mockReturnValue({ publicKey: PUBKEY });
+  process.env.COOKIE_SIGNING_KEY = "test-key";
+  mockedVerifyCookie.mockReset().mockResolvedValue({
+    publicKey: PUBKEY,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  });
   mockedRL.mockReset().mockResolvedValue({
     allowed: true, remaining: 9, resetAt: Date.now() + 60_000,
   });
@@ -182,7 +196,7 @@ describe("POST /api/trades/sell — atomic sell flow", () => {
   });
 
   it("Gate 2: unauthenticated → 401", async () => {
-    mockedAuth.mockReturnValue(null);
+    mockedVerifyCookie.mockResolvedValue(null);
     const res = await POST(makeReq(validBody()) as never);
     expect(res.status).toBe(401);
   });
