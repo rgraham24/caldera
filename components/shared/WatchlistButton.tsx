@@ -32,12 +32,16 @@ export function WatchlistButton({
     setIsLoading(true);
     try {
       if (isWatched && watchlistId) {
-        await fetch(`/api/watchlist/${watchlistId}`, { method: "DELETE" });
+        await fetch(`/api/watchlist/${watchlistId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
         setIsWatched(false);
         setWatchlistId(null);
       } else {
         const res = await fetch("/api/watchlist", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ entityType, entityId }),
         });

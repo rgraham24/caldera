@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -146,22 +147,30 @@ const createMarketSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    if (!authUser) {
+    // ── Auth: cookie-direct verify (F-6 pattern) ─────────────
+    const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+    const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+    if (!cookie || !signingKey) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    let session;
+    try {
+      session = await verifyCookie(cookie, signingKey);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check admin
-    const { data: dbUser } = await supabase
+    const supabase = createServiceClient();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: dbUser } = await (supabase as any)
       .from("users")
-      .select("is_admin")
-      .eq("id", authUser.id)
-      .single();
+      .select("id, is_admin")
+      .eq("deso_public_key", session.publicKey)
+      .maybeSingle();
 
     if (!dbUser?.is_admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -192,7 +201,7 @@ export async function POST(req: NextRequest) {
         resolution_source_url: d.resolutionSourceUrl,
         close_at: d.closeAt,
         resolve_at: d.resolveAt,
-        created_by_user_id: authUser.id,
+        created_by_user_id: dbUser.id,
         liquidity,
         yes_pool: liquidity,
         no_pool: liquidity,

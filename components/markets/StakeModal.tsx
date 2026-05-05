@@ -148,6 +148,7 @@ export function StakeModal({
         setTxHash(result?.txnHash ?? "");
         fetch("/api/portfolio/coin-purchases", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             creatorId: creator.id,
@@ -176,6 +177,7 @@ export function StakeModal({
         // Decrement coin holding record
         fetch("/api/portfolio/coin-purchases", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             creatorSlug: creator.slug,

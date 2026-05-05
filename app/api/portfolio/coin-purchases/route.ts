@@ -1,36 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/server";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+async function authedUserId(req: NextRequest): Promise<string | null> {
+  const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+  if (!cookie || !signingKey) return null;
+  let session;
+  try {
+    session = await verifyCookie(cookie, signingKey);
+  } catch {
+    return null;
+  }
+  if (!session) return null;
 
-  if (!authUser) {
+  const supabase = createServiceClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: dbUser } = await (supabase as any)
+    .from("users")
+    .select("id")
+    .eq("deso_public_key", session.publicKey)
+    .maybeSingle();
+  return dbUser?.id ?? null;
+}
+
+export async function GET(req: NextRequest) {
+  const userId = await authedUserId(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const supabase = createServiceClient();
   const { data } = await supabase
     .from("user_coin_purchases")
     .select("*, creator:creators(name, slug, deso_username, creator_coin_price, creator_coin_holders, total_coins_in_circulation, deso_public_key)")
-    .eq("user_id", authUser.id)
+    .eq("user_id", userId)
     .order("purchased_at", { ascending: false });
 
   return NextResponse.json({ data: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-
-  if (!authUser) {
+  const userId = await authedUserId(req);
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
 
+  const supabase = createServiceClient();
   const { error } = await supabase.from("user_coin_purchases").insert({
-    user_id: authUser.id,
+    user_id: userId,
     creator_id: body.creatorId,
     deso_username: body.desoUsername,
     coins_purchased: body.coinsPurchased,
@@ -47,12 +67,8 @@ export async function POST(req: NextRequest) {
   const creatorSlug = body.creatorSlug ?? body.desoUsername;
   const buyerPublicKey = body.buyerPublicKey ?? "";
   if (creatorSlug && buyerPublicKey && (body.coinsPurchased ?? 0) > 0) {
-    const supabaseAdmin = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: rpcError } = await (supabaseAdmin as any).rpc("increment_coin_holding", {
+    const { error: rpcError } = await (supabase as any).rpc("increment_coin_holding", {
       p_creator_slug: creatorSlug,
       p_deso_public_key: buyerPublicKey,
       p_deso_username: body.buyerUsername ?? null,

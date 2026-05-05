@@ -26,7 +26,7 @@ export function NotificationBell() {
     if (!isConnected) return;
 
     const fetchNotifications = () => {
-      fetch("/api/alerts/check").catch(() => {});
+      fetch("/api/alerts/check", { credentials: "include" }).catch(() => {});
       // For now, notifications are populated via the check endpoint
       // In production, fetch from /api/notifications
     };

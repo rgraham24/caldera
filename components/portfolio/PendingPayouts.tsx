@@ -113,7 +113,9 @@ export default function PendingPayouts() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/positions/payouts");
+      const res = await fetch("/api/positions/payouts", {
+        credentials: "include",
+      });
       if (!res.ok) {
         setEntries([]);
         return;
@@ -161,6 +163,7 @@ export default function PendingPayouts() {
           `/api/positions/${entry.positionId}/claim-winnings`,
           {
             method: "POST",
+            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: "{}",
           }

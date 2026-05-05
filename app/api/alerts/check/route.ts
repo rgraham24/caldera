@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 
 type AlertRow = {
   id: string;
@@ -9,15 +10,38 @@ type AlertRow = {
   creator: { creator_coin_price: number } | null;
 };
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ data: [] });
+export async function GET(req: NextRequest) {
+  // ── Auth: cookie-direct verify (F-6 pattern) ─────────────
+  // Note: returns empty data (not 401) when unauthenticated, since this
+  // endpoint is polled from a global notification bell that should fail
+  // silently for logged-out visitors.
+  const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+  if (!cookie || !signingKey) return NextResponse.json({ data: [] });
+  let session;
+  try {
+    session = await verifyCookie(cookie, signingKey);
+  } catch {
+    return NextResponse.json({ data: [] });
+  }
+  if (!session) return NextResponse.json({ data: [] });
+
+  const supabase = createServiceClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: dbUser } = await (supabase as any)
+    .from("users")
+    .select("id")
+    .eq("deso_public_key", session.publicKey)
+    .maybeSingle();
+
+  if (!dbUser?.id) return NextResponse.json({ data: [] });
+  const userId = dbUser.id;
 
   const { data: rawAlerts } = await supabase
     .from("user_alerts")
     .select("*, creator:creators(creator_coin_price)")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("is_triggered", false);
 
   const alerts = (rawAlerts as unknown as AlertRow[] | null) ?? [];
@@ -39,7 +63,7 @@ export async function GET() {
         .eq("id", alert.id);
 
       await supabase.from("notifications").insert({
-        user_id: user.id,
+        user_id: userId,
         type: "price_alert",
         title: `$${alert.deso_username} crossed $${alert.target_price_usd}`,
         body: `${alert.alert_type === "above" ? "Above" : "Below"} your target of $${alert.target_price_usd}`,

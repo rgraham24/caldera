@@ -128,7 +128,10 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
         <div className="mt-4 flex items-center gap-2">
           <button
             onClick={async () => {
-              await fetch(`/api/creators/${creator.slug}/watch-claim`, { method: "POST" });
+              await fetch(`/api/creators/${creator.slug}/watch-claim`, {
+                method: "POST",
+                credentials: "include",
+              });
             }}
             className="text-xs text-text-muted hover:text-caldera transition-colors"
           >

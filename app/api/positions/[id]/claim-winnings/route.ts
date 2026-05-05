@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
 import { transferDeso } from "@/lib/deso/transferDeso";
@@ -51,12 +51,22 @@ export async function POST(
     );
   }
 
-  // ── 2. Auth ────────────────────────────────────────────────
-  const authed = getAuthenticatedUser(req);
-  if (!authed) {
+  // ── 2. Auth (cookie-direct verify, F-6 pattern) ────────────
+  const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+  if (!cookie || !signingKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const desoPublicKey = authed.publicKey;
+  let session;
+  try {
+    session = await verifyCookie(cookie, signingKey);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const desoPublicKey = session.publicKey;
 
   // ── 3. Rate limit ──────────────────────────────────────────
   const rl = await checkRateLimit(`claim-winnings:${desoPublicKey}`, "trades");

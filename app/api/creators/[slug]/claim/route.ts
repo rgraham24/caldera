@@ -25,7 +25,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 import { verifyFreshDesoJwt } from "@/lib/auth/deso-jwt";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -55,12 +55,22 @@ export async function POST(
 ) {
   const { slug } = await params;
 
-  // ── 1. Auth (P2-1 cookie) ─────────────────────────────────
-  const authed = getAuthenticatedUser(req);
-  if (!authed) {
+  // ── 1. Auth (P2-1 cookie, direct verify) ──────────────────
+  const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+  if (!cookie || !signingKey) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const desoPublicKey = authed.publicKey;
+  let session;
+  try {
+    session = await verifyCookie(cookie, signingKey);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const desoPublicKey = session.publicKey;
 
   // ── 1b. Auth (P2-5 fresh-JWT) ─────────────────────────────
   let body: z.infer<typeof ClaimBody>;

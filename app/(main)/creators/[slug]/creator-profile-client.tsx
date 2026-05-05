@@ -133,6 +133,7 @@ export function CreatorProfileClient({
 
       const res = await fetch(`/api/creators/${creator.slug}/claim`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ desoJwt }),
       });

@@ -317,6 +317,7 @@ export function AdminActions() {
     try {
       const res = await fetch("/api/markets", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: market.title,
