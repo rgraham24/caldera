@@ -181,7 +181,12 @@ export async function POST(req: NextRequest) {
   }
   const position = posQ.data;
 
-  if (position.quantity < body.shares) {
+  // F-10: tolerate small float-precision overshoots from the Max button
+  // (client-side toFixed/multiplication can produce a value microscopically
+  // above the stored quantity). Within tolerance, clamp to the actual
+  // quantity. Beyond tolerance, refuse.
+  const SHARES_TOLERANCE = 0.0001;
+  if (body.shares > position.quantity + SHARES_TOLERANCE) {
     return NextResponse.json(
       {
         error: "Not enough shares",
@@ -198,7 +203,8 @@ export async function POST(req: NextRequest) {
   // AMM-on-sells is a separate design decision worthy of its own commit.
   // The SETTLE RPC still updates the market row (volume bump + price
   // history snapshot) but pool/price values are unchanged.
-  const sharesToSell = body.shares;
+  // Clamp requested shares to actual quantity (covers within-tolerance overshoots).
+  const sharesToSell = Math.min(body.shares, position.quantity);
   const currentPrice =
     body.side === "yes"
       ? Number(market.yes_price ?? 0.5)
