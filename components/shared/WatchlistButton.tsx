@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store";
@@ -24,6 +24,32 @@ export function WatchlistButton({
   const [error, setError] = useState<string | null>(null);
   const [justAdded, setJustAdded] = useState(false);
   const { isConnected } = useAppStore();
+
+  // Hydrate initial state from server: if the user already has this entity
+  // in their watchlist, render as "Watching" on first paint.
+  useEffect(() => {
+    if (!isConnected) return;
+    let cancelled = false;
+    fetch(`/api/watchlist?entityId=${encodeURIComponent(entityId)}`, {
+      credentials: "include",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json) return;
+        const rows = Array.isArray(json.data) ? json.data : [];
+        const row = rows.find(
+          (r: { entity_type?: string }) => r.entity_type === entityType
+        );
+        if (row) {
+          setIsWatched(true);
+          setWatchlistId(row.id);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, entityId, entityType]);
 
   const toggle = async () => {
     if (!isConnected) {

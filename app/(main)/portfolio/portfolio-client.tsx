@@ -93,6 +93,16 @@ export function PortfolioClient() {
       .finally(() => setLoading(false));
   }, [desoPublicKey]);
 
+  useEffect(() => {
+    if (!desoPublicKey) return;
+    fetch("/api/watchlist", { credentials: "include" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (Array.isArray(json.data)) setWatchlist(json.data as WatchlistItem[]);
+      })
+      .catch(() => {});
+  }, [desoPublicKey]);
+
   const openTradeModal = async (pos: Position, mode: "buy" | "sell") => {
     setModalLoading(true);
     try {
