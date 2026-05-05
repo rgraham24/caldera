@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { CommentWithUser, Creator } from "@/types";
 import { MarketComments } from "./MarketComments";
-import { formatCurrency, formatRelativeTime, cn } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 
 type MarketTabsProps = {
   marketId: string;
@@ -11,31 +11,19 @@ type MarketTabsProps = {
   creator: Creator | null;
 };
 
-type Trade = { id: string; side: string; gross_amount: number; created_at: string };
-
 export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
   const [tab, setTab] = useState<"comments" | "activity" | "holders">("comments");
-  const [trades, setTrades] = useState<Trade[]>([]);
   const [holders, setHolders] = useState<Array<{ username: string; balanceCoins: number; percentOwned: number; valueUSD: number }>>([]);
-  const [loadingTrades, setLoadingTrades] = useState(false);
   const [loadingHolders, setLoadingHolders] = useState(false);
 
   useEffect(() => {
-    if (tab === "activity" && trades.length === 0) {
-      fetch(`/api/comments/${marketId}`)
-        .then(() => {
-          // Use trades endpoint — for now show seed trades
-          // In production this would be a dedicated trades-by-market endpoint
-        })
-        .finally(() => setLoadingTrades(false));
-    }
     if (tab === "holders" && creator?.slug && holders.length === 0) {
       fetch(`/api/creators/${creator.slug}/holders`)
         .then((r) => r.json())
         .then(({ data }) => setHolders(data || []))
         .finally(() => setLoadingHolders(false));
     }
-  }, [tab, marketId, creator?.slug, trades.length, holders.length]);
+  }, [tab, creator?.slug, holders.length]);
 
   const tabs = [
     { key: "comments" as const, label: `Comments (${comments.length})` },
@@ -70,32 +58,9 @@ export function MarketTabs({ marketId, comments, creator }: MarketTabsProps) {
 
       {/* Activity */}
       {tab === "activity" && (
-        <div className="space-y-2">
-          {loadingTrades ? (
-            <p className="py-8 text-center text-sm text-text-muted">Loading...</p>
-          ) : (
-            <>
-              <p className="mb-3 text-xs text-text-muted">Recent trades on this market</p>
-              {comments.length === 0 && trades.length === 0 ? (
-                <p className="py-8 text-center text-sm text-text-muted">No activity yet</p>
-              ) : (
-                /* Show seed trade-like data from comments as activity placeholders */
-                comments.slice(0, 10).map((c, i) => (
-                  <div key={c.id} className="flex items-center gap-2 text-sm text-text-muted">
-                    <span className={cn("font-semibold", i % 2 === 0 ? "text-yes" : "text-no")}>
-                      {i % 2 === 0 ? "YES" : "NO"}
-                    </span>
-                    <span>Trader_{c.user_id.slice(-4)}</span>
-                    <span>·</span>
-                    <span className="font-mono">{formatCurrency((parseInt(c.id.slice(-4), 16) % 180) + 20)}</span>
-                    <span>·</span>
-                    <span>{formatRelativeTime(c.created_at ?? "")}</span>
-                  </div>
-                ))
-              )}
-            </>
-          )}
-        </div>
+        <p className="py-8 text-center text-sm text-text-muted">
+          Trade activity coming soon
+        </p>
       )}
 
       {/* Top Holders */}
