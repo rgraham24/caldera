@@ -18,35 +18,46 @@ export function MarketComments({
   const [comments, setComments] = useState(initialComments);
   const [body, setBody] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { isConnected, user } = useAppStore();
+  const [error, setError] = useState<string | null>(null);
+  const { isConnected } = useAppStore();
 
   const handleSubmit = async () => {
     if (!body.trim() || !isConnected) return;
     setIsSubmitting(true);
+    setError(null);
 
     try {
       const res = await fetch("/api/comments", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ marketId, body: body.trim() }),
       });
 
-      if (res.ok) {
-        const { data } = await res.json();
-        setComments((prev) => [
-          {
-            ...data,
-            user: {
-              id: user!.id,
-              username: user!.username,
-              avatar_url: user!.avatar_url,
-              is_verified: user!.is_verified,
-            },
-          },
-          ...prev,
-        ]);
-        setBody("");
+      if (!res.ok) {
+        setError("Couldn't post comment. Try again.");
+        return;
       }
+
+      // Refetch the joined list rather than building an optimistic row —
+      // the POST response is the raw market_comments row with no user join,
+      // so prepending it locally was producing malformed CommentWithUser.
+      setBody("");
+      try {
+        const listRes = await fetch(`/api/comments/${marketId}`, {
+          credentials: "include",
+        });
+        if (listRes.ok) {
+          const { data } = await listRes.json();
+          if (Array.isArray(data)) {
+            setComments(data as CommentWithUser[]);
+          }
+        }
+      } catch {
+        // Swallow — comment is saved server-side; next page load will show it.
+      }
+    } catch {
+      setError("Couldn't post comment. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -62,11 +73,17 @@ export function MarketComments({
         <div className="mb-6">
           <textarea
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => {
+              setBody(e.target.value);
+              if (error) setError(null);
+            }}
             placeholder="Share your take..."
             rows={3}
             className="w-full rounded-lg border border-border-subtle bg-surface p-3 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none focus:ring-1 focus:ring-caldera resize-none"
           />
+          {error && (
+            <p className="mt-2 text-xs text-no">{error}</p>
+          )}
           <div className="mt-2 flex justify-end">
             <Button
               size="sm"
