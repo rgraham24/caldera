@@ -7,7 +7,7 @@ import {
   transferBoughtCoinsToCreator,
 } from "@/lib/deso/buyback";
 import { z } from "zod";
-import { getAuthenticatedUser } from "@/lib/auth";
+import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyDesoTransfer } from "@/lib/deso/verifyTx";
 import { fetchDesoUsdRate, usdToDesoNanos } from "@/lib/deso/rate";
@@ -35,11 +35,22 @@ export async function POST(req: NextRequest) {
 
     const { marketId, side, amount, txnHash } = parsed.data;
 
-    const authed = getAuthenticatedUser(req);
-    if (!authed) {
+    // ── Auth: cookie-direct verify (F-6 pattern) ─────────────
+    const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+    const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
+    if (!cookie || !signingKey) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const desoPublicKey = authed.publicKey;
+    let session;
+    try {
+      session = await verifyCookie(cookie, signingKey);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const desoPublicKey = session.publicKey;
 
     // ── P2-3.3: per-user rate limit ──────────────────────────────
     const rl = await checkRateLimit(`trades:${desoPublicKey}`, "trades");
