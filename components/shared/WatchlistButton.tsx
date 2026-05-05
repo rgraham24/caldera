@@ -21,6 +21,8 @@ export function WatchlistButton({
   const [isWatched, setIsWatched] = useState(initialWatched);
   const [watchlistId, setWatchlistId] = useState(initialWatchlistId);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [justAdded, setJustAdded] = useState(false);
   const { isConnected } = useAppStore();
 
   const toggle = async () => {
@@ -30,12 +32,18 @@ export function WatchlistButton({
     }
 
     setIsLoading(true);
+    setError(null);
+    setJustAdded(false);
     try {
       if (isWatched && watchlistId) {
-        await fetch(`/api/watchlist/${watchlistId}`, {
+        const res = await fetch(`/api/watchlist/${watchlistId}`, {
           method: "DELETE",
           credentials: "include",
         });
+        if (!res.ok) {
+          setError("Couldn't update watchlist. Try again.");
+          return;
+        }
         setIsWatched(false);
         setWatchlistId(null);
       } else {
@@ -45,31 +53,43 @@ export function WatchlistButton({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ entityType, entityId }),
         });
-        if (res.ok) {
-          const { data } = await res.json();
-          setIsWatched(true);
-          setWatchlistId(data.id);
+        if (!res.ok) {
+          setError("Couldn't update watchlist. Try again.");
+          return;
         }
+        const { data } = await res.json();
+        setIsWatched(true);
+        setWatchlistId(data.id);
+        setJustAdded(true);
+        setTimeout(() => setJustAdded(false), 2000);
       }
+    } catch {
+      setError("Couldn't update watchlist. Try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={toggle}
-      disabled={isLoading}
-      className={isWatched ? "text-caldera" : "text-text-muted hover:text-text-primary"}
-    >
-      {isWatched ? (
-        <BookmarkCheck className="mr-1.5 h-4 w-4" />
-      ) : (
-        <Bookmark className="mr-1.5 h-4 w-4" />
+    <div className="inline-flex flex-col items-start">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={toggle}
+        disabled={isLoading}
+        className={isWatched ? "text-caldera" : "text-text-muted hover:text-text-primary"}
+      >
+        {isWatched ? (
+          <BookmarkCheck className="mr-1.5 h-4 w-4" />
+        ) : (
+          <Bookmark className="mr-1.5 h-4 w-4" />
+        )}
+        {isWatched ? "Watching" : "Watch"}
+      </Button>
+      {error && <span className="mt-1 text-xs text-no">{error}</span>}
+      {!error && justAdded && (
+        <span className="mt-1 text-xs text-caldera">✓ Added</span>
       )}
-      {isWatched ? "Watching" : "Watch"}
-    </Button>
+    </div>
   );
 }

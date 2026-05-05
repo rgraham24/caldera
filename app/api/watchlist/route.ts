@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const watchlistSchema = z.object({
   entityType: z.enum(["market", "creator", "user"]),
-  entityId: z.string().uuid(),
+  entityId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
 });
 
 export async function POST(req: NextRequest) {
