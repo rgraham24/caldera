@@ -522,7 +522,7 @@ export function PortfolioClient() {
             <div className="rounded-xl border border-border-subtle bg-surface px-5 py-10 text-center">
               <p className="text-sm text-text-muted">No creator coin holdings found.</p>
               <p className="mt-1 text-xs text-text-muted">
-                Buy creator coins on the Tokens page to see them here.
+                Buy creator coins on the Coins page to see them here.
               </p>
             </div>
           ) : (

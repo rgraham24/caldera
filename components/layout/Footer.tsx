@@ -40,7 +40,7 @@ export function Footer() {
             <div className="space-y-2.5">
               {[
                 { href: "/markets", label: "Markets" },
-                { href: "/creators", label: "Tokens" },
+                { href: "/creators", label: "Coins" },
                 { href: "/leaderboard", label: "Leaderboard" },
               ].map((link) => (
                 <Link

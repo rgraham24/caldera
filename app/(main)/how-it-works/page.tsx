@@ -148,8 +148,8 @@ export default function HowItWorksPage() {
               a: "Yes — if your prediction is wrong, your shares are worth $0. Never predict more than you can afford to lose.",
             },
             {
-              q: "What are tokens?",
-              a: "Tokens are on-chain assets tied to creators and public figures. Prediction fees flow back into them automatically based on market activity.",
+              q: "What are coins?",
+              a: "Coins are on-chain assets tied to creators and public figures. Prediction fees flow back into them automatically based on market activity.",
             },
           ].map((item) => (
             <div key={item.q} className="rounded-xl border border-border-subtle/30 bg-surface p-4">
@@ -163,13 +163,13 @@ export default function HowItWorksPage() {
       {/* CTA */}
       <div className="mt-12 rounded-2xl border border-border-subtle/30 bg-surface p-10 text-center space-y-4">
         <h2 className="font-display text-2xl font-semibold text-text-primary">Ready to start?</h2>
-        <p className="text-text-muted">Browse tokens, pick markets, and earn from being right.</p>
+        <p className="text-text-muted">Browse coins, pick markets, and earn from being right.</p>
         <div className="flex flex-wrap gap-4 justify-center pt-2">
           <Link
             href="/creators"
             className="inline-block rounded-xl bg-caldera px-6 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
           >
-            Browse Tokens →
+            Browse Coins →
           </Link>
           <Link
             href="/markets"

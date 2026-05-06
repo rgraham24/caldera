@@ -169,7 +169,7 @@ function SearchBox({
             }
           }
         }}
-        placeholder="Search markets, creators, tokens..."
+        placeholder="Search markets, creators, coins..."
         autoFocus={autoFocus}
         className="w-full rounded-lg border py-1.5 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all"
         style={{ background: "var(--bg-surface)", borderColor: showDropdown ? "var(--border-strong)" : "var(--border-subtle)" }}

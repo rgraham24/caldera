@@ -300,7 +300,7 @@ function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: C
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <TrendingUp className="h-3.5 w-3.5 text-[var(--accent)]" />
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">Trending Tokens</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">Trending Coins</h3>
         </div>
         <span className="text-[10px] text-[var(--text-tertiary)]">price · momentum</span>
       </div>
@@ -429,7 +429,7 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
       {/* Header */}
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 pb-3 md:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Tokens</span>
+          <span className="text-xs font-semibold text-[var(--text-tertiary)]">🔥 Trending Coins</span>
           <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400">
             <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
             LIVE
