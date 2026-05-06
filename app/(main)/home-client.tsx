@@ -257,7 +257,7 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
 
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
-const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "companies", "climate", "new", "following"];
+const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "companies", "new", "following"];
 
 // ─── Trending tokens sidebar ──────────────────────────────────────────────────
 
@@ -867,7 +867,6 @@ export function HomeClient({
                 { value: "politics", label: "Politics" },
                 { value: "sports", label: "Sports" },
                 { value: "music", label: "Music" },
-                { value: "climate", label: "Climate" },
                 { value: "companies", label: "Companies" },
                 { value: "tech", label: "Tech" },
                 { value: "entertainment", label: "Entertainment" },
