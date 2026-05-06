@@ -34,6 +34,21 @@ export function CreatorPicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Phase 3 client dedupe — Phase 5 will add unique constraint at DB level.
+  // Search results are ordered by markets_count DESC; first occurrence per
+  // deso_public_key is the most-active row, which is the desired canonical
+  // pick for an admin selecting a creator to attach a market to.
+  const dedupeByPubkey = (rows: PickerCreator[]): PickerCreator[] => {
+    const seen = new Set<string>();
+    const out: PickerCreator[] = [];
+    for (const r of rows) {
+      if (!r.deso_public_key || seen.has(r.deso_public_key)) continue;
+      seen.add(r.deso_public_key);
+      out.push(r);
+    }
+    return out;
+  };
+
   // Debounced search
   const fetchResults = useCallback(async (q: string) => {
     setIsLoading(true);
@@ -48,7 +63,7 @@ export function CreatorPicker({
         setError(data.error ?? "Search failed");
         setResults([]);
       } else {
-        setResults(data.creators ?? []);
+        setResults(dedupeByPubkey(data.creators ?? []));
       }
     } catch (err) {
       setError(String(err));

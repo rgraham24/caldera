@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { HomeClient } from "./home-client";
+import {
+  fetchVerifiedCreatorSlugs,
+  filterVerifiedMarkets,
+  dedupeCreatorsByPubkey,
+} from "@/lib/creators/validity";
 import type { Market, Creator } from "@/types";
 
 export default async function HomePage() {
@@ -55,12 +60,12 @@ export default async function HomePage() {
   ]);
 
   // FIX 1: Dedup breaking markets by id, keep first 3
-  const breakingMarkets = (breakingRaw ?? [])
+  const breakingDeduped = (breakingRaw ?? [])
     .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i)
     .slice(0, 3) as Market[];
 
   // FIX 3: Look up creator slugs for markets that have a creator_id
-  const allRaw = [...(heroRaw ?? []), ...(initialRaw ?? [])];
+  const allRaw = [...(heroRaw ?? []), ...(initialRaw ?? []), ...breakingDeduped];
   const creatorIds = [
     ...new Set(
       allRaw.map((m) => m.creator_id).filter((id): id is string => Boolean(id))
@@ -81,13 +86,20 @@ export default async function HomePage() {
     creator_slug: m.creator_id ? (creatorSlugMap[m.creator_id] ?? null) : null,
   });
 
+  // Phase 3 defense-in-depth — drop markets attached to unverified creators.
+  // Becomes redundant after Phase 4 cleans data.
+  const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
+  const heroMarkets = filterVerifiedMarkets((heroRaw ?? []).map(withSlug), verifiedSlugs);
+  const initialMarkets = filterVerifiedMarkets((initialRaw ?? []).map(withSlug), verifiedSlugs);
+  const breakingMarkets = filterVerifiedMarkets(breakingDeduped.map(withSlug), verifiedSlugs);
+
   return (
     <HomeClient
-      heroMarkets={(heroRaw ?? []).map(withSlug)}
+      heroMarkets={heroMarkets}
       breakingMarkets={breakingMarkets}
-      trendingCreators={(trendingCreators ?? []) as Creator[]}
-      tokenStripCreators={(tokenStripCreators ?? []) as Creator[]}
-      initialMarkets={(initialRaw ?? []).map(withSlug)}
+      trendingCreators={dedupeCreatorsByPubkey((trendingCreators ?? []) as Creator[])}
+      tokenStripCreators={dedupeCreatorsByPubkey((tokenStripCreators ?? []) as Creator[])}
+      initialMarkets={initialMarkets}
     />
   );
 }

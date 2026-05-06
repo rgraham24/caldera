@@ -70,8 +70,35 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
     setStakeCreator(c);
   };
 
+  // Phase 3 client dedupe — Phase 5 will add unique constraint at DB level.
+  // Group by deso_public_key, pick the freshest row per group (highest
+  // coin_data_updated_at, falling back to created_at). Rows with no
+  // deso_public_key are passed through untouched (defensive — they'd
+  // already be dropped by the verified-for-markets filter upstream, but
+  // not deduping them keeps the contract simple).
+  const dedupedCreators = useMemo(() => {
+    const byKey = new Map<string, Creator>();
+    const passthrough: Creator[] = [];
+    for (const c of creators) {
+      const key = c.deso_public_key;
+      if (!key) {
+        passthrough.push(c);
+        continue;
+      }
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, c);
+        continue;
+      }
+      const ts = (x: Creator) =>
+        new Date(x.coin_data_updated_at ?? x.created_at ?? 0).getTime();
+      if (ts(c) > ts(existing)) byKey.set(key, c);
+    }
+    return [...byKey.values(), ...passthrough];
+  }, [creators]);
+
   const filtered = useMemo(() => {
-    let result = [...creators];
+    let result = [...dedupedCreators];
     if (tierFilter === "sports") {
       result = result.filter((c) => c.category === "sports" || c.sport);
     } else if (tierFilter === "creators") {
@@ -94,7 +121,7 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
       case "newest": result.sort((a, b) => new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime()); break;
     }
     return result;
-  }, [creators, tierFilter, sortBy, search]);
+  }, [dedupedCreators, tierFilter, sortBy, search]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">

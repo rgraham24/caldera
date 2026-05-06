@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
+import {
+  fetchVerifiedCreatorSlugs,
+  filterVerifiedMarkets,
+} from "@/lib/creators/validity";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -15,7 +19,8 @@ export async function GET(req: NextRequest) {
   const desoPublicKey = searchParams.get("desoPublicKey");
   const creatorSlug = searchParams.get("creatorSlug");
 
-  // Creator feed: fetch markets for a specific creator by slug
+  // Creator feed: fetch markets for a specific creator by slug.
+  // Phase 3 defense-in-depth — becomes redundant after Phase 4 cleans data.
   if (creatorSlug) {
     const { data: creatorRow } = await supabase
       .from("creators")
@@ -33,7 +38,8 @@ export async function GET(req: NextRequest) {
       .limit(limit);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [] });
+    const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
+    return NextResponse.json({ data: filterVerifiedMarkets(data ?? [], verifiedSlugs) });
   }
 
   // Following feed: fetch followed slugs → get matching creator names → title-match markets
@@ -69,7 +75,10 @@ export async function GET(req: NextRequest) {
       names.some((name) => m.title.toLowerCase().includes(name.toLowerCase()))
     );
 
-    return NextResponse.json({ data: filtered.slice(offset, offset + limit) });
+    // Phase 3 defense-in-depth — drop orphan markets attached to unverified creators.
+    const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
+    const verified = filterVerifiedMarkets(filtered, verifiedSlugs);
+    return NextResponse.json({ data: verified.slice(offset, offset + limit) });
   }
 
   let query = supabase.from("markets").select("*").eq("status", status);
@@ -122,8 +131,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Phase 3 defense-in-depth — drop markets attached to unverified creators.
+  // Becomes redundant after Phase 4 cleans data.
+  const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
+  const verifiedData = filterVerifiedMarkets(data ?? [], verifiedSlugs);
+
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const enriched = (data ?? []).map((m) => ({
+  const enriched = verifiedData.map((m) => ({
     ...m,
     is_breaking: (m.created_at ?? "") > twoHoursAgo && (m.trending_score ?? 0) > 20,
   }));

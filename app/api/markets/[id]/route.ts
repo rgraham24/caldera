@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+// Single-market lookup — intentionally not filtered by creator verification.
+// Users with positions on orphan markets need to access the detail page.
+// Trade-ticket gate still prevents new buys via market.status === 'open'.
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

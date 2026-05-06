@@ -141,6 +141,71 @@ export const VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG =
   '("archived","speculation_pool","pending_deso_creation")';
 
 /**
+ * Fetches the set of creator slugs currently verified for markets. Use this
+ * to post-filter market lists that were fetched without a creator join, e.g.
+ * the homepage and /markets listing pages. Cheap — single indexed scan.
+ *
+ * Phase 3 defense-in-depth — becomes redundant after Phase 4 cleans data.
+ */
+export async function fetchVerifiedCreatorSlugs(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("creators")
+    .select("slug")
+    .not("deso_public_key", "is", null)
+    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+    .or(VERIFIED_FOR_MARKETS_OR);
+  return new Set(((data ?? []) as Array<{ slug: string }>).map((c) => c.slug));
+}
+
+/**
+ * Filter a market list to only those attached to verified creators. Markets
+ * without a creator_slug, or whose creator_slug is unknown to the verified
+ * set, are dropped.
+ *
+ * Phase 3 defense-in-depth — becomes redundant after Phase 4 cleans data.
+ */
+export function filterVerifiedMarkets<T extends { creator_slug?: string | null }>(
+  markets: T[],
+  verifiedSlugs: Set<string>
+): T[] {
+  return markets.filter((m) => !!m.creator_slug && verifiedSlugs.has(m.creator_slug));
+}
+
+/**
+ * Dedupe a list of creator rows by deso_public_key, picking the freshest
+ * row per group (highest coin_data_updated_at, falling back to created_at).
+ * Rows without a deso_public_key are passed through untouched.
+ *
+ * Phase 3 defense-in-depth — Phase 5 will add a unique constraint at the
+ * DB level, after which this helper can be retired.
+ */
+export function dedupeCreatorsByPubkey<
+  T extends {
+    deso_public_key?: string | null;
+    coin_data_updated_at?: string | null;
+    created_at?: string | null;
+  },
+>(creators: T[]): T[] {
+  const byKey = new Map<string, T>();
+  const passthrough: T[] = [];
+  const ts = (x: T) =>
+    new Date(x.coin_data_updated_at ?? x.created_at ?? 0).getTime();
+  for (const c of creators) {
+    const key = c.deso_public_key;
+    if (!key) {
+      passthrough.push(c);
+      continue;
+    }
+    const existing = byKey.get(key);
+    if (!existing || ts(c) > ts(existing)) byKey.set(key, c);
+  }
+  return [...byKey.values(), ...passthrough];
+}
+
+/**
  * @deprecated Use {@link isVerifiedForMarkets} / {@link creatorIsVerifiedForMarkets}
  * instead.
  *
