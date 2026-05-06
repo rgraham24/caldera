@@ -1396,15 +1396,22 @@ async function insertMarkets(
     console.log(`[insertMarkets] Fuzzy match: ${entityName} → ${finalCreatorSlug}`);
   }
 
-  // Fail-closed: pre-fetch all verified-for-markets creator slugs. Markets
-  // pinned to slugs outside this set are skipped. See lib/creators/validity.ts.
+  // Fail-closed: pre-fetch all verified-for-markets creators (slug + id).
+  // Markets pinned to slugs outside this set are skipped. The id is used to
+  // populate markets.creator_id from the resolved finalCreatorSlug — without
+  // this, rows that go through fuzzy slug resolution end up with creator_id
+  // null even when creator_slug is valid (audit 2026-05-06).
+  // See lib/creators/validity.ts.
   const { data: validCreators } = await supabase
     .from("creators")
-    .select("slug")
+    .select("id, slug")
     .not("deso_public_key", "is", null)
     .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
     .or(VERIFIED_FOR_MARKETS_OR);
   const validSlugs = new Set((validCreators ?? []).map((c) => c.slug));
+  const slugToId = new Map(
+    (validCreators ?? []).map((c) => [c.slug as string, c.id as string])
+  );
 
   let created = 0;
   for (const market of markets) {
@@ -1473,7 +1480,6 @@ async function insertMarkets(
     const effectiveLeagueSlug = finalLeagueSlug ?? null;
 
     if (isSpeculationPool) row.is_speculation_pool = true;
-    if (creatorId) row.creator_id = creatorId;
     if (
       !finalCreatorSlug ||
       !isValidDesoSlug(finalCreatorSlug) ||
@@ -1486,8 +1492,31 @@ async function insertMarkets(
       continue;
     }
     row.creator_slug = finalCreatorSlug;
+
+    // Resolve creator_id from the validated finalCreatorSlug. The original
+    // creatorId parameter is keyed off the upstream profile, which can be
+    // null OR point at a different (pre-fuzzy-match) slug. Always derive
+    // creator_id from finalCreatorSlug for consistency.
+    const resolvedCreatorId = slugToId.get(finalCreatorSlug) ?? creatorId ?? null;
+    if (!resolvedCreatorId) {
+      console.warn(
+        `[pipeline] SKIP market "${market.title}": no creator_id for slug "${finalCreatorSlug}" (slug passed validSlugs but missing from slugToId map — race?)`
+      );
+      continue;
+    }
+    row.creator_id = resolvedCreatorId;
+
     if (teamSlug) row.team_creator_slug = teamSlug;
     if (effectiveLeagueSlug) row.league_creator_slug = effectiveLeagueSlug;
+
+    // Runtime assertion: never insert a binary market with null creator_id.
+    if (!row.creator_id) {
+      console.error(
+        `[pipeline] FATAL: row.creator_id null for market "${market.title}" — refusing insert`
+      );
+      continue;
+    }
+
     const { error } = await supabase.from("markets").insert(row);
     if (!error) created++;
   }
