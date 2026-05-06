@@ -81,9 +81,17 @@ export default async function HomePage() {
       creatorSlugMap[c.id] = c.slug;
     }
   }
+  // Use the denormalized creator_slug if present (the source of truth
+  // since markets.creator_slug is filled in on insert). Fall back to
+  // id-lookup only for legacy rows that have creator_id but no slug.
+  // Inverting this caused Phase 3's verification filter to drop hero
+  // markets when creator_id pointed at archived creator rows after
+  // Phase 4b's dedupe.
   const withSlug = (m: Market): Market => ({
     ...m,
-    creator_slug: m.creator_id ? (creatorSlugMap[m.creator_id] ?? null) : null,
+    creator_slug:
+      m.creator_slug ??
+      (m.creator_id ? (creatorSlugMap[m.creator_id] ?? null) : null),
   });
 
   // Phase 3 defense-in-depth — drop markets attached to unverified creators.
