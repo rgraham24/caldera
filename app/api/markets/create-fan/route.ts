@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
-import { creatorExistsAndValid } from '@/lib/creators/validity';
+import { creatorIsVerifiedForMarkets } from '@/lib/creators/validity';
 
 /** Stable 8-char hex fingerprint of the IP — good enough for rate limiting. */
 async function hashIp(ip: string): Promise<string> {
@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // Fail-closed: creator must exist AND be valid. See lib/creators/validity.ts.
-    const validation = await creatorExistsAndValid(supabase, creatorSlug);
+    // Fail-closed: creator must be verified for markets. See lib/creators/validity.ts.
+    const validation = await creatorIsVerifiedForMarkets(creatorSlug, supabase);
     if (!validation.valid) {
       return NextResponse.json(
         {

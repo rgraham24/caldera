@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
-import { creatorExistsAndValid } from "@/lib/creators/validity";
+import { creatorIsVerifiedForMarkets } from "@/lib/creators/validity";
 
 export async function POST(req: Request) {
   const adminPassword = process.env.ADMIN_PASSWORD ?? "caldera-admin-2026";
@@ -58,14 +58,14 @@ export async function POST(req: Request) {
 
   const supabase = await createClient();
 
-  // Fail-closed: creator must exist AND be valid (deso_public_key set,
-  // token_status in active set). See lib/creators/validity.ts.
-  const validation = await creatorExistsAndValid(supabase, creatorSlug);
+  // Fail-closed: creator must be verified for markets (BitClout-reserved,
+  // admin-approved, or claimed). See lib/creators/validity.ts.
+  const validation = await creatorIsVerifiedForMarkets(creatorSlug, supabase);
   if (!validation.valid) {
     return NextResponse.json(
       {
         error: `Invalid creator: ${creatorSlug} — ${validation.reason}${
-          validation.status ? ` (status: ${validation.status})` : ""
+          validation.detail ? ` (${validation.detail})` : ""
         }`,
       },
       { status: 400 }

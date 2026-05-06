@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  VERIFIED_FOR_MARKETS_OR,
+  VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG,
+} from "@/lib/creators/validity";
 
 export async function GET() {
   const supabase = await createClient();
@@ -7,9 +11,10 @@ export async function GET() {
   const { data, error } = await supabase
     .from("creators")
     .select("*")
-    .not("entity_type", "eq", "category")
-    .not("token_status", "in", '("archived","speculation_pool","shadow")')
-    .or("token_status.neq.pending_deso_creation,markets_count.gt.0")
+    .neq("entity_type", "category")
+    .not("deso_public_key", "is", null)
+    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+    .or(VERIFIED_FOR_MARKETS_OR)
     .order("creator_coin_price", { ascending: false });
 
   if (error) {

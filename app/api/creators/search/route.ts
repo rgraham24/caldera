@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { VALID_TOKEN_STATUSES } from "@/lib/creators/validity";
+import {
+  VERIFIED_FOR_MARKETS_OR,
+  VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG,
+} from "@/lib/creators/validity";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +37,8 @@ export async function GET(req: Request) {
     )
     .not("deso_public_key", "is", null)
     .neq("entity_type", "category")
-    .in("token_status", VALID_TOKEN_STATUSES as unknown as string[])
+    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+    .or(VERIFIED_FOR_MARKETS_OR)
     .order("markets_count", { ascending: false, nullsFirst: false })
     .limit(20);
 

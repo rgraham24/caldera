@@ -3,61 +3,87 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * Single source of truth for "which creators can have markets attached."
  *
- * A creator is valid for market association if:
- *   1. They have a real DeSo identity (deso_public_key is set)
- *   2. Their token_status is in our active set
+ * The locked v2 rule (2026-05-04): a creator is verified for markets if
+ *   1. They have a real DeSo identity (deso_public_key set), AND
+ *   2. At least ONE of:
+ *      - deso_is_reserved = TRUE          (BitClout-original reserved profile)
+ *      - verification_status = 'approved' (manually approved by Caldera admin)
+ *      - claim_status = 'claimed'          (already claimed via DeSo JWT proof)
+ *   3. token_status NOT IN ('archived', 'speculation_pool', 'pending_deso_creation')
+ *
+ * Squatter accounts — self-created DeSo profiles that posted but were
+ * neither BitClout-reserved nor admin-approved — fail clause 2.
  *
  * Used by:
  *   - app/api/creators/search/route.ts (creator picker backend)
+ *   - app/api/creators/list/route.ts (public /creators listing)
  *   - app/api/markets/admin-create/route.ts (admin form)
  *   - app/api/markets/create-fan/route.ts (user-created markets)
  *   - lib/admin/pipeline.ts (autonomous market generation)
- *
- * Locked decision (2026-05-04): No market may be inserted without a valid
- * creator. This prevents fees from routing to non-existent profiles or
- * squatter accounts. Theme creators, title-extraction artifacts, and
- * unverified placeholders are all rejected by this rule.
  */
 
-export const VALID_TOKEN_STATUSES = [
-  "active_unverified",
-  "active_verified",
-  "claimed",
-] as const;
+const EXCLUDED_TOKEN_STATUSES = new Set<string>([
+  "archived",
+  "speculation_pool",
+  "pending_deso_creation",
+]);
 
-export type ValidTokenStatus = (typeof VALID_TOKEN_STATUSES)[number];
+export type VerifiedCreatorFields = {
+  deso_public_key: string | null;
+  deso_is_reserved?: boolean | null;
+  verification_status?: string | null;
+  claim_status?: string | null;
+  token_status?: string | null;
+};
 
 /**
  * Pure synchronous check — given a creator object already fetched from DB,
- * decide if it's valid for market association.
+ * decide if it's verified for market association.
  */
-export function isValidCreatorForMarkets(creator: {
-  deso_public_key: string | null;
-  token_status: string | null;
-}): boolean {
+export function isVerifiedForMarkets(creator: VerifiedCreatorFields): boolean {
   if (!creator.deso_public_key) return false;
-  if (!creator.token_status) return false;
-  return (VALID_TOKEN_STATUSES as readonly string[]).includes(creator.token_status);
+  if (creator.token_status && EXCLUDED_TOKEN_STATUSES.has(creator.token_status)) {
+    return false;
+  }
+  return Boolean(
+    creator.deso_is_reserved === true ||
+      creator.verification_status === "approved" ||
+      creator.claim_status === "claimed"
+  );
 }
 
 /**
- * Async DB check — given a slug, look up the creator and check validity.
- * Returns { valid: false } for missing creators, invalid status, or no DeSo key.
+ * Async DB check — given a slug, look up the creator and check verification.
+ * Returns { valid: false } for missing creators or unverified state.
  * Returns { valid: true, creator: {...} } when the creator passes.
  *
  * Use this from API routes before allowing market inserts.
  */
-export async function creatorExistsAndValid(
-  supabase: SupabaseClient,
-  slug: string
+export async function creatorIsVerifiedForMarkets(
+  slug: string,
+  supabase: SupabaseClient
 ): Promise<
-  | { valid: true; creator: { id: string; slug: string; deso_public_key: string; token_status: string } }
-  | { valid: false; reason: "not_found" | "no_deso_key" | "invalid_status"; status?: string }
+  | {
+      valid: true;
+      creator: {
+        id: string;
+        slug: string;
+        deso_public_key: string;
+        token_status: string | null;
+      };
+    }
+  | {
+      valid: false;
+      reason: "not_found" | "not_verified";
+      detail?: string;
+    }
 > {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("creators")
-    .select("id, slug, deso_public_key, token_status")
+    .select(
+      "id, slug, deso_public_key, deso_is_reserved, verification_status, claim_status, token_status"
+    )
     .eq("slug", slug)
     .maybeSingle();
 
@@ -65,12 +91,12 @@ export async function creatorExistsAndValid(
     return { valid: false, reason: "not_found" };
   }
 
-  if (!data.deso_public_key) {
-    return { valid: false, reason: "no_deso_key", status: data.token_status ?? undefined };
-  }
-
-  if (!(VALID_TOKEN_STATUSES as readonly string[]).includes(data.token_status ?? "")) {
-    return { valid: false, reason: "invalid_status", status: data.token_status ?? undefined };
+  if (!isVerifiedForMarkets(data)) {
+    return {
+      valid: false,
+      reason: "not_verified",
+      detail: `deso_public_key=${data.deso_public_key ? "set" : "null"} token_status=${data.token_status} reserved=${data.deso_is_reserved} verification=${data.verification_status} claim=${data.claim_status}`,
+    };
   }
 
   return {
@@ -78,17 +104,54 @@ export async function creatorExistsAndValid(
     creator: {
       id: data.id,
       slug: data.slug,
-      deso_public_key: data.deso_public_key,
+      deso_public_key: data.deso_public_key as string,
       token_status: data.token_status,
     },
   };
 }
 
 /**
- * SQL fragment for raw queries that need to filter to valid creators.
- * Pair with `from("creators").filter(...)` or use in a stored procedure.
+ * SQL fragment for raw queries / RPC bodies that need the verified-for-markets
+ * filter. Compose into a WHERE clause:
  *
- * Example: `creators.deso_public_key IS NOT NULL AND creators.token_status IN ('active_unverified', 'active_verified', 'claimed')`
+ *   `select * from creators where ${VERIFIED_FOR_MARKETS_SQL}`
+ *
+ * For Supabase JS builder queries, prefer chaining `.not()` + `.or()` directly
+ * (see app/api/creators/search/route.ts for an example) — the builder's filters
+ * can't safely interpolate this string.
  */
-export const VALID_CREATOR_SQL_FILTER =
-  "deso_public_key IS NOT NULL AND token_status IN ('active_unverified', 'active_verified', 'claimed')";
+export const VERIFIED_FOR_MARKETS_SQL =
+  "deso_public_key IS NOT NULL " +
+  "AND token_status NOT IN ('archived', 'speculation_pool', 'pending_deso_creation') " +
+  "AND (deso_is_reserved = TRUE OR verification_status = 'approved' OR claim_status = 'claimed')";
+
+/**
+ * Supabase PostgREST `.or()` argument matching VERIFIED_FOR_MARKETS_SQL's
+ * OR-clause. Use alongside `.not("deso_public_key", "is", null)` and
+ * `.not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)`.
+ */
+export const VERIFIED_FOR_MARKETS_OR =
+  "deso_is_reserved.eq.true,verification_status.eq.approved,claim_status.eq.claimed";
+
+/**
+ * PostgREST `not.in` argument for the excluded-statuses clause. Quoted for
+ * the `.not("token_status", "in", ...)` builder call.
+ */
+export const VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG =
+  '("archived","speculation_pool","pending_deso_creation")';
+
+/**
+ * @deprecated Use {@link isVerifiedForMarkets} / {@link creatorIsVerifiedForMarkets}
+ * instead.
+ *
+ * Kept for backward compatibility during the verification-enforcement
+ * migration. Admits `active_unverified` (squatters), which the new rule
+ * rejects unless reserved-or-approved-or-claimed.
+ */
+export const VALID_TOKEN_STATUSES = [
+  "active_unverified",
+  "active_verified",
+  "claimed",
+] as const;
+
+export type ValidTokenStatus = (typeof VALID_TOKEN_STATUSES)[number];

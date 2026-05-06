@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { generateMarketsForTopic, GeneratedMarket, classifyEntityType, generateCategoricalMarket, CategoricalMarketDraft } from "./market-generator";
-import { VALID_TOKEN_STATUSES } from "../creators/validity";
+import {
+  VERIFIED_FOR_MARKETS_OR,
+  VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG,
+  creatorIsVerifiedForMarkets,
+} from "../creators/validity";
 import { resolveMarket } from "../markets/resolution";
 export { generateCategoricalMarket } from "./market-generator";
 
@@ -794,7 +798,9 @@ For persons/orgs from other sources, infer the most likely Twitter handle from y
       .from('creators')
       .select('id, slug, token_status')
       .eq('deso_username', handle)
-      .in('token_status', ['active_unverified', 'active_verified'])
+      .not('deso_public_key', 'is', null)
+      .not('token_status', 'in', VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+      .or(VERIFIED_FOR_MARKETS_OR)
       .maybeSingle();
 
     if (existing) {
@@ -880,7 +886,9 @@ async function findExistingCreator(supabase: any, entityName: string): Promise<s
     .from("creators")
     .select("id, slug, name")
     .ilike("name", `%${entityName}%`)
-    .in("token_status", ["active_unverified", "active_verified"])
+    .not("deso_public_key", "is", null)
+    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+    .or(VERIFIED_FOR_MARKETS_OR)
     .limit(1)
     .maybeSingle();
 
@@ -1282,7 +1290,9 @@ async function resolveCreatorSlug(
       .from("creators")
       .select("slug")
       .eq("slug", slugified)
-      .in("token_status", ["active_unverified", "active_verified", "claimed"])
+      .not("deso_public_key", "is", null)
+      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+      .or(VERIFIED_FOR_MARKETS_OR)
       .maybeSingle();
     if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
   }
@@ -1293,7 +1303,9 @@ async function resolveCreatorSlug(
       .from("creators")
       .select("slug, deso_username")
       .ilike("deso_username", slugified)
-      .in("token_status", ["active_unverified", "active_verified", "claimed"])
+      .not("deso_public_key", "is", null)
+      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+      .or(VERIFIED_FOR_MARKETS_OR)
       .maybeSingle();
     if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
   }
@@ -1304,7 +1316,9 @@ async function resolveCreatorSlug(
       .from("creators")
       .select("slug, name")
       .ilike("name", `%${entityName}%`)
-      .in("token_status", ["active_unverified", "active_verified", "claimed"])
+      .not("deso_public_key", "is", null)
+      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+      .or(VERIFIED_FOR_MARKETS_OR)
       .order("creator_coin_holders", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1382,13 +1396,14 @@ async function insertMarkets(
     console.log(`[insertMarkets] Fuzzy match: ${entityName} → ${finalCreatorSlug}`);
   }
 
-  // Fail-closed: pre-fetch all valid creator slugs. Markets pinned to slugs
-  // outside this set are skipped. See lib/creators/validity.ts.
+  // Fail-closed: pre-fetch all verified-for-markets creator slugs. Markets
+  // pinned to slugs outside this set are skipped. See lib/creators/validity.ts.
   const { data: validCreators } = await supabase
     .from("creators")
     .select("slug")
     .not("deso_public_key", "is", null)
-    .in("token_status", VALID_TOKEN_STATUSES as unknown as string[]);
+    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+    .or(VERIFIED_FOR_MARKETS_OR);
   const validSlugs = new Set((validCreators ?? []).map((c) => c.slug));
 
   let created = 0;
@@ -1601,11 +1616,15 @@ export async function generateMarketsForImportedCreators(
   supabase: SupabaseClient,
   limit = 20
 ): Promise<number> {
-  // Fetch creators who have 0 markets and are active_unverified or active_verified
+  // Fetch verified-for-markets creators who have 0 markets.
+  // The verification rule restricts to BitClout-reserved or admin-approved
+  // creators — squatter accounts are excluded.
   const { data: creators } = await supabase
     .from("creators")
     .select("slug, name, token_status")
-    .in("token_status", ["active_unverified", "active_verified"])
+    .not("deso_public_key", "is", null)
+    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+    .or(VERIFIED_FOR_MARKETS_OR)
     .eq("markets_count", 0)
     .not("name", "in", '("ConflictMarkets","ElectionMarkets","SportsMarkets","ViralMarkets","CryptoMarkets1","EntertainmentMarkets")')
     .limit(limit);
@@ -1988,6 +2007,22 @@ export async function insertCategoricalMarket(
   market: CategoricalMarketDraft,
   supabase: SupabaseClient
 ): Promise<void> {
+  // Defense-in-depth: every outcome's creator slug must reference a
+  // verified-for-markets creator. Callers in this file pre-filter against the
+  // same rule (see insertMarkets:validSlugs), but this guard catches misuse
+  // by future callers.
+  const outcomeSlugs = Array.from(
+    new Set(market.outcomes.map((o) => o.slug).filter(Boolean))
+  );
+  for (const slug of outcomeSlugs) {
+    const check = await creatorIsVerifiedForMarkets(slug, supabase);
+    if (!check.valid) {
+      throw new Error(
+        `[insertCategoricalMarket] outcome creator "${slug}" not verified for markets — ${check.reason}${check.detail ? ` (${check.detail})` : ""}`
+      );
+    }
+  }
+
   const isDupe = await isDuplicateMarket(market.title, supabase);
   if (isDupe) {
     console.log(`[pipeline] Skipping duplicate categorical: ${market.title}`);
