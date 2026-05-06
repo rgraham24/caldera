@@ -160,7 +160,9 @@ export function AdminActions() {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const res = await fetch("/api/creators/sync-from-deso");
+      const res = await fetch(
+        `/api/creators/sync-from-deso?desoPublicKey=${encodeURIComponent(desoPublicKey ?? "")}`
+      );
       const { data, error } = await res.json();
       if (error) throw new Error(error);
       setSyncResult(`Synced ${data.synced} creators from DeSo blockchain`);
