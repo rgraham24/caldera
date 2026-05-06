@@ -6,7 +6,6 @@ import { MarketStatusBadge } from "@/components/markets/MarketStatusBadge";
 import {
   formatCompactCurrency,
   formatRelativeTime,
-  slugify,
 } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { useAppStore } from "@/store";
+import { CreatorPicker, type PickerCreator } from "@/components/admin/CreatorPicker";
+
+// Matches AdminGate / create-market / treasury page convention.
+const ADMIN_PW = "caldera-admin-2026";
 
 type AdminMarketsClientProps = {
   markets: Market[];
@@ -141,11 +144,16 @@ function CreateMarketForm({
 }: {
   onCreated: (market: Market) => void;
 }) {
+  const [selectedCreator, setSelectedCreator] = useState<PickerCreator | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!selectedCreator) {
+      setError("Pick a verified creator before submitting.");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
 
@@ -153,21 +161,22 @@ function CreateMarketForm({
     const title = form.get("title") as string;
 
     try {
-      const res = await fetch("/api/markets", {
+      const res = await fetch("/api/markets/admin-create", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          slug: slugify(title),
-          description: form.get("description"),
           category: form.get("category"),
-          rulesText: form.get("rulesText"),
+          creatorSlug: selectedCreator.slug,
+          resolveAt: form.get("resolveAt") || undefined,
+          description: form.get("description") || undefined,
+          rulesText: form.get("rulesText") || undefined,
           resolutionSourceUrl: form.get("resolutionSourceUrl") || undefined,
           closeAt: form.get("closeAt") || undefined,
-          resolveAt: form.get("resolveAt") || undefined,
-          initialLiquidity: parseFloat(form.get("initialLiquidity") as string) || 1000,
+          initialLiquidity:
+            parseFloat(form.get("initialLiquidity") as string) || 1000,
           featured: form.get("featured") === "on",
+          adminPassword: ADMIN_PW,
         }),
       });
 
@@ -194,6 +203,12 @@ function CreateMarketForm({
           required
           className="w-full rounded-lg border border-border-subtle bg-background p-2 text-sm text-text-primary focus:border-caldera focus:outline-none"
         />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-text-muted">
+          Creator <span className="text-text-faint">(required)</span>
+        </label>
+        <CreatorPicker value={selectedCreator} onChange={setSelectedCreator} />
       </div>
       <div>
         <label className="mb-1 block text-xs text-text-muted">Category</label>
@@ -280,7 +295,7 @@ function CreateMarketForm({
 
       <Button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !selectedCreator}
         className="w-full bg-caldera text-white hover:bg-caldera/90"
       >
         {isSubmitting ? "Creating..." : "Create Market"}

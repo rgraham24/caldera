@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Copy, Check } from "lucide-react";
-import { slugify } from "@/lib/utils";
 import { useAppStore } from "@/store";
+import { CreatorPicker, type PickerCreator } from "@/components/admin/CreatorPicker";
+
+// Matches AdminGate / create-market / treasury page convention.
+// TODO: centralize admin password handling — see AdminGate.
+const ADMIN_PW = "caldera-admin-2026";
 
 export function AdminActions() {
   const { desoPublicKey } = useAppStore();
@@ -59,7 +63,7 @@ export function AdminActions() {
   const [autoResolving, setAutoResolving] = useState(false);
   const [autoResolveResult, setAutoResolveResult] = useState<string | null>(null);
 
-  const [topic, setTopic] = useState("");
+  const [selectedCreator, setSelectedCreator] = useState<PickerCreator | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generatedMarkets, setGeneratedMarkets] = useState<GeneratedMarket[]>([]);
   const [genError, setGenError] = useState<string | null>(null);
@@ -294,7 +298,7 @@ export function AdminActions() {
   };
 
   const handleGenerate = async () => {
-    if (!topic.trim()) return;
+    if (!selectedCreator) return;
     setGenerating(true);
     setGenError(null);
     setGeneratedMarkets([]);
@@ -302,11 +306,20 @@ export function AdminActions() {
       const res = await fetch("/api/admin/generate-markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, desoPublicKey: desoPublicKey ?? "" }),
+        body: JSON.stringify({
+          topic: selectedCreator.name,
+          desoPublicKey: desoPublicKey ?? "",
+        }),
       });
       const { data, error } = await res.json();
       if (error) throw new Error(error);
-      setGeneratedMarkets(data);
+      // Augment each draft with the verified creator slug — admin-create
+      // requires it on submit and validates against the verified set.
+      const augmented: GeneratedMarket[] = (data as Omit<GeneratedMarket, "creatorSlug">[]).map((m) => ({
+        ...m,
+        creatorSlug: selectedCreator.slug,
+      }));
+      setGeneratedMarkets(augmented);
     } catch (err) {
       setGenError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -317,18 +330,18 @@ export function AdminActions() {
   const handleCreateMarket = async (market: GeneratedMarket, idx: number) => {
     setCreatingIdx(idx);
     try {
-      const res = await fetch("/api/markets", {
+      const res = await fetch("/api/markets/admin-create", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: market.title,
-          slug: slugify(market.title),
-          description: market.description,
           category: market.category,
-          rulesText: market.resolution_criteria,
+          creatorSlug: market.creatorSlug,
           resolveAt: market.resolve_at,
+          description: market.description,
+          rulesText: market.resolution_criteria,
           initialLiquidity: 1000,
+          adminPassword: ADMIN_PW,
         }),
       });
       if (!res.ok) {
@@ -850,24 +863,23 @@ export function AdminActions() {
       <div className="rounded-2xl border border-border-subtle bg-surface p-5">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">AI Market Generator ✦ Research-Powered</h2>
         <p className="mb-4 text-xs text-text-muted">
-          Enter any creator, topic, or event. Claude researches what&apos;s happening right now, then generates 10 high-urgency prediction markets.
+          Pick a verified creator. Claude researches what&apos;s happening with them right now, then generates high-urgency prediction markets.
         </p>
         <div className="flex gap-3">
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. Elon Musk and Tesla in 2026"
-            className="flex-1 rounded-lg border border-border-subtle bg-background px-3 py-1.5 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
-            onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
-          />
+          <div className="flex-1">
+            <CreatorPicker
+              value={selectedCreator}
+              onChange={setSelectedCreator}
+              placeholder="Pick a verified creator..."
+            />
+          </div>
           <Button
             onClick={handleGenerate}
-            disabled={generating || !topic.trim()}
+            disabled={generating || !selectedCreator}
             className="bg-caldera text-background font-semibold hover:bg-caldera/90"
           >
             {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {generating ? "Researching + Generating..." : "Generate 10 Markets"}
+            {generating ? "Researching + Generating..." : "Generate Markets"}
           </Button>
         </div>
 
@@ -1118,6 +1130,8 @@ type GeneratedMarket = {
   category: string;
   resolution_criteria: string;
   resolve_at: string;
+  /** Augmented client-side after AI returns; the slug of the verified creator the admin selected for the batch. */
+  creatorSlug: string;
   created?: boolean;
 };
 

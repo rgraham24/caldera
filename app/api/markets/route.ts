@@ -1,11 +1,14 @@
+// GET only. Phase 5d-2 deleted the POST handler — admin market creation
+// flows through /api/markets/admin-create, which validates the creator and
+// always sets creator_id/creator_slug. The orphan-market hole this POST
+// produced is now closed.
+
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
+import { createClient } from "@/lib/supabase/server";
 import {
   fetchVerifiedCreatorSlugs,
   filterVerifiedMarkets,
 } from "@/lib/creators/validity";
-import { z } from "zod";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -143,98 +146,4 @@ export async function GET(req: NextRequest) {
   }));
 
   return NextResponse.json({ data: enriched, total: total ?? enriched.length });
-}
-
-const createMarketSchema = z.object({
-  title: z.string().min(1),
-  slug: z.string().min(1),
-  description: z.string().optional(),
-  category: z.string().min(1),
-  subcategory: z.string().optional(),
-  rulesText: z.string().optional(),
-  resolutionSourceUrl: z.string().url().optional(),
-  closeAt: z.string().optional(),
-  resolveAt: z.string().optional(),
-  initialLiquidity: z.number().positive().default(1000),
-  featured: z.boolean().default(false),
-});
-
-export async function POST(req: NextRequest) {
-  try {
-    // ── Auth: cookie-direct verify (F-6 pattern) ─────────────
-    const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
-    const signingKey = process.env.COOKIE_SIGNING_KEY ?? "";
-    if (!cookie || !signingKey) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    let session;
-    try {
-      session = await verifyCookie(cookie, signingKey);
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const supabase = createServiceClient();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: dbUser } = await (supabase as any)
-      .from("users")
-      .select("id, is_admin")
-      .eq("deso_public_key", session.publicKey)
-      .maybeSingle();
-
-    if (!dbUser?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const parsed = createMarketSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid request", details: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const d = parsed.data;
-    const liquidity = d.initialLiquidity;
-
-    const { data: market, error } = await supabase
-      .from("markets")
-      .insert({
-        title: d.title,
-        slug: d.slug,
-        description: d.description,
-        category: d.category,
-        subcategory: d.subcategory,
-        rules_text: d.rulesText,
-        resolution_source_url: d.resolutionSourceUrl,
-        close_at: d.closeAt,
-        resolve_at: d.resolveAt,
-        created_by_user_id: dbUser.id,
-        liquidity,
-        yes_pool: liquidity,
-        no_pool: liquidity,
-        yes_price: 0.5,
-        no_price: 0.5,
-        featured_score: d.featured ? 5 : 0,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ data: market }, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
 }
