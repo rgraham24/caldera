@@ -7,7 +7,12 @@ import {
 import { resolveMarket } from "@/lib/markets/resolution";
 import { isAdminAuthorized } from "@/lib/admin/auth";
 
-const CONFIDENCE_AUTO = 85;
+// TODO(2026-05-20): Drop CONFIDENCE_AUTO back to 85 after ~2 weeks of
+// observing web_search-augmented Claude outputs in production. Raised to 95
+// initially because web-search Claude can confidently cite outdated articles
+// or hallucinate snippets; resolutions trigger payouts so we want very high
+// confidence during the calibration period. 60-95% goes to flagged-for-review.
+const CONFIDENCE_AUTO = 95;
 const CONFIDENCE_REVIEW = 60;
 
 type ClaudeResolution = {
@@ -70,24 +75,26 @@ Resolution criteria: "${market.description || "(none provided)"}"
 Market resolve date: "${market.resolve_at}"
 Category: "${market.category}"
 
-Based on your knowledge up to your training cutoff, has this event occurred or is the outcome determinable?
+The market's resolve date is in the past. The outcome should be determinable from public reporting. Use the web_search tool to find authoritative sources confirming the outcome before answering. Prefer recent, primary sources (official statements, league reports, major news outlets) over speculation pieces.
 
 Rules:
-- Sports events with clear historical outcomes (past games, championships): you can be confident
-- Political events (elections, appointments): be confident only if outcome is widely known
-- Stock price targets: set confidence 0 — you cannot know current prices
-- Subscriber/follower counts: set confidence 0 — these change daily
-- Future events you cannot know: set outcome "unknown"
+- Search the web first; do not rely on training-data recall for events past your cutoff
+- Sports events: search ESPN, official league sites, or reputable sports outlets
+- Political events: search official records, AP, Reuters, or wire services
+- Stock price targets: set confidence 0 — live price data is unreliable via web search
+- Subscriber/follower counts: set confidence 0 — figures change daily
+- If web search returns conflicting information or no clear primary source, set outcome "unknown"
+- Only resolve YES or NO if a primary source confirms the outcome unambiguously
 
-Respond with ONLY valid JSON, no markdown, no explanation outside the JSON:
+Respond with ONLY valid JSON in your final message, no markdown, no explanation outside the JSON:
 {
   "outcome": "yes" | "no" | "unknown",
   "confidence": 0-100,
-  "reasoning": "1-2 sentence explanation of your determination",
-  "source_hint": "what to check to verify (URL or description)"
+  "reasoning": "1-2 sentence explanation citing the source(s) you found",
+  "source_hint": "URL of the primary source you used"
 }
 
-If confidence < 80, set outcome to "unknown". Only resolve YES or NO if highly confident.`;
+If confidence < 95, set outcome to "unknown". Only resolve YES or NO if highly confident.`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -98,7 +105,14 @@ If confidence < 80, set outcome to "unknown". Only resolve YES or NO if highly c
     },
     body: JSON.stringify({
       model: "claude-opus-4-6",
-      max_tokens: 300,
+      max_tokens: 1024,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 3,
+        },
+      ],
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -108,16 +122,31 @@ If confidence < 80, set outcome to "unknown". Only resolve YES or NO if highly c
   }
 
   const data = (await res.json()) as {
-    content: Array<{ type: string; text: string }>;
+    content: Array<{ type: string; text?: string }>;
   };
-  const text = data.content?.[0]?.type === "text" ? data.content[0].text : "";
 
-  // Strip markdown code fences if present
-  const cleaned = text
+  // With web_search enabled, the response can contain tool_use,
+  // web_search_tool_result, and text blocks. The final answer is the LAST
+  // text block. Earlier blocks may be Claude's intermediate reasoning that
+  // includes prose around tool calls.
+  const finalText =
+    data.content
+      ?.filter((b) => b.type === "text" && typeof b.text === "string")
+      .pop()?.text ?? "";
+
+  // Extract the JSON object from the response. Claude sometimes wraps it in
+  // prose despite the prompt; search for the last `{...}` block.
+  const cleaned = finalText
     .replace(/```(?:json)?\s*/g, "")
     .replace(/```/g, "")
     .trim();
-  return JSON.parse(cleaned) as ClaudeResolution;
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error(
+      `Claude response missing JSON object. Final text: ${cleaned.slice(0, 200)}`
+    );
+  }
+  return JSON.parse(jsonMatch[0]) as ClaudeResolution;
 }
 
 export async function POST(req: NextRequest) {
