@@ -1272,9 +1272,17 @@ async function isDuplicateMarket(
   return false;
 }
 
-// ─── 4-step creator slug resolver ────────────────────────────────────────────
-// Preferred over findCreatorSlug() for market inserts — more precise, no squatter
-// stripping side-effects, resolves by slug → deso_username → name → DeSo API.
+// ─── Strict creator slug resolver — locked universe (memory #15) ──────────────
+// Replaces the old 4-step fuzzy resolver. The creator universe is now
+// finite: bitclout_reserved_usernames (the ~14k DeSo reserved profiles
+// imported as ground truth) plus any creator with verification_status='approved'.
+// No fuzzy match. No deso_username ilike. No live DeSo API upsert. If the
+// caller's entityName doesn't exact-slugify to a recognized creator, the
+// market just isn't created — that's the desired behavior.
+//
+// DB triggers (creators_locked_universe + markets_locked_creator) are the
+// final safety net — even if a future caller bypasses this helper, the DB
+// refuses to write contaminated rows.
 
 async function resolveCreatorSlug(
   entityName: string,
@@ -1283,85 +1291,30 @@ async function resolveCreatorSlug(
 ): Promise<string | null> {
   if (!entityName || entityName.length < 2) return null;
   const slugified = entityName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!isValidDesoSlug(slugified)) return null;
 
-  // Step 1 — exact slug match in recognised active/claimed tiers
-  {
-    const { data } = await supabase
-      .from("creators")
-      .select("slug")
-      .eq("slug", slugified)
-      .not("deso_public_key", "is", null)
-      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
-      .or(VERIFIED_FOR_MARKETS_OR)
-      .maybeSingle();
-    if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
-  }
+  // Exact slug match against creators, gated by the locked-universe rule:
+  // either the slug is in the import table OR the row is admin-approved.
+  // We pull the reserved-flag inline so the join stays in one round-trip.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any)
+    .from("creators")
+    .select("slug, verification_status")
+    .eq("slug", slugified)
+    .maybeSingle();
 
-  // Step 2 — deso_username match (DeSo usernames are case-insensitive)
-  {
-    const { data } = await supabase
-      .from("creators")
-      .select("slug, deso_username")
-      .ilike("deso_username", slugified)
-      .not("deso_public_key", "is", null)
-      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
-      .or(VERIFIED_FOR_MARKETS_OR)
-      .maybeSingle();
-    if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
-  }
+  if (!data?.slug) return null;
 
-  // Step 3 — fuzzy name match (ilike with full entity name)
-  {
-    const { data } = await supabase
-      .from("creators")
-      .select("slug, name")
-      .ilike("name", `%${entityName}%`)
-      .not("deso_public_key", "is", null)
-      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
-      .or(VERIFIED_FOR_MARKETS_OR)
-      .order("creator_coin_holders", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data?.slug && isValidDesoSlug(data.slug)) return data.slug;
-  }
+  if (data.verification_status === "approved") return data.slug;
 
-  // Step 4 — DeSo API: only accept IsReserved profiles; then upsert into DB
-  try {
-    const res = await fetch("https://api.deso.org/api/v0/get-single-profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ Username: slugified }),
-    });
-    if (res.ok) {
-      const desoData = await res.json();
-      const profile = desoData?.Profile;
-      if (profile?.Username && profile.IsReserved === true) {
-        const desoUsername: string = profile.Username;
-        const slug = desoUsername.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (isValidDesoSlug(slug)) {
-          // Upsert so future lookups hit Step 1/2
-          await supabase.from("creators").upsert(
-            {
-              name: desoUsername,
-              slug,
-              deso_username: desoUsername,
-              deso_public_key: profile.PublicKeyBase58Check,
-              creator_coin_price:
-                ((profile.CoinPriceDeSoNanos ?? 0) / 1e9) * 4.63,
-              creator_coin_holders:
-                profile.CoinEntry?.NumberOfHolders ?? 0,
-              token_status: "active_unverified",
-              deso_is_reserved: true,
-            },
-            { onConflict: "slug" }
-          );
-          return slug;
-        }
-      }
-    }
-  } catch { /* network error — fall through */ }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: reservedRow } = await (supabase as any)
+    .from("bitclout_reserved_usernames")
+    .select("username")
+    .eq("username", data.slug)
+    .maybeSingle();
 
-  return null;
+  return reservedRow ? data.slug : null;
 }
 
 async function insertMarkets(
