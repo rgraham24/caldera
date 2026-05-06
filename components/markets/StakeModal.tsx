@@ -236,7 +236,7 @@ export function StakeModal({
                 <p className="text-sm font-semibold text-text-primary">{creator.name}</p>
                 <VerificationBadge
                   isReserved={creator.deso_is_reserved ?? false}
-                  isCalderaVerified={creator.is_caldera_verified ?? false}
+                  isCalderaVerified={creator.verification_status === "approved"}
                 />
               </div>
               <p className="text-xs text-text-muted">{coinSymbol} · {formatCurrency(coinPrice)}</p>

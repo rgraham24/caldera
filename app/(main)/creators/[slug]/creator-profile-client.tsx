@@ -449,7 +449,7 @@ export function CreatorProfileClient({
                 </h1>
                 <VerificationBadge
                   isReserved={creator.deso_is_reserved ?? false}
-                  isCalderaVerified={creator.is_caldera_verified ?? false}
+                  isCalderaVerified={creator.verification_status === "approved"}
                 />
               </div>
               <p className="mt-1 text-sm text-text-muted">{getTokenSymbolDisplay(creator)}</p>

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 // Well-known non-person slugs — never show in queue.
-// (v1 category-token slugs were removed in Phase E-10.)
 const EXCLUDED_SLUGS = [
   "nba", "nfl", "ufc", "f1", "mlb", "nhl",
   "lakers", "chiefs", "yankees", "celtics",

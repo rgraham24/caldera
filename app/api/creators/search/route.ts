@@ -33,6 +33,7 @@ export async function GET(req: Request) {
       "id, slug, name, deso_username, deso_public_key, token_status, markets_count, claim_status"
     )
     .not("deso_public_key", "is", null)
+    .neq("entity_type", "category")
     .in("token_status", VALID_TOKEN_STATUSES as unknown as string[])
     .order("markets_count", { ascending: false, nullsFirst: false })
     .limit(20);

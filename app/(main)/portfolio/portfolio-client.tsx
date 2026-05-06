@@ -68,7 +68,7 @@ export function PortfolioClient() {
   const [coinHoldings, setCoinHoldings] = useState<CoinHolding[]>([]);
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [tradeModal, setTradeModal] = useState<TradeModal>(null);
-  type CoinTradeModal = { creator: { id: string; name: string; slug: string; deso_username: string | null; deso_public_key: string | null; creator_coin_price: number | null; creator_coin_holders: number | null; creator_coin_market_cap: number | null; markets_count: number | null; image_url: string | null; deso_is_reserved: boolean | null; is_caldera_verified: boolean | null; entity_type: string | null; [key: string]: any; }; initialMode: "buy" | "sell"; } | null;
+  type CoinTradeModal = { creator: { id: string; name: string; slug: string; deso_username: string | null; deso_public_key: string | null; creator_coin_price: number | null; creator_coin_holders: number | null; creator_coin_market_cap: number | null; markets_count: number | null; image_url: string | null; deso_is_reserved: boolean | null; verification_status: string | null; entity_type: string | null; [key: string]: any; }; initialMode: "buy" | "sell"; } | null;
   const [coinTradeModal, setCoinTradeModal] = useState<CoinTradeModal>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const { isConnected, desoPublicKey, desoBalanceDeso, desoBalanceUSD, openDepositModal } = useAppStore();
