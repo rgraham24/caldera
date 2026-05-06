@@ -93,6 +93,21 @@ function parseMarkets(text: string): GeneratedMarket[] {
   }
 }
 
+/**
+ * Returns true if the title contains the creator's full name (case-insensitive).
+ *
+ * Used to enforce name fidelity on AI-generated markets — Claude sometimes
+ * shortens "Gonzalo Higuain" → "Higuain" or "Charli D'Amelio" → "Charli"
+ * despite the prompt's full-name rule. Markets that fail this check are
+ * dropped (caller can hit Generate again for a fresh batch).
+ *
+ * Exported so admin-create / create-fan / pipeline can apply the same check
+ * as defense-in-depth before insertion.
+ */
+export function validateMarketHasName(title: string, entityName: string): boolean {
+  return title.toLowerCase().includes(entityName.toLowerCase());
+}
+
 export function classifyEntityType(name: string): "pundit" | "journalist" | "athlete" | "streamer" | "musician" | "politician" | "brand" | "general" {
   const n = name.toLowerCase();
   if (/tucker|shapiro|rogan|bari weiss|chamath|zeihan|bremmer|friedman|hannity|maddow|coulter|maher|limbaugh|podcast|show host/.test(n)) return "pundit";
@@ -108,6 +123,8 @@ export function classifyEntityType(name: string): "pundit" | "journalist" | "ath
 function buildMarketSystemPrompt(entityName: string, entityType: string, today: string): string {
   const base = `Today is ${today}. You generate prediction markets for Caldera, a creator-focused prediction market platform. All markets must resolve via publicly verifiable events. Return ONLY a valid JSON array — no markdown, no explanation.`;
 
+  const nameRule = `CRITICAL — NAME FIDELITY: Every market title MUST include the exact full name "${entityName}" as written. Never abbreviate, shorten to first-name-only, or last-name-only. If the full name is awkward in a title, restructure the title — do not change the name. Example: "Will Charli D'Amelio get engaged in 2026?" (correct) NOT "Will Charli get engaged in 2026?" (wrong).`;
+
   const schema = `Each item: { "title": string, "description": string, "category": string, "resolution_criteria": string, "resolve_at": ISO date string within 60 days }`;
 
   if (entityType === "pundit") {
@@ -119,6 +136,7 @@ Generate 4 markets about what ${entityName} will SAY, PUBLISH, or ARGUE about cu
 
 Rules:
 - Every title starts with "Will ${entityName}..."
+- ${nameRule}
 - Markets resolve based on public statements: tweets, podcast episodes, articles, on-air segments
 - Reference real ongoing news events (conflicts, elections, economic news, culture wars)
 - category must be "Commentary"
@@ -137,6 +155,7 @@ Generate 4 markets about what ${entityName} will REPORT, PUBLISH, or BREAK as ne
 
 Rules:
 - Every title starts with "Will ${entityName}..."
+- ${nameRule}
 - Markets resolve based on published articles, on-air reports, or official social posts
 - Focus on their beat (conflict zone, politics, tech, finance — infer from their name/outlet)
 - category must be "Commentary"
@@ -154,6 +173,7 @@ Generate 4 markets about what ${entityName} will DO, SAY, or VOTE ON in the next
 
 Rules:
 - Every title starts with "Will ${entityName}..."
+- ${nameRule}
 - Markets resolve via official public record: Congressional record, press releases, C-SPAN, official social accounts
 - Focus on current legislative battles, political controversies, upcoming votes
 - category must be "Politics"
@@ -166,8 +186,12 @@ ${schema}`;
     return `${base}
 
 Generate 4 prediction markets about ${entityName}, a live streamer or content creator.
-Focus on: bans, drama, viral moments, subscriber milestones, beef with other creators.
-category must be "Streamers".
+
+Rules:
+- ${nameRule}
+- Focus on: bans, drama, viral moments, subscriber milestones, beef with other creators.
+- category must be "Streamers".
+
 ${schema}`;
   }
 
@@ -175,16 +199,24 @@ ${schema}`;
     return `${base}
 
 Generate 4 prediction markets about ${entityName}.
-Focus on: game outcomes, trades, signings, performance milestones, championship odds.
-category must be "Sports".
+
+Rules:
+- ${nameRule}
+- Focus on: game outcomes, trades, signings, performance milestones, championship odds.
+- category must be "Sports".
+
 ${schema}`;
   }
 
   return `${base}
 
 Generate 4 prediction markets about ${entityName}.
-Focus on the most interesting, timely, and resolvable questions about their public life.
-Pick the most appropriate category from: Sports, Music, Tech, Politics, Commentary, Streamers, Entertainment, Viral.
+
+Rules:
+- ${nameRule}
+- Focus on the most interesting, timely, and resolvable questions about their public life.
+- Pick the most appropriate category from: Sports, Music, Tech, Politics, Commentary, Streamers, Entertainment, Viral.
+
 ${schema}`;
 }
 
@@ -302,6 +334,18 @@ export async function generateMarketsForTopic(
       1024
     );
     markets = parseMarkets(retryText);
+  }
+
+  // Name-fidelity filter: drop markets whose title doesn't include the
+  // exact entity name. The prompt enforces this but Claude occasionally
+  // shortens (e.g. "Gonzalo Higuain" → "Higuain"). We don't retry inline
+  // — admin can hit Generate again if the count is too low.
+  const before = markets.length;
+  markets = markets.filter((m) => validateMarketHasName(m.title, topic));
+  if (markets.length < before) {
+    console.warn(
+      `[generateMarkets] dropped ${before - markets.length}/${before} markets failing name fidelity for "${topic}"`
+    );
   }
 
   return markets;
