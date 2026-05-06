@@ -3,16 +3,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * Single source of truth for "which creators can have markets attached."
  *
- * The locked v2 rule (2026-05-04): a creator is verified for markets if
+ * The locked v2 rule: a creator is verified for markets if
  *   1. They have a real DeSo identity (deso_public_key set), AND
  *   2. At least ONE of:
- *      - deso_is_reserved = TRUE          (BitClout-original reserved profile)
- *      - verification_status = 'approved' (manually approved by Caldera admin)
+ *      - is_bitclout_original = TRUE       (member of the BitClout-original
+ *        reserved list per deso-protocol/core/lib/reserved_usernames.go,
+ *        mirrored locally in the bitclout_reserved_usernames table)
+ *      - verification_status = 'approved'  (manually approved by Caldera admin)
  *      - claim_status = 'claimed'          (already claimed via DeSo JWT proof)
  *   3. token_status NOT IN ('archived', 'speculation_pool', 'pending_deso_creation')
  *
- * Squatter accounts — self-created DeSo profiles that posted but were
- * neither BitClout-reserved nor admin-approved — fail clause 2.
+ * Phase 4c flipped from deso_is_reserved to is_bitclout_original because
+ * deso_is_reserved was set inconsistently across import paths (squatters
+ * could end up tagged true). is_bitclout_original is sourced once from
+ * DeSo's canonical list and is effectively immutable.
  *
  * Used by:
  *   - app/api/creators/search/route.ts (creator picker backend)
@@ -30,6 +34,8 @@ const EXCLUDED_TOKEN_STATUSES = new Set<string>([
 
 export type VerifiedCreatorFields = {
   deso_public_key: string | null;
+  is_bitclout_original?: boolean | null;
+  /** @deprecated kept for back-compat with callers that still SELECT this column; not consulted by the rule. */
   deso_is_reserved?: boolean | null;
   verification_status?: string | null;
   claim_status?: string | null;
@@ -46,7 +52,7 @@ export function isVerifiedForMarkets(creator: VerifiedCreatorFields): boolean {
     return false;
   }
   return Boolean(
-    creator.deso_is_reserved === true ||
+    creator.is_bitclout_original === true ||
       creator.verification_status === "approved" ||
       creator.claim_status === "claimed"
   );
@@ -82,7 +88,7 @@ export async function creatorIsVerifiedForMarkets(
   const { data, error } = await (supabase as any)
     .from("creators")
     .select(
-      "id, slug, deso_public_key, deso_is_reserved, verification_status, claim_status, token_status"
+      "id, slug, deso_public_key, is_bitclout_original, verification_status, claim_status, token_status"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -95,7 +101,7 @@ export async function creatorIsVerifiedForMarkets(
     return {
       valid: false,
       reason: "not_verified",
-      detail: `deso_public_key=${data.deso_public_key ? "set" : "null"} token_status=${data.token_status} reserved=${data.deso_is_reserved} verification=${data.verification_status} claim=${data.claim_status}`,
+      detail: `deso_public_key=${data.deso_public_key ? "set" : "null"} token_status=${data.token_status} bitclout_original=${data.is_bitclout_original} verification=${data.verification_status} claim=${data.claim_status}`,
     };
   }
 
@@ -123,7 +129,7 @@ export async function creatorIsVerifiedForMarkets(
 export const VERIFIED_FOR_MARKETS_SQL =
   "deso_public_key IS NOT NULL " +
   "AND token_status NOT IN ('archived', 'speculation_pool', 'pending_deso_creation') " +
-  "AND (deso_is_reserved = TRUE OR verification_status = 'approved' OR claim_status = 'claimed')";
+  "AND (is_bitclout_original = TRUE OR verification_status = 'approved' OR claim_status = 'claimed')";
 
 /**
  * Supabase PostgREST `.or()` argument matching VERIFIED_FOR_MARKETS_SQL's
@@ -131,7 +137,7 @@ export const VERIFIED_FOR_MARKETS_SQL =
  * `.not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)`.
  */
 export const VERIFIED_FOR_MARKETS_OR =
-  "deso_is_reserved.eq.true,verification_status.eq.approved,claim_status.eq.claimed";
+  "is_bitclout_original.eq.true,verification_status.eq.approved,claim_status.eq.claimed";
 
 /**
  * PostgREST `not.in` argument for the excluded-statuses clause. Quoted for
