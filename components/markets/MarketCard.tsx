@@ -74,9 +74,27 @@ function MiniSparkline({ market }: { market: Market }) {
 
 type MarketCardProps = {
   market: Market;
+  /**
+   * When true, render a small "Nh ago" / "Nd ago" timestamp in the
+   * top-right of the card opposite the CategoryPill (replaces the
+   * resolve-date display in that slot). Used by the /new feed; off
+   * everywhere else so the All Markets / hero / trending surfaces
+   * keep the resolve-date as their primary date hint.
+   */
+  showCreatedAgo?: boolean;
 };
 
-export function MarketCard({ market }: MarketCardProps) {
+function formatCreatedAgo(createdAt: string | null | undefined): string {
+  if (!createdAt) return "";
+  const ms = Date.now() - new Date(createdAt).getTime();
+  if (ms < 0) return "Just now";
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return "Just now";
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export function MarketCard({ market, showCreatedAgo = false }: MarketCardProps) {
   const router = useRouter();
   const now = new Date();
   const hoursLeft = market.resolve_at
@@ -116,11 +134,15 @@ export function MarketCard({ market }: MarketCardProps) {
               </span>
             )}
           </div>
-          {market.resolve_at && (
+          {showCreatedAgo ? (
+            <span className="shrink-0 text-xs text-[var(--text-tertiary)]">
+              {formatCreatedAgo(market.created_at)}
+            </span>
+          ) : market.resolve_at ? (
             <span className="shrink-0 text-xs text-[var(--text-tertiary)]">
               {formatMarketTimeLeft(market.resolve_at)}
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Title */}

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Clock } from "lucide-react";
 import type { Market } from "@/types";
-import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
+import { MarketCard } from "@/components/markets/MarketCard";
 
 type NewMarketsClientProps = {
   initialMarkets: Market[];
@@ -55,51 +54,11 @@ export function NewMarketsClient({ initialMarkets, pageSize }: NewMarketsClientP
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {markets.map((market) => {
-              const ageMs = Date.now() - new Date(market.created_at ?? "").getTime();
-              const hoursAgo = Math.floor(ageMs / 3_600_000);
-              const timeLabel =
-                hoursAgo < 1 ? "Just now" : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`;
-              const yesPercent = Math.round((market.yes_price ?? 0.5) * 100);
-              return (
-                <Link
-                  key={market.id}
-                  href={`/markets/${market.id}`}
-                  className="block p-4 rounded-xl border border-border bg-surface hover:border-orange-500/40 transition-all group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400">
-                      {market.category}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{timeLabel}</span>
-                  </div>
-                  <h3 className="font-semibold text-sm leading-tight line-clamp-2 mb-3 group-hover:text-orange-400 transition-colors">
-                    {market.title}
-                  </h3>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Chance</span>
-                      <span className="font-bold text-green-400">{yesPercent}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-border">
-                      <div
-                        className="h-1.5 rounded-full bg-green-500 transition-all"
-                        style={{ width: `${yesPercent}%` }}
-                      />
-                    </div>
-                  </div>
-                  {market.creator_slug && (
-                    <div className="mt-2 text-xs text-orange-400">
-                      {getTokenSymbolDisplay({ slug: market.creator_slug })}
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
+            {markets.map((market) => (
+              <MarketCard key={market.id} market={market} showCreatedAgo />
+            ))}
           </div>
 
-          {/* Show More — only when we believe there's more to load. Disabled
-              + label-shift while a fetch is in flight. */}
           {hasMore && (
             <div className="mt-8 flex justify-center">
               <button
