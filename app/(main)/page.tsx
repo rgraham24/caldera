@@ -19,14 +19,17 @@ export default async function HomePage() {
     { data: tokenStripCreators },
     { data: initialRaw },
   ] = await Promise.all([
-    // Hero carousel — manually pinned (featured_score > 0) first, then trending_score
+    // Hero carousel — manually pinned (featured_score > 0) first, then trending_score.
+    // 6 markets means the sliding-window carousel cycles through 6 distinct
+    // windows of 3 cards (always full) instead of the 5-market split that
+    // produced one full page + one 2-card stub.
     supabase
       .from("markets")
       .select("*")
       .eq("status", "open")
       .order("featured_score", { ascending: false })
       .order("trending_score", { ascending: false })
-      .limit(5),
+      .limit(6),
 
     // Trending Now strip — non-hero markets ordered by trending_score.
     // Uses featured_score=0/NULL (NOT is_hero) because the is_hero column
