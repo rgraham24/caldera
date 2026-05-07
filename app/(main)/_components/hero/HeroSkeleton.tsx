@@ -1,10 +1,8 @@
 /**
- * Suspense fallback for the hero. Renders the coupled-card shell with the
- * markets data we already have (titles + odds + buttons) and a pulse on
- * the price + momentum slots that aren't ready yet.
- *
- * No "loading…" text — better to show a card with a price shimmer than
- * empty space, since markets data is real and fast.
+ * Suspense fallback for the hero. Mirrors HeroCard's grid layout so the
+ * skeleton-to-real-card transition doesn't shift any rows. Pulse-shimmers
+ * the slots that need the DeSo refresh (price + momentum + footer);
+ * paints real titles + odds + buttons immediately from the markets prop.
  */
 
 import type { Market } from "@/types";
@@ -13,6 +11,17 @@ import Link from "next/link";
 type HeroSkeletonProps = {
   markets: Market[];
 };
+
+const CARD_GRID_ROWS = [
+  "auto",
+  "auto",
+  "3.25rem",
+  "auto",
+  "auto",
+  "auto",
+  "auto",
+  "auto",
+].join(" ");
 
 export function HeroSkeleton({ markets }: HeroSkeletonProps) {
   if (!markets.length) return null;
@@ -26,14 +35,16 @@ export function HeroSkeleton({ markets }: HeroSkeletonProps) {
         return (
           <div
             key={m.id}
-            className="flex flex-col rounded-2xl p-5"
+            className="grid rounded-2xl p-5"
             style={{
               background: "var(--bg-surface)",
               border: "1px solid var(--border-subtle)",
+              gridTemplateRows: CARD_GRID_ROWS,
+              rowGap: "0.75rem",
             }}
           >
-            {/* Coin row — pulse the price/momentum slots */}
-            <div className="mb-3 flex items-center gap-3">
+            {/* 1. Coin row — pulse the price/momentum slots */}
+            <div className="flex items-center gap-3">
               <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-[var(--bg-elevated)]" />
               <div className="min-w-0 flex-1">
                 <div className="h-3 w-24 animate-pulse rounded bg-[var(--bg-elevated)]" />
@@ -41,18 +52,18 @@ export function HeroSkeleton({ markets }: HeroSkeletonProps) {
               </div>
             </div>
 
-            <div
-              className="mb-3 h-px"
-              style={{ background: "var(--border-subtle)" }}
-            />
+            {/* 2. Divider */}
+            <div className="h-px" style={{ background: "var(--border-subtle)" }} />
 
+            {/* 3. Title (fixed slot — clamps to 2 lines) */}
             <Link href={`/markets/${m.slug}`}>
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {m.title}
               </h3>
             </Link>
 
-            <div className="mt-4 mb-1 flex items-end gap-2">
+            {/* 4. Big % */}
+            <div className="flex items-end gap-2">
               <span
                 className="text-4xl font-bold tabular-nums leading-none"
                 style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
@@ -64,7 +75,8 @@ export function HeroSkeleton({ markets }: HeroSkeletonProps) {
               </span>
             </div>
 
-            <div className="mt-3 flex gap-2">
+            {/* 5. YES/NO buttons */}
+            <div className="flex gap-2">
               <Link href={`/markets/${m.slug}`} className="flex-1">
                 <button className="w-full rounded-lg border border-[var(--yes)]/20 bg-[var(--yes)]/10 py-2 text-sm font-semibold text-[var(--yes)]">
                   YES {yes}¢
@@ -77,17 +89,16 @@ export function HeroSkeleton({ markets }: HeroSkeletonProps) {
               </Link>
             </div>
 
-            <div className="mt-3 text-xs text-[var(--text-tertiary)] font-mono">
-              ${(m.total_volume ?? 0).toFixed(2)} vol
+            {/* 6. Volume row (no time-left in skeleton — would require Date.now) */}
+            <div className="flex items-center justify-between font-mono text-xs text-[var(--text-tertiary)]">
+              <span>${(m.total_volume ?? 0).toFixed(2)} vol</span>
             </div>
 
-            <div
-              className="mt-3 h-px"
-              style={{ background: "var(--border-subtle)" }}
-            />
+            {/* 7. Divider */}
+            <div className="h-px" style={{ background: "var(--border-subtle)" }} />
 
-            {/* Footer slot — empty pulse until prices land */}
-            <div className="mt-3 h-3 w-3/4 animate-pulse rounded bg-[var(--bg-elevated)]" />
+            {/* 8. Footer slot — pulse until prices arrive */}
+            <div className="h-3 w-3/4 animate-pulse rounded bg-[var(--bg-elevated)]" />
           </div>
         );
       })}
