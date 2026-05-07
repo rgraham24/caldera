@@ -3,19 +3,22 @@
 /**
  * Coupled-card hero carousel.
  *
- * Layout: 3 cards on lg+, 2 on md, 1 with horizontal scroll-snap on mobile.
+ * Layout: 3 cards on lg+, 2 on md, 1 on mobile.
  *
  * Behavior:
- *   - Auto-rotates the visible "page" every 8s with a 600ms CSS opacity
- *     crossfade. No framer-motion (not in deps); plain CSS only.
+ *   - Sliding window of pageSize cards advancing by 1 per tick (8s) with
+ *     a 600ms CSS opacity crossfade. With 6 cards and pageSize 3 the
+ *     carousel cycles through 6 distinct windows: [0,1,2] -> [1,2,3] ->
+ *     [2,3,4] -> [3,4,5] -> [4,5,0] -> [5,0,1] -> back to [0,1,2].
+ *     Always shows pageSize cards — no partial-page stubs.
  *   - Pauses on hover and when the tab is hidden (Page Visibility API).
- *   - No pagination dots — kill list per design brief.
+ *   - No pagination dots.
  *
- * Pages: with N cards and pageSize P, there are ceil(N/P) pages. Each tick
- * advances to the next page; the last page wraps to page 0.
+ * If cards.length <= pageSize, there's nothing to slide; rotation is
+ * disabled and we render the cards once.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { HeroCard } from "./types";
 import { HeroCard as HeroCardView } from "./HeroCard";
 
@@ -51,34 +54,28 @@ export function HeroCarousel({ cards }: HeroCarouselProps) {
   const hoveredRef = useRef(false);
   const tabHiddenRef = useRef(false);
 
-  const pages = useMemo(() => {
-    if (!cards.length) return [];
-    const out: HeroCard[][] = [];
-    for (let i = 0; i < cards.length; i += pageSize) {
-      out.push(cards.slice(i, i + pageSize));
-    }
-    return out;
-  }, [cards, pageSize]);
+  // numWindows = number of distinct sliding windows. With sliding-by-1
+  // there are exactly cards.length windows (the last one wraps).
+  const numWindows = Math.max(1, cards.length);
+  const safeIdx = numWindows === 0 ? 0 : pageIdx % numWindows;
 
-  // Clamp the page index in render rather than via setState in an effect.
-  // pageSize can change on resize, which can leave pageIdx out of range.
-  const safePageIdx = pages.length === 0 ? 0 : pageIdx % pages.length;
-
-  // Auto-rotate. Pause on hover, pause on hidden tab.
+  // Auto-rotate. Pause on hover, pause on hidden tab. No rotation when
+  // we don't have enough cards to slide (i.e., would just show the same
+  // window over and over).
   useEffect(() => {
-    if (pages.length <= 1) return;
+    if (cards.length <= pageSize) return;
 
     const interval = setInterval(() => {
       if (hoveredRef.current || tabHiddenRef.current) return;
       setVisible(false);
       setTimeout(() => {
-        setPageIdx((prev) => (prev + 1) % pages.length);
+        setPageIdx((prev) => (prev + 1) % numWindows);
         setVisible(true);
       }, FADE_MS / 2);
     }, ROTATION_MS);
 
     return () => clearInterval(interval);
-  }, [pages.length]);
+  }, [cards.length, pageSize, numWindows]);
 
   // Page Visibility API — pause when tab hidden.
   useEffect(() => {
@@ -92,7 +89,13 @@ export function HeroCarousel({ cards }: HeroCarouselProps) {
 
   if (!cards.length) return null;
 
-  const visibleCards = pages[safePageIdx] ?? [];
+  // Build the visible window: pageSize cards starting at safeIdx, wrapping.
+  // Capped at cards.length so we never duplicate when cards.length < pageSize.
+  const windowSize = Math.min(pageSize, cards.length);
+  const visibleCards: HeroCard[] = Array.from(
+    { length: windowSize },
+    (_, i) => cards[(safeIdx + i) % cards.length]
+  );
 
   return (
     <div
