@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { HomeClient } from "./home-client";
 import {
@@ -6,6 +7,8 @@ import {
   dedupeCreatorsByPubkey,
 } from "@/lib/creators/validity";
 import type { Market, Creator } from "@/types";
+import { HeroData } from "./_components/hero/HeroData";
+import { HeroSkeleton } from "./_components/hero/HeroSkeleton";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -101,9 +104,22 @@ export default async function HomePage() {
   const initialMarkets = filterVerifiedMarkets((initialRaw ?? []).map(withSlug), verifiedSlugs);
   const breakingMarkets = filterVerifiedMarkets(breakingDeduped.map(withSlug), verifiedSlugs);
 
+  // Hero is rendered server-side as a slot. Markets data (titles, odds, vol)
+  // is already in heroMarkets above and paints instantly via HeroSkeleton;
+  // HeroData async-fetches fresh DeSo prices behind a Suspense boundary.
+  // Pattern chosen over the proposed "portal/slot" approach because passing
+  // a prebuilt ReactNode slot into HomeClient is dramatically simpler and
+  // achieves the same streaming UX.
+  const heroSlot = heroMarkets.length > 0 ? (
+    <Suspense fallback={<HeroSkeleton markets={heroMarkets} />}>
+      <HeroData markets={heroMarkets} />
+    </Suspense>
+  ) : null;
+
   return (
     <HomeClient
       heroMarkets={heroMarkets}
+      heroSlot={heroSlot}
       breakingMarkets={breakingMarkets}
       trendingCreators={dedupeCreatorsByPubkey((trendingCreators ?? []) as Creator[])}
       tokenStripCreators={dedupeCreatorsByPubkey((tokenStripCreators ?? []) as Creator[])}

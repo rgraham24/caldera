@@ -27,6 +27,8 @@ import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 
 type HomeClientProps = {
   heroMarkets: Market[];
+  /** Server-rendered slot for the hero (Suspense-streamed prices). */
+  heroSlot?: React.ReactNode;
   breakingMarkets: Market[];
   trendingCreators: Creator[];
   tokenStripCreators: Creator[];
@@ -636,6 +638,7 @@ function MarketCard({ market }: { market: Market }) {
 
 export function HomeClient({
   heroMarkets,
+  heroSlot,
   breakingMarkets,
   trendingCreators,
   tokenStripCreators,
@@ -749,12 +752,13 @@ export function HomeClient({
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* Hero section */}
+        {/* Hero section — coupled-card grid streamed via Suspense.
+            heroSlot is rendered server-side in page.tsx so prices fill in
+            after the initial paint. Sidebar (Breaking + Trending tokens)
+            renders alongside on desktop. */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
           <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
-            {heroMarkets.length > 0 && (
-              <HeroSection markets={heroMarkets} />
-            )}
+            {heroSlot ?? (heroMarkets.length > 0 ? <HeroSection markets={heroMarkets} /> : null)}
             <div className="hidden lg:flex flex-col gap-4">
               {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
               {uniqueTrendingCreators.length > 0 && (
