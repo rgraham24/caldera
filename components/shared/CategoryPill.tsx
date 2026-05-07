@@ -12,19 +12,35 @@
  * use this badge instead.
  */
 
+// All 11 production categories get distinct hues, no collisions.
+// Avoiding red entirely so category color never confuses with the NO
+// button color elsewhere on a card.
+//
+// Previous bugs this fixes:
+//   - Sports and Creators both #f97316 (orange) — visually identical.
+//   - Companies #22c55e green collided with the YES bar color.
+//   - Commentary and Viral fell through to gray fallback (no entry).
 const CATEGORY_COLORS: Record<string, string> = {
-  Sports: "#f97316",
-  Politics: "#3b82f6",
-  Entertainment: "#a855f7",
-  Crypto: "#eab308",
-  Companies: "#22c55e",
-  Music: "#ec4899",
-  Tech: "#06b6d4",
-  Climate: "#84cc16",
-  Creators: "#f97316",
+  Sports:        "#f97316",  // orange
+  Politics:      "#3b82f6",  // blue
+  Entertainment: "#a855f7",  // purple
+  Companies:     "#14b8a6",  // teal       (was green; conflicted with YES)
+  Music:         "#ec4899",  // pink
+  Tech:          "#06b6d4",  // cyan
+  Climate:       "#84cc16",  // lime
+  Creators:      "#d946ef",  // fuchsia    (was orange; collided with Sports)
+  Crypto:        "#eab308",  // yellow
+  Commentary:    "#6366f1",  // indigo     (new — was falling back to gray)
+  Viral:         "#f43f5e",  // rose       (new — was falling back to gray)
 };
 
-function categoryColor(cat: string): string {
+/**
+ * Get the canonical accent color for a category. Exported so other
+ * components (e.g. TrendingStrip's hover glow) can match the pill
+ * without maintaining a duplicate palette.
+ */
+export function categoryColor(cat: string | null | undefined): string {
+  if (!cat) return "#888888";
   return CATEGORY_COLORS[cat] ?? "#888888";
 }
 
