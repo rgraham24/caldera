@@ -358,38 +358,28 @@ export function HomeClient({
   const abortRef = useRef<AbortController | null>(null);
   const marketsRef = useRef<HTMLDivElement>(null);
   const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
-  const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
 
   const uniqueTokenStripCreators = useMemo(
     () => tokenStripCreators.filter((t, i, arr) => arr.findIndex((x) => x.slug === t.slug) === i),
     [tokenStripCreators]
   );
 
-  // Trending Now strip is server-rendered via the trendingStripMarkets prop;
-  // no client fetch needed for it. Ending Soon + Featured remain client-fetched.
+  // Ending Soon is the only remaining client-fetched homepage strip.
+  // Trending Now and Hero are server-rendered. Featured was removed (the
+  // 3-up hero carousel covers the same surface area).
   useEffect(() => {
-    Promise.all([
-      fetch("/api/markets?status=open&sort=resolving_soon&limit=14").then((r) => r.json()),
-      fetch("/api/markets?status=open&sort=trending&limit=12").then((r) => r.json()),
-    ]).then(([endingData, volumeData]) => {
-      const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
-      const endingSoon = (endingData.data ?? []).filter((m: Market) => {
-        if (!m.resolve_at) return false;
-        const t = new Date(m.resolve_at).getTime();
-        return t > Date.now() && t < sevenDaysFromNow;
-      });
-      setEndingSoonMarkets(endingSoon.slice(0, 10));
-
-      const allVolume: Market[] = volumeData.data ?? [];
-      const withFeatured = allVolume.filter((m: Market) => (m.featured_score ?? 0) > 0);
-      if (withFeatured.length >= 6) {
-        setFeaturedMarkets(withFeatured.slice(0, 6));
-      } else {
-        const ids = new Set(withFeatured.map((m: Market) => m.id));
-        const fill = allVolume.filter((m: Market) => !ids.has(m.id));
-        setFeaturedMarkets([...withFeatured, ...fill].slice(0, 6));
-      }
-    }).catch(() => {});
+    fetch("/api/markets?status=open&sort=resolving_soon&limit=14")
+      .then((r) => r.json())
+      .then((endingData) => {
+        const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
+        const endingSoon = (endingData.data ?? []).filter((m: Market) => {
+          if (!m.resolve_at) return false;
+          const t = new Date(m.resolve_at).getTime();
+          return t > Date.now() && t < sevenDaysFromNow;
+        });
+        setEndingSoonMarkets(endingSoon.slice(0, 10));
+      })
+      .catch(() => {});
   }, []);
 
   const fetchMarkets = useCallback(
@@ -507,49 +497,6 @@ export function HomeClient({
                     </div>
                     <div className="mt-2 h-1 overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
                       <div className="h-full rounded-full bg-emerald-500" style={{ width: `${yes}%` }} />
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* FEATURED MARKETS */}
-        {featuredMarkets.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">⚡ Featured</h2>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredMarkets.map((market) => {
-                const yes = Math.round((market.yes_price ?? 0.5) * 100);
-                return (
-                  <Link
-                    key={market.id}
-                    href={`/markets/${market.slug}`}
-                    className="flex flex-col rounded-xl p-4 transition-colors"
-                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-orange-400">{market.category}</span>
-                      {(market.total_volume ?? 0) > 0 && (
-                        <span className="ml-auto font-mono text-[10px] text-[var(--text-tertiary)]">
-                          {formatCompactCurrency(market.total_volume ?? 0)} vol
-                        </span>
-                      )}
-                    </div>
-                    <p className="mb-auto line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{market.title}</p>
-                    <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="font-mono text-lg font-bold tabular-nums" style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}>{yes}%</span>
-                        <span className="text-xs text-[var(--text-tertiary)]">YES</span>
-                      </div>
-                      <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--border-subtle)" }}>
-                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${yes}%` }} />
-                      </div>
                     </div>
                   </Link>
                 );
