@@ -9,7 +9,7 @@ import {
   formatCompactCurrency,
   formatRelativeTime,
 } from "@/lib/utils";
-import { ChevronDown, TrendingUp, Zap, Users } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { TrendingStrip } from "@/components/markets/TrendingStrip";
 import dynamic from "next/dynamic";
@@ -31,50 +31,12 @@ type HomeClientProps = {
   heroMarkets: Market[];
   /** Server-rendered slot for the hero (Suspense-streamed prices). */
   heroSlot?: React.ReactNode;
-  breakingMarkets: Market[];
-  trendingCreators: Creator[];
   tokenStripCreators: Creator[];
   initialMarkets: Market[];
 };
 
 const PAGE_SIZE = 20;
 
-
-// ─── Breaking markets ─────────────────────────────────────────────────────────
-
-function BreakingMarkets({ markets }: { markets: Market[] }) {
-  return (
-    <div className="flex flex-col rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
-      <div className="mb-3 flex items-center gap-1.5">
-        <Zap className="h-3.5 w-3.5 text-amber-400" />
-        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">Breaking</h3>
-      </div>
-      <div className="flex flex-col justify-around flex-1 gap-3">
-        {markets.map((m, i) => {
-          const yes = Math.round((m.yes_price ?? 0.5) * 100);
-          return (
-            <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center gap-2 group">
-              <span className="w-4 shrink-0 text-center text-xs font-bold text-[var(--text-tertiary)]">{i + 1}</span>
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: yes >= 50 ? "var(--yes)" : "var(--no)" }}
-              />
-              <p className="flex-1 truncate text-xs font-medium leading-snug text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
-                {m.title}
-              </p>
-              <span
-                className="shrink-0 font-mono text-sm font-bold tabular-nums"
-                style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
-              >
-                {yes}%
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
@@ -94,85 +56,6 @@ const CATEGORY_FILTER_SLUGS: string[] = [
   "new",
   "following",
 ];
-
-// ─── Trending tokens sidebar ──────────────────────────────────────────────────
-
-const RANK_STYLE = [
-  { bg: "rgba(234,179,8,0.15)", color: "#eab308", label: "🥇" },
-  { bg: "rgba(148,163,184,0.15)", color: "#94a3b8", label: "🥈" },
-  { bg: "rgba(180,108,55,0.15)", color: "#b46c37", label: "🥉" },
-];
-
-function TrendingTokens({ creators, onBuy }: { creators: Creator[]; onBuy: (c: Creator) => void }) {
-  return (
-    <div className="flex flex-1 flex-col rounded-xl p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}>
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <TrendingUp className="h-3.5 w-3.5 text-[var(--accent)]" />
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">Trending Coins</h3>
-        </div>
-        <span className="text-[10px] text-[var(--text-tertiary)]">price · momentum</span>
-      </div>
-      <div className="flex flex-col justify-around flex-1 gap-2">
-        {creators.map((c, i) => {
-          const rank = RANK_STYLE[i];
-          const holders = c.creator_coin_holders ?? 0;
-          const momentum = holders > 1000 ? "🔥 Hot" : holders > 500 ? "↑ Rising" : null;
-          return (
-            <div key={c.id} className="flex items-center gap-2.5">
-              <Link href={`/creators/${c.slug}`} className="flex-1 flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer min-w-0">
-                {rank ? (
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                    style={{ background: rank.bg, color: rank.color }}
-                  >
-                    {rank.label}
-                  </span>
-                ) : (
-                  <span className="w-5 shrink-0 text-center text-xs font-bold text-[var(--text-tertiary)]">{i + 1}</span>
-                )}
-                <CreatorAvatar creator={c} size="sm" />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                    ${c.deso_username ?? c.creator_coin_symbol ?? c.name}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col gap-0">
-                      <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Price</span>
-                      <span className="font-mono text-xs font-semibold text-white tabular-nums">
-                        {(c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : "—"}
-                      </span>
-                    </div>
-                    {(c.creator_coin_market_cap ?? 0) > 0 && (
-                      <div className="flex flex-col gap-0">
-                        <span className="text-[9px] uppercase tracking-wide text-[var(--text-tertiary)]">Mkt Cap</span>
-                        <span className="font-mono text-xs font-semibold text-white tabular-nums">
-                          {formatCompactCurrency(c.creator_coin_market_cap ?? 0)}
-                        </span>
-                      </div>
-                    )}
-                    {momentum && (
-                      <span className="text-[9px] text-[var(--accent)] self-end pb-px">{momentum}</span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-              {c.deso_username && (
-                <button
-                  onClick={() => onBuy(c)}
-                  className="shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-colors"
-                  style={{ background: "var(--caldera-muted, #f9731615)", color: "var(--accent)" }}
-                >
-                  Buy
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ─── Token strip ──────────────────────────────────────────────────────────────
 
@@ -457,8 +340,6 @@ function MarketCard({ market }: { market: Market }) {
 export function HomeClient({
   heroMarkets,
   heroSlot,
-  breakingMarkets,
-  trendingCreators,
   tokenStripCreators,
   initialMarkets,
 }: HomeClientProps) {
@@ -477,11 +358,6 @@ export function HomeClient({
   const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
   const [trendingMarkets, setTrendingMarkets] = useState<Market[]>([]);
 
-  // Deduplicate trending tokens by slug
-  const uniqueTrendingCreators = useMemo(
-    () => trendingCreators.filter((t, i, arr) => arr.findIndex((x) => x.slug === t.slug) === i),
-    [trendingCreators]
-  );
   const uniqueTokenStripCreators = useMemo(
     () => tokenStripCreators.filter((t, i, arr) => arr.findIndex((x) => x.slug === t.slug) === i),
     [tokenStripCreators]
@@ -570,22 +446,16 @@ export function HomeClient({
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* Hero section — tagline + coupled-card grid streamed via Suspense.
-            heroSlot is rendered server-side in page.tsx so prices fill in
-            after the initial paint. Sidebar (Breaking + Trending tokens)
-            renders alongside on desktop. */}
-        {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
+        {/* Hero — tagline + coupled-card grid streamed via Suspense.
+            Right-rail sidebar (Breaking + Trending Coins) was removed in
+            this commit; hero now spans the full container width so the
+            3-up grid actually delivers 3 cards on lg+. Resolving-soon
+            content lives in the existing "Ending Soon" section below.
+            Coin discovery lives in the LIVE Trending Coins token strip. */}
+        {heroMarkets.length > 0 && (
           <>
-            {heroMarkets.length > 0 && <HeroTagline />}
-            <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
-              {heroSlot}
-              <div className="hidden lg:flex flex-col gap-4">
-                {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
-                {uniqueTrendingCreators.length > 0 && (
-                  <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
-                )}
-              </div>
-            </div>
+            <HeroTagline />
+            <div className="mb-6">{heroSlot}</div>
           </>
         )}
         {/* TRENDING STRIP — right below hero */}

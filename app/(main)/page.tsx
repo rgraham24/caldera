@@ -15,8 +15,6 @@ export default async function HomePage() {
 
   const [
     { data: heroRaw },
-    { data: breakingRaw },
-    { data: trendingCreators },
     { data: tokenStripCreators },
     { data: initialRaw },
   ] = await Promise.all([
@@ -27,23 +25,6 @@ export default async function HomePage() {
       .eq("status", "open")
       .order("featured_score", { ascending: false })
       .order("trending_score", { ascending: false })
-      .limit(5),
-
-    // Breaking — fetch 6 so dedup can still yield 3
-    supabase
-      .from("markets")
-      .select("*")
-      .eq("status", "open")
-      .gt("resolve_at", new Date().toISOString())
-      .order("resolve_at", { ascending: true })
-      .limit(6),
-
-    // Trending tokens sidebar — top 5 by creator coin price
-    supabase
-      .from("creators")
-      .select("*")
-      .gt("creator_coin_price", 0)
-      .order("creator_coin_price", { ascending: false })
       .limit(5),
 
     // Token strip — top 20 for the scrolling strip
@@ -62,13 +43,8 @@ export default async function HomePage() {
       .limit(20),
   ]);
 
-  // FIX 1: Dedup breaking markets by id, keep first 3
-  const breakingDeduped = (breakingRaw ?? [])
-    .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i)
-    .slice(0, 3) as Market[];
-
-  // FIX 3: Look up creator slugs for markets that have a creator_id
-  const allRaw = [...(heroRaw ?? []), ...(initialRaw ?? []), ...breakingDeduped];
+  // Look up creator slugs for markets that have a creator_id
+  const allRaw = [...(heroRaw ?? []), ...(initialRaw ?? [])];
   const creatorIds = [
     ...new Set(
       allRaw.map((m) => m.creator_id).filter((id): id is string => Boolean(id))
@@ -102,7 +78,6 @@ export default async function HomePage() {
   const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
   const heroMarkets = filterVerifiedMarkets((heroRaw ?? []).map(withSlug), verifiedSlugs);
   const initialMarkets = filterVerifiedMarkets((initialRaw ?? []).map(withSlug), verifiedSlugs);
-  const breakingMarkets = filterVerifiedMarkets(breakingDeduped.map(withSlug), verifiedSlugs);
 
   // Hero is rendered server-side as a slot. Markets data (titles, odds, vol)
   // is already in heroMarkets above and paints instantly via HeroSkeleton;
@@ -120,8 +95,6 @@ export default async function HomePage() {
     <HomeClient
       heroMarkets={heroMarkets}
       heroSlot={heroSlot}
-      breakingMarkets={breakingMarkets}
-      trendingCreators={dedupeCreatorsByPubkey((trendingCreators ?? []) as Creator[])}
       tokenStripCreators={dedupeCreatorsByPubkey((tokenStripCreators ?? []) as Creator[])}
       initialMarkets={initialMarkets}
     />
