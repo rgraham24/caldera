@@ -15,6 +15,7 @@ export default async function HomePage() {
 
   const [
     { data: heroRaw },
+    { data: trendingStripRaw },
     { data: tokenStripCreators },
     { data: initialRaw },
   ] = await Promise.all([
@@ -26,6 +27,21 @@ export default async function HomePage() {
       .order("featured_score", { ascending: false })
       .order("trending_score", { ascending: false })
       .limit(5),
+
+    // Trending Now strip — non-hero markets ordered by trending_score.
+    // Uses featured_score=0/NULL (NOT is_hero) because the is_hero column
+    // is stale: only 2 of 6 hero markets have is_hero=true while all 6
+    // have featured_score>0. featured_score is the source of truth for
+    // hero membership (matches the hero carousel query above).
+    // Filters to future-resolving so we never show past-due markets.
+    supabase
+      .from("markets")
+      .select("*")
+      .eq("status", "open")
+      .or("featured_score.eq.0,featured_score.is.null")
+      .gt("resolve_at", new Date().toISOString())
+      .order("trending_score", { ascending: false })
+      .limit(12),
 
     // Token strip — top 20 for the scrolling strip
     supabase
@@ -44,7 +60,7 @@ export default async function HomePage() {
   ]);
 
   // Look up creator slugs for markets that have a creator_id
-  const allRaw = [...(heroRaw ?? []), ...(initialRaw ?? [])];
+  const allRaw = [...(heroRaw ?? []), ...(trendingStripRaw ?? []), ...(initialRaw ?? [])];
   const creatorIds = [
     ...new Set(
       allRaw.map((m) => m.creator_id).filter((id): id is string => Boolean(id))
@@ -78,6 +94,10 @@ export default async function HomePage() {
   const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
   const heroMarkets = filterVerifiedMarkets((heroRaw ?? []).map(withSlug), verifiedSlugs);
   const initialMarkets = filterVerifiedMarkets((initialRaw ?? []).map(withSlug), verifiedSlugs);
+  const trendingStripMarkets = filterVerifiedMarkets(
+    (trendingStripRaw ?? []).map(withSlug),
+    verifiedSlugs
+  );
 
   // Hero is rendered server-side as a slot. Markets data (titles, odds, vol)
   // is already in heroMarkets above and paints instantly via HeroSkeleton;
@@ -95,6 +115,7 @@ export default async function HomePage() {
     <HomeClient
       heroMarkets={heroMarkets}
       heroSlot={heroSlot}
+      trendingStripMarkets={trendingStripMarkets}
       tokenStripCreators={dedupeCreatorsByPubkey((tokenStripCreators ?? []) as Creator[])}
       initialMarkets={initialMarkets}
     />

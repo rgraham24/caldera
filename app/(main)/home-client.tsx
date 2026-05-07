@@ -31,6 +31,8 @@ type HomeClientProps = {
   heroMarkets: Market[];
   /** Server-rendered slot for the hero (Suspense-streamed prices). */
   heroSlot?: React.ReactNode;
+  /** Trending Now strip — non-hero markets, ordered by trending_score, top 12. */
+  trendingStripMarkets: Market[];
   tokenStripCreators: Creator[];
   initialMarkets: Market[];
 };
@@ -340,6 +342,7 @@ function MarketCard({ market }: { market: Market }) {
 export function HomeClient({
   heroMarkets,
   heroSlot,
+  trendingStripMarkets,
   tokenStripCreators,
   initialMarkets,
 }: HomeClientProps) {
@@ -356,20 +359,19 @@ export function HomeClient({
   const marketsRef = useRef<HTMLDivElement>(null);
   const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
   const [featuredMarkets, setFeaturedMarkets] = useState<Market[]>([]);
-  const [trendingMarkets, setTrendingMarkets] = useState<Market[]>([]);
 
   const uniqueTokenStripCreators = useMemo(
     () => tokenStripCreators.filter((t, i, arr) => arr.findIndex((x) => x.slug === t.slug) === i),
     [tokenStripCreators]
   );
 
-  // Fetch ending soon, featured, sports, and trending markets in parallel on mount
+  // Trending Now strip is server-rendered via the trendingStripMarkets prop;
+  // no client fetch needed for it. Ending Soon + Featured remain client-fetched.
   useEffect(() => {
     Promise.all([
       fetch("/api/markets?status=open&sort=resolving_soon&limit=14").then((r) => r.json()),
       fetch("/api/markets?status=open&sort=trending&limit=12").then((r) => r.json()),
-      fetch("/api/markets?status=open&sort=trending&limit=6").then((r) => r.json()),
-    ]).then(([endingData, volumeData, trendingData]) => {
+    ]).then(([endingData, volumeData]) => {
       const sevenDaysFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
       const endingSoon = (endingData.data ?? []).filter((m: Market) => {
         if (!m.resolve_at) return false;
@@ -387,8 +389,6 @@ export function HomeClient({
         const fill = allVolume.filter((m: Market) => !ids.has(m.id));
         setFeaturedMarkets([...withFeatured, ...fill].slice(0, 6));
       }
-
-      setTrendingMarkets(trendingData.data ?? []);
     }).catch(() => {});
   }, []);
 
@@ -458,8 +458,8 @@ export function HomeClient({
             <div className="mb-6">{heroSlot}</div>
           </>
         )}
-        {/* TRENDING STRIP — right below hero */}
-        <TrendingStrip markets={trendingMarkets} />
+        {/* TRENDING STRIP — right below hero (server-rendered, non-hero markets) */}
+        <TrendingStrip markets={trendingStripMarkets} />
       </div>
 
       {/* Live activity ticker — full-width strip below hero */}
