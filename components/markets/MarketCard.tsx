@@ -6,37 +6,23 @@ import type { Market } from "@/types";
 import { formatCompactCurrency, formatMarketTimeLeft, cn } from "@/lib/utils";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 
-// ── Deterministic sparkline ───────────────────────────────────────────────────
-// Generates a unique but stable mini chart path from a market id + yes_price.
-// No fetches, no random(), same output on every render.
+// ── Real sparkline from price history ────────────────────────────────────────
+// Renders a chronological yes_price line from market_price_history snapshots.
+// Returns null when no history data is provided — no fake fallback. The
+// previous deterministic-from-id implementation was misleading (looked
+// real to users but was just hashed noise), so it's been removed entirely.
 
-function idHash(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
+export type SparklinePoint = {
+  recorded_at: string;
+  yes_price: number;
+};
 
-function buildSparklinePath(id: string, yesPrice: number, w: number, h: number): string {
-  const seed = idHash(id);
-  const points = 10;
-  const endY = 1 - yesPrice; // SVG y is inverted
-
-  // Generate waypoints that end exactly at yesPrice
-  const ys: number[] = [];
-  for (let i = 0; i < points - 1; i++) {
-    // Pseudo-random perturbation from seed
-    const r = ((seed * (i + 7) * 2654435761) >>> 0) / 0xffffffff;
-    const center = endY + (0.5 - endY) * (1 - i / points); // drift toward final price
-    ys.push(Math.max(0.05, Math.min(0.95, center + (r - 0.5) * 0.35)));
-  }
-  ys.push(endY);
-
-  // Build smooth SVG path
-  const coords = ys.map((y, i) => ({
-    x: (i / (points - 1)) * w,
-    y: y * h,
+function buildSparklinePathFromHistory(points: number[], w: number, h: number): string {
+  if (points.length < 2) return "";
+  const coords = points.map((y, i) => ({
+    x: (i / (points.length - 1)) * w,
+    y: (1 - y) * h, // SVG y is inverted
   }));
-
   let d = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
   for (let i = 1; i < coords.length; i++) {
     const prev = coords[i - 1];
@@ -50,24 +36,34 @@ function buildSparklinePath(id: string, yesPrice: number, w: number, h: number):
   return d;
 }
 
-function MiniSparkline({ market }: { market: Market }) {
+function MiniSparkline({
+  history,
+  currentYesPrice,
+}: {
+  history: SparklinePoint[];
+  currentYesPrice: number;
+}) {
   const w = 60;
   const h = 28;
-  const yesPrice = market.yes_price ?? 0.5;
-  const isYes = yesPrice >= 0.5;
-  const color = isYes ? "#22c55e" : "#ef4444";
-  const path = buildSparklinePath(market.id, yesPrice, w, h);
+
+  // Sort ascending by recorded_at so the line reads left-to-right
+  // chronologically. Caller may already pass sorted data, but normalize
+  // here so this component is robust to either order.
+  const sorted = [...history].sort(
+    (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+  );
+  const ys = sorted.map((p) => Number(p.yes_price));
+  if (ys.length < 2) return null;
+
+  const isYes = currentYesPrice >= 0.5;
+  const color = isYes ? "var(--yes)" : "var(--no)";
+  const path = buildSparklinePathFromHistory(ys, w, h);
+  const lastY = ys[ys.length - 1];
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
-      <path d={path} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.7} />
-      {/* End dot */}
-      <circle
-        cx={w}
-        cy={(1 - yesPrice) * h}
-        r={2.5}
-        fill={color}
-      />
+      <path d={path} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.85} />
+      <circle cx={w} cy={(1 - lastY) * h} r={2.5} fill={color} />
     </svg>
   );
 }
@@ -82,6 +78,12 @@ type MarketCardProps = {
    * keep the resolve-date as their primary date hint.
    */
   showCreatedAgo?: boolean;
+  /**
+   * Real yes_price snapshots over time from market_price_history. When
+   * provided AND has >=2 points, renders a chronological sparkline.
+   * When omitted/empty, no sparkline shown — no fake fallback.
+   */
+  priceHistory?: SparklinePoint[];
 };
 
 function formatCreatedAgo(createdAt: string | null | undefined): string {
@@ -94,7 +96,7 @@ function formatCreatedAgo(createdAt: string | null | undefined): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function MarketCard({ market, showCreatedAgo = false }: MarketCardProps) {
+export function MarketCard({ market, showCreatedAgo = false, priceHistory }: MarketCardProps) {
   const router = useRouter();
   const now = new Date();
   const hoursLeft = market.resolve_at
@@ -182,7 +184,12 @@ export function MarketCard({ market, showCreatedAgo = false }: MarketCardProps) 
             </span>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <MiniSparkline market={market} />
+            {priceHistory && priceHistory.length >= 2 && (
+              <MiniSparkline
+                history={priceHistory}
+                currentYesPrice={market.yes_price ?? 0.5}
+              />
+            )}
             {(() => {
               const vol = market.total_volume ?? 0;
               // Hide volume for old seed data (created before Apr 7 2026) — it was simulated

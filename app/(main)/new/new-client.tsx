@@ -5,13 +5,24 @@ import { Clock } from "lucide-react";
 import type { Market } from "@/types";
 import { MarketCard } from "@/components/markets/MarketCard";
 
+export type PriceHistoryPoint = {
+  recorded_at: string;
+  yes_price: number;
+};
+
 type NewMarketsClientProps = {
   initialMarkets: Market[];
+  initialHistory: Record<string, PriceHistoryPoint[]>;
   pageSize: number;
 };
 
-export function NewMarketsClient({ initialMarkets, pageSize }: NewMarketsClientProps) {
+export function NewMarketsClient({
+  initialMarkets,
+  initialHistory,
+  pageSize,
+}: NewMarketsClientProps) {
   const [markets, setMarkets] = useState<Market[]>(initialMarkets);
+  const [history, setHistory] = useState<Record<string, PriceHistoryPoint[]>>(initialHistory);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialMarkets.length === pageSize);
 
@@ -24,10 +35,26 @@ export function NewMarketsClient({ initialMarkets, pageSize }: NewMarketsClientP
       );
       const json = await res.json();
       const next: Market[] = Array.isArray(json?.data) ? json.data : [];
-      // Dedupe by id in case offset skews on a fresh insert between batches.
       const seen = new Set(markets.map((m) => m.id));
       const fresh = next.filter((m) => !seen.has(m.id));
+
+      // Fetch sparkline history for the new batch in a single round-trip.
+      let freshHistory: Record<string, PriceHistoryPoint[]> = {};
+      if (fresh.length > 0) {
+        const ids = fresh.map((m) => m.id).join(",");
+        try {
+          const histRes = await fetch(`/api/markets/price-history?ids=${ids}`);
+          const histJson = await histRes.json();
+          if (histJson?.data && typeof histJson.data === "object") {
+            freshHistory = histJson.data;
+          }
+        } catch {
+          // Sparkline data is best-effort — cards still render without it.
+        }
+      }
+
       setMarkets((prev) => [...prev, ...fresh]);
+      setHistory((prev) => ({ ...prev, ...freshHistory }));
       setHasMore(next.length === pageSize);
     } catch {
       // Silent — leaves existing list intact, button stays enabled for retry.
@@ -55,7 +82,12 @@ export function NewMarketsClient({ initialMarkets, pageSize }: NewMarketsClientP
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {markets.map((market) => (
-              <MarketCard key={market.id} market={market} showCreatedAgo />
+              <MarketCard
+                key={market.id}
+                market={market}
+                showCreatedAgo
+                priceHistory={history[market.id]}
+              />
             ))}
           </div>
 
