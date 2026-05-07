@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Market } from "@/types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
+import { formatMarketTimeLeft } from "@/lib/utils";
 
 // Hover accent color matches the category pill palette so the border
 // + glow on hover stay visually coherent with the pill.
@@ -70,6 +71,14 @@ function TrendingCard({ market }: { market: Market }) {
           }}
         />
       </div>
+
+      {/* Time-to-resolve — same helper as hero + all-markets cards */}
+      {market.resolve_at && (
+        /* eslint-disable-next-line react-hooks/purity */
+        <span className="text-[10px] text-[var(--text-tertiary)]">
+          {formatMarketTimeLeft(market.resolve_at)}
+        </span>
+      )}
     </Link>
   );
 }

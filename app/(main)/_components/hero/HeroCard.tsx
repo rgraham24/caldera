@@ -17,6 +17,7 @@
 import Link from "next/link";
 import type { HeroCard as HeroCardType } from "./types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
+import { formatMarketTimeLeft } from "@/lib/utils";
 
 type HeroCardProps = {
   card: HeroCardType;
@@ -47,13 +48,11 @@ export function HeroCard({ card }: HeroCardProps) {
   const ticker = creator?.coin_symbol ?? creator?.deso_username?.toUpperCase() ?? null;
   const tickerLabel = ticker ? `$${ticker}` : null;
 
-  // Reading "now" at render time matches the codebase pattern (see
-  // home-client.tsx). The carousel re-renders every 8s, so countdowns
-  // update naturally without a separate ticker.
-  const daysLeft = m.resolve_at
-    /* eslint-disable-next-line react-hooks/purity */
-    ? Math.max(0, Math.ceil((new Date(m.resolve_at).getTime() - Date.now()) / 86_400_000))
-    : null;
+  // formatMarketTimeLeft reads "now" via Date.now() — same render-time
+  // pattern as elsewhere in the codebase. Carousel re-renders every 8s
+  // so countdowns update naturally.
+  /* eslint-disable-next-line react-hooks/purity */
+  const timeLeft = formatMarketTimeLeft(m.resolve_at);
 
   return (
     <div
@@ -154,10 +153,10 @@ export function HeroCard({ card }: HeroCardProps) {
         </Link>
       </div>
 
-      {/* 6. Volume + time-left */}
+      {/* 7. Volume + time-left */}
       <div className="flex items-center justify-between font-mono text-xs text-[var(--text-tertiary)]">
         <span>${(m.total_volume ?? 0).toFixed(2)} vol</span>
-        {daysLeft !== null && <span>{daysLeft}d left</span>}
+        {timeLeft && <span>{timeLeft}</span>}
       </div>
 
       {/* 7. Divider */}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Market } from "@/types";
-import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
+import { formatCompactCurrency, formatMarketTimeLeft, cn } from "@/lib/utils";
 import { CategoryPill } from "@/components/shared/CategoryPill";
 
 // ── Deterministic sparkline ───────────────────────────────────────────────────
@@ -118,7 +118,7 @@ export function MarketCard({ market }: MarketCardProps) {
           </div>
           {market.resolve_at && (
             <span className="shrink-0 text-xs text-[var(--text-tertiary)]">
-              {formatRelativeTime(market.resolve_at)}
+              {formatMarketTimeLeft(market.resolve_at)}
             </span>
           )}
         </div>
