@@ -23,6 +23,7 @@ import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { HeroTagline } from "./_components/hero/HeroTagline";
+import { LiveTicker } from "./_components/ticker/LiveTicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -590,6 +591,9 @@ export function HomeClient({
         {/* TRENDING STRIP — right below hero */}
         <TrendingStrip markets={trendingMarkets} />
       </div>
+
+      {/* Live activity ticker — full-width strip below hero */}
+      <LiveTicker />
 
       {/* 3. Token strip */}
       <TokenStrip creators={uniqueTokenStripCreators} onBuy={setStakeCreator} />
