@@ -78,7 +78,7 @@ export function HeroSkeleton({ markets }: HeroSkeletonProps) {
                 {yes}%
               </span>
               <span className="mb-1 text-xs text-[var(--text-tertiary)]">
-                chance YES
+                chance
               </span>
             </div>
 

@@ -101,7 +101,7 @@ export function HowItWorksModal() {
               </div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-2xl font-semibold text-[var(--text-primary)]">71%</span>
-                <span className="text-xs text-[var(--text-tertiary)]">chance YES</span>
+                <span className="text-xs text-[var(--text-tertiary)]">chance</span>
               </div>
               <div className="flex gap-2">
                 <button className="flex-1 bg-green-500 text-white text-sm font-medium py-2 rounded-xl">

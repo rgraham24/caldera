@@ -136,7 +136,7 @@ export function HeroCard({ card }: HeroCardProps) {
         >
           {yes}%
         </span>
-        <span className="mb-1 text-xs text-[var(--text-tertiary)]">chance YES</span>
+        <span className="mb-1 text-xs text-[var(--text-tertiary)]">chance</span>
       </div>
 
       {/* 5. YES / NO buttons */}
