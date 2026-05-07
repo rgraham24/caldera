@@ -157,13 +157,53 @@ export async function fetchVerifiedCreatorSlugs(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any
 ): Promise<Set<string>> {
-  const { data } = await supabase
-    .from("creators")
-    .select("slug")
-    .not("deso_public_key", "is", null)
-    .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
-    .or(VERIFIED_FOR_MARKETS_OR);
-  return new Set(((data ?? []) as Array<{ slug: string }>).map((c) => c.slug));
+  // Supabase has a server-side row cap (max-rows config, typically 1000)
+  // that overrides client-side .limit() values. The previous .limit(20000)
+  // attempt was silently capped at 1000, and adding .order("slug") only
+  // made the truncation deterministic alphabetical — dropping every
+  // verified creator past position 1000. Production saw 0 hero cards
+  // because all 5 (chiefs, diddy, kingjames, loganpaul, mrbeastyt) sort
+  // after "arikaleph" which is the 1000th slug.
+  //
+  // This loop pages via .range() until a short page or empty page is
+  // returned, then unions all slugs into a single Set. Safety cap of 30
+  // pages = 30k rows; warns if hit so we can bump or migrate to an inline
+  // JOIN before silent truncation recurs.
+  const PAGE_SIZE = 1000;
+  const all = new Set<string>();
+  let from = 0;
+  let safetyCounter = 0;
+
+  while (safetyCounter++ < 30) {
+    const { data, error } = await supabase
+      .from("creators")
+      .select("slug")
+      .not("deso_public_key", "is", null)
+      .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
+      .or(VERIFIED_FOR_MARKETS_OR)
+      .order("slug", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("[fetchVerifiedCreatorSlugs] page fetch failed at offset", from, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+
+    for (const row of data as Array<{ slug: string }>) all.add(row.slug);
+
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  if (safetyCounter >= 30) {
+    console.warn(
+      "[fetchVerifiedCreatorSlugs] hit 30-page safety cap (30000 rows). " +
+        "Bump cap or move to inline JOIN before silent truncation recurs."
+    );
+  }
+
+  return all;
 }
 
 /**
