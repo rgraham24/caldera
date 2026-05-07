@@ -1,16 +1,21 @@
-'use client';
+"use client";
 
-import { useAppStore } from '@/store';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { MarketCard } from '@/components/markets/MarketCard';
-import type { Market } from '@/types';
+import { useAppStore } from "@/store";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { UserPlus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { MarketCard } from "@/components/markets/MarketCard";
+import type { Market } from "@/types";
+
+const FOLLOWING_FETCH_TIMEOUT_MS = 6000;
 
 export default function FollowingPage() {
   const { isConnected, desoPublicKey } = useAppStore();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFallback, setIsFallback] = useState(false);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!isConnected || !desoPublicKey) {
@@ -18,75 +23,89 @@ export default function FollowingPage() {
       return;
     }
 
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FOLLOWING_FETCH_TIMEOUT_MS);
+
     const load = async () => {
       setLoading(true);
-      setIsFallback(false);
+      setError(false);
 
       try {
-        // 1. Get the list of DeSo public keys this user follows
-        const followRes = await fetch(`/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`);
-        const { followedKeys = [] } = await followRes.json() as { followedKeys: string[] };
+        // 1. DeSo follow graph (proxied through /api/following so the
+        //    DeSo public node URL stays server-side and we get a hard
+        //    timeout).
+        const followRes = await fetch(
+          `/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`,
+          { signal: controller.signal }
+        );
+        const { followedKeys = [] } = (await followRes.json()) as {
+          followedKeys: string[];
+        };
 
-        if (followedKeys.length > 0) {
-          // 2. Look up creators in our DB whose deso_public_key is in the followed list
-          const supabase = createClient();
-          const { data: creators } = await supabase
-            .from('creators')
-            .select('id')
-            .in('deso_public_key', followedKeys);
+        if (cancelled) return;
 
-          const creatorIds = (creators ?? []).map((c) => c.id);
-
-          if (creatorIds.length > 0) {
-            // 3. Fetch open markets for those creators
-            const { data: creatorMarkets } = await supabase
-              .from('markets')
-              .select('*')
-              .in('creator_id', creatorIds)
-              .eq('status', 'open')
-              .order('trending_score', { ascending: false })
-              .limit(50);
-
-            if (creatorMarkets && creatorMarkets.length > 0) {
-              setMarkets(creatorMarkets as Market[]);
-              setLoading(false);
-              return;
-            }
-          }
+        if (followedKeys.length === 0) {
+          setMarkets([]);
+          return;
         }
 
-        // 4. Fall back to trending markets
-        setIsFallback(true);
+        // 2. Map DeSo public keys to creator rows in our DB.
         const supabase = createClient();
-        const { data: trending } = await supabase
-          .from('markets')
-          .select('*')
-          .eq('status', 'open')
-          .order('trending_score', { ascending: false })
-          .limit(24);
-        setMarkets((trending ?? []) as Market[]);
+        const { data: creators } = await supabase
+          .from("creators")
+          .select("id")
+          .in("deso_public_key", followedKeys);
+
+        const creatorIds = (creators ?? []).map((c) => c.id);
+        if (cancelled) return;
+
+        if (creatorIds.length === 0) {
+          setMarkets([]);
+          return;
+        }
+
+        // 3. Open markets attached to those creators.
+        const { data: creatorMarkets } = await supabase
+          .from("markets")
+          .select("*")
+          .in("creator_id", creatorIds)
+          .eq("status", "open")
+          .order("trending_score", { ascending: false })
+          .limit(50);
+
+        if (cancelled) return;
+        setMarkets((creatorMarkets ?? []) as Market[]);
       } catch {
-        setMarkets([]);
+        if (!cancelled) setError(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
+        clearTimeout(timer);
       }
     };
 
     load();
-  }, [isConnected, desoPublicKey]);
 
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [isConnected, desoPublicKey, reloadKey]);
+
+  // 1. Not connected — connect wallet prompt.
   if (!isConnected) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold mb-3">Following</h1>
         <p className="text-sm text-text-muted mb-6">
-          Connect your DeSo wallet to see markets about creators you follow
+          Connect your wallet to follow creators and see their markets here.
         </p>
         <button
-          onClick={() => import('@/lib/deso/auth').then((m) => m.connectDeSoWallet())}
+          onClick={() => import("@/lib/deso/auth").then((m) => m.connectDeSoWallet())}
           className="bg-white text-black font-semibold px-6 py-2.5 rounded-lg hover:bg-gray-100 transition-colors"
         >
-          Connect Wallet
+          Connect
         </button>
       </div>
     );
@@ -97,9 +116,7 @@ export default function FollowingPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1">Following</h1>
         <p className="text-sm text-text-muted">
-          {isFallback
-            ? "No markets yet about people you follow — here's what's trending"
-            : 'Prediction markets about creators you follow on DeSo'}
+          Prediction markets about creators you follow on DeSo
         </p>
       </div>
 
@@ -109,10 +126,39 @@ export default function FollowingPage() {
             <div key={i} className="h-44 rounded-xl bg-surface animate-pulse" />
           ))}
         </div>
+      ) : error ? (
+        <div className="text-center py-20">
+          <p className="text-sm text-text-muted mb-4">
+            Couldn&apos;t load Following — try again later.
+          </p>
+          <button
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)]"
+          >
+            Retry
+          </button>
+        </div>
       ) : markets.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-text-muted mb-2">No markets yet about people you follow.</p>
-          <p className="text-sm text-text-muted">Follow more creators on DeSo to see their markets here.</p>
+        <div className="flex flex-col items-center text-center py-20">
+          <div
+            className="mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ background: "var(--bg-elevated)", color: "var(--text-tertiary)" }}
+          >
+            <UserPlus className="h-5 w-5" />
+          </div>
+          <p className="text-base font-semibold text-[var(--text-primary)] mb-1">
+            No markets yet from creators you follow
+          </p>
+          <p className="text-sm text-[var(--text-tertiary)] mb-5 max-w-md">
+            Browse creators to find someone to follow. Their markets will show
+            up here.
+          </p>
+          <Link
+            href="/creators"
+            className="rounded-lg bg-white px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-100"
+          >
+            Browse creators
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
