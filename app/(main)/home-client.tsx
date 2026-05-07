@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import type { Market, Creator } from "@/types";
+import { CATEGORIES } from "@/types";
 import {
   formatCurrency,
   formatCompactCurrency,
@@ -257,7 +258,22 @@ function BreakingMarkets({ markets }: { markets: Market[] }) {
 
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
-const CATEGORY_FILTER_SLUGS = ["sports", "politics", "music", "tech", "entertainment", "creators", "companies", "new", "following"];
+// Special non-category filter modes that prefix the category strip.
+const HOMEPAGE_SPECIAL_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "📈 Trending" },
+  { value: "breaking", label: "⚡ Breaking" },
+  { value: "new", label: "🕐 New" },
+  { value: "following", label: "Following" },
+];
+
+// Slugs that the homepage filter UI treats as non-creator filters.
+// Includes every category from CATEGORIES + the special filters that aren't
+// also categories (all/breaking are handled inline elsewhere).
+const CATEGORY_FILTER_SLUGS: string[] = [
+  ...CATEGORIES.map((c) => c.value),
+  "new",
+  "following",
+];
 
 // ─── Trending tokens sidebar ──────────────────────────────────────────────────
 
@@ -859,17 +875,8 @@ export function HomeClient({
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
             >
               {[
-                { value: "all", label: "📈 Trending" },
-                { value: "breaking", label: "⚡ Breaking" },
-                { value: "new", label: "🕐 New" },
-                { value: "following", label: "Following" },
-                { value: "creators", label: "Creators" },
-                { value: "politics", label: "Politics" },
-                { value: "sports", label: "Sports" },
-                { value: "music", label: "Music" },
-                { value: "companies", label: "Companies" },
-                { value: "tech", label: "Tech" },
-                { value: "entertainment", label: "Entertainment" },
+                ...HOMEPAGE_SPECIAL_FILTERS,
+                ...CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
               ].map((f) => (
                 <button
                   key={f.value}

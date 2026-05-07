@@ -15,13 +15,6 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "resolving_soon", label: "Resolving Soon" },
 ];
 
-const STATUS_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "open", label: "Open" },
-  { value: "resolving", label: "Resolving" },
-  { value: "resolved", label: "Resolved" },
-];
-
 type MarketsClientProps = {
   markets: Market[];
   totalCount: number;
@@ -53,7 +46,6 @@ function Pill({
 
 export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
-  const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("trending");
 
   const toggleCategory = (cat: string) => {
@@ -85,10 +77,6 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
       result = result.filter((m) => expandedCats.has(m.category));
     }
 
-    if (statusFilter !== "all") {
-      result = result.filter((m) => m.status === statusFilter);
-    }
-
     switch (sortBy) {
       case "trending":
         result.sort((a, b) => (b.trending_score ?? 0) - (a.trending_score ?? 0));
@@ -109,7 +97,7 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
     }
 
     return result;
-  }, [markets, selectedCategories, statusFilter, sortBy]);
+  }, [markets, selectedCategories, sortBy]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
@@ -181,27 +169,6 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
               </div>
             </div>
 
-            {/* Status */}
-            <div>
-              <h3
-                className="mb-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-tertiary)" }}
-              >
-                Status
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {STATUS_OPTIONS.map((opt) => (
-                  <Pill
-                    key={opt.value}
-                    active={statusFilter === opt.value}
-                    onClick={() => setStatusFilter(opt.value)}
-                  >
-                    {opt.label}
-                  </Pill>
-                ))}
-              </div>
-            </div>
-
             {/* Sort */}
             <div>
               <h3
@@ -233,7 +200,7 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
         {/* Main grid */}
         <div className="flex-1">
           <p className="mb-4 text-sm text-[var(--text-tertiary)]">
-            {selectedCategories.size === 0 && statusFilter === "all"
+            {selectedCategories.size === 0
               ? <>{totalCount.toLocaleString()} markets</>
               : <>{filtered.length} market{filtered.length !== 1 ? "s" : ""}</>
             }

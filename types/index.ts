@@ -37,16 +37,17 @@ export type MarketStatus = "open" | "closed" | "resolving" | "resolved" | "cance
 // Trade side
 export type TradeSide = "yes" | "no";
 
-// Category type
+// Category type. Union retains "crypto" and "climate" because old DB rows
+// still carry those values; the exported CATEGORIES UI list drops them.
 export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment" | "crypto" | "companies" | "climate";
 
+// Single source of truth for the homepage strip + /markets sidebar.
+// Re-add "crypto" or "climate" here when those categories have open markets again.
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "creators", label: "🎬 Creators" },
-  { value: "crypto", label: "🪙 Crypto" },
   { value: "companies", label: "🏢 Companies" },
   { value: "sports", label: "⚽ Sports" },
   { value: "politics", label: "👑 Politics" },
-  { value: "climate", label: "🌍 Climate" },
   { value: "music", label: "🎵 Music" },
   { value: "tech", label: "💻 Tech" },
   { value: "entertainment", label: "🎭 Entertainment" },

@@ -11,7 +11,9 @@ export default async function MarketsPage() {
   const { data: markets } = await supabase
     .from("markets")
     .select("*")
-    .order("trending_score", { ascending: false });
+    .eq("status", "open")
+    .order("trending_score", { ascending: false })
+    .limit(2000);
 
   // Phase 3 defense-in-depth — drop markets attached to unverified creators.
   // Becomes redundant after Phase 4 cleans data.
