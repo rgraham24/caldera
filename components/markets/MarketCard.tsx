@@ -36,6 +36,15 @@ function buildSparklinePathFromHistory(points: number[], w: number, h: number): 
   return d;
 }
 
+/**
+ * Variance threshold (in yes_price units, range [0..1]) below which we
+ * suppress the curve and only show the end-dot. Pre-launch markets
+ * have identical hourly snapshots (no real trading), so most curves
+ * are flat and add visual noise. Curves naturally appear once real
+ * users start trading and prices move >2 percentage points.
+ */
+const SPARKLINE_VARIANCE_THRESHOLD = 0.02;
+
 function MiniSparkline({
   history,
   currentYesPrice,
@@ -57,12 +66,16 @@ function MiniSparkline({
 
   const isYes = currentYesPrice >= 0.5;
   const color = isYes ? "var(--yes)" : "var(--no)";
-  const path = buildSparklinePathFromHistory(ys, w, h);
   const lastY = ys[ys.length - 1];
+  const variance = Math.max(...ys) - Math.min(...ys);
+  const showCurve = variance >= SPARKLINE_VARIANCE_THRESHOLD;
+  const path = showCurve ? buildSparklinePathFromHistory(ys, w, h) : "";
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
-      <path d={path} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.85} />
+      {showCurve && (
+        <path d={path} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" opacity={1} />
+      )}
       <circle cx={w} cy={(1 - lastY) * h} r={2.5} fill={color} />
     </svg>
   );
