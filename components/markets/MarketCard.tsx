@@ -173,14 +173,19 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
           </span>
         )}
 
-        {/* Probability bar */}
-        <div
-          className="mb-3 h-1.5 w-full rounded-full"
-          style={{ background: "var(--border-subtle)" }}
-        >
+        {/* Probability bar — Polymarket-style split: green YES on the left,
+            red NO on the right, totalling 100% width. Reads as "the market
+            is split N/M%" instead of "weak N% bar with empty space on the
+            right." 0.5px gap between halves makes the split visually
+            obvious without breaking the rounded-pill silhouette. */}
+        <div className="mb-3 flex h-1.5 w-full gap-0.5">
           <div
-            className={cn("h-full rounded-full transition-all duration-500", isYesLeading ? "bg-yes" : "bg-no")}
-            style={{ width: `${yesPercent}%` }}
+            className="h-full rounded-l-full transition-all duration-500"
+            style={{ width: `${yesPercent}%`, background: "var(--yes)" }}
+          />
+          <div
+            className="h-full rounded-r-full transition-all duration-500"
+            style={{ width: `${100 - yesPercent}%`, background: "var(--no)" }}
           />
         </div>
 
