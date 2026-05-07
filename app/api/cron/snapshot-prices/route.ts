@@ -31,31 +31,43 @@ export async function GET(req: Request) {
     return NextResponse.json({ snapshots: 0, skipped: 0 });
   }
 
-  // Pull the latest yes_price per open market. We sort by market_id then
-  // recorded_at DESC and walk the list keeping the first row seen per
-  // market_id. With the (market_id, recorded_at DESC) index this is an
-  // index-ordered scan; no full table sort.
+  // Pull the latest yes_price per open market. With ~713 open markets a
+  // single .in("market_id", ids) overflows PostgREST's URL cap (~8KB) —
+  // 713 UUIDs is ~26KB. Chunked at 100 IDs per request keeps each query
+  // under ~3.7KB. Run chunks in parallel and merge.
   const openMarketIds = (markets as Array<{ id: string }>).map((m) => m.id);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: snapshotRows } = await (supabase as any)
-    .from("market_price_history")
-    .select("market_id, yes_price, recorded_at")
-    .in("market_id", openMarketIds)
-    .order("market_id", { ascending: true })
-    .order("recorded_at", { ascending: false });
-
-  const latestPriceByMarket = new Map<string, number>();
-  if (Array.isArray(snapshotRows)) {
-    for (const r of snapshotRows as Array<{
-      market_id: string;
-      yes_price: number | string;
-    }>) {
-      // First row per market_id wins (recorded_at DESC means newest first)
-      if (!latestPriceByMarket.has(r.market_id)) {
-        latestPriceByMarket.set(r.market_id, Number(r.yes_price));
-      }
-    }
+  const CHUNK_SIZE = 100;
+  const chunks: string[][] = [];
+  for (let i = 0; i < openMarketIds.length; i += CHUNK_SIZE) {
+    chunks.push(openMarketIds.slice(i, i + CHUNK_SIZE));
   }
+  const latestPriceByMarket = new Map<string, number>();
+  await Promise.all(
+    chunks.map(async (chunkIds) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: snapshotRows } = await (supabase as any)
+        .from("market_price_history")
+        .select("market_id, yes_price, recorded_at")
+        .in("market_id", chunkIds)
+        .order("market_id", { ascending: true })
+        .order("recorded_at", { ascending: false });
+      if (Array.isArray(snapshotRows)) {
+        for (const r of snapshotRows as Array<{
+          market_id: string;
+          yes_price: number | string;
+        }>) {
+          // First row per market_id wins (recorded_at DESC = newest first).
+          // Map.set is fine across chunks because each chunk owns disjoint IDs.
+          if (!latestPriceByMarket.has(r.market_id)) {
+            latestPriceByMarket.set(r.market_id, Number(r.yes_price));
+          }
+        }
+      }
+    })
+  );
+  console.log(
+    `[snapshot-prices] Loaded latest prices for ${latestPriceByMarket.size}/${openMarketIds.length} open markets (${chunks.length} chunks)`
+  );
 
   // Build the diff set: insert only when yes_price actually changed
   // (or when no prior snapshot exists for that market).
@@ -69,11 +81,16 @@ export async function GET(req: Request) {
   let skipped = 0;
   for (const m of markets as Array<{
     id: string;
-    yes_price: number | null;
-    no_price: number | null;
-    total_volume: number | null;
+    yes_price: number | string | null;
+    no_price: number | string | null;
+    total_volume: number | string | null;
   }>) {
-    const current = m.yes_price ?? 0.5;
+    // Postgres NUMERIC columns deserialize to strings via Supabase JS.
+    // Coerce explicitly so the diff math doesn't depend on JS string→number
+    // coercion (which works but is silent if it ever stops).
+    const current = m.yes_price !== null && m.yes_price !== undefined
+      ? Number(m.yes_price)
+      : 0.5;
     const last = latestPriceByMarket.get(m.id);
     if (last !== undefined && Math.abs(last - current) < PRICE_EPSILON) {
       skipped++;
@@ -82,8 +99,8 @@ export async function GET(req: Request) {
     snapshots.push({
       market_id: m.id,
       yes_price: current,
-      no_price: m.no_price ?? 0.5,
-      total_volume: m.total_volume ?? 0,
+      no_price: m.no_price !== null && m.no_price !== undefined ? Number(m.no_price) : 0.5,
+      total_volume: m.total_volume !== null && m.total_volume !== undefined ? Number(m.total_volume) : 0,
     });
   }
 
