@@ -31,42 +31,41 @@ export async function GET(req: Request) {
     return NextResponse.json({ snapshots: 0, skipped: 0 });
   }
 
-  // Pull the latest yes_price per open market. With ~713 open markets a
-  // single .in("market_id", ids) overflows PostgREST's URL cap (~8KB) —
-  // 713 UUIDs is ~26KB. Chunked at 100 IDs per request keeps each query
-  // under ~3.7KB. Run chunks in parallel and merge.
+  // Pull the latest yes_price per open market. The previous chunked
+  // .in("market_id", chunkIds).order(...).limit-less query silently hit
+  // Supabase's default 1000-row cap: with ~110 snapshots per market and
+  // 100 markets per chunk, the cap returned 1000 rows covering only ~2
+  // markets — the other 98 had no entry in latestPriceByMarket and got
+  // a fresh INSERT every hour regardless of price movement. Same root
+  // cause as the fetchVerifiedCreatorSlugs truncation fixed in 6704210.
+  //
+  // Fix: per-market point-lookups in parallel. Each query is one indexed
+  // (market_id, recorded_at DESC) lookup with LIMIT 1, so the row cap
+  // can't bite. Concurrency capped via a sliding window so we don't
+  // open hundreds of connections at once.
   const openMarketIds = (markets as Array<{ id: string }>).map((m) => m.id);
-  const CHUNK_SIZE = 100;
-  const chunks: string[][] = [];
-  for (let i = 0; i < openMarketIds.length; i += CHUNK_SIZE) {
-    chunks.push(openMarketIds.slice(i, i + CHUNK_SIZE));
-  }
   const latestPriceByMarket = new Map<string, number>();
-  await Promise.all(
-    chunks.map(async (chunkIds) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: snapshotRows } = await (supabase as any)
-        .from("market_price_history")
-        .select("market_id, yes_price, recorded_at")
-        .in("market_id", chunkIds)
-        .order("market_id", { ascending: true })
-        .order("recorded_at", { ascending: false });
-      if (Array.isArray(snapshotRows)) {
-        for (const r of snapshotRows as Array<{
-          market_id: string;
-          yes_price: number | string;
-        }>) {
-          // First row per market_id wins (recorded_at DESC = newest first).
-          // Map.set is fine across chunks because each chunk owns disjoint IDs.
-          if (!latestPriceByMarket.has(r.market_id)) {
-            latestPriceByMarket.set(r.market_id, Number(r.yes_price));
-          }
+  const CONCURRENCY = 50;
+  for (let i = 0; i < openMarketIds.length; i += CONCURRENCY) {
+    const batch = openMarketIds.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (id) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: row } = await (supabase as any)
+          .from("market_price_history")
+          .select("yes_price")
+          .eq("market_id", id)
+          .order("recorded_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (row && row.yes_price !== null && row.yes_price !== undefined) {
+          latestPriceByMarket.set(id, Number(row.yes_price));
         }
-      }
-    })
-  );
+      })
+    );
+  }
   console.log(
-    `[snapshot-prices] Loaded latest prices for ${latestPriceByMarket.size}/${openMarketIds.length} open markets (${chunks.length} chunks)`
+    `[snapshot-prices] Loaded latest prices for ${latestPriceByMarket.size}/${openMarketIds.length} open markets`
   );
 
   // Build the diff set: insert only when yes_price actually changed
@@ -125,8 +124,11 @@ export async function GET(req: Request) {
     if (!error) total += Math.min(chunkSize, snapshots.length - i);
   }
 
+  const dedupPct = markets.length > 0
+    ? Math.round((skipped / markets.length) * 100)
+    : 0;
   console.log(
-    `[snapshot-prices] Recorded ${total} snapshots; skipped ${skipped} unchanged of ${markets.length} open markets`
+    `[snapshot-prices] ${markets.length} markets, ${total} changed, ${skipped} unchanged (${dedupPct}% deduped)`
   );
   return NextResponse.json({
     snapshots: total,
