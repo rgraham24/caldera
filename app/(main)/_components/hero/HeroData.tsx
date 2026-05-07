@@ -10,6 +10,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { refreshCreatorCoinPrices } from "@/lib/deso/refresh-creator-prices";
+import { getCreatorCoinMomentumBatch } from "@/lib/deso/momentum";
 import type { Market } from "@/types";
 import type { HeroCard, HeroCreator } from "./types";
 import { HeroCarousel } from "./HeroCarousel";
@@ -35,7 +36,7 @@ export async function HeroData({ markets }: HeroDataProps) {
     new Set(markets.map((m) => m.creator_slug).filter((s): s is string => Boolean(s)))
   );
 
-  const [{ data: creatorRows }, refreshed] = await Promise.all([
+  const [{ data: creatorRows }, refreshed, momentumMap] = await Promise.all([
     creatorSlugs.length
       ? supabase
           .from("creators")
@@ -43,6 +44,7 @@ export async function HeroData({ markets }: HeroDataProps) {
           .in("slug", creatorSlugs)
       : Promise.resolve({ data: [] as CreatorRow[] }),
     refreshCreatorCoinPrices(creatorSlugs),
+    getCreatorCoinMomentumBatch(creatorSlugs, 7),
   ]);
 
   const creatorBySlug = new Map<string, CreatorRow>();
@@ -64,8 +66,9 @@ export async function HeroData({ markets }: HeroDataProps) {
       price_usd: fresh?.price ?? 0,
       holders: fresh?.holders ?? 0,
       coin_data_updated_at: fresh?.updated_at ?? new Date(0).toISOString(),
-      // Wired up in Chunk 3 once daily snapshots exist; null for now.
-      momentum: null,
+      // Real momentum once daily snapshots accumulate; null until then.
+      // The card view hides the arrow when changePercent is null.
+      momentum: momentumMap.get(slug) ?? null,
     };
     return { market: m, creator };
   });
