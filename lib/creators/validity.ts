@@ -157,12 +157,30 @@ export async function fetchVerifiedCreatorSlugs(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any
 ): Promise<Set<string>> {
+  // Supabase JS / PostgREST default to 1000 rows when no .limit() is given.
+  // The verified universe is ~14k creators (bitclout_reserved_usernames alone
+  // has 14,113 rows), so the default cap silently dropped ~13k rows. Without
+  // an ORDER BY the surviving 1000 was non-deterministic per request, which
+  // caused the homepage hero to render different (mostly the same 2) cards
+  // and /api/markets to drop markets at random.
+  //
+  // 20000 leaves headroom over the current ~14k. If we ever hit the cap,
+  // the warn() below tells us to bump it before silent truncation recurs.
   const { data } = await supabase
     .from("creators")
     .select("slug")
     .not("deso_public_key", "is", null)
     .not("token_status", "in", VERIFIED_FOR_MARKETS_EXCLUDED_STATUSES_PG)
-    .or(VERIFIED_FOR_MARKETS_OR);
+    .or(VERIFIED_FOR_MARKETS_OR)
+    .order("slug", { ascending: true })
+    .limit(20000);
+  if ((data?.length ?? 0) >= 20000) {
+    console.warn(
+      "[fetchVerifiedCreatorSlugs] hit row limit cap (20000). " +
+      "Verified universe may have outgrown the limit. Bump and " +
+      "investigate before silent truncation recurs."
+    );
+  }
   return new Set(((data ?? []) as Array<{ slug: string }>).map((c) => c.slug));
 }
 
