@@ -43,16 +43,19 @@ const PAGE_SIZE = 20;
 // ─── Hot Topics horizontal strip ─────────────────────────────────────────────
 
 // Special non-category filter modes that prefix the category strip.
+// "Breaking" was removed in a homepage polish pass — it was a deprecated v1
+// concept and the filter returned 0 markets, since /api/markets?sort=breaking
+// requires created_at within 48h which doesn't apply to the curated catalog.
+// Trending covers the same surface area.
 const HOMEPAGE_SPECIAL_FILTERS: { value: string; label: string }[] = [
   { value: "all", label: "📈 Trending" },
-  { value: "breaking", label: "⚡ Breaking" },
   { value: "new", label: "🕐 New" },
   { value: "following", label: "Following" },
 ];
 
 // Slugs that the homepage filter UI treats as non-creator filters.
 // Includes every category from CATEGORIES + the special filters that aren't
-// also categories (all/breaking are handled inline elsewhere).
+// also categories (all is handled inline elsewhere).
 const CATEGORY_FILTER_SLUGS: string[] = [
   ...CATEGORIES.map((c) => c.value),
   "new",
@@ -397,10 +400,9 @@ export function HomeClient({
           offset: String(off),
           status: "open",
         });
-        const SPECIAL_FILTERS = ["all", "resolving_soon", "breaking", "new", "following", "tokens"];
-        const isCreatorFilter = category !== "all" && category !== "resolving_soon" && category !== "breaking" && !CATEGORY_FILTER_SLUGS.includes(category);
+        const SPECIAL_FILTERS = ["all", "resolving_soon", "new", "following", "tokens"];
+        const isCreatorFilter = category !== "all" && category !== "resolving_soon" && !CATEGORY_FILTER_SLUGS.includes(category);
         const effectiveSort = category === "resolving_soon" ? "resolving_soon"
-          : category === "breaking" ? "breaking"
           : category === "new" ? "newest"
           : sortVal;
         params.set("sort", effectiveSort);
