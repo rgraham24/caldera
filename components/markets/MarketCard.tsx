@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Market } from "@/types";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
+import { CategoryPill } from "@/components/shared/CategoryPill";
 
 // ── Deterministic sparkline ───────────────────────────────────────────────────
 // Generates a unique but stable mini chart path from a market id + yes_price.
@@ -101,9 +102,7 @@ export function MarketCard({ market }: MarketCardProps) {
         {/* Top row: category + resolve date */}
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
-              {market.category}
-            </span>
+            <CategoryPill category={market.category} size="sm" />
             {isLive && (
               <span className="flex items-center gap-1 rounded-full bg-no/10 px-1.5 py-0.5 text-[10px] font-semibold text-no">
                 <span className="h-1.5 w-1.5 rounded-full bg-no animate-pulse" />

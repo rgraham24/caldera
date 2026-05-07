@@ -2,28 +2,31 @@
 
 import Link from "next/link";
 import type { Market } from "@/types";
+import { CategoryPill } from "@/components/shared/CategoryPill";
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Sports:        "#f97316",
-  Politics:      "#3b82f6",
+// Hover accent color matches the category pill palette so the border
+// + glow on hover stay visually coherent with the pill.
+const HOVER_COLORS: Record<string, string> = {
+  Sports: "#f97316",
+  Politics: "#3b82f6",
   Entertainment: "#a855f7",
-  Crypto:        "#eab308",
-  Companies:     "#22c55e",
-  Music:         "#ec4899",
-  Tech:          "#06b6d4",
-  Climate:       "#84cc16",
-  Creators:      "#f97316",
+  Crypto: "#eab308",
+  Companies: "#22c55e",
+  Music: "#ec4899",
+  Tech: "#06b6d4",
+  Climate: "#84cc16",
+  Creators: "#f97316",
 };
 
-function categoryColor(cat: string): string {
-  return CATEGORY_COLORS[cat] ?? "#888888";
+function hoverColor(cat: string): string {
+  return HOVER_COLORS[cat] ?? "#888888";
 }
 
 function TrendingCard({ market }: { market: Market }) {
   const yes = Math.round((market.yes_price ?? 0.5) * 100);
   const no = 100 - yes;
   const isYes = yes >= 50;
-  const color = categoryColor(market.category ?? "");
+  const color = hoverColor(market.category ?? "");
 
   return (
     <Link
@@ -44,12 +47,7 @@ function TrendingCard({ market }: { market: Market }) {
     >
       {/* Top row: category pill + odds */}
       <div className="flex items-start justify-between gap-2">
-        <span
-          className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest"
-          style={{ background: `${color}20`, color }}
-        >
-          {market.category}
-        </span>
+        <CategoryPill category={market.category} size="sm" />
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-xs font-bold text-emerald-400">{yes}%</span>
           <span className="text-[10px] text-[var(--text-tertiary)]">/</span>

@@ -7,12 +7,14 @@
 
 import type { Market } from "@/types";
 import Link from "next/link";
+import { CategoryPill } from "@/components/shared/CategoryPill";
 
 type HeroSkeletonProps = {
   markets: Market[];
 };
 
 const CARD_GRID_ROWS = [
+  "auto",
   "auto",
   "auto",
   "3.25rem",
@@ -55,7 +57,12 @@ export function HeroSkeleton({ markets }: HeroSkeletonProps) {
             {/* 2. Divider */}
             <div className="h-px" style={{ background: "var(--border-subtle)" }} />
 
-            {/* 3. Title (fixed slot — clamps to 2 lines) */}
+            {/* 3. Category pill */}
+            <div>
+              <CategoryPill category={m.category} size="sm" />
+            </div>
+
+            {/* 4. Title (fixed slot — clamps to 2 lines) */}
             <Link href={`/markets/${m.slug}`}>
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)]">
                 {m.title}

@@ -1,51 +1,51 @@
-import { cn } from "@/lib/utils";
+/**
+ * Category badge — single source of truth for the colored uppercase pill
+ * that labels a market's category. Used by hero cards, the trending strip,
+ * and the all-markets card grid so the styling is identical everywhere.
+ *
+ * Color palette matches the previous TrendingStrip-only colors so existing
+ * trending-strip cards render unchanged after refactor.
+ *
+ * The previous CategoryPill component was a clickable filter button. That
+ * pattern lives in app/(main)/markets/page.tsx via a different filter UI;
+ * the only label-style consumer (market-detail-client.tsx) is updated to
+ * use this badge instead.
+ */
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Sports: "#f97316",
+  Politics: "#3b82f6",
+  Entertainment: "#a855f7",
+  Crypto: "#eab308",
+  Companies: "#22c55e",
+  Music: "#ec4899",
+  Tech: "#06b6d4",
+  Climate: "#84cc16",
+  Creators: "#f97316",
+};
+
+function categoryColor(cat: string): string {
+  return CATEGORY_COLORS[cat] ?? "#888888";
+}
 
 type CategoryPillProps = {
-  category: string;
-  active?: boolean;
-  onClick?: () => void;
+  category: string | null | undefined;
+  size?: "sm" | "md";
 };
 
-const DOT_COLORS: Record<string, string> = {
-  creators: "bg-cyan-400",
-  streamers: "bg-cyan-400",
-  music: "bg-pink-400",
-  sports: "bg-blue-400",
-  politics: "bg-purple-400",
-  entertainment: "bg-amber-400",
-  viral: "bg-amber-400",
-  tech: "bg-emerald-400",
-  all: "bg-text-muted",
-};
-
-// Map DB values to clean display labels
-const DISPLAY_LABELS: Record<string, string> = {
-  creators: "Creators",
-  streamers: "Creators",
-  music: "Music",
-  sports: "Sports",
-  politics: "Politics",
-  entertainment: "Entertainment",
-  viral: "Entertainment",
-  tech: "Tech",
-};
-
-export function CategoryPill({ category, active, onClick }: CategoryPillProps) {
-  const dotColor = DOT_COLORS[category.toLowerCase()] || "bg-text-muted";
-  const label = DISPLAY_LABELS[category.toLowerCase()] || category;
-
+export function CategoryPill({ category, size = "sm" }: CategoryPillProps) {
+  if (!category) return null;
+  const color = categoryColor(category);
+  const sizeClasses =
+    size === "md"
+      ? "px-2 py-0.5 text-[10px]"
+      : "px-1.5 py-0.5 text-[9px]";
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 text-xs font-semibold uppercase tracking-widest transition-colors",
-        active
-          ? "text-caldera border-b-2 border-caldera"
-          : "text-text-muted hover:text-text-primary border-b-2 border-transparent"
-      )}
+    <span
+      className={`inline-block shrink-0 rounded-full font-bold uppercase tracking-widest ${sizeClasses}`}
+      style={{ background: `${color}20`, color }}
     >
-      <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-caldera" : dotColor)} />
-      {label}
-    </button>
+      {category}
+    </span>
   );
 }

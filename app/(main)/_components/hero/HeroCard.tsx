@@ -16,6 +16,7 @@
 
 import Link from "next/link";
 import type { HeroCard as HeroCardType } from "./types";
+import { CategoryPill } from "@/components/shared/CategoryPill";
 
 type HeroCardProps = {
   card: HeroCardType;
@@ -30,12 +31,13 @@ function formatPrice(usd: number): string {
 const CARD_GRID_ROWS = [
   "auto",      // 1. coin row (avatar + name + ticker + price + momentum)
   "auto",      // 2. divider
-  "3.25rem",   // 3. title (clamped to 2 lines, fixed height for cross-card alignment)
-  "auto",      // 4. big % display
-  "auto",      // 5. YES/NO buttons
-  "auto",      // 6. volume + time-left row
-  "auto",      // 7. divider
-  "auto",      // 8. footer (1% → $TICKER on every trade)
+  "auto",      // 3. category pill
+  "3.25rem",   // 4. title (clamped to 2 lines, fixed height for cross-card alignment)
+  "auto",      // 5. big % display
+  "auto",      // 6. YES/NO buttons
+  "auto",      // 7. volume + time-left row
+  "auto",      // 8. divider
+  "auto",      // 9. footer (1% → $TICKER on every trade)
 ].join(" ");
 
 export function HeroCard({ card }: HeroCardProps) {
@@ -115,7 +117,12 @@ export function HeroCard({ card }: HeroCardProps) {
       {/* 2. Divider */}
       <div className="h-px" style={{ background: "var(--border-subtle)" }} />
 
-      {/* 3. Title (fixed 3.25rem slot — clamps to 2 lines max) */}
+      {/* 3. Category pill */}
+      <div>
+        <CategoryPill category={m.category} size="sm" />
+      </div>
+
+      {/* 4. Title (fixed 3.25rem slot — clamps to 2 lines max) */}
       <Link href={`/markets/${m.slug}`}>
         <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
           {m.title}
