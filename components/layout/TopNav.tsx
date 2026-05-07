@@ -324,7 +324,7 @@ export function TopNav() {
   return (
     <>
       <nav
-        className="sticky top-0 z-50"
+        className="sticky top-[50px] z-40"
         style={{
           background: "rgba(10,10,15,0.90)",
           backdropFilter: "blur(20px)",

@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
 import StarterBanner from "@/components/shared/StarterBanner";
+import { LiveTicker } from "./_components/ticker/LiveTicker";
 import dynamic from "next/dynamic";
 
 // Heavy modals — only needed when triggered, never on initial render
@@ -17,6 +18,13 @@ export default function MainLayout({
 }) {
   return (
     <>
+      {/* Bloomberg-style sticky-top live ticker. Stacks with TopNav:
+          ticker sticks at top:0 z-50, TopNav sticks at top-[50px] z-40.
+          Full-bleed, edge-to-edge, with a 1px bottom border separator
+          from the nav. */}
+      <div className="sticky top-0 z-50 w-full">
+        <LiveTicker />
+      </div>
       <TopNav />
       <WelcomeBanner />
       <StarterBanner />
