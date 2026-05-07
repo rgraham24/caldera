@@ -22,6 +22,7 @@ const StakeModal = dynamic(
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
+import { HeroTagline } from "./_components/hero/HeroTagline";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,190 +38,6 @@ type HomeClientProps = {
 
 const PAGE_SIZE = 20;
 
-// ─── Hero section (Polymarket-style: tall card + pill chip row) ──────────────
-
-function chipLabel(title: string): string {
-  const words = title.split(" ");
-  return words.slice(0, 5).join(" ") + (words.length > 5 ? "…" : "");
-}
-
-function HeroSection({ markets }: { markets: Market[] }) {
-  const [idx, setIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const chipContainerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-rotate every 6 seconds with crossfade
-  useEffect(() => {
-    if (markets.length <= 1) return;
-    const interval = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setIdx((prev) => (prev + 1) % markets.length);
-        setVisible(true);
-      }, 300);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [markets.length]);
-
-  // Scroll active chip to center via querySelectorAll buttons
-  useEffect(() => {
-    const container = chipContainerRef.current;
-    if (!container) return;
-    const buttons = Array.from(container.querySelectorAll("button"));
-    const activeBtn = buttons[idx];
-    if (!activeBtn) return;
-    const containerCenter = container.offsetWidth / 2;
-    const btnCenter = activeBtn.offsetLeft + activeBtn.offsetWidth / 2;
-    container.scrollTo({ left: btnCenter - containerCenter, behavior: "smooth" });
-  }, [idx]);
-
-  if (markets.length === 0) return null;
-
-  const m = markets[idx];
-  const yes = Math.round((m.yes_price ?? 0.5) * 100);
-  const no = 100 - yes;
-  const hoursLeft = m.resolve_at
-    ? (new Date(m.resolve_at).getTime() - Date.now()) / 3_600_000
-    : Infinity;
-  const isLive = hoursLeft > 0 && hoursLeft <= 168; // within 7 days
-
-  const select = (i: number) => {
-    if (i === idx) return;
-    setVisible(false);
-    setTimeout(() => { setIdx(i); setVisible(true); }, 300);
-  };
-
-  return (
-    <div className="flex h-full flex-col gap-3 min-w-0 overflow-hidden">
-      {/* ── Main hero card — fixed height ── */}
-      <div
-        className="relative flex flex-col overflow-hidden rounded-2xl p-7"
-        style={{
-          minHeight: "420px",
-          maxHeight: "440px",
-          background: "linear-gradient(160deg, #13131c 0%, #1a1a28 55%, #1e1830 100%)",
-          border: "1px solid var(--border-subtle)",
-          opacity: visible ? 1 : 0,
-          transition: "opacity 300ms ease",
-        }}
-      >
-        {/* Probability glow */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: yes >= 50
-              ? "radial-gradient(ellipse at 90% 60%, rgba(34,197,94,0.08) 0%, transparent 65%)"
-              : "radial-gradient(ellipse at 90% 60%, rgba(239,68,68,0.08) 0%, transparent 65%)",
-          }}
-        />
-
-        <div className="relative flex flex-1 flex-col">
-          {/* Top row: category pill + LIVE badge + resolve time */}
-          <div className="mb-5 flex items-center gap-2">
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-              style={{ background: "var(--caldera-muted, #f9731615)", color: "var(--accent)" }}
-            >
-              {m.category}
-            </span>
-            {isLive && (
-              <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
-                LIVE
-              </span>
-            )}
-            {m.resolve_at && (
-              <span className="ml-auto text-xs text-[var(--text-tertiary)]">
-                {formatRelativeTime(m.resolve_at)}
-              </span>
-            )}
-          </div>
-
-          {/* Title */}
-          <Link href={`/markets/${m.slug}`}>
-            <h2 className="mb-auto line-clamp-3 text-2xl font-bold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors sm:text-3xl">
-              {m.title}
-            </h2>
-          </Link>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Probability number */}
-          <div className="mb-2 flex items-end gap-3">
-            <span
-              className="text-6xl font-bold tabular-nums leading-none"
-              style={{ color: yes >= 50 ? "var(--yes)" : "var(--no)" }}
-            >
-              {yes}%
-            </span>
-            <span className="mb-2 text-sm text-[var(--text-tertiary)]">chance YES</span>
-          </div>
-
-          {/* Probability bar */}
-          <div className="mb-6 h-2 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
-            <div
-              className="h-full rounded-full bg-yes"
-              style={{ width: `${yes}%`, transition: "width 300ms ease" }}
-            />
-          </div>
-
-          {/* YES / NO buttons */}
-          <div className="mb-3 flex gap-3">
-            <Link href={`/markets/${m.slug}`} className="flex-1">
-              <button className="flex-1 w-full rounded-lg bg-yes/10 border border-yes/20 text-yes text-sm font-semibold py-2 hover:bg-yes/20 transition-colors">
-                YES {yes}¢
-              </button>
-            </Link>
-            <Link href={`/markets/${m.slug}`} className="flex-1">
-              <button className="flex-1 w-full rounded-lg bg-no/10 border border-no/20 text-no text-sm font-semibold py-2 hover:bg-no/20 transition-colors">
-                NO {no}¢
-              </button>
-            </Link>
-          </div>
-
-          {/* Volume */}
-          <div className="text-right font-mono text-xs text-[var(--text-tertiary)]">
-            {formatCompactCurrency(m.total_volume ?? 0)} vol
-          </div>
-        </div>
-      </div>
-
-      {/* ── Chip navigation ── */}
-      {markets.length > 1 && (
-        <div className="relative overflow-hidden" style={{ marginTop: "12px" }}>
-          {/* Edge fades */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#0e0c18] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#0e0c18] to-transparent" />
-          {/* Scrollable chip track */}
-          <div
-            ref={chipContainerRef}
-            className="flex gap-2 overflow-x-scroll py-1"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
-          >
-            {/* Left spacer — lets first chip scroll to center */}
-            <div className="flex-shrink-0" style={{ width: "50%", minWidth: "50%" }} />
-            {markets.map((chip, i) => (
-              <button
-                key={chip.id}
-                onClick={() => select(i)}
-                className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all duration-300 border ${
-                  i === idx
-                    ? "bg-primary/30 border-primary/60 text-white"
-                    : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {chip.title.length > 28 ? chip.title.substring(0, 28) + "…" : chip.title}
-              </button>
-            ))}
-            {/* Right spacer — lets last chip scroll to center */}
-            <div className="flex-shrink-0" style={{ width: "50%", minWidth: "50%" }} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── Breaking markets ─────────────────────────────────────────────────────────
 
@@ -752,20 +569,23 @@ export function HomeClient({
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-        {/* Hero section — coupled-card grid streamed via Suspense.
+        {/* Hero section — tagline + coupled-card grid streamed via Suspense.
             heroSlot is rendered server-side in page.tsx so prices fill in
             after the initial paint. Sidebar (Breaking + Trending tokens)
             renders alongside on desktop. */}
         {(heroMarkets.length > 0 || breakingMarkets.length > 0 || trendingCreators.length > 0) && (
-          <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
-            {heroSlot ?? (heroMarkets.length > 0 ? <HeroSection markets={heroMarkets} /> : null)}
-            <div className="hidden lg:flex flex-col gap-4">
-              {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
-              {uniqueTrendingCreators.length > 0 && (
-                <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
-              )}
+          <>
+            {heroMarkets.length > 0 && <HeroTagline />}
+            <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
+              {heroSlot}
+              <div className="hidden lg:flex flex-col gap-4">
+                {breakingMarkets.length > 0 && <BreakingMarkets markets={breakingMarkets} />}
+                {uniqueTrendingCreators.length > 0 && (
+                  <TrendingTokens creators={uniqueTrendingCreators} onBuy={setStakeCreator} />
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
         {/* TRENDING STRIP — right below hero */}
         <TrendingStrip markets={trendingMarkets} />

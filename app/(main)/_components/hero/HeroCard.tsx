@@ -27,7 +27,11 @@ export function HeroCard({ card }: HeroCardProps) {
   const ticker = creator?.coin_symbol ?? creator?.deso_username?.toUpperCase() ?? null;
   const tickerLabel = ticker ? `$${ticker}` : null;
 
+  // Reading "now" at render time matches the codebase pattern (see
+  // home-client.tsx). The carousel re-renders every 8s, so countdowns
+  // update naturally without a separate ticker.
   const daysLeft = m.resolve_at
+    /* eslint-disable-next-line react-hooks/purity */
     ? Math.max(0, Math.ceil((new Date(m.resolve_at).getTime() - Date.now()) / 86_400_000))
     : null;
 
