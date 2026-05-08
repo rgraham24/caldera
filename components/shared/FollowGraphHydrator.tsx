@@ -16,32 +16,27 @@ import { useEffect } from "react";
 import { useAppStore } from "@/store";
 
 export function FollowGraphHydrator() {
-  const hasHydrated = useAppStore((s) => s._hasHydrated);
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const isConnected = useAppStore((s) => s.isConnected);
   const setFollowedDesoKeys = useAppStore((s) => s.setFollowedDesoKeys);
 
   console.log("[FollowGraphHydrator] mount/render", {
-    hasHydrated,
     desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
     isConnected,
   });
 
   useEffect(() => {
     console.log("[FollowGraphHydrator] effect fired", {
-      hasHydrated,
       desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
     });
 
-    if (!hasHydrated) {
-      console.log("[FollowGraphHydrator] bail: not hydrated yet");
-      return;
-    }
-    if (!desoPublicKey) {
-      console.log("[FollowGraphHydrator] bail: no desoPublicKey, resetting set");
-      setFollowedDesoKeys(new Set());
-      return;
-    }
+    // Wait for desoPublicKey to be truthy. When persist hasn't committed
+    // yet OR the user is genuinely logged out, we silently no-op — the
+    // set stays at its initial empty value, which is the correct UI.
+    // Once persist commits the stored desoPublicKey, the dep change
+    // re-fires this effect and we hydrate the set.
+    if (!desoPublicKey) return;
+
     let cancelled = false;
     console.log("[FollowGraphHydrator] fetching /api/following...");
     fetch(`/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`)
@@ -65,7 +60,7 @@ export function FollowGraphHydrator() {
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, desoPublicKey, setFollowedDesoKeys]);
+  }, [desoPublicKey, setFollowedDesoKeys]);
 
   return null;
 }

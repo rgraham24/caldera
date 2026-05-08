@@ -9,44 +9,49 @@ import { MarketCard } from "@/components/markets/MarketCard";
 import type { Market } from "@/types";
 
 const FOLLOWING_FETCH_TIMEOUT_MS = 6000;
+const HYDRATION_WAIT_MS = 2000;
 
 export default function FollowingPage() {
-  const hasHydrated = useAppStore((s) => s._hasHydrated);
   const isConnected = useAppStore((s) => s.isConnected);
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // Flips true after HYDRATION_WAIT_MS so we can distinguish "still
+  // waiting on Zustand persist to commit" from "user is genuinely
+  // logged out". Until this flag flips, we keep skeletons up — flashing
+  // the Connect Wallet branch for already-logged-in users on every
+  // page load is jarring.
+  const [waitedTooLong, setWaitedTooLong] = useState(false);
 
   console.log("[FollowingPage] render", {
-    hasHydrated,
     isConnected,
     desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
     loading,
     error,
     marketsCount: markets.length,
+    waitedTooLong,
   });
+
+  // 2-second window for persist to commit. If desoPublicKey is still
+  // null after that, treat the user as genuinely logged out and render
+  // the Connect Wallet branch.
+  useEffect(() => {
+    const t = setTimeout(() => setWaitedTooLong(true), HYDRATION_WAIT_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     console.log("[FollowingPage] effect fired", {
-      hasHydrated,
-      isConnected,
       desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
     });
 
-    if (!hasHydrated) {
-      console.log("[FollowingPage] bail: not hydrated yet");
-      return;
-    }
-
-    if (!isConnected || !desoPublicKey) {
-      console.log(
-        "[FollowingPage] bail: not connected, setting empty markets"
-      );
-      setLoading(false);
-      return;
-    }
+    // Wait silently for desoPublicKey. CRITICAL: do NOT setLoading(false)
+    // here — we want skeletons to keep showing until either a real load
+    // completes OR the waitedTooLong timer flips and the render branch
+    // switches to Connect Wallet.
+    if (!desoPublicKey) return;
 
     let cancelled = false;
     const controller = new AbortController();
@@ -65,9 +70,7 @@ export default function FollowingPage() {
         const { followedKeys = [] } = (await followRes.json()) as {
           followedKeys: string[];
         };
-        console.log("[FollowingPage] step 1 done:", {
-          keysCount: followedKeys.length,
-        });
+        console.log("[FollowingPage] step 1 done:", { keysCount: followedKeys.length });
 
         if (cancelled) return;
 
@@ -77,7 +80,6 @@ export default function FollowingPage() {
           return;
         }
 
-        // 2. Map DeSo public keys to creator rows in our DB.
         console.log("[FollowingPage] step 2: querying creators");
         const supabase = createClient();
         const { data: creators, error: creatorsErr } = await supabase
@@ -101,7 +103,6 @@ export default function FollowingPage() {
           return;
         }
 
-        // 3. Open markets attached to those creators.
         console.log("[FollowingPage] step 3: querying markets");
         const { data: creatorMarkets, error: marketsErr } = await supabase
           .from("markets")
@@ -135,32 +136,16 @@ export default function FollowingPage() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [hasHydrated, isConnected, desoPublicKey, reloadKey]);
+  }, [desoPublicKey, reloadKey]);
 
-  // While Zustand persist is still rehydrating from localStorage, render
-  // the same skeleton grid as the loading state. Otherwise we'd flash
-  // the Connect Wallet branch for already-logged-in users on every page
-  // load before persist completes (~1 frame, but jarring).
-  if (!hasHydrated) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-1">Following</h1>
-          <p className="text-sm text-text-muted">
-            Prediction markets about creators you follow on DeSo
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-44 rounded-xl bg-surface animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Render decision tree:
+  //   genuinely logged out (waitedTooLong true + no key)  -> Connect Wallet
+  //   waiting on hydration OR mid-load (loading=true)     -> skeletons
+  //   error                                               -> error state
+  //   markets.length > 0                                  -> grid
+  //   markets.length === 0                                -> empty state
 
-  // 1. Not connected — connect wallet prompt.
-  if (!isConnected) {
+  if (waitedTooLong && !isConnected && !desoPublicKey) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold mb-3">Following</h1>
