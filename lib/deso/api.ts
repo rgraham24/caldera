@@ -182,25 +182,26 @@ import {
   updateFollowingStatus as desoUpdateFollowingStatus,
 } from "deso-protocol";
 
-const CREATOR_COIN_PERMISSIONS = {
-  GlobalDESOLimit: 10 * 1e9,
-  TransactionCountLimitMap: {
-    AUTHORIZE_DERIVED_KEY: 1,
-    CREATOR_COIN: 1000,
-  } as Record<string, number>,
-  CreatorCoinOperationLimitMap: {
-    "": { buy: 1e9, sell: 1e9 },
-  },
-};
+// We request the FULL broad scope (BROAD_SPENDING_LIMIT_OPTIONS from
+// identity.ts) on every re-authorization — never a per-feature narrow
+// subset. Otherwise a Follow re-auth would grant only AUTHORIZE_DERIVED_KEY
+// + FOLLOW, then the next CREATOR_COIN buy would trigger ANOTHER popup
+// granting only AUTHORIZE_DERIVED_KEY + CREATOR_COIN, and so on per
+// feature touched. Mirror of the focus.xyz pattern: one popup grants
+// everything Caldera uses today + future features.
+//
+// The hasPermissions() check stays narrow — we want to detect when a
+// SPECIFIC op is missing to decide whether to prompt at all. Only the
+// REQUEST scope is broad.
 
 async function ensureCreatorCoinPermissions() {
-  const { getDesoIdentity } = await import("@/lib/deso/identity");
+  const { getDesoIdentity, BROAD_SPENDING_LIMIT_OPTIONS } = await import("@/lib/deso/identity");
   const id = getDesoIdentity();
   const hasPermission = id.hasPermissions({
     TransactionCountLimitMap: { CREATOR_COIN: 1 } as Record<string, number>,
   });
   if (!hasPermission) {
-    await id.requestPermissions(CREATOR_COIN_PERMISSIONS);
+    await id.requestPermissions(BROAD_SPENDING_LIMIT_OPTIONS);
   }
 }
 
@@ -315,29 +316,24 @@ export async function getCreatorCoinQuote(
 // permission grant authorizes 1000 follows up front, with a GlobalDESOLimit
 // cap so the user can't accidentally rack up cost.
 
-// Canonical TransactionType enum value is "FOLLOW" — NOT
-// "UPDATE_FOLLOWING_STATUS" (which doesn't exist in the enum).
-// Verified against deso-protocol/src/transactions/social.js where the
-// SDK's guardTxPermission checks TransactionCountLimitMap.FOLLOW.
-// Caldera's identity.ts grants FOLLOW: 1000 in the initial connect
-// scope, so this fallback request only fires for sessions that
-// connected before the broader scope was deployed.
-const FOLLOW_PERMISSIONS = {
-  GlobalDESOLimit: 1 * 1e9, // 1 DESO ≈ 4M follows at 250 nanos each — generous safety bound
-  TransactionCountLimitMap: {
-    AUTHORIZE_DERIVED_KEY: 1,
-    FOLLOW: 1000,
-  } as Record<string, number>,
-};
+// Canonical TransactionType enum value is "FOLLOW" (not
+// "UPDATE_FOLLOWING_STATUS" — verified against the SDK's
+// guardTxPermission). Identity.ts grants FOLLOW in the initial
+// connect scope, so this fallback only fires for sessions whose
+// derived key was authorized before that scope was broadened.
+//
+// When it does fire, it requests the FULL broad scope from
+// identity.ts (not a narrow FOLLOW-only subset) so one re-auth
+// covers every feature, not just follows.
 
 async function ensureFollowPermissions() {
-  const { getDesoIdentity } = await import("@/lib/deso/identity");
+  const { getDesoIdentity, BROAD_SPENDING_LIMIT_OPTIONS } = await import("@/lib/deso/identity");
   const id = getDesoIdentity();
   const hasPermission = id.hasPermissions({
     TransactionCountLimitMap: { FOLLOW: 1 } as Record<string, number>,
   });
   if (!hasPermission) {
-    await id.requestPermissions(FOLLOW_PERMISSIONS);
+    await id.requestPermissions(BROAD_SPENDING_LIMIT_OPTIONS);
   }
 }
 
