@@ -4,7 +4,6 @@ import { useAppStore } from "@/store";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { MarketCard } from "@/components/markets/MarketCard";
 import type { Market } from "@/types";
 
@@ -62,66 +61,27 @@ export default function FollowingPage() {
       setError(false);
 
       try {
-        console.log("[FollowingPage] step 1: fetching /api/following");
-        const followRes = await fetch(
-          `/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`,
+        // Single fetch to the server-side following feed. The previous
+        // version did the three-step query (DeSo follow graph → map keys
+        // to creators → filter markets) in the browser, which sent a
+        // 14.9KB Supabase REST URL with 265 base58 keys baked into the
+        // IN clause. That URL hung indefinitely — browser fetch + the
+        // intermediate proxy chain handled long URLs differently from
+        // Node and never returned. /api/markets?sort=following does the
+        // same join server-side over a stable, short outgoing URL.
+        console.log("[FollowingPage] fetching /api/markets?sort=following");
+        const res = await fetch(
+          `/api/markets?sort=following&desoPublicKey=${encodeURIComponent(desoPublicKey)}&limit=50`,
           { signal: controller.signal }
         );
-        const { followedKeys = [] } = (await followRes.json()) as {
-          followedKeys: string[];
-        };
-        console.log("[FollowingPage] step 1 done:", { keysCount: followedKeys.length });
-
-        if (cancelled) return;
-
-        if (followedKeys.length === 0) {
-          console.log("[FollowingPage] step 1 returned 0 keys, empty markets");
-          setMarkets([]);
-          return;
-        }
-
-        console.log("[FollowingPage] step 2: querying creators");
-        const supabase = createClient();
-        const { data: creators, error: creatorsErr } = await supabase
-          .from("creators")
-          .select("id")
-          .in("deso_public_key", followedKeys);
-        if (creatorsErr) {
-          console.error("[FollowingPage] step 2 supabase error:", creatorsErr);
-        }
-
-        const creatorIds = (creators ?? []).map((c) => c.id);
-        console.log("[FollowingPage] step 2 done:", {
-          creatorIdsCount: creatorIds.length,
-          firstFew: creatorIds.slice(0, 3),
+        const json = await res.json();
+        console.log("[FollowingPage] fetched", {
+          marketsCount: json.data?.length ?? 0,
         });
         if (cancelled) return;
-
-        if (creatorIds.length === 0) {
-          console.log("[FollowingPage] step 2 returned 0 creators, empty markets");
-          setMarkets([]);
-          return;
-        }
-
-        console.log("[FollowingPage] step 3: querying markets");
-        const { data: creatorMarkets, error: marketsErr } = await supabase
-          .from("markets")
-          .select("*")
-          .in("creator_id", creatorIds)
-          .eq("status", "open")
-          .order("trending_score", { ascending: false })
-          .limit(50);
-        if (marketsErr) {
-          console.error("[FollowingPage] step 3 supabase error:", marketsErr);
-        }
-        console.log("[FollowingPage] step 3 done:", {
-          marketsCount: creatorMarkets?.length ?? 0,
-        });
-
-        if (cancelled) return;
-        setMarkets((creatorMarkets ?? []) as Market[]);
+        setMarkets((json.data ?? []) as Market[]);
       } catch (err) {
-        console.error("[FollowingPage] error in load:", err);
+        console.error("[FollowingPage] error", err);
         if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setLoading(false);
