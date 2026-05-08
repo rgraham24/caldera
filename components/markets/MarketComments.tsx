@@ -1,10 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { CommentWithUser } from "@/types";
 import { useAppStore } from "@/store";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/utils";
+
+// Detect when the username is actually a DeSo pubkey (auth fallback when
+// the user had no DeSo handle at signup) so we can shorten it for display.
+function isDesoPubkey(s: string | null | undefined): boolean {
+  return Boolean(s && s.startsWith("BC1") && s.length > 40);
+}
+
+function shortenPubkey(s: string): string {
+  return `${s.slice(0, 8)}…${s.slice(-4)}`;
+}
 
 type MarketCommentsProps = {
   marketId: string;
@@ -98,34 +109,68 @@ export function MarketComments({
       )}
 
       <div className="space-y-4">
-        {comments.map((comment) => (
-          <div
-            key={comment.id}
-            className="rounded-lg border border-border-subtle bg-surface p-4"
-          >
-            <div className="mb-2 flex items-center gap-2">
-              {comment.user.avatar_url && (
+        {comments.map((comment) => {
+          // Prefer creator-row attribution when the commenter has a
+          // matching creators row (by deso_public_key). Falls back to
+          // users.username (which is the DeSo handle when set, or the
+          // raw pubkey for handle-less users — we shorten the latter).
+          const creator = comment.creator ?? null;
+          const rawUsername = comment.user?.username ?? "";
+          const fallbackName = isDesoPubkey(rawUsername)
+            ? shortenPubkey(rawUsername)
+            : rawUsername || "Anonymous";
+          const displayName = creator?.name ?? fallbackName;
+          const avatarUrl = creator?.image_url ?? comment.user?.avatar_url ?? null;
+          const isVerified = !!creator || comment.user?.is_verified;
+          const profileHref = creator ? `/creators/${creator.slug}` : null;
+
+          const headerInner = (
+            <>
+              {avatarUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={comment.user.avatar_url}
+                  src={avatarUrl}
                   alt=""
-                  className="h-6 w-6 rounded-full"
+                  className="h-6 w-6 rounded-full object-cover"
                 />
+              ) : (
+                <div className="h-6 w-6 rounded-full bg-[var(--bg-elevated)]" />
               )}
               <span className="text-sm font-medium text-text-primary">
-                {comment.user.username}
+                {displayName}
               </span>
-              {comment.user.is_verified && (
+              {isVerified && (
                 <span className="text-xs text-caldera">✓</span>
               )}
-              <span className="text-xs text-text-muted">
-                {formatRelativeTime(comment.created_at ?? "")}
-              </span>
+            </>
+          );
+
+          return (
+            <div
+              key={comment.id}
+              className="rounded-lg border border-border-subtle bg-surface p-4"
+            >
+              <div className="mb-2 flex items-center gap-2">
+                {profileHref ? (
+                  <Link
+                    href={profileHref}
+                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                  >
+                    {headerInner}
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-2">{headerInner}</div>
+                )}
+                <span className="text-xs text-text-muted">
+                  {formatRelativeTime(comment.created_at ?? "")}
+                </span>
+              </div>
+              <p className="text-sm text-text-primary leading-relaxed">
+                {comment.body}
+              </p>
             </div>
-            <p className="text-sm text-text-primary leading-relaxed">
-              {comment.body}
-            </p>
-          </div>
-        ))}
+          );
+        })}
         {comments.length === 0 && (
           <p className="text-center text-sm text-text-muted py-8">
             No comments yet. Be the first to share your take.

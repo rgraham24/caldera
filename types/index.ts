@@ -69,9 +69,19 @@ export type PositionWithMarket = Position & {
   market: Market;
 };
 
-// Comment with user data
+// Comment with user data. The optional `creator` field is stamped on
+// server-side when the user has a matching creators row by
+// deso_public_key — the comments UI prefers creator name + image +
+// /creators/[slug] link over the raw users.username (which is often
+// just a DeSo pubkey for users who haven't set a handle).
 export type CommentWithUser = MarketComment & {
-  user: Pick<User, "id" | "username" | "avatar_url" | "is_verified">;
+  user: Pick<User, "id" | "username" | "avatar_url" | "is_verified" | "deso_public_key">;
+  creator?: {
+    slug: string;
+    name: string;
+    image_url: string | null;
+    deso_username: string | null;
+  } | null;
 };
 
 // Leaderboard entry with user data
