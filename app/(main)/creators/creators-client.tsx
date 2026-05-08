@@ -171,12 +171,9 @@ export function CreatorsClient({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <div className="mb-4 flex items-baseline gap-3">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Creators</h1>
-        <span className="text-sm text-[var(--text-tertiary)]">
-          {total.toLocaleString()} creator{total === 1 ? "" : "s"}
-        </span>
-      </div>
+      <h1 className="mb-4 text-2xl font-semibold text-[var(--text-primary)]">
+        Creators
+      </h1>
 
       {/* Search + sort row */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -355,7 +352,7 @@ export function CreatorsClient({
                 disabled={loadingMore}
                 className="w-full max-w-xs rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loadingMore ? "Loading…" : `Show more (${creators.length} of ${total.toLocaleString()})`}
+                {loadingMore ? "Loading…" : "Show more"}
               </button>
             </div>
           )}
