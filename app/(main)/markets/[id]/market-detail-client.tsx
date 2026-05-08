@@ -20,6 +20,7 @@ const MarketChart = dynamic(
 import { TradeTicket } from "@/components/markets/TradeTicket";
 import { MarketTabs } from "@/components/markets/MarketTabs";
 import { MarketCard } from "@/components/markets/MarketCard";
+import { MarketCreatorStrip } from "@/components/markets/MarketCreatorStrip";
 import { WatchlistButton } from "@/components/shared/WatchlistButton";
 import {
   formatCompactCurrency,
@@ -74,6 +75,9 @@ export function MarketDetailClient({
       <div className="flex flex-col gap-8 lg:flex-row">
         {/* Left column (65%) */}
         <div className="flex-1 lg:max-w-[65%]">
+          {/* Creator strip — anchors the market to its creator's coin */}
+          {creator && <MarketCreatorStrip creator={creator} />}
+
           {/* Header */}
           <div className="mb-6">
             <div className="mb-3 flex flex-wrap items-center gap-2">
