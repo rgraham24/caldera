@@ -5,48 +5,42 @@ import { configure, identity } from "deso-protocol";
 let configured = false;
 
 /**
- * Mirror of focus.xyz's pattern: grant a broad derived key with all
- * transaction types Caldera uses today + future features (posts,
- * likes, profile edits, NFTs) on first connect, so users only see one
- * Identity popup per ~30-day session. When adding new features that
- * need a new TransactionType, add it here so existing users don't get
- * re-prompted.
+ * Canonical DeSo social-app pattern: request unlimited spending scope
+ * at first connect. The user sees ONE Identity popup, approves once,
+ * then every transaction type (follow, post, like, creator coin buy,
+ * profile update, NFT, future features we haven't built yet) signs
+ * silently for the derived key's lifetime (~30 days).
  *
- * Keys MUST match the canonical TransactionType enum string values
- * from deso-protocol's backend-types/deso-types-custom (e.g. FOLLOW,
- * not UPDATE_FOLLOWING_STATUS — the SDK's guardTxPermission checks
- * the canonical names internally). Verify before adding new entries.
+ * DeSo's docs explicitly recommend this pattern for production social
+ * apps. From their landing page demo and used by Diamond, Focus, and
+ * Openfund:
  *
- * GlobalDESOLimit is 10 DESO — generous safety bound; per-type counts
- * are 1000 each (vs 'UNLIMITED' to keep the permissions popup readable
- * at the price of some hypothetical future ceiling).
+ *     spendingLimitOptions: { IsUnlimited: true }
  *
- * SEND_DIAMONDS is NOT a separate type; the SDK's sendDiamonds() guards
- * on BASIC_TRANSFER. Diamonds are basic transfers with diamond level in
- * ExtraData.
+ * Why we abandoned the enumerated TransactionCountLimitMap path:
  *
- * Exported so re-authorization paths in lib/deso/api.ts can request the
- * SAME broad scope when a specific permission is missing — never a
- * per-feature narrow subset, which would force a fresh popup for the
- * next feature touched.
+ *  - The SDK's guardTxPermission strictly checks the granted map. Any
+ *    missing transaction type triggers a fresh permissions popup,
+ *    which means each new feature we add (DMs, validator stake, DAO
+ *    coin) becomes a forced re-authorization for every existing user.
+ *  - Maintaining the list in lockstep with feature work is a constant
+ *    drift hazard. We already shipped one bug where the wrong canonical
+ *    name (UPDATE_FOLLOWING_STATUS vs FOLLOW) silently broke the
+ *    permission gate.
+ *  - Re-auth paths that requested a narrow per-feature subset stacked
+ *    popups on each other for users with old derived keys.
+ *
+ * IsUnlimited: true is the docs-blessed way to avoid all of this. The
+ * derived key is still bounded by its expiration window — the user
+ * isn't granting forever access, just everything-for-30-days. Same UX
+ * as Diamond / Focus / Openfund.
+ *
+ * Exported as BROAD_SPENDING_LIMIT_OPTIONS so api.ts and any future
+ * re-authorization path can reference the same shape without
+ * duplicating the literal.
  */
 export const BROAD_SPENDING_LIMIT_OPTIONS = {
-  GlobalDESOLimit: 10 * 1e9,
-  TransactionCountLimitMap: {
-    AUTHORIZE_DERIVED_KEY: 1,
-    BASIC_TRANSFER: 1000,         // ordinary transfers + diamonds
-    CREATOR_COIN: 1000,           // buy / sell creator coins
-    CREATOR_COIN_TRANSFER: 1000,  // move creator coins between users
-    FOLLOW: 1000,                 // follow / unfollow profiles
-    SUBMIT_POST: 1000,            // posts, comments, replies
-    LIKE: 1000,                   // engage with posts
-    UPDATE_PROFILE: 1000,         // edit display name / bio / pic
-    CREATE_NFT: 1000,             // future NFT features
-    ACCEPT_NFT_BID: 1000,         // future NFT features
-  } as Record<string, number>,
-  CreatorCoinOperationLimitMap: {
-    "": { buy: 1e9, sell: 1e9 },
-  },
+  IsUnlimited: true,
 };
 
 export function getDesoIdentity() {

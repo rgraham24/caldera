@@ -182,28 +182,11 @@ import {
   updateFollowingStatus as desoUpdateFollowingStatus,
 } from "deso-protocol";
 
-// We request the FULL broad scope (BROAD_SPENDING_LIMIT_OPTIONS from
-// identity.ts) on every re-authorization — never a per-feature narrow
-// subset. Otherwise a Follow re-auth would grant only AUTHORIZE_DERIVED_KEY
-// + FOLLOW, then the next CREATOR_COIN buy would trigger ANOTHER popup
-// granting only AUTHORIZE_DERIVED_KEY + CREATOR_COIN, and so on per
-// feature touched. Mirror of the focus.xyz pattern: one popup grants
-// everything Caldera uses today + future features.
-//
-// The hasPermissions() check stays narrow — we want to detect when a
-// SPECIFIC op is missing to decide whether to prompt at all. Only the
-// REQUEST scope is broad.
-
-async function ensureCreatorCoinPermissions() {
-  const { getDesoIdentity, BROAD_SPENDING_LIMIT_OPTIONS } = await import("@/lib/deso/identity");
-  const id = getDesoIdentity();
-  const hasPermission = id.hasPermissions({
-    TransactionCountLimitMap: { CREATOR_COIN: 1 } as Record<string, number>,
-  });
-  if (!hasPermission) {
-    await id.requestPermissions(BROAD_SPENDING_LIMIT_OPTIONS);
-  }
-}
+// No ensureCreatorCoinPermissions / ensureFollowPermissions helpers.
+// Identity.ts requests `IsUnlimited: true` at first connect, so every
+// transaction type is pre-authorized for the derived key's lifetime
+// (~30 days). The SDK's built-in guardTxPermission becomes a no-op
+// against unlimited scope and signs silently.
 
 export async function buyCreatorCoin(
   updaterPublicKey: string,
@@ -211,7 +194,6 @@ export async function buyCreatorCoin(
   desoToSellNanos: number
 ): Promise<{ txnHash: string } | null> {
   try {
-    await ensureCreatorCoinPermissions();
     // SDK handles construct + sign (via derived key) + submit — no popup
     const result = await desoBuyCreatorCoin({
       UpdaterPublicKeyBase58Check: updaterPublicKey,
@@ -233,7 +215,6 @@ export async function sellCreatorCoin(
   creatorCoinToSellNanos: number
 ): Promise<{ txnHash: string } | null> {
   try {
-    await ensureCreatorCoinPermissions();
     const result = await desoSellCreatorCoin({
       UpdaterPublicKeyBase58Check: updaterPublicKey,
       CreatorPublicKeyBase58Check: creatorPublicKey,
@@ -307,42 +288,23 @@ export async function getCreatorCoinQuote(
 
 // ─── DeSo follow / unfollow ──────────────────────────────────────────────────
 //
-// Follow state lives on the DeSo blockchain (UPDATE_FOLLOWING_STATUS tx). We
-// route every follow / unfollow through this helper so it goes through the
-// SDK's derived-key signing path — no platform-seed involvement, the user
+// Follow state lives on the DeSo blockchain (FOLLOW tx). We route every
+// follow / unfollow through this helper so it goes through the SDK's
+// derived-key signing path — no platform-seed involvement, the user
 // signs their own follow tx with their own wallet.
 //
 // Cost: each tx burns ~250 DeSo nanos (fraction of a cent). The
 // permission grant authorizes 1000 follows up front, with a GlobalDESOLimit
 // cap so the user can't accidentally rack up cost.
 
-// Canonical TransactionType enum value is "FOLLOW" (not
-// "UPDATE_FOLLOWING_STATUS" — verified against the SDK's
-// guardTxPermission). Identity.ts grants FOLLOW in the initial
-// connect scope, so this fallback only fires for sessions whose
-// derived key was authorized before that scope was broadened.
-//
-// When it does fire, it requests the FULL broad scope from
-// identity.ts (not a narrow FOLLOW-only subset) so one re-auth
-// covers every feature, not just follows.
-
-async function ensureFollowPermissions() {
-  const { getDesoIdentity, BROAD_SPENDING_LIMIT_OPTIONS } = await import("@/lib/deso/identity");
-  const id = getDesoIdentity();
-  const hasPermission = id.hasPermissions({
-    TransactionCountLimitMap: { FOLLOW: 1 } as Record<string, number>,
-  });
-  if (!hasPermission) {
-    await id.requestPermissions(BROAD_SPENDING_LIMIT_OPTIONS);
-  }
-}
-
 /**
- * Follow or unfollow a DeSo profile. Constructs, signs (via derived key),
- * and submits the UPDATE_FOLLOWING_STATUS tx in a single SDK call.
+ * Follow or unfollow a DeSo profile. Constructs, signs (via derived
+ * key), and submits the FOLLOW tx in a single SDK call. Signs silently
+ * — no permission popup — because identity.ts grants IsUnlimited: true
+ * at first connect.
  *
- * Throws on permission denial / network error / DeSo-side rejection. Caller
- * is responsible for optimistic UI + rollback on throw.
+ * Throws on network error / DeSo-side rejection. Caller is responsible
+ * for optimistic UI + rollback on throw.
  */
 export async function followCreator(
   followerPublicKey: string,
@@ -350,7 +312,6 @@ export async function followCreator(
   isUnfollow: boolean
 ): Promise<{ txnHash: string } | null> {
   try {
-    await ensureFollowPermissions();
     const result = await desoUpdateFollowingStatus({
       FollowerPublicKeyBase58Check: followerPublicKey,
       FollowedPublicKeyBase58Check: followedPublicKey,

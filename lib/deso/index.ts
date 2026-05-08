@@ -1,42 +1,29 @@
 // All DeSo SDK interactions go here. Keep the rest of the app DeSo-agnostic.
 
-import { identity } from "deso-protocol";
-
-const DESO_APP_NAME =
-  process.env.NEXT_PUBLIC_DESO_APP_NAME || "Caldera";
-const DESO_REDIRECT_URI =
-  process.env.NEXT_PUBLIC_DESO_REDIRECT_URI || "http://localhost:3000/login";
+import { getDesoIdentity } from "@/lib/deso/identity";
 
 export const deso = {
   // Identity
+  // Both connect entrypoints (this `deso.login()` from /login page +
+  // `connectDeSoWallet()` in lib/deso/auth.ts from the TopNav button)
+  // route through getDesoIdentity() so the IsUnlimited:true scope from
+  // identity.ts is configured before the login() call. Previously this
+  // file set up a SECOND, narrow `identity.configure({...})` via a
+  // never-called `initialize()` helper — dead code that risked drift.
   login: async () => {
-    const response = await identity.login({
-      getFreeDeso: true,
-    });
-    return response;
+    const id = getDesoIdentity();
+    return id.login({ getFreeDeso: true });
   },
 
   logout: async () => {
-    await identity.logout();
+    const id = getDesoIdentity();
+    await id.logout();
   },
 
   getCurrentUser: async (): Promise<string | null> => {
-    const snapshot = await identity.snapshot();
+    const id = getDesoIdentity();
+    const snapshot = await id.snapshot();
     return (snapshot as { currentUser?: { publicKey?: string } })?.currentUser?.publicKey ?? null;
-  },
-
-  initialize: () => {
-    identity.configure({
-      spendingLimitOptions: {
-        GlobalDESOLimit: 1000000000, // 1 DESO in nanos
-        TransactionCountLimitMap: {
-          BASIC_TRANSFER: 10,
-          SUBMIT_POST: 10,
-        },
-      },
-      appName: DESO_APP_NAME,
-      redirectURI: DESO_REDIRECT_URI,
-    });
   },
 
   // Profile

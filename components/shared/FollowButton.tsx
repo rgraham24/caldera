@@ -2,13 +2,14 @@
 
 /**
  * Follow / unfollow button. Writes to the DeSo blockchain follow graph
- * (UPDATE_FOLLOWING_STATUS) via the user's own derived key — no platform
- * seed involvement. Reads initial state from Zustand `followedDesoKeys`,
+ * (FOLLOW tx) via the user's own derived key — no platform seed
+ * involvement. Reads initial state from Zustand `followedDesoKeys`,
  * which is hydrated on connect by FollowGraphHydrator.
  *
  * Cost: each follow / unfollow burns ~250 DeSo nanos (a fraction of a
- * cent). The first action in a session triggers a permissions popup
- * authorizing up to 1000 follow txs.
+ * cent). No popup ever — identity.ts grants `IsUnlimited: true` at
+ * first connect, so every signing action runs silently with the
+ * derived key.
  */
 
 import { useState } from "react";
