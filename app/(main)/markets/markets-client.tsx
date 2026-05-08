@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Market } from "@/types";
 import { CATEGORIES } from "@/types";
 import { MarketGrid } from "@/components/markets/MarketGrid";
 import { cn } from "@/lib/utils";
 
 type SortOption = "trending" | "volume" | "newest" | "resolving_soon";
+
+const BATCH_SIZE = 24;
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "trending", label: "Trending" },
@@ -47,6 +49,14 @@ function Pill({
 export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortOption>("trending");
+  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+
+  // Reset to first page whenever the user changes filter or sort —
+  // otherwise they'd land on whatever scroll-page was visible when the
+  // change happened, which is rarely what they want.
+  useEffect(() => {
+    setVisibleCount(BATCH_SIZE);
+  }, [selectedCategories, sortBy]);
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) => {
@@ -153,7 +163,19 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
         </div>
       </div>
 
-      <MarketGrid markets={filtered} />
+      <MarketGrid markets={filtered.slice(0, visibleCount)} />
+
+      {visibleCount < filtered.length && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((n) => n + BATCH_SIZE)}
+            className="w-full max-w-xs rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)]"
+          >
+            Show more ({Math.min(visibleCount, filtered.length)} of {filtered.length})
+          </button>
+        </div>
+      )}
     </div>
   );
 }
