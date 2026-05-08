@@ -29,11 +29,24 @@ import {
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 
+export type MarketActivityTrade = {
+  id: string;
+  side: string;
+  action_type: string;
+  quantity: number;
+  price: number;
+  gross_amount: number;
+  created_at: string;
+  user: { username: string | null; avatar_url: string | null; deso_public_key: string | null } | null;
+  creator: { slug: string; name: string; image_url: string | null } | null;
+};
+
 type MarketDetailClientProps = {
   market: Market;
   comments: CommentWithUser[];
   relatedMarkets: Market[];
   creator: Creator | null;
+  trades: MarketActivityTrade[];
 };
 
 export function MarketDetailClient({
@@ -41,6 +54,7 @@ export function MarketDetailClient({
   comments,
   relatedMarkets,
   creator,
+  trades,
 }: MarketDetailClientProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
@@ -373,7 +387,7 @@ export function MarketDetailClient({
           )}
 
           {/* Comments */}
-          <MarketTabs marketId={market.id} comments={comments} creator={creator} />
+          <MarketTabs marketId={market.id} comments={comments} creator={creator} trades={trades} />
         </div>
 
         {/* Right column (35%) — sticky trading panel */}
