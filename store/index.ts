@@ -162,6 +162,13 @@ export const useAppStore = create<AppState>()(
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),
       onRehydrateStorage: () => (state) => {
+        // Diagnostic only — the _hasHydrated flag is now flipped by
+        // persist.onFinishHydration() below the create() call instead.
+        // setState calls inside onRehydrateStorage can be clobbered by
+        // subsequent persist re-runs (the callback fires twice per
+        // mount in Next.js — once with stored state, once with state
+        // undefined), which left _hasHydrated stuck at false in
+        // production. onFinishHydration is the documented escape hatch.
         console.log("[Store] onRehydrateStorage fired", {
           stateExists: !!state,
           isConnected: state?.isConnected,
@@ -172,15 +179,6 @@ export const useAppStore = create<AppState>()(
         if (state) {
           useAppStore.setState({ isConnected: state.isConnected });
         }
-        // Fire even when state is undefined (no localStorage entry yet) —
-        // we still want components to know hydration is done so they
-        // stop showing skeletons and render the unauthenticated branch.
-        state?.setHasHydrated(true);
-        // For the no-localStorage-entry case, set the flag directly:
-        if (!state) {
-          useAppStore.setState({ _hasHydrated: true });
-        }
-        console.log("[Store] _hasHydrated flipped to true");
       },
       partialize: (state) => ({
         isConnected: state.isConnected,
@@ -200,3 +198,37 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+// Hydration-completion listener.
+//
+// Why this lives outside onRehydrateStorage: in Next.js the
+// onRehydrateStorage callback fires twice per mount (once with stored
+// state, once with state=undefined). setState calls inside that
+// callback can be clobbered by the subsequent re-run, which left
+// _hasHydrated stuck at false in production despite both events
+// firing successfully. persist.onFinishHydration is Zustand's
+// documented escape hatch — it fires exactly once after persist has
+// fully committed and is guaranteed not to be overwritten.
+if (typeof window !== "undefined") {
+  useAppStore.persist.onFinishHydration((state) => {
+    console.log("[Store] persist.onFinishHydration fired", {
+      isConnected: state.isConnected,
+      desoPublicKey: state.desoPublicKey
+        ? state.desoPublicKey.slice(0, 12) + "..."
+        : null,
+    });
+    useAppStore.setState({ _hasHydrated: true });
+    console.log("[Store] _hasHydrated set to true via onFinishHydration");
+  });
+
+  // Edge case: if hydration already completed before this module
+  // finished evaluating (cached re-execution, fast-path bundle
+  // resolution), set the flag immediately so we don't deadlock waiting
+  // for an event that already fired.
+  if (useAppStore.persist.hasHydrated()) {
+    console.log(
+      "[Store] hydration already done at module load, setting _hasHydrated immediately"
+    );
+    useAppStore.setState({ _hasHydrated: true });
+  }
+}
