@@ -89,12 +89,14 @@ export function MarketDetailClient({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+      {/* Creator strip — full-width above both columns so the trade panel
+          on the right starts at the same y as the title on the left
+          instead of being pushed down by ~64px of strip height. */}
+      {creator && <MarketCreatorStrip creator={creator} />}
+
       <div className="flex flex-col gap-8 lg:flex-row">
         {/* Left column (65%) */}
         <div className="flex-1 lg:max-w-[65%]">
-          {/* Creator strip — anchors the market to its creator's coin */}
-          {creator && <MarketCreatorStrip creator={creator} />}
-
           {/* Header */}
           <div className="mb-6">
             <div className="mb-3 flex flex-wrap items-center gap-2">
