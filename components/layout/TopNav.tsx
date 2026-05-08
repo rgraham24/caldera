@@ -19,11 +19,10 @@ type Tab =
 
 const CENTER_TABS: Tab[] = [
   { id: "trending", label: "Trending", href: "/", icon: TrendingUp, title: "Highest volume markets" },
-  { id: "new", label: "New", href: "/new", icon: Clock, title: "Recently created" },
   { id: "following", label: "Following", href: "/following", title: "Markets for creators you follow" },
-  { divider: true },
   { id: "creators", label: "Creators", href: "/creators" },
   { id: "markets", label: "Markets", href: "/markets" },
+  { id: "new", label: "New", href: "/new", icon: Clock, title: "Recently created" },
   { id: "leaderboard", label: "Leaderboard", href: "/leaderboard" },
 ];
 
