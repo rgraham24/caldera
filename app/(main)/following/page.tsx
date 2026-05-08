@@ -19,16 +19,31 @@ export default function FollowingPage() {
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  console.log("[FollowingPage] render", {
+    hasHydrated,
+    isConnected,
+    desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
+    loading,
+    error,
+    marketsCount: markets.length,
+  });
+
   useEffect(() => {
-    // Wait for Zustand persist to finish reading localStorage before
-    // deciding "not connected, bail with empty markets". The previous
-    // version fired this effect once with the SSR defaults
-    // (isConnected=false, desoPublicKey=null), set loading=false, then
-    // sometimes failed to re-fire cleanly when persist hydrated — so
-    // the page rendered the empty state forever for logged-in users.
-    if (!hasHydrated) return;
+    console.log("[FollowingPage] effect fired", {
+      hasHydrated,
+      isConnected,
+      desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
+    });
+
+    if (!hasHydrated) {
+      console.log("[FollowingPage] bail: not hydrated yet");
+      return;
+    }
 
     if (!isConnected || !desoPublicKey) {
+      console.log(
+        "[FollowingPage] bail: not connected, setting empty markets"
+      );
       setLoading(false);
       return;
     }
@@ -42,9 +57,7 @@ export default function FollowingPage() {
       setError(false);
 
       try {
-        // 1. DeSo follow graph (proxied through /api/following so the
-        //    DeSo public node URL stays server-side and we get a hard
-        //    timeout).
+        console.log("[FollowingPage] step 1: fetching /api/following");
         const followRes = await fetch(
           `/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`,
           { signal: controller.signal }
@@ -52,41 +65,62 @@ export default function FollowingPage() {
         const { followedKeys = [] } = (await followRes.json()) as {
           followedKeys: string[];
         };
+        console.log("[FollowingPage] step 1 done:", {
+          keysCount: followedKeys.length,
+        });
 
         if (cancelled) return;
 
         if (followedKeys.length === 0) {
+          console.log("[FollowingPage] step 1 returned 0 keys, empty markets");
           setMarkets([]);
           return;
         }
 
         // 2. Map DeSo public keys to creator rows in our DB.
+        console.log("[FollowingPage] step 2: querying creators");
         const supabase = createClient();
-        const { data: creators } = await supabase
+        const { data: creators, error: creatorsErr } = await supabase
           .from("creators")
           .select("id")
           .in("deso_public_key", followedKeys);
+        if (creatorsErr) {
+          console.error("[FollowingPage] step 2 supabase error:", creatorsErr);
+        }
 
         const creatorIds = (creators ?? []).map((c) => c.id);
+        console.log("[FollowingPage] step 2 done:", {
+          creatorIdsCount: creatorIds.length,
+          firstFew: creatorIds.slice(0, 3),
+        });
         if (cancelled) return;
 
         if (creatorIds.length === 0) {
+          console.log("[FollowingPage] step 2 returned 0 creators, empty markets");
           setMarkets([]);
           return;
         }
 
         // 3. Open markets attached to those creators.
-        const { data: creatorMarkets } = await supabase
+        console.log("[FollowingPage] step 3: querying markets");
+        const { data: creatorMarkets, error: marketsErr } = await supabase
           .from("markets")
           .select("*")
           .in("creator_id", creatorIds)
           .eq("status", "open")
           .order("trending_score", { ascending: false })
           .limit(50);
+        if (marketsErr) {
+          console.error("[FollowingPage] step 3 supabase error:", marketsErr);
+        }
+        console.log("[FollowingPage] step 3 done:", {
+          marketsCount: creatorMarkets?.length ?? 0,
+        });
 
         if (cancelled) return;
         setMarkets((creatorMarkets ?? []) as Market[]);
-      } catch {
+      } catch (err) {
+        console.error("[FollowingPage] error in load:", err);
         if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setLoading(false);

@@ -162,6 +162,13 @@ export const useAppStore = create<AppState>()(
         typeof window !== "undefined" ? localStorage : sessionStorage
       ),
       onRehydrateStorage: () => (state) => {
+        console.log("[Store] onRehydrateStorage fired", {
+          stateExists: !!state,
+          isConnected: state?.isConnected,
+          desoPublicKey: state?.desoPublicKey
+            ? state.desoPublicKey.slice(0, 12) + "..."
+            : null,
+        });
         if (state) {
           useAppStore.setState({ isConnected: state.isConnected });
         }
@@ -173,6 +180,7 @@ export const useAppStore = create<AppState>()(
         if (!state) {
           useAppStore.setState({ _hasHydrated: true });
         }
+        console.log("[Store] _hasHydrated flipped to true");
       },
       partialize: (state) => ({
         isConnected: state.isConnected,

@@ -40,6 +40,12 @@ export function FollowButton({ creatorDesoPublicKey, className }: Props) {
   const toggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log("[FollowButton] click", {
+      creatorDesoPublicKey: creatorDesoPublicKey
+        ? creatorDesoPublicKey.slice(0, 12) + "..."
+        : null,
+      currentlyFollowing: following,
+    });
     if (!isConnected) { connectDeSoWallet(); return; }
     if (!desoPublicKey || !creatorDesoPublicKey) return;
     if (loading) return;
@@ -50,8 +56,11 @@ export function FollowButton({ creatorDesoPublicKey, className }: Props) {
     setLoading(true);
 
     try {
-      await followCreator(desoPublicKey, creatorDesoPublicKey, following);
-    } catch {
+      console.log("[FollowButton] calling followCreator SDK");
+      const result = await followCreator(desoPublicKey, creatorDesoPublicKey, following);
+      console.log("[FollowButton] tx submitted, txnHash:", result?.txnHash);
+    } catch (err) {
+      console.error("[FollowButton] tx failed:", err);
       // Rollback on error (insufficient DeSo, user rejected, network).
       // TODO: surface insufficient-balance with a "Get DeSo" link if we
       // want to differentiate that error from a generic failure.

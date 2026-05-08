@@ -18,29 +18,49 @@ import { useAppStore } from "@/store";
 export function FollowGraphHydrator() {
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
+  const isConnected = useAppStore((s) => s.isConnected);
   const setFollowedDesoKeys = useAppStore((s) => s.setFollowedDesoKeys);
 
-  useEffect(() => {
-    // Wait for Zustand persist to finish reading localStorage before
-    // deciding "user isn't connected" — otherwise we'd reset the set to
-    // empty during the brief pre-hydration window and then fail to
-    // re-fetch when desoPublicKey arrives.
-    if (!hasHydrated) return;
+  console.log("[FollowGraphHydrator] mount/render", {
+    hasHydrated,
+    desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
+    isConnected,
+  });
 
+  useEffect(() => {
+    console.log("[FollowGraphHydrator] effect fired", {
+      hasHydrated,
+      desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
+    });
+
+    if (!hasHydrated) {
+      console.log("[FollowGraphHydrator] bail: not hydrated yet");
+      return;
+    }
     if (!desoPublicKey) {
+      console.log("[FollowGraphHydrator] bail: no desoPublicKey, resetting set");
       setFollowedDesoKeys(new Set());
       return;
     }
     let cancelled = false;
+    console.log("[FollowGraphHydrator] fetching /api/following...");
     fetch(`/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`)
       .then((r) => r.json())
       .then((json: { followedKeys?: string[] }) => {
         if (cancelled) return;
-        setFollowedDesoKeys(new Set(json.followedKeys ?? []));
+        console.log("[FollowGraphHydrator] fetched", {
+          keysCount: json.followedKeys?.length ?? 0,
+          firstKeys: json.followedKeys?.slice(0, 3) ?? [],
+        });
+        const fresh = new Set(json.followedKeys ?? []);
+        setFollowedDesoKeys(fresh);
+        console.log(
+          "[FollowGraphHydrator] set updated, followedDesoKeys.size:",
+          fresh.size
+        );
       })
-      .catch(() => {
-        // Best-effort. If the fetch fails, follow buttons render as
-        // "Follow" by default — clicking still works.
+      .catch((err) => {
+        console.error("[FollowGraphHydrator] fetch error", err);
       });
     return () => {
       cancelled = true;
