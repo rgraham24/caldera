@@ -101,113 +101,52 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <h1 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">
-        Markets
-      </h1>
+      <div className="mb-4 flex items-baseline gap-3">
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Markets</h1>
+        <span className="text-sm text-[var(--text-tertiary)]">
+          {selectedCategories.size === 0
+            ? <>{totalCount.toLocaleString()} markets</>
+            : <>{filtered.length} market{filtered.length !== 1 ? "s" : ""}</>
+          }
+        </span>
+      </div>
 
-      {/* Mobile: horizontal filter bar */}
-      <div className="mb-6 lg:hidden">
-        <div className="overflow-x-auto scrollbar-hide pb-2">
-          <div className="flex gap-2">
-            <Pill active={selectedCategories.size === 0} onClick={() => setSelectedCategories(new Set())}>
-              All
+      {/* Top filter row: horizontal scrollable pills + sort dropdown right */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div
+          className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 flex-1 min-w-0"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
+        >
+          <Pill active={selectedCategories.size === 0} onClick={() => setSelectedCategories(new Set())}>
+            All
+          </Pill>
+          {CATEGORIES.map((cat) => (
+            <Pill
+              key={cat.value}
+              active={selectedCategories.has(cat.value)}
+              onClick={() => toggleCategory(cat.value)}
+            >
+              {cat.label}
             </Pill>
-            {CATEGORIES.map((cat) => (
-              <Pill
-                key={cat.value}
-                active={selectedCategories.has(cat.value)}
-                onClick={() => toggleCategory(cat.value)}
-              >
-                {cat.label}
-              </Pill>
-            ))}
-            <div
-              className="shrink-0 self-center mx-2 h-4 w-px"
-              style={{ background: "var(--border-default)" }}
-            />
+          ))}
+        </div>
+
+        <div className="shrink-0">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]/40 focus:border-[var(--accent)] focus:outline-none cursor-pointer"
+          >
             {SORT_OPTIONS.map((opt) => (
-              <Pill
-                key={opt.value}
-                active={sortBy === opt.value}
-                onClick={() => setSortBy(opt.value)}
-              >
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
-              </Pill>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
 
-      <div className="flex flex-col gap-8 lg:flex-row">
-        {/* Desktop sidebar filters */}
-        <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-20 space-y-6">
-            {/* Categories */}
-            <div>
-              <h3
-                className="mb-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-tertiary)" }}
-              >
-                Category
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <Pill
-                  active={selectedCategories.size === 0}
-                  onClick={() => setSelectedCategories(new Set())}
-                >
-                  All
-                </Pill>
-                {CATEGORIES.map((cat) => (
-                  <Pill
-                    key={cat.value}
-                    active={selectedCategories.has(cat.value)}
-                    onClick={() => toggleCategory(cat.value)}
-                  >
-                    {cat.label}
-                  </Pill>
-                ))}
-              </div>
-            </div>
-
-            {/* Sort */}
-            <div>
-              <h3
-                className="mb-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-tertiary)" }}
-              >
-                Sort By
-              </h3>
-              <div className="flex flex-col gap-1">
-                {SORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setSortBy(opt.value)}
-                    className={cn(
-                      "rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors min-h-[44px]",
-                      sortBy === opt.value
-                        ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
-                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main grid */}
-        <div className="flex-1">
-          <p className="mb-4 text-sm text-[var(--text-tertiary)]">
-            {selectedCategories.size === 0
-              ? <>{totalCount.toLocaleString()} markets</>
-              : <>{filtered.length} market{filtered.length !== 1 ? "s" : ""}</>
-            }
-          </p>
-          <MarketGrid markets={filtered} />
-        </div>
-      </div>
+      <MarketGrid markets={filtered} />
     </div>
   );
 }
