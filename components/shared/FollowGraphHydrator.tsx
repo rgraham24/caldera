@@ -17,19 +17,9 @@ import { useAppStore } from "@/store";
 
 export function FollowGraphHydrator() {
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
-  const isConnected = useAppStore((s) => s.isConnected);
   const setFollowedDesoKeys = useAppStore((s) => s.setFollowedDesoKeys);
 
-  console.log("[FollowGraphHydrator] mount/render", {
-    desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
-    isConnected,
-  });
-
   useEffect(() => {
-    console.log("[FollowGraphHydrator] effect fired", {
-      desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
-    });
-
     // Wait for desoPublicKey to be truthy. When persist hasn't committed
     // yet OR the user is genuinely logged out, we silently no-op — the
     // set stays at its initial empty value, which is the correct UI.
@@ -38,24 +28,15 @@ export function FollowGraphHydrator() {
     if (!desoPublicKey) return;
 
     let cancelled = false;
-    console.log("[FollowGraphHydrator] fetching /api/following...");
     fetch(`/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`)
       .then((r) => r.json())
       .then((json: { followedKeys?: string[] }) => {
         if (cancelled) return;
-        console.log("[FollowGraphHydrator] fetched", {
-          keysCount: json.followedKeys?.length ?? 0,
-          firstKeys: json.followedKeys?.slice(0, 3) ?? [],
-        });
-        const fresh = new Set(json.followedKeys ?? []);
-        setFollowedDesoKeys(fresh);
-        console.log(
-          "[FollowGraphHydrator] set updated, followedDesoKeys.size:",
-          fresh.size
-        );
+        setFollowedDesoKeys(new Set(json.followedKeys ?? []));
       })
-      .catch((err) => {
-        console.error("[FollowGraphHydrator] fetch error", err);
+      .catch(() => {
+        // Best-effort. If the fetch fails, follow buttons render as
+        // "Follow" by default — clicking still works.
       });
     return () => {
       cancelled = true;

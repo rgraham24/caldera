@@ -24,15 +24,6 @@ export default function FollowingPage() {
   // page load is jarring.
   const [waitedTooLong, setWaitedTooLong] = useState(false);
 
-  console.log("[FollowingPage] render", {
-    isConnected,
-    desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
-    loading,
-    error,
-    marketsCount: markets.length,
-    waitedTooLong,
-  });
-
   // 2-second window for persist to commit. If desoPublicKey is still
   // null after that, treat the user as genuinely logged out and render
   // the Connect Wallet branch.
@@ -42,10 +33,6 @@ export default function FollowingPage() {
   }, []);
 
   useEffect(() => {
-    console.log("[FollowingPage] effect fired", {
-      desoPublicKey: desoPublicKey ? desoPublicKey.slice(0, 12) + "..." : null,
-    });
-
     // Wait silently for desoPublicKey. CRITICAL: do NOT setLoading(false)
     // here — we want skeletons to keep showing until either a real load
     // completes OR the waitedTooLong timer flips and the render branch
@@ -61,27 +48,26 @@ export default function FollowingPage() {
       setError(false);
 
       try {
-        // Single fetch to the server-side following feed. The previous
+        // Single fetch to the server-side following feed. Previous
         // version did the three-step query (DeSo follow graph → map keys
         // to creators → filter markets) in the browser, which sent a
-        // 14.9KB Supabase REST URL with 265 base58 keys baked into the
-        // IN clause. That URL hung indefinitely — browser fetch + the
-        // intermediate proxy chain handled long URLs differently from
-        // Node and never returned. /api/markets?sort=following does the
+        // ~15KB Supabase REST URL with 265 base58 keys baked into the
+        // IN clause. That URL hung indefinitely in the browser fetch
+        // path — Node handled it but the browser + intermediate proxy
+        // chain didn't return. /api/markets?sort=following does the
         // same join server-side over a stable, short outgoing URL.
-        console.log("[FollowingPage] fetching /api/markets?sort=following");
         const res = await fetch(
           `/api/markets?sort=following&desoPublicKey=${encodeURIComponent(desoPublicKey)}&limit=50`,
           { signal: controller.signal }
         );
         const json = await res.json();
-        console.log("[FollowingPage] fetched", {
-          marketsCount: json.data?.length ?? 0,
-        });
         if (cancelled) return;
         setMarkets((json.data ?? []) as Market[]);
       } catch (err) {
-        console.error("[FollowingPage] error", err);
+        // Caught failures surface as the visible error branch with a
+        // Retry button; logging here adds debug context for any future
+        // investigation without requiring a repro.
+        console.error("Following load failed:", err);
         if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setLoading(false);
