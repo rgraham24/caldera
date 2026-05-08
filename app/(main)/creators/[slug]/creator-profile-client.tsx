@@ -481,7 +481,7 @@ export function CreatorProfileClient({
               >
                 + Create Market
               </button>
-              <FollowButton slug={creator.slug} />
+              <FollowButton creatorDesoPublicKey={creator.deso_public_key} />
             </div>
             {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
               <button

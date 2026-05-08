@@ -5,6 +5,7 @@ import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
 import StarterBanner from "@/components/shared/StarterBanner";
 import { LiveTicker } from "./_components/ticker/LiveTicker";
+import { FollowGraphHydrator } from "@/components/shared/FollowGraphHydrator";
 import dynamic from "next/dynamic";
 
 // Heavy modals — only needed when triggered, never on initial render
@@ -33,6 +34,7 @@ export default function MainLayout({
       <MobileNav />
       <DepositModalRoot />
       <HowItWorksModal />
+      <FollowGraphHydrator />
     </>
   );
 }

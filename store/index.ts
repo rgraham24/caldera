@@ -20,6 +20,13 @@ type AppState = {
   encryptedSeedHex: string | null;
   accessLevelHmac: string | null;
   accessLevel: number;
+  /**
+   * Set of DeSo public keys that the connected user follows. Source of
+   * truth is DeSo's blockchain follow graph (api.deso.org); this set
+   * is hydrated on connect from /api/following and updated optimistically
+   * by FollowButton after a successful follow/unfollow tx.
+   */
+  followedDesoKeys: Set<string>;
   isDepositModalOpen: boolean;
   openDepositModal: () => void;
   closeDepositModal: () => void;
@@ -29,6 +36,9 @@ type AppState = {
   setDesoBalance: (nanos: number, usd: number) => void;
   setConnected: (userData: ConnectedUser) => void;
   setDisconnected: () => void;
+  setFollowedDesoKeys: (keys: Set<string>) => void;
+  addFollowedDesoKey: (key: string) => void;
+  removeFollowedDesoKey: (key: string) => void;
   logout: () => void;
 };
 
@@ -51,6 +61,7 @@ export const useAppStore = create<AppState>()(
       encryptedSeedHex: null,
       accessLevelHmac: null,
       accessLevel: 2,
+      followedDesoKeys: new Set<string>(),
       isDepositModalOpen: false,
       openDepositModal: () => set({ isDepositModalOpen: true }),
       closeDepositModal: () => set({ isDepositModalOpen: false }),
@@ -93,6 +104,20 @@ export const useAppStore = create<AppState>()(
           encryptedSeedHex: null,
           accessLevelHmac: null,
           accessLevel: 2,
+          followedDesoKeys: new Set<string>(),
+        }),
+      setFollowedDesoKeys: (keys) => set({ followedDesoKeys: new Set(keys) }),
+      addFollowedDesoKey: (key) =>
+        set((state) => {
+          const next = new Set(state.followedDesoKeys);
+          next.add(key);
+          return { followedDesoKeys: next };
+        }),
+      removeFollowedDesoKey: (key) =>
+        set((state) => {
+          const next = new Set(state.followedDesoKeys);
+          next.delete(key);
+          return { followedDesoKeys: next };
         }),
       logout: () =>
         set({
@@ -112,6 +137,7 @@ export const useAppStore = create<AppState>()(
           encryptedSeedHex: null,
           accessLevelHmac: null,
           accessLevel: 2,
+          followedDesoKeys: new Set<string>(),
         }),
     }),
     {

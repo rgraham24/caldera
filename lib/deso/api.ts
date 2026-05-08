@@ -179,6 +179,7 @@ export async function getCreatorCoinHoldings(
 import {
   buyCreatorCoin as desoBuyCreatorCoin,
   sellCreatorCoin as desoSellCreatorCoin,
+  updateFollowingStatus as desoUpdateFollowingStatus,
 } from "deso-protocol";
 
 const CREATOR_COIN_PERMISSIONS = {
@@ -300,5 +301,62 @@ export async function getCreatorCoinQuote(
     };
   } catch {
     return null;
+  }
+}
+
+// ─── DeSo follow / unfollow ──────────────────────────────────────────────────
+//
+// Follow state lives on the DeSo blockchain (UPDATE_FOLLOWING_STATUS tx). We
+// route every follow / unfollow through this helper so it goes through the
+// SDK's derived-key signing path — no platform-seed involvement, the user
+// signs their own follow tx with their own wallet.
+//
+// Cost: each tx burns ~250 DeSo nanos (fraction of a cent). The
+// permission grant authorizes 1000 follows up front, with a GlobalDESOLimit
+// cap so the user can't accidentally rack up cost.
+
+const FOLLOW_PERMISSIONS = {
+  GlobalDESOLimit: 1 * 1e9, // 1 DESO ≈ 4M follows at 250 nanos each — generous safety bound
+  TransactionCountLimitMap: {
+    AUTHORIZE_DERIVED_KEY: 1,
+    UPDATE_FOLLOWING_STATUS: 1000,
+  } as Record<string, number>,
+};
+
+async function ensureFollowPermissions() {
+  const { getDesoIdentity } = await import("@/lib/deso/identity");
+  const id = getDesoIdentity();
+  const hasPermission = id.hasPermissions({
+    TransactionCountLimitMap: { UPDATE_FOLLOWING_STATUS: 1 } as Record<string, number>,
+  });
+  if (!hasPermission) {
+    await id.requestPermissions(FOLLOW_PERMISSIONS);
+  }
+}
+
+/**
+ * Follow or unfollow a DeSo profile. Constructs, signs (via derived key),
+ * and submits the UPDATE_FOLLOWING_STATUS tx in a single SDK call.
+ *
+ * Throws on permission denial / network error / DeSo-side rejection. Caller
+ * is responsible for optimistic UI + rollback on throw.
+ */
+export async function followCreator(
+  followerPublicKey: string,
+  followedPublicKey: string,
+  isUnfollow: boolean
+): Promise<{ txnHash: string } | null> {
+  try {
+    await ensureFollowPermissions();
+    const result = await desoUpdateFollowingStatus({
+      FollowerPublicKeyBase58Check: followerPublicKey,
+      FollowedPublicKeyBase58Check: followedPublicKey,
+      IsUnfollow: isUnfollow,
+      MinFeeRateNanosPerKB: 1000,
+    });
+    return { txnHash: result.submittedTransactionResponse?.TxnHashHex ?? "" };
+  } catch (err) {
+    console.error("[followCreator]", err);
+    throw err;
   }
 }
