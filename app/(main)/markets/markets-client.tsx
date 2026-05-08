@@ -64,17 +64,24 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
     let result = [...markets];
 
     if (selectedCategories.size > 0) {
+      // CATEGORIES values are lowercase by convention; markets.category
+      // is stored Title Case in the DB ("Sports", "Entertainment", ...).
+      // Normalize both sides via toLowerCase() so the filter actually
+      // matches. Bug pre-fix: strict Set.has comparison never matched
+      // because "sports" (lowercase pill value) !== "Sports" (DB value),
+      // so clicking pills did nothing.
       const expandedCats = new Set<string>();
       const CAT_GROUPS: Record<string, string[]> = {
         creators: ["creators", "streamers"],
-        entertainment: ["entertainment", "viral"],
         sports: ["sports", "athletes"],
       };
       selectedCategories.forEach((c) => {
         const group = CAT_GROUPS[c] || [c];
         group.forEach((g) => expandedCats.add(g));
       });
-      result = result.filter((m) => expandedCats.has(m.category));
+      result = result.filter((m) =>
+        m.category ? expandedCats.has(m.category.toLowerCase()) : false
+      );
     }
 
     switch (sortBy) {

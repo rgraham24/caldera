@@ -39,18 +39,25 @@ export type TradeSide = "yes" | "no";
 
 // Category type. Union retains "crypto" and "climate" because old DB rows
 // still carry those values; the exported CATEGORIES UI list drops them.
-export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment" | "crypto" | "companies" | "climate";
+// "commentary" and "viral" added 2026-05-08 — they were already in production
+// market_data but missing from the UI filter list.
+export type Category = "creators" | "music" | "sports" | "tech" | "politics" | "entertainment" | "crypto" | "companies" | "climate" | "commentary" | "viral";
 
-// Single source of truth for the homepage strip + /markets sidebar.
-// Re-add "crypto" or "climate" here when those categories have open markets again.
+// Single source of truth for the homepage strip + /markets pill row.
+// Order roughly follows DB volume on open markets (Sports highest, Viral
+// lowest), with Creators surfaced first as the differentiating category.
+// Values are lowercase by convention — the markets-client filter
+// normalizes m.category via toLowerCase() so DB Title Case still matches.
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "creators", label: "🎬 Creators" },
-  { value: "companies", label: "🏢 Companies" },
   { value: "sports", label: "⚽ Sports" },
-  { value: "politics", label: "👑 Politics" },
-  { value: "music", label: "🎵 Music" },
-  { value: "tech", label: "💻 Tech" },
   { value: "entertainment", label: "🎭 Entertainment" },
+  { value: "companies", label: "🏢 Companies" },
+  { value: "music", label: "🎵 Music" },
+  { value: "politics", label: "👑 Politics" },
+  { value: "tech", label: "💻 Tech" },
+  { value: "commentary", label: "📺 Commentary" },
+  { value: "viral", label: "🔥 Viral" },
 ];
 
 // Leaderboard period
