@@ -56,7 +56,10 @@ export function MarketDetailClient({
   creator,
   trades,
 }: MarketDetailClientProps) {
-  const [rulesOpen, setRulesOpen] = useState(false);
+  // Default open — the resolution criteria text is the most important
+  // contextual content on the page; burying it behind a chevron made
+  // users miss it. Toggle is still wired so anyone can collapse.
+  const [rulesOpen, setRulesOpen] = useState(true);
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
   const [copied, setCopied] = useState(false);
