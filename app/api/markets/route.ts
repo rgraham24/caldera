@@ -42,43 +42,47 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: filterVerifiedMarkets(data ?? [], verifiedSlugs) });
   }
 
-  // Following feed: fetch followed slugs → get matching creator names → title-match markets
+  // Following feed: source of truth is DeSo's blockchain follow graph.
+  // 1) /api/following proxies api.deso.org/get-follows-stateless and
+  //    returns the list of public keys this user follows.
+  // 2) Map those keys to creator rows via creators.deso_public_key
+  //    (populated for all 14k+ active creators).
+  // 3) Filter open markets to those creators by creator_id.
+  //
+  // Local follows table is no longer consulted — it was deleted as
+  // part of the DeSo-native follow overhaul.
   if (sort === "following" && desoPublicKey) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: followRows } = await (supabase as any)
-      .from("follows")
-      .select("following_slug")
-      .eq("follower_deso_key", desoPublicKey);
+    // Internal call to /api/following so the DeSo-fetch-with-timeout
+    // logic stays centralized in one place.
+    const baseUrl = req.nextUrl.origin;
+    const followRes = await fetch(
+      `${baseUrl}/api/following?publicKey=${encodeURIComponent(desoPublicKey)}`
+    );
+    const { followedKeys = [] } = (await followRes.json()) as { followedKeys: string[] };
+    if (followedKeys.length === 0) return NextResponse.json({ data: [] });
 
-    const slugs: string[] = (followRows ?? []).map((r: { following_slug: string }) => r.following_slug);
-
-    if (slugs.length === 0) return NextResponse.json({ data: [] });
-
-    // Get creator names for those slugs
+    // Map DeSo public keys to creator IDs. DeSo's NumToFetch=500 caps
+    // the upstream fetch so the .in() here can never overflow Supabase
+    // limits.
     const { data: creators } = await supabase
       .from("creators")
-      .select("name, slug")
-      .in("slug", slugs);
+      .select("id")
+      .in("deso_public_key", followedKeys);
+    const creatorIds = (creators ?? []).map((c) => c.id);
+    if (creatorIds.length === 0) return NextResponse.json({ data: [] });
 
-    const names = (creators ?? []).map((c) => c.name).filter(Boolean);
-    if (names.length === 0) return NextResponse.json({ data: [] });
-
-    // Fetch open markets and filter by creator name in title (client-side, small set)
-    const { data: allMarkets } = await supabase
+    const { data: rawMarkets } = await supabase
       .from("markets")
       .select("*")
+      .in("creator_id", creatorIds)
       .eq("status", "open")
-      .order("created_at", { ascending: false })
-      .limit(500);
-
-    const filtered = (allMarkets ?? []).filter((m) =>
-      names.some((name) => m.title.toLowerCase().includes(name.toLowerCase()))
-    );
+      .order("trending_score", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     // Phase 3 defense-in-depth — drop orphan markets attached to unverified creators.
     const verifiedSlugs = await fetchVerifiedCreatorSlugs(supabase);
-    const verified = filterVerifiedMarkets(filtered, verifiedSlugs);
-    return NextResponse.json({ data: verified.slice(offset, offset + limit) });
+    const verified = filterVerifiedMarkets(rawMarkets ?? [], verifiedSlugs);
+    return NextResponse.json({ data: verified });
   }
 
   let query = supabase.from("markets").select("*").eq("status", status);
