@@ -46,8 +46,17 @@ function Pill({
   );
 }
 
+// Category aliases — kept at module scope so the useMemo dep tracking
+// stays minimal. Each pill maps to its own DB category EXCEPT for the
+// two historical aliases where the UI category subsumes a separate DB
+// label that's never had its own pill.
+const CAT_GROUPS: Record<string, string[]> = {
+  creators: ["creators", "streamers"],
+  sports: ["sports", "athletes"],
+};
+
 export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
 
@@ -56,41 +65,29 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
   // change happened, which is rarely what they want.
   useEffect(() => {
     setVisibleCount(BATCH_SIZE);
-  }, [selectedCategories, sortBy]);
+  }, [selectedCategory, sortBy]);
 
-  const toggleCategory = (cat: string) => {
-    setSelectedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) {
-        next.delete(cat);
-      } else {
-        next.add(cat);
-      }
-      return next;
-    });
+  // Single-select: clicking a pill replaces the active filter; clicking
+  // the same pill again clears it back to "All". Multi-select union was
+  // confusing — every prediction-market competitor (Polymarket, Kalshi,
+  // Manifold) uses single-select for the same reason.
+  const selectCategory = (cat: string) => {
+    setSelectedCategory((current) => (current === cat ? null : cat));
   };
 
   const filtered = useMemo(() => {
     let result = [...markets];
 
-    if (selectedCategories.size > 0) {
+    if (selectedCategory) {
       // CATEGORIES values are lowercase by convention; markets.category
       // is stored Title Case in the DB ("Sports", "Entertainment", ...).
-      // Normalize both sides via toLowerCase() so the filter actually
-      // matches. Bug pre-fix: strict Set.has comparison never matched
-      // because "sports" (lowercase pill value) !== "Sports" (DB value),
-      // so clicking pills did nothing.
-      const expandedCats = new Set<string>();
-      const CAT_GROUPS: Record<string, string[]> = {
-        creators: ["creators", "streamers"],
-        sports: ["sports", "athletes"],
-      };
-      selectedCategories.forEach((c) => {
-        const group = CAT_GROUPS[c] || [c];
-        group.forEach((g) => expandedCats.add(g));
-      });
+      // Normalize via toLowerCase() so the filter matches without
+      // mutating the DB. Aliases (creators ↔ streamers, sports ↔
+      // athletes) expand only for the active category.
+      const aliases = CAT_GROUPS[selectedCategory] ?? [selectedCategory];
+      const aliasSet = new Set(aliases);
       result = result.filter((m) =>
-        m.category ? expandedCats.has(m.category.toLowerCase()) : false
+        m.category ? aliasSet.has(m.category.toLowerCase()) : false
       );
     }
 
@@ -114,14 +111,14 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
     }
 
     return result;
-  }, [markets, selectedCategories, sortBy]);
+  }, [markets, selectedCategory, sortBy]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
       <div className="mb-4 flex items-baseline gap-3">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Markets</h1>
         <span className="text-sm text-[var(--text-tertiary)]">
-          {selectedCategories.size === 0
+          {selectedCategory === null
             ? <>{totalCount.toLocaleString()} markets</>
             : <>{filtered.length} market{filtered.length !== 1 ? "s" : ""}</>
           }
@@ -134,14 +131,14 @@ export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
           className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 flex-1 min-w-0"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
         >
-          <Pill active={selectedCategories.size === 0} onClick={() => setSelectedCategories(new Set())}>
+          <Pill active={selectedCategory === null} onClick={() => setSelectedCategory(null)}>
             All
           </Pill>
           {CATEGORIES.map((cat) => (
             <Pill
               key={cat.value}
-              active={selectedCategories.has(cat.value)}
-              onClick={() => toggleCategory(cat.value)}
+              active={selectedCategory === cat.value}
+              onClick={() => selectCategory(cat.value)}
             >
               {cat.label}
             </Pill>
