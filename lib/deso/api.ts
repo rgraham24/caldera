@@ -315,11 +315,18 @@ export async function getCreatorCoinQuote(
 // permission grant authorizes 1000 follows up front, with a GlobalDESOLimit
 // cap so the user can't accidentally rack up cost.
 
+// Canonical TransactionType enum value is "FOLLOW" — NOT
+// "UPDATE_FOLLOWING_STATUS" (which doesn't exist in the enum).
+// Verified against deso-protocol/src/transactions/social.js where the
+// SDK's guardTxPermission checks TransactionCountLimitMap.FOLLOW.
+// Caldera's identity.ts grants FOLLOW: 1000 in the initial connect
+// scope, so this fallback request only fires for sessions that
+// connected before the broader scope was deployed.
 const FOLLOW_PERMISSIONS = {
   GlobalDESOLimit: 1 * 1e9, // 1 DESO ≈ 4M follows at 250 nanos each — generous safety bound
   TransactionCountLimitMap: {
     AUTHORIZE_DERIVED_KEY: 1,
-    UPDATE_FOLLOWING_STATUS: 1000,
+    FOLLOW: 1000,
   } as Record<string, number>,
 };
 
@@ -327,7 +334,7 @@ async function ensureFollowPermissions() {
   const { getDesoIdentity } = await import("@/lib/deso/identity");
   const id = getDesoIdentity();
   const hasPermission = id.hasPermissions({
-    TransactionCountLimitMap: { UPDATE_FOLLOWING_STATUS: 1 } as Record<string, number>,
+    TransactionCountLimitMap: { FOLLOW: 1 } as Record<string, number>,
   });
   if (!hasPermission) {
     await id.requestPermissions(FOLLOW_PERMISSIONS);
