@@ -27,6 +27,19 @@ type AppState = {
    * by FollowButton after a successful follow/unfollow tx.
    */
   followedDesoKeys: Set<string>;
+  /**
+   * Flips to true after Zustand's persist middleware finishes reading
+   * localStorage. Components that depend on persisted auth state must
+   * gate their effects on this flag — otherwise they'll fire once with
+   * the SSR/initial-render defaults (isConnected=false, desoPublicKey=null)
+   * and another time after persist hydrates, with potentially-broken
+   * intermediate states (e.g. /following showing the empty state because
+   * the early-bail effect ran with desoPublicKey=null and never re-fired
+   * cleanly when persist completed).
+   *
+   * NOT in partialize() — must always start false on every page load.
+   */
+  _hasHydrated: boolean;
   isDepositModalOpen: boolean;
   openDepositModal: () => void;
   closeDepositModal: () => void;
@@ -39,6 +52,7 @@ type AppState = {
   setFollowedDesoKeys: (keys: Set<string>) => void;
   addFollowedDesoKey: (key: string) => void;
   removeFollowedDesoKey: (key: string) => void;
+  setHasHydrated: (state: boolean) => void;
   logout: () => void;
 };
 
@@ -62,6 +76,7 @@ export const useAppStore = create<AppState>()(
       accessLevelHmac: null,
       accessLevel: 2,
       followedDesoKeys: new Set<string>(),
+      _hasHydrated: false,
       isDepositModalOpen: false,
       openDepositModal: () => set({ isDepositModalOpen: true }),
       closeDepositModal: () => set({ isDepositModalOpen: false }),
@@ -106,6 +121,7 @@ export const useAppStore = create<AppState>()(
           accessLevel: 2,
           followedDesoKeys: new Set<string>(),
         }),
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
       setFollowedDesoKeys: (keys) => set({ followedDesoKeys: new Set(keys) }),
       addFollowedDesoKey: (key) =>
         set((state) => {
@@ -148,6 +164,14 @@ export const useAppStore = create<AppState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           useAppStore.setState({ isConnected: state.isConnected });
+        }
+        // Fire even when state is undefined (no localStorage entry yet) —
+        // we still want components to know hydration is done so they
+        // stop showing skeletons and render the unauthenticated branch.
+        state?.setHasHydrated(true);
+        // For the no-localStorage-entry case, set the flag directly:
+        if (!state) {
+          useAppStore.setState({ _hasHydrated: true });
         }
       },
       partialize: (state) => ({

@@ -11,13 +11,23 @@ import type { Market } from "@/types";
 const FOLLOWING_FETCH_TIMEOUT_MS = 6000;
 
 export default function FollowingPage() {
-  const { isConnected, desoPublicKey } = useAppStore();
+  const hasHydrated = useAppStore((s) => s._hasHydrated);
+  const isConnected = useAppStore((s) => s.isConnected);
+  const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    // Wait for Zustand persist to finish reading localStorage before
+    // deciding "not connected, bail with empty markets". The previous
+    // version fired this effect once with the SSR defaults
+    // (isConnected=false, desoPublicKey=null), set loading=false, then
+    // sometimes failed to re-fire cleanly when persist hydrated — so
+    // the page rendered the empty state forever for logged-in users.
+    if (!hasHydrated) return;
+
     if (!isConnected || !desoPublicKey) {
       setLoading(false);
       return;
@@ -91,7 +101,29 @@ export default function FollowingPage() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [isConnected, desoPublicKey, reloadKey]);
+  }, [hasHydrated, isConnected, desoPublicKey, reloadKey]);
+
+  // While Zustand persist is still rehydrating from localStorage, render
+  // the same skeleton grid as the loading state. Otherwise we'd flash
+  // the Connect Wallet branch for already-logged-in users on every page
+  // load before persist completes (~1 frame, but jarring).
+  if (!hasHydrated) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-1">Following</h1>
+          <p className="text-sm text-text-muted">
+            Prediction markets about creators you follow on DeSo
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-44 rounded-xl bg-surface animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // 1. Not connected — connect wallet prompt.
   if (!isConnected) {

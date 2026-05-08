@@ -16,10 +16,17 @@ import { useEffect } from "react";
 import { useAppStore } from "@/store";
 
 export function FollowGraphHydrator() {
+  const hasHydrated = useAppStore((s) => s._hasHydrated);
   const desoPublicKey = useAppStore((s) => s.desoPublicKey);
   const setFollowedDesoKeys = useAppStore((s) => s.setFollowedDesoKeys);
 
   useEffect(() => {
+    // Wait for Zustand persist to finish reading localStorage before
+    // deciding "user isn't connected" — otherwise we'd reset the set to
+    // empty during the brief pre-hydration window and then fail to
+    // re-fetch when desoPublicKey arrives.
+    if (!hasHydrated) return;
+
     if (!desoPublicKey) {
       setFollowedDesoKeys(new Set());
       return;
@@ -38,7 +45,7 @@ export function FollowGraphHydrator() {
     return () => {
       cancelled = true;
     };
-  }, [desoPublicKey, setFollowedDesoKeys]);
+  }, [hasHydrated, desoPublicKey, setFollowedDesoKeys]);
 
   return null;
 }
