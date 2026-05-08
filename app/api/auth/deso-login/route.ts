@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyDesoJwt } from "@/lib/auth/deso-jwt";
 import { buildSetSessionCookie } from "@/lib/auth/cookie-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { syncUserProfile } from "@/lib/deso/syncProfile";
 
 type LoginBody = {
   publicKey?: string;
@@ -91,6 +92,14 @@ export async function POST(req: NextRequest) {
     }
 
     const cookie = buildSetSessionCookie(publicKey, signingKey);
+
+    // Fire-and-forget refresh of users + creators rows from the live
+    // DeSo profile. Self-heals stale data on every login (the user
+    // INSERT path above only ran once at signup, so users whose DeSo
+    // username was empty at first login got their pubkey saved as
+    // username and never updated). Errors are swallowed inside
+    // syncUserProfile so they can't break the login response.
+    void syncUserProfile(publicKey);
 
     return NextResponse.json(
       { data: dbUser },
