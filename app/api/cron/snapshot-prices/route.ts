@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/cron/snapshot-prices
@@ -13,10 +13,15 @@ import { createClient } from "@/lib/supabase/server";
  *     Insert only when changed (or when no prior snapshot exists).
  *
  * Auth: Bearer <CRON_SECRET>
+ *
+ * Heartbeat: platform_config[cron_snapshot_prices_last_run]
  */
 export async function GET(req: Request) {
+  const startedAt = new Date().toISOString();
+  const t0 = Date.now();
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    await writeHeartbeat({ ok: false, error: "auth-mismatch", startedAt });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -107,6 +112,14 @@ export async function GET(req: Request) {
     console.log(
       `[snapshot-prices] No price changes; skipped=${skipped} of ${markets.length}`
     );
+    await writeHeartbeat({
+      ok: true,
+      startedAt,
+      evaluated: markets.length,
+      snapshotted: 0,
+      skipped,
+      elapsedMs: Date.now() - t0,
+    });
     return NextResponse.json({
       snapshots: 0,
       skipped,
@@ -124,15 +137,47 @@ export async function GET(req: Request) {
     if (!error) total += Math.min(chunkSize, snapshots.length - i);
   }
 
+  const elapsedMs = Date.now() - t0;
   const dedupPct = markets.length > 0
     ? Math.round((skipped / markets.length) * 100)
     : 0;
   console.log(
     `[snapshot-prices] ${markets.length} markets, ${total} changed, ${skipped} unchanged (${dedupPct}% deduped)`
   );
+  await writeHeartbeat({
+    ok: true,
+    startedAt,
+    evaluated: markets.length,
+    snapshotted: total,
+    skipped,
+    elapsedMs,
+  });
   return NextResponse.json({
     snapshots: total,
     skipped,
     evaluated: markets.length,
   });
+}
+
+async function writeHeartbeat(payload: Record<string, unknown>): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const value = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      ...payload,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("platform_config")
+      .upsert(
+        {
+          key: "cron_snapshot_prices_last_run",
+          value,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
+  } catch (err) {
+    console.error("[cron/snapshot-prices] heartbeat write failed:", err);
+  }
 }
