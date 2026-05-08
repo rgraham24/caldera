@@ -1,57 +1,160 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { Creator } from "@/types";
-import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
-import { Search } from "lucide-react";
-import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import dynamic from "next/dynamic";
+import { Search } from "lucide-react";
+import type { Creator } from "@/types";
+import { CATEGORIES } from "@/types";
+import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
+import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { FollowButton } from "@/components/shared/FollowButton";
+import { useAppStore } from "@/store";
+import { connectDeSoWallet } from "@/lib/deso/auth";
 
 const StakeModal = dynamic(
   () => import("@/components/markets/StakeModal").then((m) => ({ default: m.StakeModal })),
   { ssr: false }
 );
-import { useAppStore } from "@/store";
-import { connectDeSoWallet } from "@/lib/deso/auth";
-import { FollowButton } from "@/components/shared/FollowButton";
 
-function creatorMarketCap(c: Creator): number {
-  if ((c.creator_coin_market_cap ?? 0) > 0) return c.creator_coin_market_cap ?? 0;
-  // Fallback estimate: price × sqrt(holders) × 1000
-  return (c.creator_coin_price ?? 0) * Math.sqrt(c.creator_coin_holders || 1) * 1000;
-}
+type SortKey = "market_cap" | "volume" | "holders" | "price" | "newest";
 
-type CreatorsClientProps = {
-  creators: Creator[];
-};
-
-const TIERS = [
-  { value: "all", label: "All" },
-  { value: "creators", label: "🎬 Creators" },
-  { value: "music", label: "🎵 Music" },
-  { value: "sports", label: "⚽ Sports" },
-  { value: "tech", label: "💻 Tech" },
-  { value: "politics", label: "👑 Politics" },
-  { value: "entertainment", label: "🎭 Entertainment" },
-];
-
-const SORTS = [
-  { value: "price", label: "Coin Price" },
-  { value: "volume", label: "Market Volume" },
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "market_cap", label: "Market Cap" },
+  { value: "volume", label: "Volume" },
   { value: "holders", label: "Holders" },
+  { value: "price", label: "Price" },
   { value: "newest", label: "Newest" },
 ];
 
-export function CreatorsClient({ creators }: CreatorsClientProps) {
-  const [tierFilter, setTierFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("price");
-  const [search, setSearch] = useState("");
+const SEARCH_DEBOUNCE_MS = 300;
+
+type CreatorsClientProps = {
+  initialCreators: Creator[];
+  initialTotal: number;
+  pageSize: number;
+};
+
+function Pill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-all whitespace-nowrap min-h-[36px]",
+        active
+          ? "text-[var(--text-primary)] bg-[var(--bg-elevated)] border-[var(--border-default)]"
+          : "text-[var(--text-secondary)] bg-transparent border-transparent hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function creatorMarketCap(c: Creator): number {
+  if ((c.creator_coin_market_cap ?? 0) > 0) return c.creator_coin_market_cap ?? 0;
+  // Fallback estimate when DB hasn't computed market cap yet.
+  return (c.creator_coin_price ?? 0) * Math.sqrt(c.creator_coin_holders || 1) * 1000;
+}
+
+export function CreatorsClient({
+  initialCreators,
+  initialTotal,
+  pageSize,
+}: CreatorsClientProps) {
+  const [creators, setCreators] = useState<Creator[]>(initialCreators);
+  const [total, setTotal] = useState<number>(initialTotal);
+  const [hasMore, setHasMore] = useState<boolean>(initialCreators.length < initialTotal);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortKey>("market_cap");
+
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
   const isConnected = useAppStore((s) => s.isConnected);
-  // Follow state for every card now comes from the global Zustand
-  // followedDesoKeys set, hydrated once per connect by FollowGraphHydrator
-  // in the layout shell. No per-page fetch needed.
+
+  // 300ms debounce on the search input so we don't hammer the API on
+  // every keystroke. The selectedCategory and sort don't need debouncing
+  // (they fire on user click, not per-character).
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Tracks the in-flight load() so a fast filter change cancels the
+  // stale fetch instead of clobbering newer state. Each load() captures
+  // its own controller in the ref slot — the cleanup aborts whichever
+  // is current when deps change.
+  const abortRef = useRef<AbortController | null>(null);
+
+  const buildQuery = useCallback(
+    (offset: number) => {
+      const params = new URLSearchParams({
+        limit: String(pageSize),
+        offset: String(offset),
+        sort,
+      });
+      if (debouncedSearch) params.set("q", debouncedSearch);
+      if (selectedCategory) params.set("category", selectedCategory);
+      return params.toString();
+    },
+    [pageSize, sort, debouncedSearch, selectedCategory]
+  );
+
+  // Replace creators with a fresh first page whenever filters change.
+  useEffect(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    fetch(`/api/creators/list?${buildQuery(0)}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((json: { data?: Creator[]; total?: number; hasMore?: boolean }) => {
+        setCreators((json.data as Creator[] | undefined) ?? []);
+        setTotal(json.total ?? 0);
+        setHasMore(Boolean(json.hasMore));
+      })
+      .catch((err) => {
+        if ((err as { name?: string }).name === "AbortError") return;
+        console.error("[creators] list fetch failed:", err);
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, [buildQuery]);
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/creators/list?${buildQuery(creators.length)}`);
+      const json = (await res.json()) as {
+        data?: Creator[];
+        total?: number;
+        hasMore?: boolean;
+      };
+      const next = (json.data as Creator[] | undefined) ?? [];
+      const seen = new Set(creators.map((c) => c.id));
+      const fresh = next.filter((c) => !seen.has(c.id));
+      setCreators((prev) => [...prev, ...fresh]);
+      setHasMore(Boolean(json.hasMore));
+      if (typeof json.total === "number") setTotal(json.total);
+    } catch (err) {
+      console.error("[creators] loadMore failed:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleBuyClick = (c: Creator) => {
     if (!isConnected) {
@@ -61,182 +164,203 @@ export function CreatorsClient({ creators }: CreatorsClientProps) {
     setStakeCreator(c);
   };
 
-  // Phase 3 client dedupe — Phase 5 will add unique constraint at DB level.
-  // Group by deso_public_key, pick the freshest row per group (highest
-  // coin_data_updated_at, falling back to created_at). Rows with no
-  // deso_public_key are passed through untouched (defensive — they'd
-  // already be dropped by the verified-for-markets filter upstream, but
-  // not deduping them keeps the contract simple).
-  const dedupedCreators = useMemo(() => {
-    const byKey = new Map<string, Creator>();
-    const passthrough: Creator[] = [];
-    for (const c of creators) {
-      const key = c.deso_public_key;
-      if (!key) {
-        passthrough.push(c);
-        continue;
-      }
-      const existing = byKey.get(key);
-      if (!existing) {
-        byKey.set(key, c);
-        continue;
-      }
-      const ts = (x: Creator) =>
-        new Date(x.coin_data_updated_at ?? x.created_at ?? 0).getTime();
-      if (ts(c) > ts(existing)) byKey.set(key, c);
-    }
-    return [...byKey.values(), ...passthrough];
-  }, [creators]);
-
-  const filtered = useMemo(() => {
-    let result = [...dedupedCreators];
-    if (tierFilter === "sports") {
-      result = result.filter((c) => c.category === "sports" || c.sport);
-    } else if (tierFilter === "creators") {
-      result = result.filter((c) => ["creators", "streamers", "esports", "media"].includes(c.category || ""));
-    } else if (tierFilter === "entertainment") {
-      result = result.filter((c) => ["entertainment", "viral"].includes(c.category || ""));
-    } else if (tierFilter !== "all") {
-      result = result.filter((c) => c.category === tierFilter);
-    }
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (c) => c.name.toLowerCase().includes(q) || c.creator_coin_symbol?.toLowerCase().includes(q)
-      );
-    }
-    switch (sortBy) {
-      case "price": result.sort((a, b) => (b.creator_coin_price ?? 0) - (a.creator_coin_price ?? 0)); break;
-      case "volume": result.sort((a, b) => ((b.total_holder_earnings ?? 0) + (b.total_creator_earnings ?? 0)) - ((a.total_holder_earnings ?? 0) + (a.total_creator_earnings ?? 0))); break;
-      case "holders": result.sort((a, b) => (b.creator_coin_holders ?? 0) - (a.creator_coin_holders ?? 0)); break;
-      case "newest": result.sort((a, b) => new Date(b.created_at ?? "").getTime() - new Date(a.created_at ?? "").getTime()); break;
-    }
-    return result;
-  }, [dedupedCreators, tierFilter, sortBy, search]);
+  const isFiltered = useMemo(
+    () => Boolean(debouncedSearch) || selectedCategory !== null,
+    [debouncedSearch, selectedCategory]
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
-          Coins on Caldera
-        </h1>
+      <div className="mb-4 flex items-baseline gap-3">
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Creators</h1>
+        <span className="text-sm text-[var(--text-tertiary)]">
+          {total.toLocaleString()} creator{total === 1 ? "" : "s"}
+        </span>
       </div>
-      <p className="mb-6 flex items-center gap-2 text-xs text-text-muted">
-        <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" />
-        Live prices from on-chain data
-      </p>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-faint" />
+      {/* Search + sort row */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search coins..."
-            className="w-full rounded-xl border border-border-subtle bg-surface py-2.5 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-faint focus:border-caldera focus:outline-none"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search creators…"
+            className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-2 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent)] focus:outline-none"
           />
         </div>
-        <div className="flex gap-1">
-          {TIERS.map((t) => (
-            <button
-              key={t.value}
-              onClick={() => setTierFilter(t.value)}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                tierFilter === t.value ? "bg-caldera/10 text-caldera" : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
         <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="rounded-lg border border-border-subtle bg-surface px-3 py-1.5 text-xs text-text-muted"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          className="shrink-0 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]/40 focus:border-[var(--accent)] focus:outline-none cursor-pointer"
         >
-          {SORTS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
           ))}
         </select>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/40 mb-2">
-        <span>🔵 Active · 1% of every buy auto-buys coin</span>
-        <span>✅ Verified on DeSo</span>
-        <span>🟡 Unclaimed · prediction markets only</span>
+      {/* Category pills */}
+      <div
+        className="mb-6 flex gap-2 overflow-x-auto scrollbar-hide pb-2"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
+      >
+        <Pill active={selectedCategory === null} onClick={() => setSelectedCategory(null)}>
+          All
+        </Pill>
+        {CATEGORIES.map((cat) => (
+          <Pill
+            key={cat.value}
+            active={selectedCategory === cat.value}
+            onClick={() =>
+              setSelectedCategory((current) => (current === cat.value ? null : cat.value))
+            }
+          >
+            {cat.label}
+          </Pill>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((c) => {
-          const sym = c.deso_username || c.creator_coin_symbol;
-          const hasToken = !!c.deso_username;
-          return (
+      {/* Grid */}
+      {loading && creators.length === 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(pageSize)].map((_, i) => (
             <div
-              key={c.id}
-              className="rounded-2xl border border-border-subtle/30 bg-surface p-5 transition-all duration-200 hover:border-white/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30 flex flex-col"
-            >
-              <Link href={`/creators/${c.slug}`} className="flex-1">
-                <div className="mb-3 flex items-center gap-3">
-                  <CreatorAvatar creator={c} size="lg" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-text-primary">{c.name}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] tracking-widest text-text-muted">
-                        ${sym}
-                      </span>
-                      {c.tier === "verified_creator" && (
-                        <span className="text-caldera text-[10px]">✓</span>
-                      )}
-                      {c.league && (
-                        <span className="rounded-full bg-caldera/10 px-1.5 py-0.5 text-[9px] font-semibold text-caldera">
-                          {c.league}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mb-3 flex items-baseline gap-3">
-                  <span className="font-display text-xl font-bold tracking-normal text-text-primary">
-                    {hasToken && (c.creator_coin_price ?? 0) > 0.01 ? formatCurrency(c.creator_coin_price ?? 0) : hasToken ? "Not active" : "—"}
-                  </span>
-                  <span className="text-xs text-text-muted">{(c.creator_coin_holders ?? 0).toLocaleString()} holders</span>
-                </div>
-                {hasToken && creatorMarketCap(c) > 0 && (
-                  <div className="mb-1 flex items-center gap-2 text-xs">
-                    <span className="text-text-muted">Mkt cap</span>
-                    <span className="font-mono font-semibold text-text-primary">{formatCompactCurrency(creatorMarketCap(c))}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-xs text-text-muted">
-                  {c.token_status === "shadow" || c.token_status === "needs_review" ? (
-                    <span className="text-amber-400">Unclaimed · prediction markets only</span>
-                  ) : c.token_status === "active_verified" ? (
-                    <span className="text-yes">✅ Verified · fees flow back into coin on buys</span>
-                  ) : c.token_status === "active_unverified" ? (
-                    <span className="text-caldera">🔵 Active · fees flow back into coin on buys</span>
-                  ) : (
-                    <span>{formatCompactCurrency(c.total_holder_earnings ?? 0)} earned by holders</span>
-                  )}
-                  <span>{c.markets_count} markets</span>
-                </div>
-              </Link>
+              key={i}
+              className="h-[220px] rounded-2xl bg-[var(--bg-surface)] animate-pulse"
+            />
+          ))}
+        </div>
+      ) : creators.length === 0 ? (
+        <div className="text-center py-20 text-sm text-[var(--text-tertiary)]">
+          {isFiltered
+            ? "No creators match your filters."
+            : "No creators found."}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {creators.map((c) => {
+              const sym = c.creator_coin_symbol || c.deso_username || c.slug;
+              const hasToken = Boolean(c.deso_username);
+              const price = c.creator_coin_price ?? 0;
+              const mktCap = creatorMarketCap(c);
+              const holders = c.creator_coin_holders ?? 0;
+              const weeklyVol = c.weekly_volume_usd ?? 0;
+              const isVerified =
+                c.is_bitclout_original === true ||
+                c.verification_status === "approved";
 
-              {/* Follow + Buy buttons */}
-              <div className="mt-4 flex gap-2">
-                <FollowButton creatorDesoPublicKey={c.deso_public_key} className="flex-none" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleBuyClick(c); }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#7C5CFC] hover:bg-[#6a4ae8] text-white shadow-md shadow-[#7C5CFC]/20 transition-all duration-150 active:scale-[0.98] border border-[#7C5CFC]/20"
+              return (
+                <div
+                  key={c.id}
+                  className="flex flex-col rounded-2xl border border-[var(--border-subtle)]/40 bg-[var(--bg-surface)] p-5 transition-all hover:border-[var(--border-default)] hover:-translate-y-0.5"
                 >
-                  Buy ${c.deso_username || c.slug}
-                </button>
-              </div>
+                  <Link href={`/creators/${c.slug}`} className="flex-1">
+                    {/* Header: avatar + name + badge */}
+                    <div className="mb-3 flex items-center gap-3">
+                      <CreatorAvatar creator={c} size="lg" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-base font-semibold text-[var(--text-primary)]">
+                            {c.name}
+                          </p>
+                          {isVerified && (
+                            <span
+                              className="text-[var(--accent)] text-xs"
+                              title="Verified"
+                              aria-label="Verified"
+                            >
+                              ✓
+                            </span>
+                          )}
+                          {c.league && (
+                            <span className="rounded-full bg-[var(--accent)]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--accent)]">
+                              {c.league}
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-mono text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                          ${sym}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Big price */}
+                    <div className="mb-3">
+                      <span className="font-display text-2xl font-bold tabular-nums text-[var(--text-primary)]">
+                        {hasToken && price > 0.01
+                          ? formatCurrency(price)
+                          : hasToken
+                          ? "—"
+                          : "—"}
+                      </span>
+                    </div>
+
+                    {/* Metric row: market cap · holders · volume */}
+                    <div className="grid grid-cols-3 gap-2 text-xs text-[var(--text-tertiary)]">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide opacity-70">Mkt Cap</div>
+                        <div className="font-mono font-semibold text-[var(--text-primary)] tabular-nums">
+                          {mktCap > 0 ? formatCompactCurrency(mktCap) : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide opacity-70">Holders</div>
+                        <div className="font-mono font-semibold text-[var(--text-primary)] tabular-nums">
+                          {holders > 0 ? holders.toLocaleString() : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide opacity-70">7d Vol</div>
+                        <div className="font-mono font-semibold text-[var(--text-primary)] tabular-nums">
+                          {weeklyVol > 0 ? formatCompactCurrency(weeklyVol) : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {(c.markets_count ?? 0) > 0 && (
+                      <div className="mt-3 text-xs text-[var(--text-tertiary)]">
+                        {c.markets_count} market{c.markets_count === 1 ? "" : "s"}
+                      </div>
+                    )}
+                  </Link>
+
+                  {/* Actions */}
+                  <div className="mt-4 flex gap-2">
+                    <FollowButton creatorDesoPublicKey={c.deso_public_key} className="flex-none" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBuyClick(c);
+                      }}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold bg-[#7C5CFC] hover:bg-[#6a4ae8] text-white shadow-md shadow-[#7C5CFC]/20 transition-all duration-150 active:scale-[0.98] border border-[#7C5CFC]/20"
+                    >
+                      Buy ${sym}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {hasMore && (
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="w-full max-w-xs rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loadingMore ? "Loading…" : `Show more (${creators.length} of ${total.toLocaleString()})`}
+              </button>
             </div>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
 
       {stakeCreator && (
         <StakeModal

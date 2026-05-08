@@ -6,6 +6,7 @@ export type User = Database["public"]["Tables"]["users"]["Row"];
 export type Creator = Database["public"]["Tables"]["creators"]["Row"] & {
   deso_is_reserved?: boolean | null;  // Tier 1 — DeSo reserved profile (gold badge)
   is_caldera_verified?: boolean | null; // Tier 2 — manually verified by Caldera (blue badge)
+  is_bitclout_original?: boolean | null; // canonical DeSo-reserved-list membership; source of truth for verified-for-markets gate
   // Verification & claim system (migration 20260414)
   twitter_handle?: string | null;
   twitter_handle_verified?: boolean | null;
