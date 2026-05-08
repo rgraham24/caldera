@@ -26,8 +26,20 @@ const CENTER_TABS: Tab[] = [
   { id: "leaderboard", label: "Leaderboard", href: "/leaderboard" },
 ];
 
+// Tab appended only when the user is connected. Lives at the end of
+// the row so signing in/out doesn't shift the rest of the nav layout.
+const PORTFOLIO_TAB: Tab = {
+  id: "portfolio",
+  label: "Portfolio",
+  href: "/portfolio",
+  title: "Your positions and PnL",
+};
+
 function CenterTabs() {
   const pathname = usePathname();
+  const isConnected = useAppStore((s) => s.isConnected);
+
+  const tabs: Tab[] = isConnected ? [...CENTER_TABS, PORTFOLIO_TAB] : CENTER_TABS;
 
   const activeId = (() => {
     if (pathname === "/creators") return "creators";
@@ -35,13 +47,14 @@ function CenterTabs() {
     if (pathname === "/leaderboard") return "leaderboard";
     if (pathname === "/new") return "new";
     if (pathname === "/following") return "following";
+    if (pathname === "/portfolio") return "portfolio";
     if (pathname === "/") return "trending";
     return null;
   })();
 
   return (
     <div className="flex items-center overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
-      {CENTER_TABS.map((tab, i) => {
+      {tabs.map((tab, i) => {
         if ("divider" in tab) {
           return (
             <div
