@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { ProfileClient } from "./profile-client";
 
@@ -8,7 +8,7 @@ export default async function ProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data: user } = await supabase
     .from("users")

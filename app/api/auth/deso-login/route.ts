@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { verifyDesoJwt } from "@/lib/auth/deso-jwt";
 import { buildSetSessionCookie } from "@/lib/auth/cookie-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // JWT verified. Look up or create the Supabase user row.
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { data: existingUser } = await supabase
       .from("users")
       .select("*")

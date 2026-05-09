@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 const ADMIN_PASSWORD = "caldera-admin-2026";
 
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     const now = new Date();
     const farFutureCutoff = new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000); // now + 120 days

@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { LeaderboardClient } from "./leaderboard-client";
 
 export default async function LeaderboardPage() {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Fetch positions first — they drive the leaderboard.
     // Cap at 2 000 rows so the function never times out.

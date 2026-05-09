@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { verifyCookie, SESSION_COOKIE_NAME } from "@/lib/auth/cookie-verify";
 
 /**
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Look up user by DeSo public key
   const { data: user } = await supabase

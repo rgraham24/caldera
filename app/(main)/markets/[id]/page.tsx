@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { MarketDetailClient } from "./market-detail-client";
 import type { CommentWithUser, Creator } from "@/types";
@@ -11,7 +11,7 @@ export default async function MarketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: slug } = await params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Try by UUID first, then fall back to slug
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);

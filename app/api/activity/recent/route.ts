@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/activity/recent
@@ -25,7 +25,7 @@ export type ActivityEvent = {
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const since = new Date(Date.now() - TWENTY_FOUR_HOURS_MS).toISOString();
 
   const events: ActivityEvent[] = [];
