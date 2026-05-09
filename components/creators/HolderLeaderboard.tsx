@@ -1,27 +1,28 @@
 "use client";
 
-// Requires this table in Supabase (run once):
-//
-// CREATE TABLE IF NOT EXISTS creator_coin_holders (
-//   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-//   creator_slug text NOT NULL REFERENCES creators(slug) ON DELETE CASCADE,
-//   deso_public_key text NOT NULL,
-//   deso_username text,
-//   coins_held numeric NOT NULL DEFAULT 0,
-//   updated_at timestamptz DEFAULT now(),
-//   UNIQUE(creator_slug, deso_public_key)
-// );
-// CREATE INDEX ON creator_coin_holders(creator_slug, coins_held DESC);
+/**
+ * Top holders for a creator's coin, on /creators/[slug].
+ *
+ * Pulls from /api/creators/[slug]/holders which proxies DeSo's
+ * get-hodlers-for-public-key. The local creator_coin_holders table
+ * (5 rows platform-wide) is no longer consulted — it was a stale
+ * cache that never got populated for the 14k+ creator universe.
+ *
+ * Display: rank (gold/silver/bronze for top 3) + avatar + handle +
+ * coins held + USD value. Clicking a holder opens their DeSo profile
+ * on Diamond, since most holders won't have a Caldera creator row.
+ */
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
+import { formatCurrency } from "@/lib/utils";
 
 type Holder = {
-  deso_public_key: string;
-  deso_username: string | null;
-  coins_held: number;
-  rank: number;
+  username: string;
+  publicKey: string;
+  balanceCoins: number;
+  percentOwned: number;
+  valueUSD: number;
 };
 
 type Props = {
@@ -41,20 +42,23 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol, creator }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
-      .from("creator_coin_holders")
-      .select("deso_public_key, deso_username, coins_held")
-      .eq("creator_slug", creatorSlug)
-      .order("coins_held", { ascending: false })
-      .limit(10)
-      .then(({ data }: { data: Omit<Holder, "rank">[] | null }) => {
-        if (data) {
-          setHolders(data.map((h, i) => ({ ...h, rank: i + 1 })));
-        }
-        setLoading(false);
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/creators/${creatorSlug}/holders`)
+      .then((r) => r.json())
+      .then(({ data }: { data?: Holder[] }) => {
+        if (cancelled) return;
+        setHolders(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        // Empty state below handles failure mode silently.
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [creatorSlug]);
 
   if (loading) {
@@ -62,7 +66,7 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol, creator }: Props) {
       <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
         <h2 className="section-header mb-4">Top Holders</h2>
         <div className="space-y-2">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="h-10 rounded-lg bg-surface-2 animate-pulse" />
           ))}
         </div>
@@ -103,33 +107,33 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol, creator }: Props) {
       </div>
 
       <div className="space-y-2">
-        {holders.map((holder) => {
-          const handle = holder.deso_username
-            ? `@${holder.deso_username}`
-            : `${holder.deso_public_key.slice(0, 8)}...`;
-          const label = rankLabel(holder.rank);
-          const isTop3 = holder.rank <= 3;
+        {holders.map((holder, i) => {
+          const rank = i + 1;
+          const handle = holder.username && !holder.username.startsWith("BC1")
+            ? `@${holder.username}`
+            : `${holder.publicKey.slice(0, 8)}…`;
+          const label = rankLabel(rank);
+          const isTop3 = rank <= 3;
+          const profileHref = holder.username && !holder.username.startsWith("BC1")
+            ? `https://diamondapp.com/u/${holder.username}`
+            : null;
+          const avatarUrl = `https://node.deso.org/api/v0/get-single-profile-picture/${holder.publicKey}`;
 
-          return (
-            <div
-              key={holder.deso_public_key}
-              className={`flex items-center gap-3 rounded-xl px-4 py-2.5 transition-colors ${
-                isTop3
-                  ? "bg-caldera/5 border border-caldera/10"
-                  : "bg-surface-2"
-              }`}
-            >
+          const inner = (
+            <>
               {/* Rank */}
               <span className="w-8 text-center text-sm font-bold shrink-0">
-                {rankEmoji(holder.rank)}
+                {rankEmoji(rank)}
               </span>
 
-              {/* Avatar placeholder */}
-              <div className="h-7 w-7 rounded-full bg-caldera/20 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-caldera">
-                  {(holder.deso_username ?? "?").charAt(0).toUpperCase()}
-                </span>
-              </div>
+              {/* Avatar */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-7 w-7 rounded-full object-cover shrink-0 bg-caldera/20"
+                loading="lazy"
+              />
 
               {/* Handle + label */}
               <div className="flex-1 min-w-0">
@@ -143,11 +147,39 @@ export function HolderLeaderboard({ creatorSlug, coinSymbol, creator }: Props) {
                 )}
               </div>
 
-              {/* Coin count */}
-              <span className="text-xs font-mono text-text-muted shrink-0">
-                {holder.coins_held.toFixed(4)}{" "}
-                <span className="text-text-faint">{tokenDisplay}</span>
-              </span>
+              {/* Coin count + USD value */}
+              <div className="text-right shrink-0">
+                <div className="text-xs font-mono text-text-primary">
+                  {holder.balanceCoins.toFixed(4)} {tokenDisplay}
+                </div>
+                {holder.valueUSD > 0 && (
+                  <div className="text-[10px] font-mono text-text-tertiary">
+                    {formatCurrency(holder.valueUSD)}
+                  </div>
+                )}
+              </div>
+            </>
+          );
+
+          const className = `flex items-center gap-3 rounded-xl px-4 py-2.5 transition-colors ${
+            isTop3
+              ? "bg-caldera/5 border border-caldera/10"
+              : "bg-surface-2"
+          }`;
+
+          return profileHref ? (
+            <a
+              key={holder.publicKey}
+              href={profileHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${className} hover:opacity-90`}
+            >
+              {inner}
+            </a>
+          ) : (
+            <div key={holder.publicKey} className={className}>
+              {inner}
             </div>
           );
         })}
