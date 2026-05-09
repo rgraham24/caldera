@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 type BuybackEvent = {
@@ -20,7 +20,7 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { slug } = await params;
 
   // Return buybacks where this slug appears as personal, team, OR league token

@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import type { Market } from "@/types";
 import { AdminActions } from "./admin-actions";
 import { AdminGate } from "./admin-gate";
 
 export default async function AdminPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const [
     { data: markets },

@@ -1,6 +1,6 @@
 // NOTE: Run supabase/migrations/20260408_claim_codes_table.sql first
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 const ADMIN_PASSWORD = "caldera-admin-2026";
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
 
   // Bulk mode: generate for top 20 unclaimed creators
@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
   const pw = req.nextUrl.searchParams.get("adminPassword");
   if (pw !== ADMIN_PASSWORD) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
 
   const { data, error } = await (supabase as DB)

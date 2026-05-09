@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import { CreatorProfileClient } from "./creator-profile-client";
 import type { Market, Creator } from "@/types";
@@ -12,7 +12,7 @@ export default async function CreatorProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Try slug first, then deso_username as fallback
   let { data: creator } = await supabase
@@ -104,7 +104,7 @@ export default async function CreatorProfilePage({
 
   // Persist unclaimed_earnings_usd back to DB (fire-and-forget, non-blocking)
   if (creator.claim_status !== "claimed") {
-    const supabaseWrite = await createClient();
+    const supabaseWrite = createServiceClient();
     void supabaseWrite
       .from("creators")
       .update({ unclaimed_earnings_usd: unclaimedEarnings })
