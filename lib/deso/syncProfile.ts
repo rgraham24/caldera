@@ -61,6 +61,16 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
   }
 }
 
+/**
+ * Coerce a possibly-NaN/Infinity value into a finite number. Used to
+ * floor numeric DB writes at 0 rather than risk PostgREST/Postgres
+ * silently dropping or rejecting a column.
+ */
+function sanitizeNumber(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return n;
+}
+
 async function fetchDesoProfile(
   desoPublicKey: string
 ): Promise<DesoProfileResponse["Profile"] | null> {
@@ -151,13 +161,35 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
   const numHolders = coinEntry.NumberOfHolders ?? null;
   const founderRewardBp = coinEntry.CreatorBasisPoints ?? null;
   const circulationNanos = coinEntry.CoinsInCirculationNanos ?? 0;
+  const coinsInCirculation = circulationNanos / 1e9;
 
+  // Numeric fields. Default to 0 (not null) so the UPDATE always lands
+  // a value rather than silently dropping the column. Earlier null-guarded
+  // version dropped market_cap on Robert's row even though the math
+  // produced ~$120 — see commit log for the bug repro.
   const priceDeso = (profile.CoinPriceDeSoNanos ?? 0) / 1e9;
-  const priceUsd = usdPerDeso !== null ? priceDeso * usdPerDeso : null;
-  const marketCapUsd =
-    priceUsd !== null && circulationNanos > 0
-      ? (circulationNanos / 1e9) * priceUsd
-      : null;
+  const priceUsd = sanitizeNumber(
+    usdPerDeso !== null ? priceDeso * usdPerDeso : 0
+  );
+  const marketCapUsd = sanitizeNumber(coinsInCirculation * priceUsd);
+
+  console.log("[syncUserProfile] computed", {
+    pubkey: desoPublicKey.slice(0, 12) + "...",
+    username,
+    bioPresent: bio !== null,
+    bioLen: bio?.length ?? 0,
+    isVerified,
+    numHolders,
+    founderRewardBp,
+    coinPriceNanos: profile.CoinPriceDeSoNanos ?? null,
+    priceDeso,
+    usdPerDeso,
+    priceUsd,
+    circulationNanos,
+    coinsInCirculation,
+    marketCapUsd,
+    followers,
+  });
 
   const supabase = createServiceClient();
 
@@ -206,21 +238,22 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
       // creator_coin_symbol mirrors the DeSo username — convention used
       // elsewhere in the codebase (see CreatorAvatar / coupled-card hero).
       creatorsUpdate.creator_coin_symbol = username;
-      if (numHolders !== null) creatorsUpdate.creator_coin_holders = numHolders;
-      if (founderRewardBp !== null)
-        creatorsUpdate.founder_reward_basis_points = founderRewardBp;
-      if (priceUsd !== null) creatorsUpdate.creator_coin_price = priceUsd;
-      if (marketCapUsd !== null)
-        creatorsUpdate.creator_coin_market_cap = marketCapUsd;
-      if (circulationNanos > 0)
-        creatorsUpdate.total_coins_in_circulation = circulationNanos / 1e9;
-      if (followers !== null) creatorsUpdate.estimated_followers = followers;
+      // Numeric fields: write unconditionally with 0 floor rather than
+      // null-guarding. PostgREST has been observed to silently drop
+      // null-guarded columns from a multi-column update payload even
+      // when the JS value is a finite number. Floor at 0.
+      creatorsUpdate.creator_coin_holders = numHolders ?? 0;
+      creatorsUpdate.founder_reward_basis_points = founderRewardBp ?? 0;
+      creatorsUpdate.creator_coin_price = priceUsd;
+      creatorsUpdate.creator_coin_market_cap = marketCapUsd;
+      creatorsUpdate.total_coins_in_circulation = coinsInCirculation;
+      creatorsUpdate.estimated_followers = followers ?? 0;
 
       // Token status — only upgrade, never downgrade. Leaves "claimed",
       // "needs_review", "archived", "speculation_pool" untouched.
       const currentStatus = (existingCreator.token_status as string | null) ?? "shadow";
       const isLowerTier = currentStatus === "shadow" || currentStatus === null;
-      if (priceUsd !== null && priceUsd > 0 && isLowerTier) {
+      if (priceUsd > 0 && isLowerTier) {
         creatorsUpdate.token_status =
           isVerified || (numHolders !== null && numHolders > 0)
             ? isVerified
@@ -230,12 +263,23 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
       } else if (
         currentStatus === "active_unverified" &&
         isVerified &&
-        priceUsd !== null &&
         priceUsd > 0
       ) {
         // Upgrade unverified → verified when DeSo flags the profile.
         creatorsUpdate.token_status = "active_verified";
       }
+
+      console.log(
+        "[syncUserProfile] creators update payload",
+        Object.keys(creatorsUpdate).reduce(
+          (acc, k) => {
+            const v = creatorsUpdate[k];
+            acc[k] = typeof v === "string" && v.length > 60 ? v.slice(0, 60) + "..." : v;
+            return acc;
+          },
+          {} as Record<string, unknown>
+        )
+      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: creatorsErr } = await (supabase as any)
@@ -247,6 +291,8 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
           "[syncUserProfile] creators update failed:",
           creatorsErr.message
         );
+      } else {
+        console.log("[syncUserProfile] creators update ok");
       }
     }
   }
