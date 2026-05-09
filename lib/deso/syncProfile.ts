@@ -126,12 +126,35 @@ async function fetchDesoUsdRate(): Promise<number | null> {
   return res.USDCentsPerDeSoExchangeRate / 100;
 }
 
+export type SyncResult = {
+  ok: boolean;
+  error?: string;
+  fieldsWritten?: string[];
+};
+
 /**
- * Refresh users + creators rows from live DeSo profile data. Idempotent;
- * safe to call on every login. Never throws.
+ * Login-path wrapper: fire-and-forget, swallows everything. Use this
+ * from `/api/auth/deso-login` so a flaky DeSo node can't break the
+ * login response.
  */
 export async function syncUserProfile(desoPublicKey: string): Promise<void> {
-  if (!desoPublicKey) return;
+  await syncUserProfileWithResult(desoPublicKey).catch(() => {});
+}
+
+/**
+ * Full sync that returns a structured result. Used by the nightly
+ * backfill cron so it can log per-creator progress (ok / failed
+ * counts, sample errors). Idempotent and safe to call repeatedly.
+ *
+ * Returns `{ ok: false, error }` for the bail-out cases (missing
+ * pubkey, DeSo profile fetch failed, DB write failed). Only throws
+ * on truly unexpected errors — callers should still wrap in
+ * try/catch when batching.
+ */
+export async function syncUserProfileWithResult(
+  desoPublicKey: string
+): Promise<SyncResult> {
+  if (!desoPublicKey) return { ok: false, error: "missing-pubkey" };
 
   // Three parallel calls so the whole sync is bounded by the slowest of
   // ~1.5s (vs 4-5s serial). Profile is the only one we hard-require;
@@ -147,7 +170,7 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
       "[syncUserProfile] no profile from DeSo for",
       desoPublicKey.slice(0, 12) + "..."
     );
-    return;
+    return { ok: false, error: "no-profile" };
   }
 
   const username = profile.Username?.trim() || null;
@@ -192,6 +215,8 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
   });
 
   const supabase = createServiceClient();
+  const fieldsWritten: string[] = [];
+  const errors: string[] = [];
 
   // ── users row ─────────────────────────────────────────────────────
   if (username) {
@@ -210,6 +235,9 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
       .eq("deso_public_key", desoPublicKey);
     if (usersErr) {
       console.warn("[syncUserProfile] users update failed:", usersErr.message);
+      errors.push("users:" + usersErr.message);
+    } else {
+      fieldsWritten.push("users.*");
     }
   }
 
@@ -291,9 +319,16 @@ export async function syncUserProfile(desoPublicKey: string): Promise<void> {
           "[syncUserProfile] creators update failed:",
           creatorsErr.message
         );
+        errors.push("creators:" + creatorsErr.message);
       } else {
         console.log("[syncUserProfile] creators update ok");
+        fieldsWritten.push(...Object.keys(creatorsUpdate).map((k) => "creators." + k));
       }
     }
   }
+
+  if (errors.length > 0) {
+    return { ok: false, error: errors.join("; "), fieldsWritten };
+  }
+  return { ok: true, fieldsWritten };
 }
