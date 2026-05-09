@@ -549,9 +549,10 @@ export function CreatorProfileClient({
         </div>
 
         {/* Earnings Stats */}
-        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
+            { label: "Market Cap", value: formatCompactCurrency(creator.creator_coin_market_cap ?? 0), show: (creator.creator_coin_market_cap ?? 0) > 0, tip: "Total USD value of all this creator's coins in circulation on DeSo. Tracks live as the coin trades." },
             { label: "💰 PLATFORM FEES", value: formatCurrency(holderEarnings), show: true, tip: "Total platform operations fees generated from trades on this creator's markets. 1% of each buy trade funds Caldera operations." },
             { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to coin holders." },
             { label: "Markets", value: String(openMarkets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
