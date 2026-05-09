@@ -494,6 +494,11 @@ export function CreatorProfileClient({
                 />
               </div>
               <p className="mt-1 text-sm text-text-muted">{getTokenSymbolDisplay(creator)}</p>
+              {creator.bio && (
+                <p className="text-sm text-text-muted leading-relaxed mt-2 max-w-2xl whitespace-pre-line">
+                  {creator.bio}
+                </p>
+              )}
               <div className="mt-3 flex items-center gap-4 flex-wrap">
                 <div>
                   <span className="font-display text-2xl font-bold tracking-normal text-text-primary">
@@ -508,8 +513,16 @@ export function CreatorProfileClient({
                     <span className="ml-2 text-xs text-text-muted">· No trades yet — be the first buyer</span>
                   )}
                 </div>
+                {(creator.founder_reward_basis_points ?? 0) > 0 && (
+                  <span className="rounded-full bg-caldera/10 px-2 py-0.5 text-xs font-medium text-caldera">
+                    {((creator.founder_reward_basis_points ?? 0) / 100).toFixed(0)}% founder reward
+                  </span>
+                )}
                 <span className="text-sm text-text-muted">
                   {(creator.creator_coin_holders ?? 0).toLocaleString()} holders
+                  {(creator.estimated_followers ?? 0) > 0 && (
+                    <> · {(creator.estimated_followers ?? 0).toLocaleString()} followers</>
+                  )}
                 </span>
               </div>
             </div>
