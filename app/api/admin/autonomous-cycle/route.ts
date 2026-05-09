@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 import {
   fixStaleDates,
@@ -25,7 +25,7 @@ function checkAuth(desoPublicKey: string | undefined, adminPassword: string | un
 async function runCycle() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // ── Generation steps removed in Phase D-2a (2026-05-02) ──
   // Steps 1, 1b, 1c, 4 produced creator-less markets that hard-fail

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { ADMIN_KEYS } from "@/lib/admin/market-generator";
 
 export const maxDuration = 30;
@@ -7,7 +7,7 @@ export const maxDuration = 30;
 const FEATURED_COUNT = 8;
 
 async function runCuration() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data: markets, error } = await supabase
     .from("markets")
