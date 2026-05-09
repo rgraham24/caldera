@@ -91,6 +91,17 @@ export function CreatorProfileClient({
   claimUrl,
 }: CreatorProfileClientProps) {
   const { desoPublicKey } = useAppStore();
+  // Owner view: when the connected wallet matches this creator's
+  // deso_public_key, hide the "Claim this profile" / "Tweet at X to
+  // claim" prompts (the claim flow is for OTHER people to invite this
+  // creator to claim — pointless when the creator is already viewing
+  // their own page) and surface an "Edit on DeSo" link instead.
+  const isOwner = Boolean(
+    desoPublicKey && creator.deso_public_key === desoPublicKey
+  );
+  const desoEditUrl = creator.deso_username
+    ? `https://diamondapp.com/u/${creator.deso_username}/edit-profile`
+    : null;
 
   const [showStakeModal, setShowStakeModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -265,8 +276,38 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* ── Unclaimed earnings claim banner (approved creators only) ── */}
-        {creator.verification_status === "approved" && creator.claim_status !== "claimed" && (
+        {/* ── Owner view — visible only when the connected wallet IS this creator. ── */}
+        {isOwner && (
+          <div
+            className="mb-6 rounded-2xl p-5"
+            style={{ background: "rgba(124,92,252,0.06)", border: "1px solid rgba(124,92,252,0.20)" }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-text-primary mb-1">
+                  This is your profile
+                </p>
+                <p className="text-sm text-text-muted">
+                  Bio, avatar, and verification all sync from your DeSo
+                  profile on every login.
+                </p>
+              </div>
+              {desoEditUrl && (
+                <a
+                  href={desoEditUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Edit on DeSo →
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Unclaimed earnings claim banner (approved creators only, hidden for owner) ── */}
+        {!isOwner && creator.verification_status === "approved" && creator.claim_status !== "claimed" && (
           <div
             className="mb-6 rounded-2xl p-5"
             style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.20)" }}
@@ -320,8 +361,8 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* Token status banner */}
-        {(creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
+        {/* Token status banner — claim CTA + Tweet-at-X. Hidden for owner. */}
+        {!isOwner && (creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
           <div className="mb-6 rounded-2xl border border-border-subtle/30 bg-surface p-5">
             <p className="text-sm font-medium text-text-primary mb-2">📊 Prediction Market</p>
             <p className="text-sm text-text-muted mb-3">
