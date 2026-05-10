@@ -58,6 +58,9 @@ export async function GET(req: NextRequest) {
         hasPurchased: h.HasPurchased ?? false,
         totalValueUSD: coinsHeld * coinPriceUSD,
         creatorSlug: null as string | null,
+        avgBuyPriceUSD: null as number | null,
+        costBasisUSD: null as number | null,
+        percentGain: null as number | null,
       };
     })
     // Filter dust: only show holdings worth at least $0.01 OR more than 0.001 coins
@@ -65,23 +68,93 @@ export async function GET(req: NextRequest) {
     // Sort by value descending
     .sort((a: any, b: any) => b.totalValueUSD - a.totalValueUSD);
 
-    // Cross-reference with Caldera DB to get creator slugs for linking
+    // Enrich with Caldera DB data: creator slug (for linking) + avg buy
+    // price from user_coin_purchases (Caldera-side purchase records).
+    // Holdings the user bought outside Caldera (e.g. on Diamond) wont
+    // have a user_coin_purchases row — those keep avgBuyPriceUSD = null
+    // and the UI hides the % gain field for them.
     if (holdings.length > 0) {
-      const { createClient } = await import("@/lib/supabase/server");
-      const supabase = await createClient();
+      const { createServiceClient } = await import("@/lib/supabase/server");
+      const supabase = createServiceClient();
+
       const pks = holdings.map((h: any) => h.creatorPublicKey).filter(Boolean);
-      const { data: creators } = await supabase
+
+      // Resolve creators (deso_public_key → { id, slug })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: creators } = await (supabase as any)
         .from("creators")
-        .select("deso_public_key, slug")
+        .select("id, deso_public_key, slug")
         .in("deso_public_key", pks);
-      const slugMap = new Map((creators ?? []).map((c: any) => [c.deso_public_key, c.slug]));
+      const creatorById = new Map<string, { id: string; slug: string | null }>();
+      const creatorByPk = new Map<string, { id: string; slug: string | null }>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const c of (creators ?? []) as Array<any>) {
+        creatorById.set(c.id, { id: c.id, slug: c.slug ?? null });
+        creatorByPk.set(c.deso_public_key, { id: c.id, slug: c.slug ?? null });
+      }
       holdings.forEach((h: any) => {
-        h.creatorSlug = slugMap.get(h.creatorPublicKey) ?? null;
+        h.creatorSlug = creatorByPk.get(h.creatorPublicKey)?.slug ?? null;
       });
+
+      // Look up the local user_id from the requesting publicKey, then
+      // fetch all user_coin_purchases for this user keyed by creator_id.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: dbUser } = await (supabase as any)
+        .from("users")
+        .select("id")
+        .eq("deso_public_key", publicKey)
+        .maybeSingle();
+
+      if (dbUser?.id) {
+        const creatorIds = Array.from(creatorById.keys());
+        if (creatorIds.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: purchases } = await (supabase as any)
+            .from("user_coin_purchases")
+            .select("creator_id, coins_purchased, price_per_coin_usd")
+            .eq("user_id", dbUser.id)
+            .in("creator_id", creatorIds);
+
+          // Aggregate per creator_id: weighted avg price + total cost
+          const byCreator = new Map<string, { coins: number; cost: number }>();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          for (const p of (purchases ?? []) as Array<any>) {
+            const coins = Number(p.coins_purchased ?? 0);
+            const price = Number(p.price_per_coin_usd ?? 0);
+            if (!Number.isFinite(coins) || !Number.isFinite(price)) continue;
+            const cur = byCreator.get(p.creator_id) ?? { coins: 0, cost: 0 };
+            cur.coins += coins;
+            cur.cost += coins * price;
+            byCreator.set(p.creator_id, cur);
+          }
+
+          // Apply back to holdings (re-use creatorByPk to resolve creator_id)
+          holdings.forEach((h: any) => {
+            const c = creatorByPk.get(h.creatorPublicKey);
+            if (!c) return;
+            const agg = byCreator.get(c.id);
+            if (!agg || agg.coins <= 0) return;
+            const avg = agg.cost / agg.coins;
+            h.avgBuyPriceUSD = round4(avg);
+            h.costBasisUSD = round2(agg.cost);
+            if (avg > 0) {
+              h.percentGain = round2(((h.coinPriceUSD - avg) / avg) * 100);
+            }
+          });
+        }
+      }
     }
 
     return NextResponse.json({ holdings });
   } catch {
     return NextResponse.json({ holdings: [] });
   }
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function round4(n: number): number {
+  return Math.round(n * 10000) / 10000;
 }

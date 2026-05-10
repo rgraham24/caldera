@@ -53,6 +53,9 @@ type CoinHolding = {
   hasPurchased: boolean;
   creatorSlug?: string | null;
   totalValueUSD?: number;
+  avgBuyPriceUSD?: number | null;
+  costBasisUSD?: number | null;
+  percentGain?: number | null;
 };
 
 type TradeModal = {
@@ -558,6 +561,9 @@ export function PortfolioClient() {
                 {coinHoldings.map((h) => {
                   const coinsHeld = h.balanceNanos / 1e9;
                   const valueUSD = h.totalValueUSD ?? coinsHeld * h.coinPriceUSD;
+                  const ticker = (h.username || h.displayName || "").toUpperCase();
+                  const hasCostBasis = h.avgBuyPriceUSD != null && h.avgBuyPriceUSD > 0;
+                  const gainPositive = (h.percentGain ?? 0) >= 0;
                   return (
                     <div key={h.creatorPublicKey} className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 hover:border-caldera/30 transition-colors">
                       {h.imageUrl ? (
@@ -571,14 +577,34 @@ export function PortfolioClient() {
                         {h.creatorSlug ? (
                           <Link href={`/creators/${h.creatorSlug}`} className="text-sm font-semibold text-text-primary truncate hover:text-caldera block">
                             {h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}
+                            {ticker && <span className="ml-1.5 text-xs font-mono text-text-muted">${ticker}</span>}
                           </Link>
                         ) : (
-                          <p className="text-sm font-semibold text-text-primary truncate">{h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}</p>
+                          <p className="text-sm font-semibold text-text-primary truncate">
+                            {h.displayName || h.username || h.creatorPublicKey.slice(0, 10)}
+                            {ticker && <span className="ml-1.5 text-xs font-mono text-text-muted">${ticker}</span>}
+                          </p>
                         )}
-                        <p className="text-xs text-text-muted font-mono">{coinsHeld.toFixed(4)} coins · {formatCurrency(h.coinPriceUSD)}/coin</p>
+                        <p className="text-xs text-text-muted font-mono">
+                          {coinsHeld.toFixed(4)} coins
+                        </p>
+                        {hasCostBasis ? (
+                          <p className="text-[11px] text-text-muted font-mono mt-0.5">
+                            avg {formatCurrency(h.avgBuyPriceUSD!)} → now {formatCurrency(h.coinPriceUSD)}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-text-muted font-mono mt-0.5">
+                            now {formatCurrency(h.coinPriceUSD)}/coin
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <p className="text-sm font-semibold font-mono text-text-primary">{formatCurrency(valueUSD)}</p>
+                        {h.percentGain != null && (
+                          <p className={cn("text-[11px] font-mono font-semibold", gainPositive ? "text-yes" : "text-no")}>
+                            {gainPositive ? "+" : ""}{h.percentGain.toFixed(1)}%
+                          </p>
+                        )}
                         <div className="flex gap-1">
                           <button onClick={() => openCoinTradeModal(h, "buy")} disabled={modalLoading} className="rounded-md bg-[#7C5CFC] px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-[#6a4ae8] transition-colors disabled:opacity-50">Buy</button>
                           <button onClick={() => openCoinTradeModal(h, "sell")} disabled={modalLoading} className="rounded-md border border-border-subtle px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:text-text-primary hover:border-white/30 transition-colors disabled:opacity-50">Sell</button>
