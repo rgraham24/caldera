@@ -8,6 +8,7 @@ import { connectDeSoWallet } from "@/lib/deso/auth";
 import { TradeTicket } from "@/components/markets/TradeTicket";
 import { StakeModal } from "@/components/markets/StakeModal";
 import PendingPayouts from "@/components/portfolio/PendingPayouts";
+import { EquityCurve } from "@/components/portfolio/EquityCurve";
 import type { Market } from "@/types";
 
 type Position = {
@@ -246,6 +247,9 @@ export function PortfolioClient() {
           </div>
         </div>
       </div>
+
+      {/* Cumulative invested curve (last 30 days) */}
+      {desoPublicKey && <EquityCurve desoPublicKey={desoPublicKey} />}
 
       {/* Summary bar */}
       <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
