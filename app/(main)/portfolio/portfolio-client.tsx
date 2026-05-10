@@ -192,6 +192,14 @@ export function PortfolioClient() {
   );
   const totalFeesPaid = positions.reduce((sum, p) => sum + p.fees_paid, 0);
 
+  // Win/Loss tally — count settled positions by realized_pnl sign.
+  // Break-even (=== 0) settles aren't counted either way so the
+  // denominator stays meaningful.
+  const wins = settledPositions.filter((p) => p.realized_pnl > 0).length;
+  const losses = settledPositions.filter((p) => p.realized_pnl < 0).length;
+  const winLossDecided = wins + losses;
+  const winRatePct = winLossDecided > 0 ? Math.round((wins / winLossDecided) * 100) : null;
+
   if (!isConnected) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-24 text-center md:px-6 lg:px-8">
@@ -255,7 +263,7 @@ export function PortfolioClient() {
       {desoPublicKey && <EquityCurve desoPublicKey={desoPublicKey} />}
 
       {/* Summary bar */}
-      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {[
           { label: "Total Value", value: formatCurrency(totalValue) },
           {
@@ -269,6 +277,20 @@ export function PortfolioClient() {
             color: totalRealizedPnl >= 0 ? "text-yes" : "text-no",
           },
           { label: "Fees Paid", value: formatCurrency(totalFeesPaid) },
+          {
+            label: "Win Rate",
+            value: winRatePct !== null ? `${winRatePct}%` : "—",
+            subtitle:
+              winRatePct !== null
+                ? `${wins}W · ${losses}L`
+                : "No resolved markets yet",
+            color:
+              winRatePct === null
+                ? undefined
+                : winRatePct >= 50
+                ? "text-yes"
+                : "text-no",
+          },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -283,6 +305,11 @@ export function PortfolioClient() {
             >
               {stat.value}
             </p>
+            {stat.subtitle && (
+              <p className="mt-0.5 font-mono text-[11px] text-text-muted">
+                {stat.subtitle}
+              </p>
+            )}
           </div>
         ))}
       </div>
