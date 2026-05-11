@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
         avgBuyPriceUSD: null as number | null,
         costBasisUSD: null as number | null,
         percentGain: null as number | null,
+        costBasisSource: null as "caldera" | "manual" | null,
       };
     })
     // Filter dust: only show holdings worth at least $0.01 OR more than 0.001 coins
@@ -123,7 +124,7 @@ export async function GET(req: NextRequest) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data: purchases } = await (supabase as any)
             .from("user_coin_purchases")
-            .select("creator_id, coins_purchased, price_per_coin_usd")
+            .select("creator_id, coins_purchased, price_per_coin_usd, source")
             .eq("user_id", dbUser.id)
             .in("creator_id", allCreatorIds);
 
@@ -131,7 +132,12 @@ export async function GET(req: NextRequest) {
           // recorded under different creator_ids that point at the
           // same DeSo pubkey are the same coin, so they merge into
           // one weighted average — duplicate creator rows are harmless.
-          const byPubkey = new Map<string, { coins: number; cost: number }>();
+          // Also track whether ANY contributing row has source='manual'
+          // so the UI can tag the holding accordingly.
+          const byPubkey = new Map<
+            string,
+            { coins: number; cost: number; hasManual: boolean; hasCaldera: boolean }
+          >();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           for (const p of (purchases ?? []) as Array<any>) {
             const pk = creatorIdToPk.get(p.creator_id);
@@ -139,14 +145,18 @@ export async function GET(req: NextRequest) {
             const coins = Number(p.coins_purchased ?? 0);
             const price = Number(p.price_per_coin_usd ?? 0);
             if (!Number.isFinite(coins) || !Number.isFinite(price)) continue;
-            const cur = byPubkey.get(pk) ?? { coins: 0, cost: 0 };
+            const cur = byPubkey.get(pk) ?? { coins: 0, cost: 0, hasManual: false, hasCaldera: false };
             cur.coins += coins;
             cur.cost += coins * price;
+            if (p.source === "manual") cur.hasManual = true;
+            else cur.hasCaldera = true;
             byPubkey.set(pk, cur);
           }
 
           // Apply to holdings keyed by pubkey directly — no creator_id
-          // race on which-duplicate-won.
+          // race on which-duplicate-won. Source resolution: caldera
+          // wins if present (real trades trump self-report), else
+          // manual, else null.
           holdings.forEach((h: any) => {
             const agg = byPubkey.get(h.creatorPublicKey);
             if (!agg || agg.coins <= 0) return;
@@ -156,6 +166,7 @@ export async function GET(req: NextRequest) {
             if (avg > 0) {
               h.percentGain = round2(((h.coinPriceUSD - avg) / avg) * 100);
             }
+            h.costBasisSource = agg.hasCaldera ? "caldera" : agg.hasManual ? "manual" : null;
           });
         }
       }

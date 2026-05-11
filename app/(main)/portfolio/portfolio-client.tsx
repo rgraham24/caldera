@@ -9,6 +9,7 @@ import { TradeTicket } from "@/components/markets/TradeTicket";
 import { StakeModal } from "@/components/markets/StakeModal";
 import PendingPayouts from "@/components/portfolio/PendingPayouts";
 import { EquityCurve } from "@/components/portfolio/EquityCurve";
+import { CostBasisModal } from "@/components/portfolio/CostBasisModal";
 import type { Market } from "@/types";
 
 type Position = {
@@ -56,6 +57,7 @@ type CoinHolding = {
   avgBuyPriceUSD?: number | null;
   costBasisUSD?: number | null;
   percentGain?: number | null;
+  costBasisSource?: "caldera" | "manual" | null;
 };
 
 type TradeModal = {
@@ -72,6 +74,7 @@ export function PortfolioClient() {
   const [coinHoldings, setCoinHoldings] = useState<CoinHolding[]>([]);
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [holdingsLoaded, setHoldingsLoaded] = useState(false);
+  const [costBasisHolding, setCostBasisHolding] = useState<CoinHolding | null>(null);
   const [tradeModal, setTradeModal] = useState<TradeModal>(null);
   type CoinTradeModal = { creator: { id: string; name: string; slug: string; deso_username: string | null; deso_public_key: string | null; creator_coin_price: number | null; creator_coin_holders: number | null; creator_coin_market_cap: number | null; markets_count: number | null; image_url: string | null; deso_is_reserved: boolean | null; verification_status: string | null; entity_type: string | null; [key: string]: any; }; initialMode: "buy" | "sell"; } | null;
   const [coinTradeModal, setCoinTradeModal] = useState<CoinTradeModal>(null);
@@ -136,47 +139,45 @@ export function PortfolioClient() {
     }
   };
 
-  // Load coin holdings on mount (so the count badge on the tab is
-  // accurate from page load) and again whenever the tab is reopened
-  // — the sessionStorage cache below dedupes within 60s.
-  useEffect(() => {
-    const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
-    if (!key) return;
-
-    // Check session cache first for instant load
-    const cacheKey = `holdings_${key}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const { data, ts } = JSON.parse(cached);
-        // Use cache if less than 60 seconds old
-        if (Date.now() - ts < 60000 && data.length > 0) {
-          setCoinHoldings(data);
-          setHoldingsLoaded(true);
-          return;
-        }
-      } catch {}
-    }
-
-    const loadHoldings = async () => {
-      setHoldingsLoading(true);
-      try {
-        const k = desoPublicKey ?? useAppStore.getState().desoPublicKey;
-        if (!k) { setCoinHoldings([]); return; }
-        const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(k)}`);
-        const { holdings = [] } = await res.json() as { holdings: CoinHolding[] };
-        setCoinHoldings(holdings);
-        // Cache for 60 seconds
-        sessionStorage.setItem(cacheKey, JSON.stringify({ data: holdings, ts: Date.now() }));
-      } catch {
-        setCoinHoldings([]);
-      } finally {
-        setHoldingsLoading(false);
-        setHoldingsLoaded(true);
+  // Reusable holdings loader. `force=true` skips the session cache —
+  // used after a cost-basis save/clear to immediately reflect changes.
+  const loadHoldings = useCallback(async (force: boolean = false) => {
+    const k = desoPublicKey ?? useAppStore.getState().desoPublicKey;
+    if (!k) return;
+    const cacheKey = `holdings_${k}`;
+    if (!force) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const { data, ts } = JSON.parse(cached);
+          if (Date.now() - ts < 60000 && data.length > 0) {
+            setCoinHoldings(data);
+            setHoldingsLoaded(true);
+            return;
+          }
+        } catch {}
       }
-    };
+    }
+    setHoldingsLoading(true);
+    try {
+      const res = await fetch(`/api/portfolio/coins?publicKey=${encodeURIComponent(k)}`);
+      const { holdings = [] } = (await res.json()) as { holdings: CoinHolding[] };
+      setCoinHoldings(holdings);
+      sessionStorage.setItem(cacheKey, JSON.stringify({ data: holdings, ts: Date.now() }));
+    } catch {
+      setCoinHoldings([]);
+    } finally {
+      setHoldingsLoading(false);
+      setHoldingsLoaded(true);
+    }
+  }, [desoPublicKey]);
+
+  // Load coin holdings on mount (so the count badge on the tab is
+  // accurate from page load) and again whenever the tab is reopened.
+  useEffect(() => {
+    if (!desoPublicKey) return;
     loadHoldings();
-  }, [tab, desoPublicKey]);
+  }, [tab, desoPublicKey, loadHoldings]);
 
   const openPositions = positions.filter((p) => p.status === "open");
   const settledPositions = positions.filter((p) => p.status === "settled");
@@ -600,6 +601,7 @@ export function PortfolioClient() {
                   const ticker = (h.username || h.displayName || "").toUpperCase();
                   const hasCostBasis = h.avgBuyPriceUSD != null && h.avgBuyPriceUSD > 0;
                   const gainPositive = (h.percentGain ?? 0) >= 0;
+                  const isManual = h.costBasisSource === "manual";
                   return (
                     <div key={h.creatorPublicKey} className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 hover:border-caldera/30 transition-colors">
                       {h.imageUrl ? (
@@ -627,11 +629,28 @@ export function PortfolioClient() {
                         {hasCostBasis ? (
                           <p className="text-[11px] text-text-muted font-mono mt-0.5">
                             avg {formatCurrency(h.avgBuyPriceUSD!)} → now {formatCurrency(h.coinPriceUSD)}
+                            {isManual && (
+                              <button
+                                onClick={() => setCostBasisHolding(h)}
+                                className="ml-1.5 rounded-full bg-surface-2 px-1.5 py-px text-[9px] font-medium text-text-muted hover:text-text-primary transition-colors"
+                                title="Edit your manually-set cost basis"
+                              >
+                                ✏️ manual
+                              </button>
+                            )}
                           </p>
                         ) : (
-                          <p className="text-[11px] text-text-muted font-mono mt-0.5">
-                            now {formatCurrency(h.coinPriceUSD)}/coin
-                          </p>
+                          <>
+                            <p className="text-[11px] text-text-muted font-mono mt-0.5">
+                              now {formatCurrency(h.coinPriceUSD)}/coin
+                            </p>
+                            <button
+                              onClick={() => setCostBasisHolding(h)}
+                              className="mt-0.5 text-[11px] text-text-muted hover:text-caldera underline-offset-2 hover:underline transition-colors"
+                            >
+                              Set cost basis
+                            </button>
+                          </>
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -721,6 +740,19 @@ export function PortfolioClient() {
         desoUsername={coinTradeModal.creator?.deso_username}
         livePrice={coinTradeModal.creator?.creator_coin_price ?? undefined}
         initialTab={coinTradeModal.initialMode}
+      />
+    )}
+
+    {costBasisHolding && (
+      <CostBasisModal
+        isOpen={!!costBasisHolding}
+        ticker={costBasisHolding.username || costBasisHolding.displayName || ""}
+        desoPublicKey={costBasisHolding.creatorPublicKey}
+        coinsHeld={costBasisHolding.balanceNanos / 1e9}
+        currentAvg={costBasisHolding.avgBuyPriceUSD ?? null}
+        isManual={costBasisHolding.costBasisSource === "manual"}
+        onClose={() => setCostBasisHolding(null)}
+        onSaved={() => loadHoldings(true)}
       />
     )}
     </>
