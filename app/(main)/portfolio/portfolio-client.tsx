@@ -230,8 +230,44 @@ export function PortfolioClient() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-24 text-center md:px-6 lg:px-8">
-        <p className="text-text-muted">Loading portfolio...</p>
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+        {/* Page title shimmer */}
+        <div className="skeleton mb-6 h-7 w-32" />
+        {/* Wallet card shimmer */}
+        <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
+          <div className="skeleton mb-4 h-5 w-28" />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <div className="skeleton h-12 w-full" />
+            <div className="skeleton h-12 w-full" />
+          </div>
+        </div>
+        {/* Equity curve shimmer */}
+        <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
+          <div className="skeleton h-[180px] w-full" />
+        </div>
+        {/* 5-card metric strip shimmer */}
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border-subtle bg-surface p-4">
+              <div className="skeleton mb-2 h-3 w-20" />
+              <div className="skeleton h-6 w-16" />
+            </div>
+          ))}
+        </div>
+        {/* Tab strip shimmer */}
+        <div className="mb-6 flex gap-1 rounded-lg bg-surface p-1">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-8 flex-1" />
+          ))}
+        </div>
+        {/* Open positions table shimmer */}
+        <div className="rounded-xl border border-border-subtle bg-surface overflow-x-auto">
+          <div className="space-y-2 p-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton h-10 w-full" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
