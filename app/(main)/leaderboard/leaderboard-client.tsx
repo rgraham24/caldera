@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
@@ -101,13 +102,18 @@ function AvatarWithFallback({
   src,
   fallbackName,
   size = 28,
+  isAnon = false,
 }: {
   src: string | null;
   fallbackName: string;
   size?: number;
+  // Caller-supplied anon flag — derived from the trader's
+  // deso_public_key, not from `fallbackName` (which by the time it
+  // reaches here may already be a truncated pubkey that doesn't
+  // pass isDesoPubkey). Source-of-truth decision is up the tree.
+  isAnon?: boolean;
 }) {
   const dim = { width: size, height: size };
-  const isAnon = isDesoPubkey(fallbackName);
   return (
     <span className="relative inline-flex shrink-0">
       <TraderAvatar src={src} fallbackName={fallbackName} size={size} />
@@ -121,15 +127,58 @@ function AvatarWithFallback({
   );
 }
 
+/**
+ * A trader is anonymous (no DeSo profile synced) when:
+ *   - username is empty/null
+ *   - username IS a full DeSo pubkey
+ *   - username matches deso_public_key.slice(0, 10) — the
+ *     fallback used server-side when no real username exists
+ */
+function isAnonTrader(t: { username: string | null; deso_public_key: string | null }): boolean {
+  if (!t.username) return true;
+  if (isDesoPubkey(t.username)) return true;
+  if (t.deso_public_key && t.username === t.deso_public_key.slice(0, 10)) return true;
+  return false;
+}
+
+type SortKey = "totalPnl" | "totalVolume" | "distinctMarkets" | "winRate";
+type SortDir = "asc" | "desc";
+
 export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientProps) {
   const { isConnected, desoPublicKey } = useAppStore();
 
   // Find the signed-in user's row (matches on deso_public_key for
   // reliability — username can be a raw pubkey for fan accounts).
+  // Uses the ORIGINAL traders order (canonical PnL ranking from the
+  // server), so re-sorting the table doesnt shuffle this number.
   const youRank = desoPublicKey
     ? traders.findIndex((t) => t.deso_public_key === desoPublicKey)
     : -1;
   const youTrader = youRank >= 0 ? traders[youRank] : null;
+
+  // Client-side sortable table. Default: Total PnL desc, matching
+  // the server's canonical ordering. Switching columns defaults to
+  // desc since higher values are more interesting; re-clicking the
+  // active column toggles direction.
+  const [sortKey, setSortKey] = useState<SortKey>("totalPnl");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const sortedTraders = useMemo(() => {
+    return [...traders].sort((a, b) => {
+      const av = a[sortKey] ?? 0;
+      const bv = b[sortKey] ?? 0;
+      return sortDir === "desc" ? bv - av : av - bv;
+    });
+  }, [traders, sortKey, sortDir]);
+  const onSortClick = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+  const sortIndicator = (key: SortKey) =>
+    sortKey === key ? (sortDir === "desc" ? "▼" : "▲") : null;
 
   // Empty-state banner: only when the board is truly empty. With 1-4
   // traders the table itself tells the story; a banner on top of a
@@ -166,6 +215,7 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                 src={youTrader.avatar_url}
                 fallbackName={youTrader.username}
                 size={44}
+                isAnon={isAnonTrader(youTrader)}
               />
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-widest text-caldera font-semibold">
@@ -230,16 +280,58 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                     className="px-4 py-3 text-right font-medium"
                     title="Realized PnL across all settled, closed, and open positions"
                   >
-                    Total PnL
+                    <button
+                      onClick={() => onSortClick("totalPnl")}
+                      className={cn(
+                        "inline-flex items-center gap-1 transition-colors hover:text-text-primary",
+                        sortKey === "totalPnl" && "text-text-primary"
+                      )}
+                    >
+                      Total PnL
+                      <span className="font-mono text-[10px]">{sortIndicator("totalPnl") ?? "·"}</span>
+                    </button>
                   </th>
-                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Volume</th>
-                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Markets</th>
-                  <th className="px-4 py-3 text-right font-medium">Win %</th>
+                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">
+                    <button
+                      onClick={() => onSortClick("totalVolume")}
+                      className={cn(
+                        "inline-flex items-center gap-1 transition-colors hover:text-text-primary",
+                        sortKey === "totalVolume" && "text-text-primary"
+                      )}
+                    >
+                      Volume
+                      <span className="font-mono text-[10px]">{sortIndicator("totalVolume") ?? "·"}</span>
+                    </button>
+                  </th>
+                  <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">
+                    <button
+                      onClick={() => onSortClick("distinctMarkets")}
+                      className={cn(
+                        "inline-flex items-center gap-1 transition-colors hover:text-text-primary",
+                        sortKey === "distinctMarkets" && "text-text-primary"
+                      )}
+                    >
+                      Markets
+                      <span className="font-mono text-[10px]">{sortIndicator("distinctMarkets") ?? "·"}</span>
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    <button
+                      onClick={() => onSortClick("winRate")}
+                      className={cn(
+                        "inline-flex items-center gap-1 transition-colors hover:text-text-primary",
+                        sortKey === "winRate" && "text-text-primary"
+                      )}
+                    >
+                      Win %
+                      <span className="font-mono text-[10px]">{sortIndicator("winRate") ?? "·"}</span>
+                    </button>
+                  </th>
                   <th className="hidden px-4 py-3 text-left font-medium lg:table-cell">Best Call</th>
                 </tr>
               </thead>
               <tbody>
-                {traders.map((t, i) => {
+                {sortedTraders.map((t, i) => {
                   const isYou = desoPublicKey && t.deso_public_key === desoPublicKey;
                   return (
                     <tr
@@ -258,6 +350,7 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                             src={t.avatar_url}
                             fallbackName={t.username}
                             size={28}
+                            isAnon={isAnonTrader(t)}
                           />
                           <span className="font-medium text-text-primary">
                             {truncateAddress(t.username)}
