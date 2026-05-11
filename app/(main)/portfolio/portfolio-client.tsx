@@ -265,7 +265,11 @@ export function PortfolioClient() {
       {/* Summary bar */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: "Total Value", value: formatCurrency(totalValue) },
+          {
+            label: "Position Value",
+            value: formatCurrency(totalValue),
+            subtitle: `${openPositions.length} open position${openPositions.length === 1 ? "" : "s"}`,
+          },
           {
             label: "Unrealized PnL",
             value: formatCurrency(totalUnrealizedPnl),

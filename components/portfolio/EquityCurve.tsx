@@ -79,6 +79,31 @@ export function EquityCurve({ desoPublicKey }: Props) {
   const stroke = isPositive ? "#22c55e" : "#ef4444";
   const fill = isPositive ? "#22c55e" : "#ef4444";
 
+  // Manual ticks: one per unique day. Multiple trades same day were
+  // landing as overlapping labels in the auto-tick layout. We pick
+  // the FIRST data point that falls on each unique YYYY-MM-DD, then
+  // downsample to ~7 evenly-spaced labels if the window is wider.
+  const dayKey = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+  const seenDays = new Set<string>();
+  const firstPerDay: string[] = [];
+  for (const p of data.points) {
+    const k = dayKey(p.date);
+    if (!seenDays.has(k)) {
+      seenDays.add(k);
+      firstPerDay.push(p.date);
+    }
+  }
+  const MAX_LABELS = 7;
+  let ticks: string[];
+  if (firstPerDay.length <= MAX_LABELS) {
+    ticks = firstPerDay;
+  } else {
+    const step = (firstPerDay.length - 1) / (MAX_LABELS - 1);
+    ticks = Array.from({ length: MAX_LABELS }, (_, i) =>
+      firstPerDay[Math.round(i * step)]
+    );
+  }
+
   return (
     <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
       <div className="mb-4 flex items-baseline justify-between flex-wrap gap-2">
@@ -106,6 +131,7 @@ export function EquityCurve({ desoPublicKey }: Props) {
             </defs>
             <XAxis
               dataKey="date"
+              ticks={ticks}
               tick={{ fill: "#888", fontSize: 10 }}
               tickLine={false}
               axisLine={false}
@@ -115,7 +141,7 @@ export function EquityCurve({ desoPublicKey }: Props) {
                   day: "numeric",
                 })
               }
-              minTickGap={30}
+              interval={0}
             />
             <YAxis hide domain={["auto", "auto"]} />
             <Tooltip
