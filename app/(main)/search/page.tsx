@@ -9,10 +9,11 @@
  */
 
 import Link from "next/link";
-import { Search, Sparkles, TrendingUp, Flame, Droplet, Clock } from "lucide-react";
+import { Sparkles, TrendingUp, Flame, Droplet, Clock } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatCompactCurrency } from "@/lib/utils";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { SearchInputTrigger } from "@/components/search/SearchInputTrigger";
 import type { Creator } from "@/types";
 
 export const revalidate = 60;
@@ -66,20 +67,9 @@ export default async function SearchPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 pt-6 pb-12 md:px-6 lg:px-8">
-      {/* Search input — Push 1 is a placeholder (no submit handler yet) */}
-      <div className="relative mb-8">
-        <Search
-          size={18}
-          strokeWidth={1.75}
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
-        />
-        <input
-          type="text"
-          inputMode="search"
-          placeholder="Search creators, markets, coins..."
-          className="w-full rounded-xl border border-border-subtle bg-surface px-12 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-caldera/40 focus:outline-none"
-          aria-label="Search Caldera"
-        />
+      {/* Search input — tap opens the SearchOverlay client component */}
+      <div className="mb-8">
+        <SearchInputTrigger />
       </div>
 
       {/* Browse pills */}
