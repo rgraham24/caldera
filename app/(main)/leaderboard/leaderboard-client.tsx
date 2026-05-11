@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
@@ -173,6 +173,17 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
   const DEFAULT_SORT_DIR: SortDir = "desc";
   const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState<SortDir>(DEFAULT_SORT_DIR);
+  // ── TEMP DIAGNOSTIC LOGGING — remove after sort bug is resolved ──
+  console.log("[lb] render", {
+    sortKey,
+    sortDir,
+    firstTrader: traders[0]?.username,
+    tradersLen: traders.length,
+  });
+  useEffect(() => {
+    console.log("[lb] sortDir changed to", sortDir);
+  }, [sortDir]);
+  // ────────────────────────────────────────────────────────────────
   const sortedTraders = useMemo(() => {
     return [...traders].sort((a, b) => {
       const av = a[sortKey] ?? 0;
