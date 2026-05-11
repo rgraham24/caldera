@@ -35,8 +35,13 @@ export default async function LeaderboardPage() {
       .limit(5000);
 
     // Fetch only the markets referenced by settled positions for "best call".
+    // Note: Postgres numeric columns come back as STRING via supabase-js to
+    // preserve precision (despite the generated TS types claiming `number`).
+    // Wrap every numeric read used in arithmetic with Number() — otherwise
+    // `s + value` in reduces concatenates strings and the eventual sort
+    // comparator works on NaN, leaving the array in insert order.
     const settledPositions = (positions ?? []).filter(
-      (p) => p.status === "settled" && (p.realized_pnl ?? 0) > 0
+      (p) => p.status === "settled" && Number(p.realized_pnl ?? 0) > 0
     );
     const referencedMarketIds = [
       ...new Set(settledPositions.map((p) => p.market_id).filter(Boolean)),
@@ -56,34 +61,41 @@ export default async function LeaderboardPage() {
       const userTrades = (trades ?? []).filter((t) => t.user_id === u.id);
 
       const totalPnl = userPositions.reduce(
-        (s, p) => s + (p.realized_pnl ?? 0) + (p.unrealized_pnl_cached ?? 0),
+        (s, p) =>
+          s + Number(p.realized_pnl ?? 0) + Number(p.unrealized_pnl_cached ?? 0),
         0
       );
-      const totalVolume = userTrades.reduce((s, t) => s + (t.gross_amount ?? 0), 0);
+      const totalVolume = userTrades.reduce(
+        (s, t) => s + Number(t.gross_amount ?? 0),
+        0
+      );
       const distinctMarkets = new Set(userTrades.map((t) => t.market_id)).size;
 
       const settled = userPositions.filter((p) => p.status === "settled");
-      const wins = settled.filter((p) => (p.realized_pnl ?? 0) > 0).length;
+      const wins = settled.filter((p) => Number(p.realized_pnl ?? 0) > 0).length;
       const winRate = settled.length > 0 ? Math.round((wins / settled.length) * 100) : 0;
 
       const best = [...settled].sort(
-        (a, b) => (b.realized_pnl ?? 0) - (a.realized_pnl ?? 0)
+        (a, b) => Number(b.realized_pnl ?? 0) - Number(a.realized_pnl ?? 0)
       )[0];
       const bestMarket = best
         ? (markets ?? []).find((m) => m.id === best.market_id)
         : null;
 
+      // Belt-and-suspenders: even though every accumulator above is now
+      // numeric, explicitly coerce on the way out to the client so the
+      // trader objects schema is type-aligned with what the client expects.
       return {
         id: u.id,
         username: u.username ?? u.deso_public_key?.slice(0, 10) ?? "anon",
         deso_public_key: u.deso_public_key ?? null,
         avatar_url: u.avatar_url,
-        totalPnl,
-        totalVolume,
-        distinctMarkets,
-        winRate,
+        totalPnl: Number(totalPnl),
+        totalVolume: Number(totalVolume),
+        distinctMarkets: Number(distinctMarkets),
+        winRate: Number(winRate),
         bestCallTitle: bestMarket?.title?.slice(0, 30) ?? null,
-        bestCallPnl: best?.realized_pnl ?? 0,
+        bestCallPnl: Number(best?.realized_pnl ?? 0),
       };
     });
 
@@ -93,7 +105,7 @@ export default async function LeaderboardPage() {
       .slice(0, 50);
 
     const biggestWins = settledPositions
-      .sort((a, b) => (b.realized_pnl ?? 0) - (a.realized_pnl ?? 0))
+      .sort((a, b) => Number(b.realized_pnl ?? 0) - Number(a.realized_pnl ?? 0))
       .slice(0, 5)
       .map((p) => {
         const user = (users ?? []).find((u) => u.id === p.user_id);
@@ -101,7 +113,7 @@ export default async function LeaderboardPage() {
         return {
           username: user?.username ?? "anon",
           marketTitle: market?.title?.slice(0, 40) ?? "",
-          pnl: p.realized_pnl ?? 0,
+          pnl: Number(p.realized_pnl ?? 0),
         };
       });
 
