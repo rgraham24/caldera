@@ -2,84 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { Market } from "@/types";
 import { formatCompactCurrency, formatMarketTimeLeft, cn } from "@/lib/utils";
 import { CategoryPill } from "@/components/shared/CategoryPill";
-
-// ── Real sparkline from price history ────────────────────────────────────────
-// Renders a chronological yes_price line from market_price_history snapshots.
-// Returns null when no history data is provided — no fake fallback. The
-// previous deterministic-from-id implementation was misleading (looked
-// real to users but was just hashed noise), so it's been removed entirely.
+import { Sparkline } from "@/components/markets/Sparkline";
+import { requestSparkline } from "@/lib/sparkline/batch";
 
 export type SparklinePoint = {
   recorded_at: string;
   yes_price: number;
 };
-
-function buildSparklinePathFromHistory(points: number[], w: number, h: number): string {
-  if (points.length < 2) return "";
-  const coords = points.map((y, i) => ({
-    x: (i / (points.length - 1)) * w,
-    y: (1 - y) * h, // SVG y is inverted
-  }));
-  let d = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
-  for (let i = 1; i < coords.length; i++) {
-    const prev = coords[i - 1];
-    const cur = coords[i];
-    const cp1x = prev.x + (cur.x - prev.x) * 0.5;
-    const cp1y = prev.y;
-    const cp2x = prev.x + (cur.x - prev.x) * 0.5;
-    const cp2y = cur.y;
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${cur.x.toFixed(1)} ${cur.y.toFixed(1)}`;
-  }
-  return d;
-}
-
-/**
- * Variance threshold (in yes_price units, range [0..1]) below which we
- * suppress the curve and only show the end-dot. Pre-launch markets
- * have identical hourly snapshots (no real trading), so most curves
- * are flat and add visual noise. Curves naturally appear once real
- * users start trading and prices move >2 percentage points.
- */
-const SPARKLINE_VARIANCE_THRESHOLD = 0.02;
-
-function MiniSparkline({
-  history,
-  currentYesPrice,
-}: {
-  history: SparklinePoint[];
-  currentYesPrice: number;
-}) {
-  const w = 60;
-  const h = 28;
-
-  // Sort ascending by recorded_at so the line reads left-to-right
-  // chronologically. Caller may already pass sorted data, but normalize
-  // here so this component is robust to either order.
-  const sorted = [...history].sort(
-    (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
-  );
-  const ys = sorted.map((p) => Number(p.yes_price));
-  if (ys.length < 2) return null;
-
-  const isYes = currentYesPrice >= 0.5;
-  const color = isYes ? "var(--yes)" : "var(--no)";
-  const lastY = ys[ys.length - 1];
-  const variance = Math.max(...ys) - Math.min(...ys);
-  const showCurve = variance >= SPARKLINE_VARIANCE_THRESHOLD;
-  const path = showCurve ? buildSparklinePathFromHistory(ys, w, h) : "";
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
-      {showCurve && (
-        <path d={path} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" opacity={1} />
-      )}
-      <circle cx={w} cy={(1 - lastY) * h} r={2.5} fill={color} />
-    </svg>
-  );
-}
 
 type MarketCardProps = {
   market: Market;
@@ -92,9 +25,10 @@ type MarketCardProps = {
    */
   showCreatedAgo?: boolean;
   /**
-   * Real yes_price snapshots over time from market_price_history. When
-   * provided AND has >=2 points, renders a chronological sparkline.
-   * When omitted/empty, no sparkline shown — no fake fallback.
+   * Pre-fetched price history. When provided, skips the client-side
+   * auto-fetch and renders this data directly. Most callers omit
+   * this — MarketCard fetches its own data via the batched module-
+   * level cache in lib/sparkline/batch.ts.
    */
   priceHistory?: SparklinePoint[];
 };
@@ -120,6 +54,24 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
 
   const yesPercent = Math.round((market.yes_price ?? 0) * 100);
   const isYesLeading = (market.yes_price ?? 0) >= 0.5;
+
+  // Sparkline data: prefer pre-fetched priceHistory prop if provided,
+  // otherwise auto-fetch via the batched module-level cache so multiple
+  // cards on a page share one API call.
+  const [sparklineData, setSparklineData] = useState<number[]>(() => {
+    if (!priceHistory || priceHistory.length < 2) return [];
+    return priceHistory.map((p) => Number(p.yes_price)).filter(Number.isFinite);
+  });
+  useEffect(() => {
+    if (priceHistory && priceHistory.length >= 2) return; // caller pre-fed us
+    let cancelled = false;
+    requestSparkline(market.id).then((points) => {
+      if (!cancelled && points.length >= 2) setSparklineData(points);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [market.id, priceHistory]);
 
   return (
     <Link href={`/markets/${market.slug}`}>
@@ -196,10 +148,12 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
             </span>
           </div>
           <div className="flex flex-col items-end gap-1">
-            {priceHistory && priceHistory.length >= 2 && (
-              <MiniSparkline
-                history={priceHistory}
-                currentYesPrice={market.yes_price ?? 0.5}
+            {sparklineData.length >= 2 && (
+              <Sparkline
+                data={sparklineData}
+                color={isYesLeading ? "var(--color-yes)" : "var(--color-no)"}
+                width={64}
+                height={28}
               />
             )}
             {(() => {
