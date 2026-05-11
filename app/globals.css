@@ -206,6 +206,16 @@
   animation: slide-down 0.3s ease-out;
 }
 
+/* Bottom-sheet enter animation. Modals on mobile use this to slide
+   up from the bottom edge. Desktop overrides with animate-none. */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
 /* Hide native scrollbar — used on horizontal tab strips on mobile
    where we render a fade-right gradient as the affordance instead. */
 .scrollbar-hide::-webkit-scrollbar { display: none; }

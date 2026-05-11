@@ -724,16 +724,18 @@ export function PortfolioClient() {
       )}
     </div>
 
-    {/* Trade modal */}
+    {/* Trade modal — bottom sheet on mobile, centered overlay on desktop */}
     {tradeModal && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4"
         onClick={(e) => { if (e.target === e.currentTarget) { setTradeModal(null); setCoinHoldings([]); } }}
       >
         {/* Backdrop */}
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
         {/* Panel */}
-        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border-subtle bg-bg shadow-2xl">
+        <div className="relative z-10 w-full rounded-t-2xl border border-border-subtle bg-bg shadow-2xl animate-slide-up md:max-w-sm md:rounded-2xl md:animate-none">
+          {/* Drag handle — mobile only */}
+          <div className="md:hidden mx-auto mt-2 mb-1 h-1 w-10 rounded-full bg-text-muted/30" />
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
             <div className="min-w-0 pr-4">

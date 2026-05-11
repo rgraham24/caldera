@@ -108,11 +108,13 @@ export function CostBasisModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4"
       onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border-subtle bg-bg shadow-2xl">
+      <div className="relative z-10 w-full rounded-t-2xl border border-border-subtle bg-bg shadow-2xl animate-slide-up md:max-w-sm md:rounded-2xl md:animate-none">
+        {/* Drag handle — mobile only */}
+        <div className="md:hidden mx-auto mt-2 mb-1 h-1 w-10 rounded-full bg-text-muted/30" />
         <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
           <div className="min-w-0 pr-4">
             <p className="text-xs text-text-muted uppercase tracking-widest font-semibold mb-0.5">

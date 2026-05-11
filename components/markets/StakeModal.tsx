@@ -213,9 +213,15 @@ export function StakeModal({
   const isAmountValid = tab === "buy" ? amountNum > 0 : coinsToSellNum > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-border-subtle bg-surface-2 p-6 shadow-2xl">
+      <div
+        className="relative z-10 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border-subtle bg-surface-2 p-6 shadow-2xl animate-slide-up md:max-w-md md:rounded-2xl md:animate-none"
+        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+      >
+        {/* Drag handle — visual cue this is a dismissable sheet on mobile.
+            Hidden on desktop where the modal sits centered. */}
+        <div className="md:hidden mx-auto -mt-2 mb-3 h-1 w-10 rounded-full bg-text-muted/30" />
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <Link href={`/creators/${creator.slug}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
