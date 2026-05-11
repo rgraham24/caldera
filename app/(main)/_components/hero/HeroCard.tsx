@@ -56,10 +56,8 @@ export function HeroCard({ card }: HeroCardProps) {
 
   return (
     <div
-      className="grid rounded-2xl p-5"
+      className="grid rounded-2xl border border-border-subtle bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/10"
       style={{
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border-subtle)",
         gridTemplateRows: CARD_GRID_ROWS,
         rowGap: "0.75rem",
       }}

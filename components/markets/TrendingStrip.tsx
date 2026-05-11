@@ -2,33 +2,18 @@
 
 import Link from "next/link";
 import type { Market } from "@/types";
-import { CategoryPill, categoryColor } from "@/components/shared/CategoryPill";
+import { CategoryPill } from "@/components/shared/CategoryPill";
 import { formatMarketTimeLeft } from "@/lib/utils";
 
 function TrendingCard({ market }: { market: Market }) {
   const yes = Math.round((market.yes_price ?? 0.5) * 100);
   const no = 100 - yes;
   const isYes = yes >= 50;
-  // Hover glow uses the category's pill color so the border accent and
-  // the pill stay visually coherent.
-  const color = categoryColor(market.category);
 
   return (
     <Link
       href={`/markets/${market.slug}`}
-      className="group flex-none w-[280px] rounded-xl p-3 flex flex-col gap-2 transition-all duration-200"
-      style={{
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border-subtle)",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = `${color}60`;
-        (e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 1px ${color}30`;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--border-subtle)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
-      }}
+      className="group flex-none w-[280px] rounded-xl border border-border-subtle bg-surface p-3 flex flex-col gap-2 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/10"
     >
       {/* Top row: category pill + odds */}
       <div className="flex items-start justify-between gap-2">

@@ -124,7 +124,7 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
   return (
     <Link href={`/markets/${market.slug}`}>
       <div
-        className="group relative flex h-full flex-col rounded-xl border border-border-subtle bg-surface p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/5"
+        className="group relative flex h-full flex-col rounded-xl border border-border-subtle bg-surface p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/10"
       >
         {/* Top row: category + resolve date */}
         <div className="mb-2.5 flex items-center justify-between gap-2">

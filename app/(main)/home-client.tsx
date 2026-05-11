@@ -260,12 +260,7 @@ function MarketCard({ market }: { market: Market }) {
   const isSoon = hoursLeft >= 24 && hoursLeft < 72;
 
   return (
-    <div
-      className="group flex flex-col rounded-xl p-4 transition-colors"
-      style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)" }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-    >
+    <div className="group flex flex-col rounded-xl border border-border-subtle bg-surface p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/10">
       <div className="mb-2 flex items-center gap-2">
         <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
           {market.category}
