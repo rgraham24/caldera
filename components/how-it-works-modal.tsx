@@ -73,12 +73,17 @@ export function HowItWorksModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl w-full max-w-sm overflow-hidden">
+      <div
+        className="relative w-full overflow-hidden border border-border-subtle bg-[var(--bg-surface)] rounded-t-2xl animate-slide-up sm:max-w-sm sm:rounded-2xl sm:animate-none"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        {/* Drag handle — mobile only */}
+        <div className="sm:hidden mx-auto mt-2 mb-1 h-1 w-10 rounded-full bg-text-muted/30" />
         {/* Visual area */}
         <div className="bg-[var(--bg-elevated)] p-8 flex items-center justify-center min-h-[220px] relative">
 
