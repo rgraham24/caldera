@@ -88,7 +88,7 @@ export function MarketDetailClient({
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 md:px-6 md:pb-8 lg:px-8">
       {/* Creator strip — full-width above both columns so the trade panel
           on the right starts at the same y as the title on the left
           instead of being pushed down by ~64px of strip height. */}
@@ -396,7 +396,7 @@ export function MarketDetailClient({
         </div>
 
         {/* Right column (35%) — sticky trading panel */}
-        <div className="w-full lg:w-[35%]">
+        <div id="trade-ticket-section" className="w-full lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
             {market.status === "open" && (
               <TradeTicket
@@ -432,6 +432,31 @@ export function MarketDetailClient({
           </div>
         </div>
       </div>
+
+      {/* Mobile sticky bottom Buy YES/NO — sits above the MobileTabBar
+          (64px) and respects safe-area. Tapping scrolls the TradeTicket
+          into view; pre-selecting a side is a future TradeTicket-prop
+          change. Hidden on desktop where the TradeTicket already
+          sticky-pins in the right column. */}
+      {market.status === "open" && (
+        <div
+          className="fixed inset-x-0 bottom-[64px] z-30 flex gap-2 border-t border-border-subtle bg-surface/95 px-3 py-2.5 backdrop-blur-md md:hidden"
+          style={{ paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))" }}
+        >
+          <a
+            href="#trade-ticket-section"
+            className="flex-1 min-h-[48px] flex items-center justify-center rounded-lg bg-emerald-500/10 text-sm font-bold text-emerald-400 border border-emerald-500/20 active:scale-[0.98] transition-transform"
+          >
+            Buy YES {Math.round((market.yes_price ?? 0) * 100)}¢
+          </a>
+          <a
+            href="#trade-ticket-section"
+            className="flex-1 min-h-[48px] flex items-center justify-center rounded-lg bg-red-500/10 text-sm font-bold text-red-400 border border-red-500/20 active:scale-[0.98] transition-transform"
+          >
+            Buy NO {100 - Math.round((market.yes_price ?? 0) * 100)}¢
+          </a>
+        </div>
+      )}
     </div>
   );
 }
