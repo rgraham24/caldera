@@ -58,10 +58,12 @@ export function LiveTicker() {
 
   return (
     <div
-      className="relative flex h-[50px] w-full items-center overflow-hidden border-y"
+      className="relative flex w-full items-center overflow-hidden border-y"
       style={{
         background: "var(--bg-surface)",
         borderColor: "var(--border-subtle)",
+        height: "calc(50px + env(safe-area-inset-top))",
+        paddingTop: "env(safe-area-inset-top)",
       }}
     >
       {/* LIVE badge */}

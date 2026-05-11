@@ -383,10 +383,13 @@ export function TopNav() {
             {/* Right side */}
             <div className={cn("flex shrink-0 items-center gap-2 md:gap-3", searchOpen ? "hidden md:flex" : "ml-auto flex")}>
 
-              {/* Search icon — mobile only, toggles expanded search */}
+              {/* Search icon — was mobile-only, now hidden entirely.
+                  Mobile users discover search via the bottom tab bars
+                  Search tab instead. Desktop has the inline search box
+                  rendered above, so this icon is dead on every viewport. */}
               <button
                 onClick={() => setSearchOpen(true)}
-                className="flex md:hidden items-center justify-center rounded-lg p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                className="hidden items-center justify-center rounded-lg p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
@@ -403,7 +406,12 @@ export function TopNav() {
                 How it works
               </button>
 
-              <NotificationBell />
+              {/* NotificationBell hidden on mobile — clutter. Lives in
+                  the More page for now; eventually can move to a future
+                  /notifications surface accessible via bottom tab. */}
+              <div className="hidden md:block">
+                <NotificationBell />
+              </div>
 
               {isConnected ? (
                 <div className="relative flex items-center gap-1.5" ref={dropdownRef}>
