@@ -131,13 +131,22 @@ function AvatarWithFallback({
  * A trader is anonymous (no DeSo profile synced) when:
  *   - username is empty/null
  *   - username IS a full DeSo pubkey
- *   - username matches deso_public_key.slice(0, 10) — the
- *     fallback used server-side when no real username exists
+ *   - username is a PREFIX of deso_public_key (any reasonable
+ *     truncation length — past versions of the server used .slice(0,8),
+ *     .slice(0,10), and the original deso_${last8} pattern, so an
+ *     exact-length match misses some accounts)
  */
 function isAnonTrader(t: { username: string | null; deso_public_key: string | null }): boolean {
   if (!t.username) return true;
   if (isDesoPubkey(t.username)) return true;
-  if (t.deso_public_key && t.username === t.deso_public_key.slice(0, 10)) return true;
+  if (
+    t.deso_public_key &&
+    t.username.length >= 6 &&
+    t.username.length <= 20 &&
+    t.deso_public_key.startsWith(t.username)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -156,17 +165,21 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
     : -1;
   const youTrader = youRank >= 0 ? traders[youRank] : null;
 
-  // Client-side sortable table. Default: Total PnL desc, matching
-  // the server's canonical ordering. Switching columns defaults to
-  // desc since higher values are more interesting; re-clicking the
-  // active column toggles direction.
-  const [sortKey, setSortKey] = useState<SortKey>("totalPnl");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  // Client-side sortable table. Default: Total PnL DESC, matching the
+  // server's canonical ordering — highest PnL at top with 🥇. Switching
+  // columns defaults to DESC since higher values are more interesting;
+  // re-clicking the active column toggles direction.
+  const DEFAULT_SORT_KEY: SortKey = "totalPnl";
+  const DEFAULT_SORT_DIR: SortDir = "desc";
+  const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
+  const [sortDir, setSortDir] = useState<SortDir>(DEFAULT_SORT_DIR);
   const sortedTraders = useMemo(() => {
     return [...traders].sort((a, b) => {
       const av = a[sortKey] ?? 0;
       const bv = b[sortKey] ?? 0;
-      return sortDir === "desc" ? bv - av : av - bv;
+      // DESC = higher value first. ASC = lower value first.
+      if (sortDir === "desc") return bv - av;
+      return av - bv;
     });
   }, [traders, sortKey, sortDir]);
   const onSortClick = (key: SortKey) => {
@@ -177,8 +190,10 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
       setSortDir("desc");
     }
   };
-  const sortIndicator = (key: SortKey) =>
-    sortKey === key ? (sortDir === "desc" ? "▼" : "▲") : null;
+  const sortIndicator = (key: SortKey): string | null => {
+    if (sortKey !== key) return null;
+    return sortDir === "desc" ? "▼" : "▲";
+  };
 
   // Empty-state banner: only when the board is truly empty. With 1-4
   // traders the table itself tells the story; a banner on top of a
