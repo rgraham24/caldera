@@ -144,11 +144,10 @@ export default function FollowingPage() {
             <UserPlus className="h-5 w-5" />
           </div>
           <p className="text-base font-semibold text-[var(--text-primary)] mb-1">
-            No markets yet from creators you follow
+            You&apos;re not following any creators yet
           </p>
           <p className="text-sm text-[var(--text-tertiary)] mb-5 max-w-md">
-            Browse creators to find someone to follow. Their markets will show
-            up here.
+            Discover voices worth watching. Their markets will show up here once you follow them.
           </p>
           <Link
             href="/creators"

@@ -207,7 +207,7 @@ function SearchBox({
 
           {!loading && !hasResults && (
             <div className="px-4 py-6 text-center text-sm" style={{ color: "#8888a0" }}>
-              No results for &ldquo;{query}&rdquo;
+              Nothing matches. Try a different angle.
             </div>
           )}
 

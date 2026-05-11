@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
-import { connectDeSoWallet } from "@/lib/deso/auth";
 
 function isDesoPubkey(s: string): boolean {
   return /^BC1Y/i.test(s) && s.length > 40;
@@ -266,18 +265,20 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
         Leaderboard
       </h1>
 
-      {/* Connect wallet banner */}
+      {/* Not-on-board banner — nudges browsing markets rather than just
+          a connect prompt. Once the user has a trade settled theyll
+          appear on the board automatically. */}
       {!isConnected && (
         <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-surface px-5 py-4">
           <p className="text-sm text-text-muted">
-            Connect your DeSo wallet to see your ranking
+            Make your first call to enter the rankings.
           </p>
-          <button
-            onClick={() => connectDeSoWallet()}
-            className="shrink-0 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent/90 transition-colors"
+          <Link
+            href="/markets"
+            className="shrink-0 rounded-lg bg-caldera px-4 py-2 text-xs font-semibold text-white hover:bg-caldera-hover transition-colors"
           >
-            Connect
-          </button>
+            Browse Markets
+          </Link>
         </div>
       )}
 

@@ -483,11 +483,16 @@ export function PortfolioClient() {
               })}
               {openPositions.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-text-muted"
-                  >
-                    No open positions
+                  <td colSpan={7} className="px-4 py-10 text-center">
+                    <p className="text-sm text-text-muted mb-3">
+                      Your portfolio is a blank slate. Pick a market and place your first bet.
+                    </p>
+                    <Link
+                      href="/markets"
+                      className="inline-block rounded-lg bg-caldera px-4 py-2 text-xs font-semibold text-white hover:bg-caldera-hover transition-colors"
+                    >
+                      Browse Markets
+                    </Link>
                   </td>
                 </tr>
               )}

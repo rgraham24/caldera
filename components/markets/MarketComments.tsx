@@ -173,7 +173,7 @@ export function MarketComments({
         })}
         {comments.length === 0 && (
           <p className="text-center text-sm text-text-muted py-8">
-            No comments yet. Be the first to share your take.
+            Be the first to call it.
           </p>
         )}
       </div>
