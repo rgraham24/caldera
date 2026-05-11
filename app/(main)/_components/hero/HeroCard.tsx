@@ -137,15 +137,15 @@ export function HeroCard({ card }: HeroCardProps) {
         <span className="mb-1 text-xs text-[var(--text-tertiary)]">chance</span>
       </div>
 
-      {/* 5. YES / NO buttons */}
+      {/* 5. YES / NO buttons — min-h ensures 44px tap target on touch */}
       <div className="flex gap-2">
         <Link href={`/markets/${m.slug}`} className="flex-1">
-          <button className="w-full rounded-lg border border-[var(--yes)]/20 bg-[var(--yes)]/10 py-2 text-sm font-semibold text-[var(--yes)] hover:bg-[var(--yes)]/20 transition-colors">
+          <button className="w-full min-h-[44px] rounded-lg border border-[var(--yes)]/20 bg-[var(--yes)]/10 py-2 text-sm font-semibold text-[var(--yes)] hover:bg-[var(--yes)]/20 transition-colors">
             YES {yes}¢
           </button>
         </Link>
         <Link href={`/markets/${m.slug}`} className="flex-1">
-          <button className="w-full rounded-lg border border-[var(--no)]/20 bg-[var(--no)]/10 py-2 text-sm font-semibold text-[var(--no)] hover:bg-[var(--no)]/20 transition-colors">
+          <button className="w-full min-h-[44px] rounded-lg border border-[var(--no)]/20 bg-[var(--no)]/10 py-2 text-sm font-semibold text-[var(--no)] hover:bg-[var(--no)]/20 transition-colors">
             NO {no}¢
           </button>
         </Link>

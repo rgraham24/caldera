@@ -94,7 +94,7 @@ export default async function SearchPage() {
               <Link
                 key={p.label}
                 href={p.href}
-                className="flex shrink-0 items-center gap-2 rounded-full border border-border-subtle bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-all duration-200 ease-out hover:border-caldera/20 hover:bg-caldera/5"
+                className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-border-subtle bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-all duration-200 ease-out hover:border-caldera/20 hover:bg-caldera/5"
               >
                 <Icon size={16} strokeWidth={1.75} className="text-caldera" />
                 {p.label}
