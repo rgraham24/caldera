@@ -33,7 +33,12 @@ function NavLink({ item }: { item: NavItem }) {
   );
 
   const className = cn(
-    "flex h-14 w-full items-center gap-3 border-b border-border-subtle px-4 transition-colors",
+    // text-left needed because <button> elements default to text-align:
+    // center, which makes the flex-1 label span center its text — every
+    // other row uses <a> / <Link> which default left, so the How-it-works
+    // button row visually shifted. text-left applies to all variants
+    // consistently so all rows align flush-left.
+    "flex h-14 w-full items-center gap-3 border-b border-border-subtle px-4 text-left transition-colors",
     "hover:bg-surface-2 active:bg-surface-2"
   );
 
