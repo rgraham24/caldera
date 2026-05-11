@@ -1,5 +1,5 @@
 import { TopNav } from "@/components/layout/TopNav";
-import { MobileNav } from "@/components/layout/MobileNav";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { Footer } from "@/components/layout/Footer";
 import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
@@ -29,9 +29,11 @@ export default function MainLayout({
       <TopNav />
       <WelcomeBanner />
       <StarterBanner />
-      <main className="flex-1 overflow-x-hidden pb-16 md:pb-0">{children}</main>
+      <main className="flex-1 overflow-x-hidden pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
+        {children}
+      </main>
       <Footer />
-      <MobileNav />
+      <MobileTabBar />
       <DepositModalRoot />
       <HowItWorksModal />
       <FollowGraphHydrator />
