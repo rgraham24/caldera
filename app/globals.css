@@ -133,7 +133,18 @@
     cursor: pointer;
   }
   html, body {
-    background: #0A0A0F;
+    /* Soft radial purple glow centered above the viewport, fading
+       into near-black. Barely perceptible (6% opacity at peak) —
+       gives the flat #0A0A0F base a hint of atmosphere without
+       reading as a purple-washed background. */
+    background:
+      radial-gradient(
+        ellipse 80% 50% at 50% -10%,
+        rgba(124, 92, 252, 0.06),
+        transparent 60%
+      ),
+      #0A0A0F;
+    background-attachment: fixed;
     border: none;
     outline: none;
     box-shadow: none;

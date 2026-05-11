@@ -64,7 +64,7 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
           return (
             <div
               key={creator.id}
-              className="min-w-[240px] flex-shrink-0 rounded-2xl border border-border-subtle/30 border-t-cyan-500/20 bg-surface p-5 transition-all hover:border-border-visible/50"
+              className="min-w-[240px] flex-shrink-0 rounded-2xl border border-border-subtle bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/5"
             >
               <div className="mb-4 flex items-center gap-3">
                 <CreatorAvatar creator={creator} size="md" />

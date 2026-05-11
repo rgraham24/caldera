@@ -124,13 +124,7 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
   return (
     <Link href={`/markets/${market.slug}`}>
       <div
-        className="group relative flex h-full flex-col rounded-xl p-4 transition-all duration-200"
-        style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-subtle)",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+        className="group relative flex h-full flex-col rounded-xl border border-border-subtle bg-surface p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/5"
       >
         {/* Top row: category + resolve date */}
         <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -193,7 +187,7 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
         <div className="flex items-end justify-between">
           <div className="flex items-baseline gap-1.5">
             <span
-              className={cn("font-display text-2xl font-bold tabular-nums leading-none", isYesLeading ? "text-yes" : "text-no")}
+              className={cn("font-display text-2xl font-bold tabular-nums tracking-tight leading-none", isYesLeading ? "text-yes" : "text-no")}
             >
               {yesPercent}%
             </span>

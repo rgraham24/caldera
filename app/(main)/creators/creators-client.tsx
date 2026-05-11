@@ -254,7 +254,7 @@ export function CreatorsClient({
               return (
                 <div
                   key={c.id}
-                  className="flex flex-col rounded-2xl border border-[var(--border-subtle)]/40 bg-[var(--bg-surface)] p-5 transition-all hover:border-[var(--border-default)] hover:-translate-y-0.5"
+                  className="flex flex-col rounded-2xl border border-border-subtle bg-surface p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-caldera/20 hover:shadow-lg hover:shadow-caldera/5"
                 >
                   <Link href={`/creators/${c.slug}`} className="flex-1">
                     {/* Header: avatar + name + badge */}
