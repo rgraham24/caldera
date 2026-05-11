@@ -5,16 +5,30 @@ import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 
+function isDesoPubkey(s: string): boolean {
+  return /^BC1Y/i.test(s) && s.length > 40;
+}
+
 function truncateAddress(s: string): string {
-  if (/^BC1Y/i.test(s) && s.length > 12) {
-    return `${s.slice(0, 6)}...${s.slice(-4)}`;
+  if (isDesoPubkey(s)) {
+    return `${s.slice(0, 6)}…${s.slice(-4)}`;
   }
   return s;
+}
+
+function initialsOf(name: string): string {
+  if (!name) return "?";
+  // For raw pubkeys, use the first non-prefix character
+  if (isDesoPubkey(name)) return name.charAt(4).toUpperCase();
+  const parts = name.replace(/^@/, "").trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
 type Trader = {
   id: string;
   username: string;
+  deso_public_key: string | null;
   avatar_url: string | null;
   totalPnl: number;
   totalVolume: number;
@@ -35,8 +49,76 @@ type LeaderboardClientProps = {
   biggestWins: BiggestWin[];
 };
 
+function TraderAvatar({
+  src,
+  fallbackName,
+  size = 28,
+}: {
+  src: string | null;
+  fallbackName: string;
+  size?: number;
+}) {
+  // Tiny inline component — renders the avatar img with an initials
+  // circle fallback when src is null/broken. Inline-styled so the
+  // size prop works without a Tailwind class proliferation.
+  const dim = { width: size, height: size };
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        style={dim}
+        className="rounded-full object-cover shrink-0 bg-surface-2"
+        onError={(e) => {
+          // Swap to the initials circle by hiding the img + showing sibling
+          (e.currentTarget as HTMLImageElement).style.display = "none";
+          const sib = (e.currentTarget as HTMLImageElement).nextElementSibling as HTMLElement | null;
+          if (sib) sib.style.display = "flex";
+        }}
+      />
+    );
+  }
+  return null;
+}
+
+function AvatarWithFallback({
+  src,
+  fallbackName,
+  size = 28,
+}: {
+  src: string | null;
+  fallbackName: string;
+  size?: number;
+}) {
+  const initials = initialsOf(fallbackName);
+  const dim = { width: size, height: size };
+  return (
+    <span className="relative inline-flex shrink-0">
+      <TraderAvatar src={src} fallbackName={fallbackName} size={size} />
+      <span
+        style={{ ...dim, display: src ? "none" : "flex" }}
+        className="items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-text-muted"
+      >
+        {initials}
+      </span>
+    </span>
+  );
+}
+
 export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientProps) {
-  const { isConnected } = useAppStore();
+  const { isConnected, desoPublicKey } = useAppStore();
+
+  // Find the signed-in user's row (matches on deso_public_key for
+  // reliability — username can be a raw pubkey for fan accounts).
+  const youRank = desoPublicKey
+    ? traders.findIndex((t) => t.deso_public_key === desoPublicKey)
+    : -1;
+  const youTrader = youRank >= 0 ? traders[youRank] : null;
+
+  // Empty-state banner: when the board is genuinely sparse, frame it
+  // as "new platform" instead of "broken page".
+  const showEmptyBanner = traders.length > 0 && traders.length < 5;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
@@ -59,6 +141,65 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
         </div>
       )}
 
+      {/* Your Rank card — only when signed-in user is on the board */}
+      {youTrader && (
+        <div className="mb-6 rounded-2xl border border-caldera/30 bg-gradient-to-br from-caldera/10 to-caldera/5 px-5 py-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <AvatarWithFallback
+                src={youTrader.avatar_url}
+                fallbackName={youTrader.username}
+                size={44}
+              />
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-widest text-caldera font-semibold">
+                  Your Rank
+                </p>
+                <p className="mt-0.5 font-display text-2xl font-bold text-text-primary">
+                  #{youRank + 1}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-5 text-right">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-text-muted">Total PnL</p>
+                <p className={cn(
+                  "mt-0.5 font-mono text-lg font-bold",
+                  youTrader.totalPnl >= 0 ? "text-yes" : "text-no"
+                )}>
+                  {youTrader.totalPnl >= 0 ? "+" : ""}{formatCurrency(youTrader.totalPnl)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-text-muted">Volume</p>
+                <p className="mt-0.5 font-mono text-lg font-semibold text-text-primary">
+                  {formatCompactCurrency(youTrader.totalVolume)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-text-muted">Win Rate</p>
+                <p className="mt-0.5 font-mono text-lg font-semibold text-text-primary">
+                  {youTrader.winRate}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty-state banner — when board is sparse */}
+      {showEmptyBanner && (
+        <div className="mb-6 rounded-xl border border-caldera/20 bg-caldera/5 px-5 py-3">
+          <p className="text-sm text-text-primary">
+            <span className="font-semibold">Caldera is new</span>
+            <span className="text-text-muted">
+              {" "}— only {traders.length} trader{traders.length === 1 ? "" : "s"} on the board so far.
+              Be one of the first to climb.
+            </span>
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-8 lg:flex-row">
         {/* Main table */}
         <div className="flex-1">
@@ -68,7 +209,12 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                 <tr className="border-b border-border-subtle text-text-muted">
                   <th className="px-4 py-3 text-left font-medium w-12">#</th>
                   <th className="px-4 py-3 text-left font-medium">Trader</th>
-                  <th className="px-4 py-3 text-right font-medium">P/L</th>
+                  <th
+                    className="px-4 py-3 text-right font-medium"
+                    title="Realized PnL across all settled, closed, and open positions"
+                  >
+                    Total PnL
+                  </th>
                   <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Volume</th>
                   <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Markets</th>
                   <th className="px-4 py-3 text-right font-medium">Win %</th>
@@ -76,43 +222,63 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                 </tr>
               </thead>
               <tbody>
-                {traders.map((t, i) => (
-                  <tr
-                    key={t.id}
-                    className="border-b border-border-subtle/20 hover:bg-surface-2/50 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono text-text-muted">
-                      {i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-text-primary">{truncateAddress(t.username)}</span>
-                    </td>
-                    <td className={cn(
-                      "px-4 py-3 text-right font-mono font-bold",
-                      t.totalPnl >= 0 ? "text-yes" : "text-no"
-                    )}>
-                      {t.totalPnl >= 0 ? "+" : ""}{formatCurrency(t.totalPnl)}
-                    </td>
-                    <td className="hidden px-4 py-3 text-right font-mono text-text-muted sm:table-cell">
-                      {formatCompactCurrency(t.totalVolume)}
-                    </td>
-                    <td className="hidden px-4 py-3 text-right font-mono text-text-muted sm:table-cell">
-                      {t.distinctMarkets}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-text-muted">
-                      {t.winRate}%
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      {t.bestCallTitle ? (
-                        <span className="text-xs text-text-muted">
-                          {t.bestCallTitle}… <span className="text-yes font-mono">+{formatCurrency(t.bestCallPnl)}</span>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-text-faint">—</span>
+                {traders.map((t, i) => {
+                  const isYou = desoPublicKey && t.deso_public_key === desoPublicKey;
+                  return (
+                    <tr
+                      key={t.id}
+                      className={cn(
+                        "border-b border-border-subtle/20 transition-colors",
+                        isYou ? "bg-caldera/5 hover:bg-caldera/10" : "hover:bg-surface-2/50"
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    >
+                      <td className="px-4 py-3 font-mono text-text-muted">
+                        {i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <AvatarWithFallback
+                            src={t.avatar_url}
+                            fallbackName={t.username}
+                            size={28}
+                          />
+                          <span className="font-medium text-text-primary">
+                            {truncateAddress(t.username)}
+                          </span>
+                          {isYou && (
+                            <span className="rounded-full bg-caldera/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-caldera">
+                              You
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className={cn(
+                        "px-4 py-3 text-right font-mono font-bold",
+                        t.totalPnl >= 0 ? "text-yes" : "text-no"
+                      )}>
+                        {t.totalPnl >= 0 ? "+" : ""}{formatCurrency(t.totalPnl)}
+                      </td>
+                      <td className="hidden px-4 py-3 text-right font-mono text-text-muted sm:table-cell">
+                        {formatCompactCurrency(t.totalVolume)}
+                      </td>
+                      <td className="hidden px-4 py-3 text-right font-mono text-text-muted sm:table-cell">
+                        {t.distinctMarkets}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-text-muted">
+                        {t.winRate}%
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        {t.bestCallTitle ? (
+                          <span className="text-xs text-text-muted">
+                            {t.bestCallTitle}… <span className="text-yes font-mono">+{formatCurrency(t.bestCallPnl)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-text-faint">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {traders.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-text-muted">
@@ -134,7 +300,7 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
             <div className="space-y-4">
               {biggestWins.map((w, i) => (
                 <div key={i} className="text-sm">
-                  <p className="font-medium text-text-primary">{w.username}</p>
+                  <p className="font-medium text-text-primary">{truncateAddress(w.username)}</p>
                   <p className="mt-0.5 text-xs text-text-muted truncate">{w.marketTitle}</p>
                   <p className="mt-0.5 font-mono text-xs text-yes">Won +{formatCurrency(w.pnl)}</p>
                 </div>

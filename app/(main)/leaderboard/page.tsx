@@ -76,6 +76,7 @@ export default async function LeaderboardPage() {
       return {
         id: u.id,
         username: u.username ?? u.deso_public_key?.slice(0, 10) ?? "anon",
+        deso_public_key: u.deso_public_key ?? null,
         avatar_url: u.avatar_url,
         totalPnl,
         totalVolume,

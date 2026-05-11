@@ -181,6 +181,13 @@ export function PortfolioClient() {
 
   const openPositions = positions.filter((p) => p.status === "open");
   const settledPositions = positions.filter((p) => p.status === "settled");
+  // Positions the user sold before resolution — the realized_pnl on
+  // those is real money (proceeds minus cost). The old code only
+  // summed settled, undercounting actual P&L vs the leaderboard.
+  const closedPositions = positions.filter((p) => p.status === "closed");
+  // Combined view for any computation that should treat "exited" as
+  // exited regardless of how — sells AND resolution payouts.
+  const realizedPositions = [...settledPositions, ...closedPositions];
 
   const totalValue = openPositions.reduce((sum, p) => {
     const currentPrice =
@@ -192,17 +199,18 @@ export function PortfolioClient() {
     const currentPrice = p.side === "yes" ? p.market.yes_price : p.market.no_price;
     return sum + (currentPrice - p.avg_entry_price) * p.quantity;
   }, 0);
-  const totalRealizedPnl = settledPositions.reduce(
+  const totalRealizedPnl = realizedPositions.reduce(
     (sum, p) => sum + p.realized_pnl,
     0
   );
   const totalFeesPaid = positions.reduce((sum, p) => sum + p.fees_paid, 0);
 
-  // Win/Loss tally — count settled positions by realized_pnl sign.
-  // Break-even (=== 0) settles aren't counted either way so the
-  // denominator stays meaningful.
-  const wins = settledPositions.filter((p) => p.realized_pnl > 0).length;
-  const losses = settledPositions.filter((p) => p.realized_pnl < 0).length;
+  // Win/Loss tally — count settled AND closed positions by realized_pnl
+  // sign. Closing a trade at a profit/loss is still a win/loss. Break-
+  // even (=== 0) settles aren't counted either way so the denominator
+  // stays meaningful.
+  const wins = realizedPositions.filter((p) => p.realized_pnl > 0).length;
+  const losses = realizedPositions.filter((p) => p.realized_pnl < 0).length;
   const winLossDecided = wins + losses;
   const winRatePct = winLossDecided > 0 ? Math.round((wins / winLossDecided) * 100) : null;
 
