@@ -228,10 +228,7 @@ function SearchBox({
                     onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(124,92,252,0.08)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <span
-                      className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                      style={{ background: "rgba(124,92,252,0.15)", color: "#7C5CFC" }}
-                    >
+                    <span className="shrink-0 rounded-full bg-caldera/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-caldera">
                       {m.category}
                     </span>
                     <span className="flex-1 truncate text-sm">
@@ -262,7 +259,7 @@ function SearchBox({
                   {c.image_url ? (
                     <img src={c.image_url} alt={c.name} className="h-6 w-6 shrink-0 rounded-full object-cover" />
                   ) : (
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: "#7C5CFC" }}>
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-caldera text-[11px] font-bold text-white">
                       {(c.name ?? "?")[0].toUpperCase()}
                     </div>
                   )}
@@ -456,7 +453,7 @@ export function TopNav() {
                   )}
                 </div>
               ) : (
-                <button onClick={() => connectDeSoWallet()} className="rounded-lg bg-[#7C5CFC] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#6a4ae8] md:px-4">
+                <button onClick={() => connectDeSoWallet()} className="rounded-lg bg-caldera px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover md:px-4">
                   Connect
                 </button>
               )}

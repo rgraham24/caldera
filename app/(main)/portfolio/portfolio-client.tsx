@@ -429,7 +429,7 @@ export function PortfolioClient() {
                         <button
                           onClick={() => openTradeModal(pos, "buy")}
                           disabled={modalLoading}
-                          className="rounded-lg bg-[#7C5CFC] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#6a4ae8] disabled:opacity-50"
+                          className="rounded-lg bg-caldera px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-caldera-hover disabled:opacity-50"
                         >
                           Buy
                         </button>
@@ -669,7 +669,7 @@ export function PortfolioClient() {
                           </p>
                         )}
                         <div className="flex gap-1">
-                          <button onClick={() => openCoinTradeModal(h, "buy")} disabled={modalLoading} className="rounded-md bg-[#7C5CFC] px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-[#6a4ae8] transition-colors disabled:opacity-50">Buy</button>
+                          <button onClick={() => openCoinTradeModal(h, "buy")} disabled={modalLoading} className="rounded-md bg-caldera px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-caldera-hover transition-colors disabled:opacity-50">Buy</button>
                           <button onClick={() => openCoinTradeModal(h, "sell")} disabled={modalLoading} className="rounded-md border border-border-subtle px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:text-text-primary hover:border-white/30 transition-colors disabled:opacity-50">Sell</button>
                         </div>
                       </div>

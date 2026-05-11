@@ -10,20 +10,24 @@
   --font-display: 'Satoshi', var(--font-inter), sans-serif;
   --font-heading: 'Satoshi', var(--font-inter), sans-serif;
 
-  /* Caldera Premium — deep violet */
-  --color-surface: #15112a;
-  --color-surface-2: #1a1628;
-  --color-border-subtle: rgba(255,255,255,0.06);
-  --color-border-visible: rgba(255,255,255,0.12);
-  --color-text-primary: #f0f0f5;
-  --color-text-muted: #8888a0;
-  --color-text-faint: #55556a;
+  /* Caldera — neutral dark base, purple as accent only.
+     Background/surfaces shifted from violet-tinted (#0e0c18 / #15112a)
+     to near-black (#0A0A0F / #13131A) so the caldera purple reads as
+     a real accent against a neutral field, not blended into it. */
+  --color-surface: #13131A;
+  --color-surface-2: #1C1C26;
+  --color-border-subtle: #1F1F2A;
+  --color-border-visible: #2A2A3A;
+  --color-text-primary: #F5F5F7;
+  --color-text-muted: #8A8A95;
+  --color-text-faint: #5A5A65;
   --color-yes: #22c55e;
   --color-yes-muted: rgba(34,197,94,0.08);
   --color-no: #ef4444;
   --color-no-muted: rgba(239,68,68,0.08);
   --color-caldera: #7C5CFC;
-  --color-caldera-muted: rgba(124,92,252,0.12);
+  --color-caldera-hover: #6A4AE8;
+  --color-caldera-muted: rgba(124,92,252,0.08);
   --color-gold: #eab308;
 
   /* shadcn theme mappings */
@@ -66,57 +70,58 @@
 }
 
 :root {
-  /* Raw design tokens for inline usage */
-  --bg-base: #0e0c18;
-  --bg-primary: #0e0c18;
-  --bg-surface: #15112a;
-  --bg-elevated: #1a1628;
-  --bg-hover: #1e1830;
+  /* Raw design tokens for inline usage. Values mirror the @theme
+     inline block above — keep these in sync if either is edited. */
+  --bg-base: #0A0A0F;
+  --bg-primary: #0A0A0F;
+  --bg-surface: #13131A;
+  --bg-elevated: #1C1C26;
+  --bg-hover: #23232E;
 
-  --border-subtle: rgba(255,255,255,0.06);
-  --border-default: rgba(255,255,255,0.10);
-  --border-strong: rgba(255,255,255,0.18);
+  --border-subtle: #1F1F2A;
+  --border-default: #2A2A3A;
+  --border-strong: #3A3A4A;
 
-  --text-primary: #f0f0f5;
-  --text-secondary: #8888a0;
-  --text-tertiary: #55556a;
+  --text-primary: #F5F5F7;
+  --text-secondary: #8A8A95;
+  --text-tertiary: #5A5A65;
 
   --accent: #7C5CFC;
-  --accent-hover: #6a4ae8;
-  --accent-dim: rgba(124, 92, 252, 0.15);
+  --accent-hover: #6A4AE8;
+  --accent-dim: rgba(124, 92, 252, 0.08);
   --accent-border: rgba(124, 92, 252, 0.3);
 
   /* shadcn vars */
-  --background: #0e0c18;
-  --foreground: #f0f0f5;
-  --card: #15112a;
-  --card-foreground: #f0f0f5;
-  --popover: #15112a;
-  --popover-foreground: #f0f0f5;
+  --background: #0A0A0F;
+  --foreground: #F5F5F7;
+  --card: #13131A;
+  --card-foreground: #F5F5F7;
+  --popover: #13131A;
+  --popover-foreground: #F5F5F7;
   --primary: #7C5CFC;
   --primary-foreground: #ffffff;
-  --secondary: #1a1628;
-  --secondary-foreground: #f0f0f5;
-  --muted: #1a1628;
-  --muted-foreground: #8888a0;
-  --accent-foreground: #f0f0f5;
+  --secondary: #1C1C26;
+  --secondary-foreground: #F5F5F7;
+  --muted: #1C1C26;
+  --muted-foreground: #8A8A95;
+  --accent-foreground: #F5F5F7;
   --destructive: #ef4444;
-  --border: rgba(255,255,255,0.06);
-  --input: rgba(255,255,255,0.08);
+  --border: #1F1F2A;
+  --input: #2A2A3A;
   --ring: #7C5CFC;
   --radius: 0.625rem;
   --chart-1: #7C5CFC;
   --chart-2: #22c55e;
   --chart-3: #ef4444;
   --chart-4: #eab308;
-  --chart-5: #8888a0;
-  --sidebar: #15112a;
-  --sidebar-foreground: #f0f0f5;
+  --chart-5: #8A8A95;
+  --sidebar: #13131A;
+  --sidebar-foreground: #F5F5F7;
   --sidebar-primary: #7C5CFC;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a1628;
-  --sidebar-accent-foreground: #f0f0f5;
-  --sidebar-border: rgba(255,255,255,0.06);
+  --sidebar-accent: #1C1C26;
+  --sidebar-accent-foreground: #F5F5F7;
+  --sidebar-border: #1F1F2A;
   --sidebar-ring: #7C5CFC;
 }
 
@@ -128,7 +133,7 @@
     cursor: pointer;
   }
   html, body {
-    background: #0e0c18;
+    background: #0A0A0F;
     border: none;
     outline: none;
     box-shadow: none;
@@ -176,7 +181,7 @@
   100% { background-position: 200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #15112a 25%, #1a1628 50%, #15112a 75%);
+  background: linear-gradient(90deg, #13131A 25%, #1C1C26 50%, #13131A 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 0.5rem;

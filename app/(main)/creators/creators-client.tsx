@@ -334,7 +334,7 @@ export function CreatorsClient({
                         e.stopPropagation();
                         handleBuyClick(c);
                       }}
-                      className="flex-1 py-2 rounded-lg text-sm font-semibold bg-[#7C5CFC] hover:bg-[#6a4ae8] text-white shadow-md shadow-[#7C5CFC]/20 transition-all duration-150 active:scale-[0.98] border border-[#7C5CFC]/20"
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold bg-caldera hover:bg-caldera-hover text-white shadow-md shadow-caldera/20 transition-all duration-150 active:scale-[0.98] border border-caldera/20"
                     >
                       Buy ${sym}
                     </button>

@@ -89,7 +89,7 @@ export function MarketCreatorStrip({ creator }: Props) {
           <button
             type="button"
             onClick={handleBuy}
-            className="rounded-lg bg-[#7C5CFC] hover:bg-[#6a4ae8] text-white text-xs font-semibold px-3 py-1.5 transition-colors active:scale-[0.98] border border-[#7C5CFC]/20"
+            className="rounded-lg bg-caldera hover:bg-caldera-hover text-white text-xs font-semibold px-3 py-1.5 transition-colors active:scale-[0.98] border border-caldera/20"
           >
             Buy ${sym}
           </button>
