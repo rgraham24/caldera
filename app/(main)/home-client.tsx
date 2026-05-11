@@ -12,6 +12,7 @@ import {
 import { ChevronDown, Users } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { TrendingStrip } from "@/components/markets/TrendingStrip";
+import { HowItWorksChip } from "@/components/home/HowItWorksChip";
 import dynamic from "next/dynamic";
 
 // Only rendered when user clicks Buy — no need to include in initial bundle
@@ -597,6 +598,7 @@ export function HomeClient({
           profilePicUrl={stakeCreator.profile_pic_url ?? stakeCreator.image_url}
         />
       )}
+      <HowItWorksChip />
     </div>
   );
 }
