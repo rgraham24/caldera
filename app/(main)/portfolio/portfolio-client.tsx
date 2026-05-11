@@ -71,6 +71,7 @@ export function PortfolioClient() {
   const [loading, setLoading] = useState(true);
   const [coinHoldings, setCoinHoldings] = useState<CoinHolding[]>([]);
   const [holdingsLoading, setHoldingsLoading] = useState(false);
+  const [holdingsLoaded, setHoldingsLoaded] = useState(false);
   const [tradeModal, setTradeModal] = useState<TradeModal>(null);
   type CoinTradeModal = { creator: { id: string; name: string; slug: string; deso_username: string | null; deso_public_key: string | null; creator_coin_price: number | null; creator_coin_holders: number | null; creator_coin_market_cap: number | null; markets_count: number | null; image_url: string | null; deso_is_reserved: boolean | null; verification_status: string | null; entity_type: string | null; [key: string]: any; }; initialMode: "buy" | "sell"; } | null;
   const [coinTradeModal, setCoinTradeModal] = useState<CoinTradeModal>(null);
@@ -135,10 +136,12 @@ export function PortfolioClient() {
     }
   };
 
-  // Load coin holdings when tab is selected
+  // Load coin holdings on mount (so the count badge on the tab is
+  // accurate from page load) and again whenever the tab is reopened
+  // — the sessionStorage cache below dedupes within 60s.
   useEffect(() => {
     const key = desoPublicKey ?? useAppStore.getState().desoPublicKey;
-    if (tab !== "holdings" || !key) return;
+    if (!key) return;
 
     // Check session cache first for instant load
     const cacheKey = `holdings_${key}`;
@@ -149,6 +152,7 @@ export function PortfolioClient() {
         // Use cache if less than 60 seconds old
         if (Date.now() - ts < 60000 && data.length > 0) {
           setCoinHoldings(data);
+          setHoldingsLoaded(true);
           return;
         }
       } catch {}
@@ -168,6 +172,7 @@ export function PortfolioClient() {
         setCoinHoldings([]);
       } finally {
         setHoldingsLoading(false);
+        setHoldingsLoaded(true);
       }
     };
     loadHoldings();
@@ -327,7 +332,7 @@ export function PortfolioClient() {
             { key: "open" as Tab, label: `Open (${openPositions.length})` },
             { key: "settled" as Tab, label: `Settled (${settledPositions.length})` },
             { key: "watchlist" as Tab, label: `Watchlist (${watchlist.length})` },
-            { key: "holdings" as Tab, label: "Creator Holdings" },
+            { key: "holdings" as Tab, label: holdingsLoaded ? `Creator Holdings (${coinHoldings.length})` : "Creator Holdings" },
           ] as const
         ).map((t) => (
           <button
