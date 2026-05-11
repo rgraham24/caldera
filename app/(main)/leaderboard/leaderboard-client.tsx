@@ -18,11 +18,26 @@ function truncateAddress(s: string): string {
 
 function initialsOf(name: string): string {
   if (!name) return "?";
-  // For raw pubkeys, use the first non-prefix character
-  if (isDesoPubkey(name)) return name.charAt(4).toUpperCase();
   const parts = name.replace(/^@/, "").trim().split(/\s+/);
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// Small inline SVG used in place of an initial for accounts whose
+// display name is a raw DeSo pubkey — extracting "B" from BC1Y…
+// was misleading (its the prefix, not their actual initial).
+function PersonGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+    </svg>
+  );
 }
 
 type Trader = {
@@ -91,8 +106,8 @@ function AvatarWithFallback({
   fallbackName: string;
   size?: number;
 }) {
-  const initials = initialsOf(fallbackName);
   const dim = { width: size, height: size };
+  const isAnon = isDesoPubkey(fallbackName);
   return (
     <span className="relative inline-flex shrink-0">
       <TraderAvatar src={src} fallbackName={fallbackName} size={size} />
@@ -100,7 +115,7 @@ function AvatarWithFallback({
         style={{ ...dim, display: src ? "none" : "flex" }}
         className="items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-text-muted"
       >
-        {initials}
+        {isAnon ? <PersonGlyph size={Math.round(size * 0.5)} /> : initialsOf(fallbackName)}
       </span>
     </span>
   );
@@ -116,9 +131,10 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
     : -1;
   const youTrader = youRank >= 0 ? traders[youRank] : null;
 
-  // Empty-state banner: when the board is genuinely sparse, frame it
-  // as "new platform" instead of "broken page".
-  const showEmptyBanner = traders.length > 0 && traders.length < 5;
+  // Empty-state banner: only when the board is truly empty. With 1-4
+  // traders the table itself tells the story; a banner on top of a
+  // visible table just adds noise.
+  const showEmptyBanner = traders.length === 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
@@ -187,14 +203,15 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
         </div>
       )}
 
-      {/* Empty-state banner — when board is sparse */}
+      {/* Empty-state banner — only when there are zero traders. The
+          table prints its own "No trading activity yet" row below;
+          this banner adds the friendlier framing on top. */}
       {showEmptyBanner && (
         <div className="mb-6 rounded-xl border border-caldera/20 bg-caldera/5 px-5 py-3">
           <p className="text-sm text-text-primary">
             <span className="font-semibold">Caldera is new</span>
             <span className="text-text-muted">
-              {" "}— only {traders.length} trader{traders.length === 1 ? "" : "s"} on the board so far.
-              Be one of the first to climb.
+              {" "}— be one of the first to climb the board.
             </span>
           </p>
         </div>
@@ -269,9 +286,19 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         {t.bestCallTitle ? (
-                          <span className="text-xs text-text-muted">
-                            {t.bestCallTitle}… <span className="text-yes font-mono">+{formatCurrency(t.bestCallPnl)}</span>
-                          </span>
+                          <div className="max-w-[240px]">
+                            <p className="text-xs text-text-muted line-clamp-2 leading-snug">
+                              {t.bestCallTitle}
+                            </p>
+                            <p className="mt-1 font-mono text-[10px]">
+                              <span className="uppercase tracking-wider text-text-faint">
+                                won
+                              </span>{" "}
+                              <span className="font-semibold text-yes">
+                                +{formatCurrency(t.bestCallPnl)}
+                              </span>
+                            </p>
+                          </div>
                         ) : (
                           <span className="text-xs text-text-faint">—</span>
                         )}
