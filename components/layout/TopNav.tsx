@@ -53,7 +53,8 @@ function CenterTabs() {
   })();
 
   return (
-    <div className="flex items-center overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
+    <div className="relative">
+      <div className="flex items-center overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
       {tabs.map((tab, i) => {
         if ("divider" in tab) {
           return (
@@ -82,6 +83,12 @@ function CenterTabs() {
           </Link>
         );
       })}
+      </div>
+      {/* Fade-right gradient — mobile-only affordance signalling 'more
+          tabs to the right, scroll'. Hidden on md+ where the strip
+          fits in full. Sources from rgba(10,10,15,...) — matches the
+          TopNav blurred bg so the gradient blends with the nav above. */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#0A0A0F] to-transparent md:hidden" />
     </div>
   );
 }

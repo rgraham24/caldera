@@ -205,3 +205,8 @@
 .animate-slide-down {
   animation: slide-down 0.3s ease-out;
 }
+
+/* Hide native scrollbar — used on horizontal tab strips on mobile
+   where we render a fade-right gradient as the affordance instead. */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
