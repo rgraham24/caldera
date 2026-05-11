@@ -135,38 +135,42 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
           />
         </div>
 
-        {/* Bottom row: large probability + sparkline */}
-        <div className="flex items-end justify-between">
-          <div className="flex items-baseline gap-1.5">
-            <span
-              className={cn("font-display text-2xl font-bold tabular-nums tracking-tight leading-none", isYesLeading ? "text-yes" : "text-no")}
-            >
-              {yesPercent}%
-            </span>
-            <span className="text-xs font-medium text-[var(--text-secondary)]">
-              {isYesLeading ? "YES" : "NO"}
-            </span>
-          </div>
-          <div className="flex flex-col items-end gap-1">
+        {/* Bottom row: probability + inline sparkline trajectory + volume.
+            Sparkline sits IMMEDIATELY next to the percentage so they
+            read as one unit ('62% YES /\/\/\/'), not as a sparkline
+            floating in dead space. Volume floats right of the cluster
+            via justify-between. */}
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-baseline gap-1.5 shrink-0">
+              <span
+                className={cn("font-display text-2xl font-bold tabular-nums tracking-tight leading-none", isYesLeading ? "text-yes" : "text-no")}
+              >
+                {yesPercent}%
+              </span>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">
+                {isYesLeading ? "YES" : "NO"}
+              </span>
+            </div>
             {sparklineData.length >= 2 && (
               <Sparkline
                 data={sparklineData}
                 color={isYesLeading ? "var(--color-yes)" : "var(--color-no)"}
-                width={64}
-                height={28}
+                width={80}
+                height={24}
               />
             )}
-            {(() => {
-              const vol = market.total_volume ?? 0;
-              // Hide volume for old seed data (created before Apr 7 2026) — it was simulated
-              const isSimulated = (market.created_at ?? "") < "2026-04-07" && vol > 100;
-              return vol > 0 && !isSimulated ? (
-                <span className="text-[10px] tabular-nums text-[var(--text-tertiary)]">
-                  {formatCompactCurrency(vol)} vol
-                </span>
-              ) : null;
-            })()}
           </div>
+          {(() => {
+            const vol = market.total_volume ?? 0;
+            // Hide volume for old seed data (created before Apr 7 2026) — it was simulated
+            const isSimulated = (market.created_at ?? "") < "2026-04-07" && vol > 100;
+            return vol > 0 && !isSimulated ? (
+              <span className="text-[10px] tabular-nums text-[var(--text-tertiary)] shrink-0">
+                {formatCompactCurrency(vol)} vol
+              </span>
+            ) : null;
+          })()}
         </div>
 
         {/* YES / NO quick-trade buttons */}

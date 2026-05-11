@@ -40,6 +40,9 @@ export function Sparkline({
     points.map((p) => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ") +
     ` L ${points[points.length - 1].x.toFixed(1)} ${height} Z`;
 
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+
   return (
     <svg
       width={width}
@@ -58,6 +61,10 @@ export function Sparkline({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+      {/* Start + end dots anchor the line visually — even a perfectly
+          flat series reads as a real chart instead of looking broken. */}
+      <circle cx={firstPoint.x} cy={firstPoint.y} r={1.5} fill={color} />
+      <circle cx={lastPoint.x} cy={lastPoint.y} r={1.5} fill={color} />
     </svg>
   );
 }
