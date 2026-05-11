@@ -8,6 +8,7 @@ import {
   formatCurrency,
   formatCompactCurrency,
   formatRelativeTime,
+  cn,
 } from "@/lib/utils";
 import { ChevronDown, Users } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
@@ -137,17 +138,22 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
         </Link>
       </div>
 
-      {/* Scrolling strip — floating cards on transparent background */}
+      {/* Scrolling strip — auto-scroll on desktop, swipeable on mobile.
+          Mobile: overflow-x-auto + snap-x mandatory so flicks settle on
+          card edges natively; the duplicated second half of the doubled
+          array is hidden so users dont see each creator twice. Desktop
+          keeps the original loop animation + edge mask. */}
       <div
-        className="w-full max-w-full overflow-hidden bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="w-full max-w-full overflow-x-auto snap-x snap-mandatory scrollbar-hide bg-transparent md:overflow-hidden md:snap-none"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 60px, black calc(100% - 60px), transparent)",
         }}
       >
-        <div className="flex bg-transparent animate-[scroll-left_60s_linear_infinite] gap-3 pb-3 hover:[animation-play-state:paused]" style={{ animationDelay: "-5s" }}>
+        <div className="flex bg-transparent gap-3 pb-3 md:animate-[scroll-left_60s_linear_infinite] md:hover:[animation-play-state:paused]" style={{ animationDelay: "-5s" }}>
           {doubled.map((c, i) => {
             const rank = i % creators.length;
+            const isDuplicate = i >= creators.length;
             const isTop3 = rank < 3;
             const price = c.creator_coin_price ?? 0;
             const mcap = c.creator_coin_market_cap ?? 0;
@@ -160,7 +166,14 @@ function TokenStrip({ creators: initialCreators, onBuy }: { creators: Creator[];
               <Link
                 key={`${c.id}-${i}`}
                 href={`/creators/${c.slug}`}
-                className="group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3.5 transition-all duration-200"
+                className={cn(
+                  "group flex shrink-0 flex-col gap-2 rounded-xl px-4 py-3.5 transition-all duration-200 snap-start md:snap-align-none",
+                  // Duplicates exist only to power the desktop seamless-
+                  // loop animation. On mobile the strip is user-scrollable,
+                  // so we hide the second half — otherwise every creator
+                  // appears twice as the user swipes through.
+                  isDuplicate ? "hidden md:flex" : "flex"
+                )}
                 style={{
                   background: "var(--bg-surface)",
                   border: `1px solid ${isTop3 ? "rgba(249,115,22,0.25)" : "var(--border-subtle)"}`,
