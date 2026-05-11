@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
@@ -154,6 +154,19 @@ type SortKey = "totalPnl" | "totalVolume" | "distinctMarkets" | "winRate";
 type SortDir = "asc" | "desc";
 
 export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientProps) {
+  // ── TEMP DIAGNOSTIC: Step 4 — component body running ──
+  // Logs every time the component body executes. Multiple mounts =
+  // multiple distinct timestamps. Same mount re-render = same hook
+  // identity. Compare against [lb] RENDER # below.
+  if (typeof window !== "undefined") {
+    console.log("[lb] component body running", {
+      time: Date.now(),
+      isClient: typeof window !== "undefined",
+      propsHash: traders.map((t) => t.username).join(","),
+    });
+  }
+  // ─────────────────────────────────────────────────────
+
   const { isConnected, desoPublicKey } = useAppStore();
 
   // Find the signed-in user's row (matches on deso_public_key for
@@ -173,17 +186,52 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
   const DEFAULT_SORT_DIR: SortDir = "desc";
   const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
   const [sortDir, setSortDir] = useState<SortDir>(DEFAULT_SORT_DIR);
-  // ── TEMP DIAGNOSTIC LOGGING — remove after sort bug is resolved ──
-  console.log("[lb] render", {
+
+  // ── TEMP DIAGNOSTIC: Step 3 — render counter ──
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  console.log("[lb] RENDER #" + renderCount.current, {
     sortKey,
     sortDir,
     firstTrader: traders[0]?.username,
     tradersLen: traders.length,
   });
+  // ──────────────────────────────────────────────
+
+  // ── TEMP DIAGNOSTIC: Step 1 — log every setSortDir caller ──
+  // Wrap the raw setter so we capture the call stack of whoever
+  // fires it. Stack trace pins the call site — onSortClick (a
+  // human click) vs anything else (extension, devtools, React
+  // internal, an injected script).
+  const setSortDirLogged = (next: SortDir | ((d: SortDir) => SortDir)) => {
+    const resolved = typeof next === "function" ? "(fn updater)" : next;
+    console.log("[lb] setSortDir CALLED with", resolved, new Error().stack);
+    setSortDir(next);
+  };
+  // ──────────────────────────────────────────────────────────
+
   useEffect(() => {
     console.log("[lb] sortDir changed to", sortDir);
   }, [sortDir]);
-  // ────────────────────────────────────────────────────────────────
+
+  // ── TEMP DIAGNOSTIC: Step 2 — capture-phase click listener ──
+  // Logs EVERY click event in the document at the capture phase,
+  // including programmatic .click() calls and extension-injected
+  // synthetic events. If something fires a click on a sort header
+  // without a user touching the page, this will catch it.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName ?? "?";
+      const txt = (t?.textContent ?? "").slice(0, 40);
+      const isTrusted = (e as MouseEvent & { isTrusted: boolean }).isTrusted;
+      console.log("[lb] click target", { tag, txt, isTrusted, target: t });
+    };
+    document.addEventListener("click", handler, { capture: true });
+    return () => document.removeEventListener("click", handler, { capture: true });
+  }, []);
+  // ───────────────────────────────────────────────────────────
+
   const sortedTraders = useMemo(() => {
     return [...traders].sort((a, b) => {
       const av = a[sortKey] ?? 0;
@@ -194,11 +242,12 @@ export function LeaderboardClient({ traders, biggestWins }: LeaderboardClientPro
     });
   }, [traders, sortKey, sortDir]);
   const onSortClick = (key: SortKey) => {
+    console.log("[lb] onSortClick fired with key=", key, "from current sortKey=", sortKey);
     if (key === sortKey) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+      setSortDirLogged((d) => (d === "desc" ? "asc" : "desc"));
     } else {
       setSortKey(key);
-      setSortDir("desc");
+      setSortDirLogged("desc");
     }
   };
   const sortIndicator = (key: SortKey): string | null => {
