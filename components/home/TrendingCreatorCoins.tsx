@@ -79,7 +79,7 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
               </div>
 
               <div className="mb-2 flex items-center gap-2">
-                <p className="font-display text-xl font-bold tracking-normal text-text-primary">
+                <p className="font-display text-xl font-bold tabular-nums tracking-tight text-text-primary">
                   {desoUser ? formatCurrency(price) : "—"}
                 </p>
                 {isLive && (

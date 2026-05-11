@@ -223,7 +223,7 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
               e.stopPropagation();
               router.push(`/markets/${market.slug}?side=yes`);
             }}
-            className="flex-1 py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all duration-150 active:scale-[0.98]"
+            className="flex-1 py-2 rounded-lg text-xs font-semibold tabular-nums bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-all duration-150 active:scale-[0.98]"
           >
             YES {yesPercent}¢
           </button>
@@ -233,7 +233,7 @@ export function MarketCard({ market, showCreatedAgo = false, priceHistory }: Mar
               e.stopPropagation();
               router.push(`/markets/${market.slug}?side=no`);
             }}
-            className="flex-1 py-2 rounded-lg text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 transition-all duration-150 active:scale-[0.98]"
+            className="flex-1 py-2 rounded-lg text-xs font-semibold tabular-nums bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 transition-all duration-150 active:scale-[0.98]"
           >
             NO {100 - yesPercent}¢
           </button>
