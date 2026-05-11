@@ -14,6 +14,8 @@ import { ChevronDown, Users } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { TrendingStrip } from "@/components/markets/TrendingStrip";
 import { HowItWorksChip } from "@/components/home/HowItWorksChip";
+import { PullToRefresh } from "@/components/shared/PullToRefresh";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 // Only rendered when user clicks Buy — no need to include in initial bundle
@@ -443,7 +445,20 @@ export function HomeClient({
     fetchMarkets(activeFilter, sort, 0, false);
   }, [activeFilter, sort, fetchMarkets]);
 
+  const router = useRouter();
+  const handleRefresh = async () => {
+    // router.refresh re-runs the parent server components fetch (hero
+    // markets, trending strip, token strip) and the homepage feed
+    // re-fetches via its own effect dependency on activeFilter. Awaiting
+    // a small delay so the spinner doesnt flash off before the
+    // hydrated UI noticeably updates.
+    router.refresh();
+    fetchMarkets(activeFilter, sort, 0, false);
+    await new Promise((r) => setTimeout(r, 400));
+  };
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* Hero — tagline + coupled-card grid streamed via Suspense.
@@ -613,5 +628,6 @@ export function HomeClient({
       )}
       <HowItWorksChip />
     </div>
+    </PullToRefresh>
   );
 }
