@@ -82,19 +82,21 @@ export function LiveTicker() {
         </span>
       </div>
 
-      {/* Edge fades */}
+      {/* Edge fades — text dissolves into the page bg-base color at the
+          left (after the LIVE badge) and right edges of the ticker
+          strip. pointer-events-none so they dont eat clicks. */}
       <div
-        className="pointer-events-none absolute inset-y-0 left-[80px] z-10 w-12"
+        className="pointer-events-none absolute inset-y-0 left-[80px] z-10 w-10"
         style={{
           background:
-            "linear-gradient(to right, var(--bg-surface), transparent)",
+            "linear-gradient(to right, var(--bg-base), transparent)",
         }}
       />
       <div
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12"
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10"
         style={{
           background:
-            "linear-gradient(to left, var(--bg-surface), transparent)",
+            "linear-gradient(to left, var(--bg-base), transparent)",
         }}
       />
 
