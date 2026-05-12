@@ -198,7 +198,7 @@ export function HowItWorksModal() {
               </div>
               <div className="my-3 h-px bg-border-subtle" />
               <p className="text-[11px] text-text-muted leading-relaxed">
-                Coin lands in LeBron&apos;s wallet on every trade. If unclaimed, held safely until he joins.
+                Coins accumulate in $lebronjames&apos; wallet on every trade. LeBron inherits the full balance when he claims his profile.
               </p>
             </div>
           )}
