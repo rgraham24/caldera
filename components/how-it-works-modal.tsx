@@ -156,32 +156,50 @@ export function HowItWorksModal() {
                   <div className="text-xs text-green-500">▲ 3.2%</div>
                 </div>
               </div>
-              <div className="bg-[var(--bg-elevated)] rounded-xl p-3">
-                <div className="text-xs text-[var(--text-tertiary)] mb-1">Latest buy</div>
-                <div className="text-sm font-medium text-[var(--text-primary)]">📈 $1.00 of $lebronjames bought</div>
-                <div className="text-xs text-[var(--text-tertiary)] mt-0.5">from a LeBron market trade</div>
+              {/* Caldera-purple accent row — 'this is what makes us different'.
+                  Pulse dot signals the buyback is live / active. */}
+              <div className="flex items-center gap-2 rounded-lg border border-caldera/20 bg-caldera/5 px-3 py-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-caldera animate-pulse shrink-0" />
+                <span className="text-xs text-text-primary">
+                  1% of every trade buys $lebronjames
+                </span>
               </div>
             </div>
           )}
 
           {current.visual === "earn" && (
-            <div className="w-full max-w-[280px] space-y-2.5">
-              <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">
-                <div className="text-xs text-[var(--text-tertiary)] mb-0.5">Someone trades</div>
-                <div className="text-sm font-semibold text-[var(--text-primary)]">$100 on a LeBron market</div>
+            <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[280px] border border-[var(--border-subtle)]">
+              {/* Header — TRADE label + total */}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                  TRADE
+                </span>
+                <span className="text-sm font-semibold text-text-primary">$100</span>
               </div>
-              <div className="text-center text-[var(--text-tertiary)]">↓</div>
-              <div className="bg-[var(--bg-surface)] rounded-xl px-4 py-3 border border-[var(--border-subtle)] space-y-1">
-                <div className="text-xs text-[var(--text-tertiary)]">2% fee splits</div>
-                <div className="text-sm font-medium text-green-500">$1.00 → buys $lebronjames 📈</div>
-                <div className="text-sm text-[var(--text-tertiary)]">$1.00 → platform</div>
-              </div>
-              <div className="text-center text-[var(--text-tertiary)]">↓</div>
-              <div className="bg-[var(--bg-elevated)] rounded-xl px-4 py-3 border border-[var(--border-subtle)]">
-                <div className="text-xs font-medium text-[var(--text-primary)] text-center leading-relaxed">
-                  Goes straight to LeBron&apos;s wallet<br />on every single trade
+              <div className="my-3 h-px bg-border-subtle" />
+              {/* Fee split — caldera row is the differentiator */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-caldera shrink-0" />
+                    <span className="text-xs text-text-primary">
+                      Buys $lebronjames coin
+                    </span>
+                  </div>
+                  <span className="text-xs font-semibold text-caldera">$1.00</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-text-muted/40 shrink-0" />
+                    <span className="text-xs text-text-muted">Caldera platform</span>
+                  </div>
+                  <span className="text-xs text-text-muted">$1.00</span>
                 </div>
               </div>
+              <div className="my-3 h-px bg-border-subtle" />
+              <p className="text-[11px] text-text-muted leading-relaxed">
+                Coin lands in LeBron&apos;s wallet on every trade. If unclaimed, held safely until he joins.
+              </p>
             </div>
           )}
 
