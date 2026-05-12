@@ -16,6 +16,9 @@ export type HeroCreator = {
    * For tonight, this is null on every card.
    */
   momentum: { changePercent: number | null; comparedTo: "baseline" | "1d" | "7d" } | null;
+  /** Verification signals used by the blue check next to the name. */
+  is_bitclout_original: boolean | null;
+  verification_status: string | null;
 };
 
 export type HeroCard = {

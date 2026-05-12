@@ -17,6 +17,7 @@
 import Link from "next/link";
 import type { HeroCard as HeroCardType } from "./types";
 import { CategoryPill } from "@/components/shared/CategoryPill";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { formatMarketTimeLeft } from "@/lib/utils";
 
 type HeroCardProps = {
@@ -80,10 +81,11 @@ export function HeroCard({ card }: HeroCardProps) {
             <div className="h-8 w-8 shrink-0 rounded-full bg-[var(--bg-elevated)]" />
           )}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span className="truncate text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
                 {creator.name}
               </span>
+              <VerificationBadge creator={creator} />
               {tickerLabel && (
                 <span className="font-mono text-[11px] font-bold uppercase text-[var(--accent)]">
                   {tickerLabel}

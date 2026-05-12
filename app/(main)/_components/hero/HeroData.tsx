@@ -71,6 +71,8 @@ export async function HeroData({ markets }: HeroDataProps) {
       // Real momentum once daily snapshots accumulate; null until then.
       // The card view hides the arrow when changePercent is null.
       momentum: momentumMap.get(slug) ?? null,
+      is_bitclout_original: row.is_bitclout_original,
+      verification_status: row.verification_status,
     };
     return { market: m, creator };
   });
