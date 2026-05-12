@@ -90,20 +90,26 @@ function buildTweetUrl({
   success: TradeSuccess;
 }): string {
   const SIDE = success.side.toUpperCase();
-  const shares = success.shares.toFixed(0);
+  const amountUsd = success.amountUsd.toFixed(2);
   const buybackUsd = (success.amountUsd * CREATOR_COIN_BUY_RATE).toFixed(2);
   let text: string;
 
   if (success.mode === "sell") {
-    text = `Just closed my ${SIDE} position on "${market.title}" on Caldera.\n\ncaldera.market`;
+    const payoutStr =
+      typeof success.payout === "number" ? success.payout.toFixed(2) : amountUsd;
+    text =
+      `Just closed my ${SIDE} position on "${market.title}" for $${payoutStr}.\n\n` +
+      `caldera.market`;
   } else if (!creator) {
-    text = `Just bought ${shares} ${SIDE} shares on "${market.title}" on Caldera.\n\ncaldera.market`;
+    text =
+      `Just bought $${amountUsd} of ${SIDE} on "${market.title}".\n\n` +
+      `caldera.market`;
   } else {
     const coinHandle = creator.deso_username
       ? `$${creator.deso_username.toUpperCase()}`
       : `${creator.name}'s coin`;
     text =
-      `Just bought ${shares} ${SIDE} shares on "${market.title}"\n\n` +
+      `Just bought $${amountUsd} of ${SIDE} on "${market.title}"\n\n` +
       `$${buybackUsd} of every dollar I trade buys ${coinHandle} — ` +
       `${creator.name} inherits it when they claim.\n\n` +
       `caldera.market`;
@@ -156,7 +162,7 @@ export function TradeSuccessModal({
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full rounded-t-2xl border border-border-subtle bg-bg shadow-2xl animate-slide-up md:max-w-[480px] md:rounded-2xl md:animate-none"
+        className="relative z-10 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border-subtle bg-background shadow-2xl animate-slide-up md:max-w-[480px] md:rounded-2xl md:animate-none"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {/* Drag handle — mobile only */}
@@ -180,59 +186,50 @@ export function TradeSuccessModal({
             </span>
           </div>
 
-          {/* Trade summary */}
-          <div className="mb-6 text-center space-y-1">
+          {/* Trade summary — lead with dollar amount per Polymarket convention.
+              Prediction-market language only (no 'bet' / 'stake' / 'wager'). */}
+          <div className="mb-6 text-center space-y-2">
             {isBuy ? (
               <>
-                <p className="text-sm text-text-muted">
+                <p className="text-base font-semibold text-text-primary">
                   You bought{" "}
-                  <span className="font-semibold text-text-primary tabular-nums">
-                    {success.shares.toFixed(1)}
+                  <span className="tabular-nums">
+                    ${success.amountUsd.toFixed(2)}
                   </span>{" "}
+                  of{" "}
                   <span
-                    className={
-                      success.side === "yes"
-                        ? "font-semibold text-yes"
-                        : "font-semibold text-no"
-                    }
+                    className={success.side === "yes" ? "text-yes" : "text-no"}
                   >
                     {SIDE}
-                  </span>{" "}
-                  shares
-                  {pricePerShareCents > 0 && (
-                    <>
-                      {" at "}
-                      <span className="font-semibold text-text-primary tabular-nums">
-                        {pricePerShareCents}¢
-                      </span>
-                    </>
-                  )}
+                  </span>
                 </p>
                 <p className="text-sm font-semibold text-text-primary leading-snug max-w-sm mx-auto">
                   {market.title}
                 </p>
+                {success.shares > 0 && (
+                  <p className="text-xs text-text-muted tabular-nums">
+                    {success.shares.toFixed(1)} shares
+                    {pricePerShareCents > 0 && <> at {pricePerShareCents}¢</>}
+                    {" — pays "}
+                    <span className="font-semibold">${success.shares.toFixed(2)}</span>
+                    {" if correct"}
+                  </p>
+                )}
               </>
             ) : (
               <>
-                <p className="text-sm text-text-muted">
-                  You sold{" "}
-                  <span className="font-semibold text-text-primary tabular-nums">
-                    {success.shares.toFixed(1)}
-                  </span>{" "}
+                <p className="text-base font-semibold text-text-primary">
+                  You closed your{" "}
                   <span
-                    className={
-                      success.side === "yes"
-                        ? "font-semibold text-yes"
-                        : "font-semibold text-no"
-                    }
+                    className={success.side === "yes" ? "text-yes" : "text-no"}
                   >
                     {SIDE}
                   </span>{" "}
-                  shares
+                  position
                   {typeof success.payout === "number" && (
                     <>
                       {" for "}
-                      <span className="font-semibold text-text-primary tabular-nums">
+                      <span className="tabular-nums">
                         ${success.payout.toFixed(2)}
                       </span>
                     </>
@@ -241,6 +238,12 @@ export function TradeSuccessModal({
                 <p className="text-sm font-semibold text-text-primary leading-snug max-w-sm mx-auto">
                   {market.title}
                 </p>
+                {success.shares > 0 && typeof success.payout === "number" && (
+                  <p className="text-xs text-text-muted tabular-nums">
+                    {success.shares.toFixed(1)} shares closed at ~
+                    {Math.round((success.payout / success.shares) * 100)}¢
+                  </p>
+                )}
               </>
             )}
           </div>
