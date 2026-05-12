@@ -6,28 +6,28 @@ const STEPS = [
     number: "1",
     title: "Pick a market",
     description:
-      "Browse markets on any topic. Pick YES or NO based on what you think will happen. Odds shift in real time as others trade.",
+      "Browse markets on any topic. Pick YES or NO based on what you think will happen.",
     visual: "market",
   },
   {
     number: "2",
     title: "Place a trade",
     description:
-      "Connect your DeSo wallet in minutes — and you'll get free DESO to start trading right away. Buy YES or NO at the current price. If your prediction is correct, it pays out at resolution.",
+      "Connect your DeSo wallet in minutes. We'll cover your first trade with free DESO. Win the prediction, win the payout.",
     visual: "trade",
   },
   {
     number: "3",
     title: "Every market is about a creator",
     description:
-      "Every market on Caldera is attached to a creator. When markets are traded, 1% of every fee buys that creator's DeSo coin on the open market.",
+      "Every market on Caldera is attached to a creator. Trading buys their coin, automatically.",
     visual: "token",
   },
   {
     number: "4",
     title: "Creators always benefit",
     description:
-      "If the creator has claimed their profile, the bought coin lands in their wallet on every trade. If not, the coin is held in the platform wallet — waiting for them to join.",
+      "Claimed creators get coins instantly on every trade. Unclaimed creators inherit the full balance when they claim.",
     visual: "earn",
   },
 ];
