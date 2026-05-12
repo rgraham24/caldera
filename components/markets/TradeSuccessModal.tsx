@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { X, Check } from "lucide-react";
 import type { Market, Creator } from "@/types";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { getCreatorDisplayName } from "@/lib/creators/displayName";
 
 type TradeSuccess = {
   shares: number;
@@ -57,7 +58,7 @@ function CreatorAvatar({
   size?: number;
 }) {
   const dim = { width: size, height: size };
-  const initial = (creator.name ?? "?").charAt(0).toUpperCase();
+  const initial = getCreatorDisplayName(creator).charAt(0).toUpperCase();
   if (creator.image_url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -106,12 +107,11 @@ function buildTweetUrl({
       `Just bought $${amountUsd} of ${SIDE} on "${market.title}".\n\n` +
       `caldera.market`;
   } else {
+    const displayName = getCreatorDisplayName(creator);
     const coinHandle = creator.deso_username
       ? `$${creator.deso_username.toUpperCase()}`
-      : creator.name
-        ? `${creator.name}'s coin`
-        : "the creator's coin";
-    const claimSubject = creator.name ?? "the creator";
+      : `${displayName}'s coin`;
+    const claimSubject = displayName;
     text =
       `Just bought $${amountUsd} of ${SIDE} on "${market.title}"\n\n` +
       `1% of every trade buys ${coinHandle} — ${claimSubject} inherits it when they claim.\n\n` +
@@ -144,8 +144,8 @@ export function TradeSuccessModal({
   const buybackUsd = success.amountUsd * CREATOR_COIN_BUY_RATE;
   const coinHandle = creator?.deso_username
     ? `$${creator.deso_username.toUpperCase()}`
-    : creator?.name
-      ? `${creator.name}'s coin`
+    : creator
+      ? `${getCreatorDisplayName(creator)}'s coin`
       : null;
 
   // Approx fill price per share — gross USD divided by shares. Floor at
@@ -317,7 +317,7 @@ export function TradeSuccessModal({
                       <div className="inline-flex items-center gap-2">
                         <CreatorAvatar creator={creator} size={32} />
                         <span className="text-sm font-semibold text-text-primary">
-                          {creator.name}
+                          {getCreatorDisplayName(creator)}
                         </span>
                         <VerificationBadge creator={creator} />
                       </div>
