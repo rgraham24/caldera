@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { useAppStore } from "@/store";
 import { Search, ChevronDown, TrendingUp, Clock } from "lucide-react";
-import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
@@ -178,7 +178,34 @@ function SearchBox({
     return () => document.removeEventListener("mousedown", handler);
   }, [showDropdown]);
 
-  const hasResults = results.markets.length > 0 || results.creators.length > 0;
+  // TODO: remove once full SQL dedup ships (deferred — see audit
+  // 2026-05-11). Keeps search clean while dead stub rows exist.
+  // Same dedup pattern as components/search/SearchOverlay — popular
+  // creators (LeBron, Logan Paul, Elon, etc) have 2-3 name-duplicate
+  // rows; only one is canonical (verified + has deso_public_key).
+  const dedupedCreators = useMemo(() => {
+    const groups = new Map<string, typeof results.creators>();
+    for (const c of results.creators) {
+      const key = (c.name ?? "").toLowerCase().trim();
+      if (!key) continue;
+      const arr = groups.get(key) ?? [];
+      arr.push(c);
+      groups.set(key, arr);
+    }
+    const out: typeof results.creators = [];
+    for (const arr of groups.values()) {
+      if (arr.length === 1) {
+        out.push(arr[0]);
+        continue;
+      }
+      const canonical =
+        arr.find((c) => c.is_bitclout_original && c.deso_public_key) ?? arr[0];
+      out.push(canonical);
+    }
+    return out;
+  }, [results.creators]);
+
+  const hasResults = results.markets.length > 0 || dedupedCreators.length > 0;
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -258,12 +285,12 @@ function SearchBox({
             </div>
           )}
 
-          {!loading && results.creators.length > 0 && (
+          {!loading && dedupedCreators.length > 0 && (
             <div className={`px-2 ${results.markets.length > 0 ? "pt-1" : "pt-2"} pb-2`}>
               <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#55556a" }}>
                 Creators
               </p>
-              {results.creators.map((c) => (
+              {dedupedCreators.map((c) => (
                 <Link
                   key={c.id}
                   href={`/creators/${c.slug}`}

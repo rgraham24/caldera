@@ -17,7 +17,7 @@
  * that opens this.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X, Search } from "lucide-react";
@@ -158,9 +158,38 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
     inputRef.current?.focus();
   };
 
+  // TODO: remove once full SQL dedup ships (deferred — see audit
+  // 2026-05-11). Keeps search clean while dead stub rows exist.
+  // 8 popular creators (LeBron, Logan Paul, Elon, Jake Paul, etc)
+  // have 2-3 rows in creators; only one has is_bitclout_original +
+  // deso_public_key, the others are archived empty stubs.
+  const dedupedCreators = useMemo(() => {
+    const groups = new Map<string, typeof results.creators>();
+    for (const c of results.creators) {
+      const key = (c.name ?? "").toLowerCase().trim();
+      if (!key) continue;
+      const arr = groups.get(key) ?? [];
+      arr.push(c);
+      groups.set(key, arr);
+    }
+    const out: typeof results.creators = [];
+    for (const arr of groups.values()) {
+      if (arr.length === 1) {
+        out.push(arr[0]);
+        continue;
+      }
+      // Multiple rows same name — keep the canonical one (verified +
+      // has a pubkey), drop the archived stubs.
+      const canonical =
+        arr.find((c) => c.is_bitclout_original && c.deso_public_key) ?? arr[0];
+      out.push(canonical);
+    }
+    return out;
+  }, [results.creators]);
+
   const showEmpty = query.trim().length < 2;
   const showNoResults =
-    !showEmpty && !loading && results.markets.length === 0 && results.creators.length === 0;
+    !showEmpty && !loading && results.markets.length === 0 && dedupedCreators.length === 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-bg">
@@ -245,13 +274,13 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
           </p>
         )}
 
-        {!showEmpty && !loading && results.creators.length > 0 && (
+        {!showEmpty && !loading && dedupedCreators.length > 0 && (
           <section className="mb-6">
             <p className="mb-2 text-[11px] uppercase tracking-widest font-semibold text-text-muted">
               Creators
             </p>
             <div className="rounded-xl border border-border-subtle bg-surface overflow-hidden">
-              {results.creators.slice(0, 5).map((c, i, arr) => (
+              {dedupedCreators.slice(0, 5).map((c, i, arr) => (
                 <Link
                   key={c.id}
                   href={`/creators/${c.slug}`}
