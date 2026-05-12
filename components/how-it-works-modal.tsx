@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 const STEPS = [
   {
@@ -97,7 +98,10 @@ export function HowItWorksModal() {
                   alt="realdonaldtrump"
                 />
                 <div>
-                  <div className="text-sm font-semibold text-[var(--text-primary)]">realdonaldtrump</div>
+                  <div className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--text-primary)]">
+                    realdonaldtrump
+                    <VerificationBadge creator={{ is_bitclout_original: true }} size="sm" />
+                  </div>
                   <div className="text-xs text-[var(--text-tertiary)]">392 holders</div>
                 </div>
               </div>
@@ -148,7 +152,10 @@ export function HowItWorksModal() {
                   alt="lebronjames"
                 />
                 <div className="flex-1">
-                  <div className="text-sm font-semibold text-[var(--text-primary)]">$lebronjames</div>
+                  <div className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--text-primary)]">
+                    $lebronjames
+                    <VerificationBadge creator={{ is_bitclout_original: true }} size="sm" />
+                  </div>
                   <div className="text-xs text-[var(--text-tertiary)]">1,573 holders</div>
                 </div>
                 <div className="text-right">
