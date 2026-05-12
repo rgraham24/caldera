@@ -61,6 +61,7 @@ export function MarketDetailClient({
   // users miss it. Toggle is still wired so anyone can collapse.
   const [rulesOpen, setRulesOpen] = useState(true);
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null);
+  const [preselectedSide, setPreselectedSide] = useState<"yes" | "no" | undefined>(undefined);
   const [outcomes, setOutcomes] = useState<MarketOutcome[]>([]);
   const [copied, setCopied] = useState(false);
   const { desoPublicKey, isConnected, setDesoBalance } = useAppStore();
@@ -252,6 +253,25 @@ export function MarketDetailClient({
             )}
           </div>
 
+          {/* Mobile-only inline TradeTicket — sits directly below the
+              probability display, above the chart, so the trade flow is
+              the FIRST thing a phone user sees after the headline.
+              Desktop renders the TradeTicket in the sticky right column
+              instead (lg:hidden / hidden lg:block split below). */}
+          {market.status === "open" && (
+            <div id="trade-ticket-section" className="mb-6 lg:hidden">
+              <TradeTicket
+                market={market}
+                onTradeComplete={refreshBalance}
+                selectedOutcome={selectedOutcome}
+                creatorTokenSymbol={creator?.deso_username ? `$${creator.deso_username.toUpperCase()}` : creator?.creator_coin_symbol ?? undefined}
+                creatorName={creator?.name}
+                creatorClaimed={creator?.claim_status === "claimed"}
+                preselectedSide={preselectedSide}
+              />
+            </div>
+          )}
+
           {/* Chart */}
           {!isResolved && (
             <div className="mb-6 rounded-xl border border-border-subtle bg-surface p-5">
@@ -395,8 +415,10 @@ export function MarketDetailClient({
           <MarketTabs marketId={market.id} comments={comments} creator={creator} trades={trades} />
         </div>
 
-        {/* Right column (35%) — sticky trading panel */}
-        <div id="trade-ticket-section" className="w-full lg:w-[35%]">
+        {/* Right column (35%) — desktop-only sticky trading panel.
+            Mobile renders the TradeTicket inline above the chart in
+            the left column (lg:hidden block earlier). */}
+        <div className="hidden w-full lg:block lg:w-[35%]">
           <div className="sticky top-20 space-y-4">
             {market.status === "open" && (
               <TradeTicket
@@ -406,6 +428,7 @@ export function MarketDetailClient({
                 creatorTokenSymbol={creator?.deso_username ? `$${creator.deso_username.toUpperCase()}` : creator?.creator_coin_symbol ?? undefined}
                 creatorName={creator?.name}
                 creatorClaimed={creator?.claim_status === "claimed"}
+                preselectedSide={preselectedSide}
               />
             )}
 
@@ -434,27 +457,39 @@ export function MarketDetailClient({
       </div>
 
       {/* Mobile sticky bottom Buy YES/NO — sits above the MobileTabBar
-          (64px) and respects safe-area. Tapping scrolls the TradeTicket
-          into view; pre-selecting a side is a future TradeTicket-prop
-          change. Hidden on desktop where the TradeTicket already
-          sticky-pins in the right column. */}
+          (64px) and respects safe-area. Tap pre-selects the side on
+          the inline TradeTicket above, then smooth-scrolls it into the
+          center of the viewport. Hidden on desktop where TradeTicket
+          already sticky-pins in the right column. */}
       {market.status === "open" && (
         <div
           className="fixed inset-x-0 bottom-[64px] z-30 flex gap-2 border-t border-border-subtle bg-surface/95 px-3 py-2.5 backdrop-blur-md md:hidden"
           style={{ paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))" }}
         >
-          <a
-            href="#trade-ticket-section"
+          <button
+            type="button"
+            onClick={() => {
+              setPreselectedSide("yes");
+              document
+                .getElementById("trade-ticket-section")
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
             className="flex-1 min-h-[48px] flex items-center justify-center rounded-lg bg-emerald-500/10 text-sm font-bold text-emerald-400 border border-emerald-500/20 active:scale-[0.98] transition-transform"
           >
             Buy YES {Math.round((market.yes_price ?? 0) * 100)}¢
-          </a>
-          <a
-            href="#trade-ticket-section"
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPreselectedSide("no");
+              document
+                .getElementById("trade-ticket-section")
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
             className="flex-1 min-h-[48px] flex items-center justify-center rounded-lg bg-red-500/10 text-sm font-bold text-red-400 border border-red-500/20 active:scale-[0.98] transition-transform"
           >
             Buy NO {100 - Math.round((market.yes_price ?? 0) * 100)}¢
-          </a>
+          </button>
         </div>
       )}
     </div>

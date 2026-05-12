@@ -24,6 +24,14 @@ type TradeTicketProps = {
   /** True if the creator has claimed their profile. Drives "Goes to $X on every trade" vs "Buys $X coin (held until they join)". */
   creatorClaimed?: boolean;
   initialMode?: "buy" | "sell";
+  /**
+   * Controlled YES/NO side from the parent. When set, syncs the
+   * internal side state to this value (sticky bottom Buy bar on
+   * mobile uses this to pre-select the side before scrolling the
+   * ticket into view). Each new value triggers the sync — same-
+   * value updates are no-ops.
+   */
+  preselectedSide?: "yes" | "no";
 };
 
 type UserPosition = {
@@ -46,9 +54,20 @@ export function TradeTicket({
   creatorName,
   creatorClaimed,
   initialMode,
+  preselectedSide,
 }: TradeTicketProps) {
   const [tradeMode, setTradeMode] = useState<"buy" | "sell">(initialMode ?? "buy");
-  const [side, setSide] = useState<"yes" | "no">("yes");
+  const [side, setSide] = useState<"yes" | "no">(preselectedSide ?? "yes");
+
+  // Sync controlled-from-parent side updates into the local state.
+  // Used by the sticky bottom Buy bar on /markets/[id] to pre-select
+  // YES or NO before scrolling the ticket into view.
+  useEffect(() => {
+    if (preselectedSide && preselectedSide !== side) {
+      setSide(preselectedSide);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectedSide]);
   const [amount, setAmount] = useState("");
   const [sellShares, setSellShares] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
