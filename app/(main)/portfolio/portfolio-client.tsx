@@ -6,6 +6,7 @@ import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { TradeTicket } from "@/components/markets/TradeTicket";
+import { TradeSuccessModal } from "@/components/markets/TradeSuccessModal";
 import { StakeModal } from "@/components/markets/StakeModal";
 import PendingPayouts from "@/components/portfolio/PendingPayouts";
 import { EquityCurve } from "@/components/portfolio/EquityCurve";
@@ -76,6 +77,19 @@ export function PortfolioClient() {
   const [holdingsLoaded, setHoldingsLoaded] = useState(false);
   const [costBasisHolding, setCostBasisHolding] = useState<CoinHolding | null>(null);
   const [tradeModal, setTradeModal] = useState<TradeModal>(null);
+  // Hoisted sell-success state so the confirmation modal survives the
+  // sell-input modal unmounting. TradeTicket hands the payload up via
+  // onSellSuccess; we close tradeModal and render TradeSuccessModal here
+  // so the user only has to dismiss one thing.
+  const [sellSuccess, setSellSuccess] = useState<{
+    market: Market;
+    shares: number;
+    side: string;
+    mode: "sell";
+    amountUsd: number;
+    payout?: number;
+    txHashHex?: string;
+  } | null>(null);
   type CoinTradeModal = { creator: { id: string; name: string; slug: string; deso_username: string | null; deso_public_key: string | null; creator_coin_price: number | null; creator_coin_holders: number | null; creator_coin_market_cap: number | null; markets_count: number | null; image_url: string | null; deso_is_reserved: boolean | null; verification_status: string | null; entity_type: string | null; [key: string]: any; }; initialMode: "buy" | "sell"; } | null;
   const [coinTradeModal, setCoinTradeModal] = useState<CoinTradeModal>(null);
   const [modalLoading, setModalLoading] = useState(false);
@@ -759,18 +773,46 @@ export function PortfolioClient() {
                 so the buy-side fee-breakdown copy never renders. */}
             <TradeTicket
               market={tradeModal.market}
-              // F-12: do NOT close the modal on trade complete. TradeTicket
-              // shows a success card after sell/buy completes. Closing the
-              // modal here unmounts the success view before the user sees
-              // it. Refresh positions in the background and let the user
-              // dismiss via the modal's ✕ button or the success-view
-              // 'View My Portfolio' link.
+              // F-12 (historical): the inline success card used to live
+              // inside TradeTicket, so closing this modal unmounted the
+              // confirmation — we left it open and let the user dismiss
+              // manually. TradeSuccessModal now portals to <body>, but
+              // it's still rendered as a child of TradeTicket. To avoid
+              // the double-dismiss on sell, we hoist the success state:
+              // onSellSuccess captures the payload, closes this modal,
+              // and the parent renders TradeSuccessModal independently.
+              // Buy keeps the old inline behavior (no onSellSuccess prop
+              // → TradeTicket renders its own confirmation in place).
               onTradeComplete={() => { fetchPositions(); }}
+              onSellSuccess={(info) => {
+                if (!tradeModal) return;
+                setSellSuccess({ ...info, market: tradeModal.market });
+                setTradeModal(null);
+                setCoinHoldings([]);
+              }}
               initialMode={tradeModal.initialMode}
             />
           </div>
         </div>
       </div>
+    )}
+
+    {/* Sell-success confirmation — hoisted out of TradeTicket so it
+        survives the sell-input modal closing. See onSellSuccess above. */}
+    {sellSuccess && (
+      <TradeSuccessModal
+        isOpen={true}
+        onClose={() => setSellSuccess(null)}
+        market={sellSuccess.market}
+        success={{
+          shares: sellSuccess.shares,
+          side: sellSuccess.side,
+          mode: sellSuccess.mode,
+          amountUsd: sellSuccess.amountUsd,
+          payout: sellSuccess.payout,
+          txHashHex: sellSuccess.txHashHex,
+        }}
+      />
     )}
 
     {/* Modal loading spinner */}

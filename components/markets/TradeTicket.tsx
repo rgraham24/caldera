@@ -30,6 +30,23 @@ type TradeTicketProps = {
   creatorName?: string;
   /** True if the creator has claimed their profile. Drives "Goes to $X on every trade" vs "Buys $X coin (held until they join)". */
   creatorClaimed?: boolean;
+  /**
+   * If provided, successful sells call this with the success payload
+   * INSTEAD of setting the local tradeSuccess state (which would render
+   * an inline TradeSuccessModal as a child of this component). The
+   * parent is then expected to render its own TradeSuccessModal so the
+   * confirmation survives the parent unmounting its sell-input modal.
+   * Without this prop, sells fall back to the inline-success behavior
+   * used on /markets/[id], where TradeTicket stays mounted on the page.
+   */
+  onSellSuccess?: (info: {
+    shares: number;
+    side: string;
+    mode: "sell";
+    amountUsd: number;
+    payout?: number;
+    txHashHex?: string;
+  }) => void;
   initialMode?: "buy" | "sell";
   /**
    * Controlled YES/NO side from the parent. When set, syncs the
@@ -61,6 +78,7 @@ export function TradeTicket({
   creatorTokenSymbol,
   creatorName,
   creatorClaimed,
+  onSellSuccess,
   initialMode,
   preselectedSide,
 }: TradeTicketProps) {
@@ -232,14 +250,22 @@ export function TradeTicket({
         if (!res.ok) throw new Error(data.error || "Sell failed");
 
         setTradeStatus(null);
-        setTradeSuccess({
+        const sellSuccessInfo = {
           shares: sellSharesNum,
           side: userPosition.side,
-          mode: "sell",
+          mode: "sell" as const,
           amountUsd: sellEstimate ?? sellSharesNum * (userPosition.avgPrice ?? 0),
           payout: typeof data?.returnAmount === "number" ? data.returnAmount : (sellEstimate ?? undefined),
           txHashHex: typeof data?.payoutTxHashHex === "string" ? data.payoutTxHashHex : undefined,
-        });
+        };
+        if (onSellSuccess) {
+          // Parent owns the success modal — handing it the payload lets
+          // the wrapping sell-input modal unmount without taking
+          // TradeSuccessModal down with it.
+          onSellSuccess(sellSuccessInfo);
+        } else {
+          setTradeSuccess(sellSuccessInfo);
+        }
         setSellShares("");
         onTradeComplete?.();
         setUserPosition(null);
