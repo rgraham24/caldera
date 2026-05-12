@@ -102,7 +102,7 @@ export function HowItWorksModal() {
                 </div>
               </div>
               <div className="text-sm font-medium text-[var(--text-primary)] leading-snug mb-3">
-                Will Trump sign a new executive order on tariffs before May 1?
+                Will Trump pardon himself before 2028?
               </div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-2xl font-semibold text-[var(--text-primary)]">71%</span>
