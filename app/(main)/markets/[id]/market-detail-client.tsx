@@ -261,6 +261,7 @@ export function MarketDetailClient({
             <div id="trade-ticket-section" className="mb-6 lg:hidden">
               <TradeTicket
                 market={market}
+                creator={creator}
                 onTradeComplete={refreshBalance}
                 selectedOutcome={selectedOutcome}
                 creatorTokenSymbol={creator?.deso_username ? `$${creator.deso_username.toUpperCase()}` : creator?.creator_coin_symbol ?? undefined}
@@ -421,6 +422,7 @@ export function MarketDetailClient({
             {market.status === "open" && (
               <TradeTicket
                 market={market}
+                creator={creator}
                 onTradeComplete={refreshBalance}
                 selectedOutcome={selectedOutcome}
                 creatorTokenSymbol={creator?.deso_username ? `$${creator.deso_username.toUpperCase()}` : creator?.creator_coin_symbol ?? undefined}

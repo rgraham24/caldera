@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import type { Market, MarketOutcome } from "@/types";
+import type { Market, MarketOutcome, Creator } from "@/types";
+import { TradeSuccessModal } from "./TradeSuccessModal";
 import { getTradeQuote } from "@/lib/trading/amm";
 import {
   FEE_RATE_TOTAL,
@@ -17,6 +18,12 @@ type TradeTicketProps = {
   market: Market;
   onTradeComplete?: () => void;
   selectedOutcome?: MarketOutcome | null;
+  /**
+   * Full creator object — passed to TradeSuccessModal so the post-trade
+   * confirmation can render the creator-coin flow visualization (avatar,
+   * name, verification badge, "Inherits on claim" caption).
+   */
+  creator?: Creator | null;
   /** Display label for the creator coin (e.g. "$ALICE" or "Alice"). Optional. */
   creatorTokenSymbol?: string;
   /** Creator's display name. Optional — used in fee-breakdown copy. */
@@ -50,6 +57,7 @@ export function TradeTicket({
   market,
   onTradeComplete,
   selectedOutcome,
+  creator,
   creatorTokenSymbol,
   creatorName,
   creatorClaimed,
@@ -73,7 +81,14 @@ export function TradeTicket({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
-  const [tradeSuccess, setTradeSuccess] = useState<{ shares: number; side: string; mode: "buy" | "sell"; payout?: number; txHashHex?: string } | null>(null);
+  const [tradeSuccess, setTradeSuccess] = useState<{
+    shares: number;
+    side: string;
+    mode: "buy" | "sell";
+    amountUsd: number;
+    payout?: number;
+    txHashHex?: string;
+  } | null>(null);
   const [userPosition, setUserPosition] = useState<UserPosition>(null);
   const [positionFetching, setPositionFetching] = useState(false);
   const { isConnected, desoPublicKey } = useAppStore();
@@ -195,7 +210,7 @@ export function TradeTicket({
 
         const shares = data?.data?.quote?.sharesReceived ?? quote?.sharesReceived ?? 0;
         setTradeStatus(null);
-        setTradeSuccess({ shares, side, mode: "buy" });
+        setTradeSuccess({ shares, side, mode: "buy", amountUsd: amountNum });
         setAmount("");
         onTradeComplete?.();
       } else {
@@ -221,6 +236,7 @@ export function TradeTicket({
           shares: sellSharesNum,
           side: userPosition.side,
           mode: "sell",
+          amountUsd: sellEstimate ?? sellSharesNum * (userPosition.avgPrice ?? 0),
           payout: typeof data?.returnAmount === "number" ? data.returnAmount : (sellEstimate ?? undefined),
           txHashHex: typeof data?.payoutTxHashHex === "string" ? data.payoutTxHashHex : undefined,
         });
@@ -513,129 +529,15 @@ export function TradeTicket({
         </>
       )}
 
-      {tradeSuccess ? (
-        <div className="space-y-3">
-          <div className={cn(
-            "rounded-2xl border p-5 text-center relative overflow-hidden",
-            tradeSuccess.mode === "buy" && tradeSuccess.side === "yes"
-              ? "bg-emerald-500/10 border-emerald-500/30"
-              : tradeSuccess.mode === "buy" && tradeSuccess.side === "no"
-              ? "bg-red-500/10 border-red-500/30"
-              : "bg-amber-500/10 border-amber-500/20"
-          )}>
-            <div className="text-4xl mb-2">
-              {tradeSuccess.mode === "buy" && tradeSuccess.side === "yes" ? "🚀" : tradeSuccess.mode === "buy" ? "🎯" : "💰"}
-            </div>
-            <p className={cn(
-              "font-bold text-xl mb-1",
-              tradeSuccess.mode === "buy" && tradeSuccess.side === "yes" ? "text-emerald-400"
-              : tradeSuccess.mode === "buy" ? "text-red-400"
-              : "text-amber-400"
-            )}>
-              {tradeSuccess.mode === "buy" ? `You're in!` : `Position Sold`}
-            </p>
-            <p className="text-text-muted text-sm">
-              {tradeSuccess.mode === "buy"
-                ? `${tradeSuccess.shares.toFixed(2)} ${tradeSuccess.side.toUpperCase()} shares`
-                : `${tradeSuccess.shares.toFixed(2)} ${tradeSuccess.side.toUpperCase()} shares sold`}
-            </p>
-            <p className="text-xs text-text-faint mt-1">{market.title}</p>
-          </div>
-
-          {tradeSuccess.mode === "buy" && (
-            <div className="rounded-xl bg-surface border border-border-subtle p-3 space-y-2 text-xs">
-              <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What just happened</p>
-              <div className="flex items-start gap-2 text-text-muted">
-                <span className="shrink-0">🔗</span>
-                <span>Your DESO was transferred on-chain to the Caldera platform wallet</span>
-              </div>
-              <div className="flex items-start gap-2 text-text-muted">
-                <span className="shrink-0">📈</span>
-                <span>
-                  1% covers Caldera operations · 1% {creatorClaimed ? `goes to ${creatorLabel} on every trade` : `buys ${creatorLabel} coin (held until they join)`}
-                </span>
-              </div>
-              <div className="flex items-start gap-2 text-text-muted">
-                <span className="shrink-0">📈</span>
-                <span>Your position is now live. If {tradeSuccess.side.toUpperCase()} wins, you collect your full payout.</span>
-              </div>
-            </div>
-          )}
-
-          {tradeSuccess.mode === "sell" && (
-            <div className="rounded-xl bg-surface border border-border-subtle p-3 space-y-2 text-xs">
-              <p className="text-[9px] uppercase tracking-widest text-text-muted font-semibold">What just happened</p>
-              <div className="flex items-start gap-2 text-text-muted">
-                <span className="shrink-0">💰</span>
-                <span>
-                  Sold {tradeSuccess.shares.toFixed(2)} {tradeSuccess.side.toUpperCase()} shares
-                  {typeof tradeSuccess.payout === "number" && (
-                    <> for <span className="font-mono text-yes">{formatCurrency(tradeSuccess.payout)}</span></>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-start gap-2 text-text-muted">
-                <span className="shrink-0">🔗</span>
-                <span>
-                  DESO transferred to your wallet
-                  {tradeSuccess.txHashHex && (
-                    <>
-                      {" — "}
-                      <a
-                        href={`https://explorer.deso.org/?transaction-id=${tradeSuccess.txHashHex}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-yes hover:underline"
-                      >
-                        view tx
-                      </a>
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={() => {
-              const side = tradeSuccess.side.toUpperCase();
-              const shares = tradeSuccess.shares.toFixed(2);
-              const shareText = tradeSuccess.mode === "buy"
-                ? `I just bought ${side} on "${market.title}" on Caldera 🔥\n\n${shares} shares. Let's go.\n\ncaldera.market`
-                : `I just exited my ${side} position on "${market.title}" on Caldera.\n\ncaldera.market`;
-              const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
-              window.open(tweetUrl, "_blank");
-            }}
-            className="w-full rounded-xl bg-[#1DA1F2]/15 border border-[#1DA1F2]/30 text-[#1DA1F2] font-semibold py-3 text-sm hover:bg-[#1DA1F2]/25 transition-colors flex items-center justify-center gap-2"
-          >
-            🐦 Share on X
-          </button>
-
-          <a
-            href="/portfolio"
-            className="w-full rounded-xl border border-border-subtle text-text-muted font-medium py-3 text-sm hover:text-text-primary hover:border-white/20 transition-colors flex items-center justify-center gap-2"
-          >
-            View My Portfolio →
-          </a>
-
-          <button
-            onClick={() => setTradeSuccess(null)}
-            className="w-full text-xs text-text-faint hover:text-text-muted transition-colors py-1"
-          >
-            Make another trade
-          </button>
+      {tradeStatus && (
+        <div className="mb-3 text-xs text-orange-400 text-center animate-pulse">
+          {tradeStatus}
         </div>
-      ) : (
-        <>
-          {tradeStatus && (
-            <div className="mb-3 text-xs text-orange-400 text-center animate-pulse">
-              {tradeStatus}
-            </div>
-          )}
-          {error && (
-            <p className="mb-3 text-xs text-no">{typeof error === 'string' ? error : JSON.stringify(error)}</p>
-          )}
-          <Button
+      )}
+      {error && (
+        <p className="mb-3 text-xs text-no">{typeof error === 'string' ? error : JSON.stringify(error)}</p>
+      )}
+      <Button
             onClick={handleTrade}
             disabled={
               market.status !== "open" ||
@@ -666,13 +568,19 @@ export function TradeTicket({
               ? `Buy YES — ${selectedOutcome.label}`
               : `Buy ${side.toUpperCase()}`}
           </Button>
-        </>
-      )}
-
       </>
       )}
 
     </div>
+    {tradeSuccess && (
+      <TradeSuccessModal
+        isOpen={true}
+        onClose={() => setTradeSuccess(null)}
+        market={market}
+        creator={creator}
+        success={tradeSuccess}
+      />
+    )}
     </>
   );
 }
