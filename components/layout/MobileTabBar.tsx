@@ -14,35 +14,57 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { House, Search, LayoutGrid, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OPEN_SEARCH_EVENT } from "@/components/search/SearchOverlayRoot";
 
-type Tab = {
+type LucideRef = typeof House;
+
+type LinkTab = {
+  kind: "link";
   href: string;
   label: string;
-  Icon: typeof House;
-  /** A pathname starts-with check; the longest match wins. */
+  Icon: LucideRef;
   match: (path: string) => boolean;
 };
 
+type ActionTab = {
+  kind: "action";
+  label: string;
+  Icon: LucideRef;
+  onClick: () => void;
+  // Action tabs never own a route, so they never match a pathname.
+  match: (path: string) => boolean;
+};
+
+type Tab = LinkTab | ActionTab;
+
 const TABS: Tab[] = [
   {
+    kind: "link",
     href: "/",
     label: "Home",
     Icon: House,
     match: (p) => p === "/",
   },
   {
-    href: "/search",
+    // Search no longer routes to /search — opens the global SearchOverlay
+    // directly via a custom event. SearchOverlayRoot in the (main) layout
+    // listens and toggles open. Active state piggybacks on /search so
+    // deep-links into /search still highlight the tab.
+    kind: "action",
     label: "Search",
     Icon: Search,
+    onClick: () => window.dispatchEvent(new CustomEvent(OPEN_SEARCH_EVENT)),
     match: (p) => p.startsWith("/search"),
   },
   {
+    kind: "link",
     href: "/markets",
     label: "Markets",
     Icon: LayoutGrid,
     match: (p) => p.startsWith("/markets"),
   },
   {
+    kind: "link",
     href: "/more",
     label: "More",
     Icon: Menu,
@@ -62,30 +84,48 @@ export function MobileTabBar() {
         {TABS.map((tab) => {
           const active = tab.match(pathname);
           const { Icon } = tab;
-          return (
-            <li key={tab.href} className="flex-1">
-              <Link
-                href={tab.href}
+          const innerClassName = cn(
+            "flex h-full w-full flex-col items-center justify-center gap-1 transition-colors",
+            active ? "text-caldera" : "text-text-muted hover:text-text-primary"
+          );
+          const inner = (
+            <>
+              <Icon
+                size={22}
+                strokeWidth={1.5}
+                className={active ? "fill-caldera/15" : ""}
+              />
+              <span
                 className={cn(
-                  "flex h-full w-full flex-col items-center justify-center gap-1 transition-colors",
-                  active ? "text-caldera" : "text-text-muted hover:text-text-primary"
+                  "text-[10px] leading-none",
+                  active ? "font-semibold" : "font-medium"
                 )}
-                aria-current={active ? "page" : undefined}
               >
-                <Icon
-                  size={22}
-                  strokeWidth={1.5}
-                  className={active ? "fill-caldera/15" : ""}
-                />
-                <span
-                  className={cn(
-                    "text-[10px] leading-none",
-                    active ? "font-semibold" : "font-medium"
-                  )}
+                {tab.label}
+              </span>
+            </>
+          );
+
+          return (
+            <li key={tab.label} className="flex-1">
+              {tab.kind === "link" ? (
+                <Link
+                  href={tab.href}
+                  className={innerClassName}
+                  aria-current={active ? "page" : undefined}
                 >
-                  {tab.label}
-                </span>
-              </Link>
+                  {inner}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={tab.onClick}
+                  className={innerClassName}
+                  aria-label={tab.label}
+                >
+                  {inner}
+                </button>
+              )}
             </li>
           );
         })}

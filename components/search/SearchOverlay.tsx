@@ -117,6 +117,14 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
+        // TODO(search-api): /api/search has two issues observed during
+        // Mobile Push 2 architecture pass — NOT fixed here, separate
+        // chunk. (1) Its .select on creators omits creator_coin_market_cap,
+        // so this overlays MKT CAP subtitle never renders. (2) Its .or(
+        // `name.ilike.%${q}%,slug.ilike.%${q}%`) is built by string-
+        // concat — a q containing comma, paren, or backslash will
+        // mangle the PostgREST filter and return empty results. Fix
+        // is to .ilike on each field separately or sanitize q.
         const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
         const data = res.ok ? await res.json() : { markets: [], creators: [] };
         setResults({

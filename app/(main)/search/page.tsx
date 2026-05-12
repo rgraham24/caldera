@@ -1,11 +1,12 @@
 /**
- * /search — creator-led browse hub. Mobile-first but also legitimate
- * desktop nav surface. Mirrors the Polymarket Search pattern: a search
- * input at the top, then quick-browse pill row, then top creators,
- * then topic tiles.
+ * /search — creator-led browse hub. Pure browse — no input.
  *
- * Text search itself is wired up in Push 2 — for Push 1 this page is
- * a static browse hub. The input is a placeholder.
+ * Text search lives in a global overlay that the bottom tab bars
+ * Search tab opens directly (no navigation to /search just to
+ * type). This page is the destination for users who tap a BROWSE
+ * pill or TOPIC tile from inside the overlay, or who deep-link
+ * here from elsewhere. The overlay is mounted at the layout level
+ * in app/(main)/layout.tsx via <SearchOverlayRoot />.
  */
 
 import Link from "next/link";
@@ -13,7 +14,6 @@ import { Sparkles, TrendingUp, Flame, Droplet, Clock } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatCompactCurrency } from "@/lib/utils";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
-import { SearchInputTrigger } from "@/components/search/SearchInputTrigger";
 import type { Creator } from "@/types";
 
 export const revalidate = 60;
@@ -67,11 +67,6 @@ export default async function SearchPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 pt-6 pb-12 md:px-6 lg:px-8">
-      {/* Search input — tap opens the SearchOverlay client component */}
-      <div className="mb-8">
-        <SearchInputTrigger />
-      </div>
-
       {/* Browse pills */}
       <section className="mb-8">
         <h2 className="section-header mb-3 text-xs uppercase tracking-widest text-text-muted">
