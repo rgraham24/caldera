@@ -137,6 +137,92 @@ export function TradeSuccessModal({
     setMounted(true);
   }, []);
 
+  // ── TEMP DIAGNOSTIC — branch debug/modal-position ──
+  // Logs the rendered modal's getBoundingClientRect + computed style +
+  // parent metadata so we can see where it ACTUALLY lands instead of
+  // where we assume it lands. Will be reverted after diagnosis.
+  useEffect(() => {
+    if (!mounted || !isOpen) return;
+    // Defer one rAF so the DOM is settled after the portal mount.
+    const id = requestAnimationFrame(() => {
+      const modal = document.querySelector('[data-modal-id="trade-success"]');
+      if (!modal) {
+        console.log("[modal-debug] NOT FOUND in DOM");
+        return;
+      }
+      const panel = modal.querySelector('[data-modal-panel="true"]');
+      const rect = modal.getBoundingClientRect();
+      const panelRect = panel?.getBoundingClientRect();
+      const computed = window.getComputedStyle(modal);
+      console.log("[modal-debug] outer", {
+        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+        position: computed.position,
+        zIndex: computed.zIndex,
+        transform: computed.transform,
+        filter: computed.filter,
+        parent: modal.parentElement?.tagName,
+        parentClass: modal.parentElement?.className,
+        parentId: modal.parentElement?.id,
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+        scrollY: window.scrollY,
+      });
+      if (panel) {
+        console.log("[modal-debug] panel", {
+          rect: panelRect
+            ? { top: panelRect.top, left: panelRect.left, width: panelRect.width, height: panelRect.height }
+            : null,
+          panelZ: window.getComputedStyle(panel).zIndex,
+          panelPosition: window.getComputedStyle(panel).position,
+        });
+      }
+      // Walk ancestors of the modal element to find any with a stacking
+      // context-creating property. If portal worked correctly the
+      // ancestor chain should be very short (body → modal).
+      const ancestors: Array<Record<string, unknown>> = [];
+      let el: HTMLElement | null = modal.parentElement;
+      let depth = 0;
+      while (el && depth < 20) {
+        const cs = window.getComputedStyle(el);
+        const transform = cs.transform;
+        const filter = cs.filter;
+        const willChange = cs.willChange;
+        const contain = cs.contain;
+        const isolation = cs.isolation;
+        const zIndex = cs.zIndex;
+        const position = cs.position;
+        // Only log ancestors with potentially-trapping properties.
+        if (
+          (transform && transform !== "none") ||
+          (filter && filter !== "none") ||
+          willChange === "transform" ||
+          (contain && contain !== "none") ||
+          isolation === "isolate" ||
+          (position !== "static" && zIndex !== "auto")
+        ) {
+          ancestors.push({
+            depth,
+            tag: el.tagName,
+            id: el.id || null,
+            className: el.className || null,
+            position,
+            zIndex,
+            transform: transform === "none" ? null : transform,
+            filter: filter === "none" ? null : filter,
+            willChange,
+            contain,
+            isolation,
+          });
+        }
+        el = el.parentElement;
+        depth++;
+      }
+      console.log("[modal-debug] potentially-trapping ancestors", ancestors);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [mounted, isOpen]);
+  // ────────────────────────────────────────────────────
+
   if (!isOpen || !mounted) return null;
 
   const isBuy = success.mode === "buy";
@@ -175,14 +261,16 @@ export function TradeSuccessModal({
   // context, and (as later DOM) wins the tiebreaker.
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-start md:overflow-y-auto md:px-4"
+      data-modal-id="trade-success"
+      className="fixed inset-0 z-50 flex items-end justify-center md:items-start md:overflow-y-auto md:px-4 border-4 border-red-500"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border-subtle bg-background shadow-2xl animate-slide-up md:max-w-[480px] md:my-[5vh] md:rounded-2xl md:animate-none"
+        data-modal-panel="true"
+        className="relative z-10 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border-4 border-yellow-500 bg-background shadow-2xl animate-slide-up md:max-w-[480px] md:my-[5vh] md:rounded-2xl md:animate-none"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {/* Drag handle — mobile only */}
