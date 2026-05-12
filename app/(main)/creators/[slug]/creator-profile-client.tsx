@@ -223,7 +223,7 @@ export function CreatorProfileClient({
                 {displayName} earns 1% of every trade
               </p>
               <p className="mx-auto mt-4 max-w-xl text-center text-sm leading-relaxed text-text-muted md:text-base">
-                Auto-buys {coinLabel} on every market trade.
+                Every trade buys {coinLabel} coin and goes directly to {displayName} — automatically, on every market.
                 {isUnclaimed && (
                   <> {displayName} inherits the full balance when they claim.</>
                 )}
@@ -270,7 +270,7 @@ export function CreatorProfileClient({
         {buybacks.length > 0 && (
           <section className="mb-12">
             <h2 className="mb-4 text-[10px] uppercase tracking-widest text-text-muted">
-              Buyback activity
+              Earnings activity
             </h2>
             <div className="divide-y divide-border-subtle/40 overflow-hidden rounded-2xl border border-border-subtle/40 bg-surface">
               {buybacks.map((e) => (
