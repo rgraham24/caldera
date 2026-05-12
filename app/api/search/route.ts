@@ -13,10 +13,10 @@ export async function GET(req: NextRequest) {
   const [creatorsRes, marketsRes] = await Promise.all([
     supabase
       .from("creators")
-      .select("id, slug, name, image_url, creator_coin_symbol")
+      .select("id, slug, name, image_url, creator_coin_symbol, deso_public_key, is_bitclout_original, verification_status, creator_coin_market_cap")
       .or(`name.ilike.%${q}%,slug.ilike.%${q}%`)
       .not("entity_type", "eq", "category")
-      .limit(5),
+      .limit(8),
     supabase
       .from("markets")
       .select("id, slug, title, category, yes_price")

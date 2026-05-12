@@ -25,6 +25,8 @@ type CreatorRow = {
   deso_username: string | null;
   image_url: string | null;
   creator_coin_symbol: string | null;
+  is_bitclout_original: boolean | null;
+  verification_status: string | null;
 };
 
 export async function HeroData({ markets }: HeroDataProps) {
@@ -40,7 +42,7 @@ export async function HeroData({ markets }: HeroDataProps) {
     creatorSlugs.length
       ? supabase
           .from("creators")
-          .select("slug, name, deso_username, image_url, creator_coin_symbol")
+          .select("slug, name, deso_username, image_url, creator_coin_symbol, is_bitclout_original, verification_status")
           .in("slug", creatorSlugs)
       : Promise.resolve({ data: [] as CreatorRow[] }),
     refreshCreatorCoinPrices(creatorSlugs),

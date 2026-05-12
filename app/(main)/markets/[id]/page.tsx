@@ -45,12 +45,19 @@ export default async function MarketDetailPage({
   );
   let creatorByDesoKey = new Map<string, { slug: string; name: string; image_url: string | null; deso_username: string | null }>();
   if (commentUserKeys.length > 0) {
-    const { data: commentCreators } = await supabase
+    // Cast through any: is_bitclout_original / verification_status exist on the
+    // creators table but aren't in the generated database.types.ts yet; the
+    // typed builder rejects the column names without this. (Same pattern as
+    // app/(main)/creators/page.tsx which stores SLIM_COLUMNS as a const string
+    // to dodge the column-existence check.)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: commentCreators } = await (supabase as any)
       .from("creators")
-      .select("slug, name, image_url, deso_username, deso_public_key")
+      .select("slug, name, image_url, deso_username, deso_public_key, is_bitclout_original, verification_status")
       .in("deso_public_key", commentUserKeys);
     creatorByDesoKey = new Map(
-      (commentCreators ?? []).map((c) => [
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((commentCreators ?? []) as Array<any>).map((c) => [
         c.deso_public_key as string,
         {
           slug: c.slug as string,
@@ -106,11 +113,13 @@ export default async function MarketDetailPage({
     // Skip refetch if the comments lookup already covered the same keys.
     const missing = tradeUserKeys.filter((k) => !creatorByDesoKey.has(k));
     if (missing.length > 0) {
-      const { data: tradeCreators } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: tradeCreators } = await (supabase as any)
         .from("creators")
-        .select("slug, name, image_url, deso_public_key")
+        .select("slug, name, image_url, deso_public_key, is_bitclout_original, verification_status")
         .in("deso_public_key", missing);
-      for (const c of tradeCreators ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const c of (tradeCreators ?? []) as Array<any>) {
         tradeCreatorByKey.set(c.deso_public_key as string, {
           slug: c.slug as string,
           name: c.name as string,
