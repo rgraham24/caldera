@@ -20,6 +20,8 @@
  * Sell flow skips that section — sells dont trigger the 1% buyback.
  */
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X, Check } from "lucide-react";
 import type { Market, Creator } from "@/types";
@@ -127,7 +129,15 @@ export function TradeSuccessModal({
 }: TradeSuccessModalProps) {
   const router = useRouter();
 
-  if (!isOpen) return null;
+  // SSR guard for createPortal — document.body doesnt exist on the
+  // server. mounted flips true on first client render, after which
+  // the portal target is safe to reference.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const isBuy = success.mode === "buy";
   const SIDE = success.side.toUpperCase();
@@ -154,7 +164,16 @@ export function TradeSuccessModal({
     onClose();
   };
 
-  return (
+  // Portal to document.body so the modal escapes any ancestor
+  // stacking-context trap. TradeTickets root div uses the
+  // 'trade-panel-glow' class which (almost certainly) applies a
+  // transform/filter that pins descendant 'position: fixed'
+  // elements into its stacking context — preventing the modal
+  // from painting over the live ticker + TopNav even at z-50.
+  // Portaling makes the modal a direct <body> child so its z-50
+  // compares cleanly with the ticker's z-50 in the body's stacking
+  // context, and (as later DOM) wins the tiebreaker.
+  const modalContent = (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center md:items-start md:overflow-y-auto md:px-4"
       onClick={(e) => {
@@ -337,4 +356,6 @@ export function TradeSuccessModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
