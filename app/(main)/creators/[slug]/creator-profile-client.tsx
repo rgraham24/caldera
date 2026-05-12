@@ -1,114 +1,208 @@
 "use client";
 
-/**
- * Creator earnings dashboard — the public, shareable surface that
- * shows what a creator is (or would be) earning on Caldera.
- *
- * Layout, top to bottom:
- *   1. Hero strip — avatar + display name + handle + status line
- *   2. The Big Number — accrued $ if isPreLaunch=false, else "Ready
- *      to earn" framing. One headline. No competing numbers.
- *   3. 4-tile KPI strip
- *   4. Buyback activity feed (hidden when empty)
- *   5. Active markets grid (top 6)
- *   6. Top holders (hidden when none)
- *   7. Sticky-bottom claim CTA on mobile (unclaimed only)
- *
- * "Real" earnings come from buyback_events via getCreatorEarnings on
- * the server. The page never renders a $0.00 primary number — the
- * pre-launch fallback exists for that case.
- */
-
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import { useAppStore } from "@/store";
-import { formatCurrency, formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
-import { getCreatorDisplayName } from "@/lib/creators/displayName";
-import type { CreatorEarnings } from "@/lib/creators/earnings";
 import type { Creator, Market } from "@/types";
-
+import { formatCurrency, formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
+import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { MarketCard } from "@/components/markets/MarketCard";
-import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
-import { VerificationBadge } from "@/components/ui/VerificationBadge";
-import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
+import dynamic from "next/dynamic";
 
+// Modal — only mounts when Buy button clicked
 const StakeModal = dynamic(
-  () =>
-    import("@/components/markets/StakeModal").then((m) => ({
-      default: m.StakeModal,
-    })),
+  () => import("@/components/markets/StakeModal").then((m) => ({ default: m.StakeModal })),
   { ssr: false }
 );
-
-const HolderLeaderboard = dynamic(
-  () =>
-    import("@/components/creators/HolderLeaderboard").then((m) => ({
-      default: m.HolderLeaderboard,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-32 animate-pulse rounded-2xl bg-surface-2" />
-    ),
-  }
+// Chart uses Recharts — lazy-load below fold
+const MarketChart = dynamic(
+  () => import("@/components/markets/MarketChart").then((m) => ({ default: m.MarketChart })),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-xl bg-surface-2" /> }
 );
+import { ClaimProfileModal } from "@/components/shared/ClaimProfileModal";
+import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
+import { EarningsPreview } from "@/components/creators/EarningsPreview";
+// Leaderboard — below the fold, deferred
+const HolderLeaderboard = dynamic(
+  () => import("@/components/creators/HolderLeaderboard").then((m) => ({ default: m.HolderLeaderboard })),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-xl bg-surface-2" /> }
+);
+import { FollowButton } from "@/components/shared/FollowButton";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { useAppStore } from "@/store";
+import { getDesoIdentity } from "@/lib/deso/identity";
+
+const REASON_MESSAGES: Record<string, string> = {
+  "profile-not-verified": "Profile not yet verified for claim.",
+  "not-claimer": "Only the verified claimer can claim this profile.",
+  "no-balance": "No balance to claim.",
+  "claim-in-progress": "Another claim is already in progress.",
+  "amount-too-small": "Amount too small to claim — accrue more first.",
+  "platform-insufficient-funds":
+    "Platform funds too low — admin notified. Try again later.",
+  "price-fetch-failed": "Couldn't fetch current DESO price. Try again.",
+  "ledger-update-failed":
+    "Sent on-chain but ledger update failed. Admin will reconcile.",
+  "concurrent-claim-or-state-changed":
+    "Profile state changed during claim. Refresh and try again.",
+};
+
+function reasonToMessage(reason: string): string {
+  return REASON_MESSAGES[reason] ?? `Claim failed: ${reason}`;
+}
 
 type BuybackEvent = {
   id: string;
   market_id: string;
   market_title: string | null;
+  creator_slug: string | null;
+  team_slug: string | null;
+  league_slug: string | null;
   trade_amount_usd: number;
   personal_buyback_usd: number;
+  team_buyback_usd: number;
+  league_buyback_usd: number;
+  platform_fee_usd: number;
   created_at: string;
 };
 
 type CreatorProfileClientProps = {
   creator: Creator;
   markets: Market[];
-  earnings: CreatorEarnings;
+  holderEarnings: number;
+  unclaimedEarnings?: number;
+  recentTrades: Array<{
+    id: string;
+    side: string;
+    quantity: number;
+    price: number;
+    created_at: string;
+    market: { title: string; slug: string };
+  }>;
   claimUrl?: string | null;
 };
 
 export function CreatorProfileClient({
   creator,
   markets,
-  earnings,
+  holderEarnings,
+  unclaimedEarnings = 0,
+  recentTrades,
   claimUrl,
 }: CreatorProfileClientProps) {
-  const displayName = getCreatorDisplayName(creator);
-  const isUnclaimed = creator.claim_status !== "claimed";
-  const coinSymbol =
-    creator.creator_coin_symbol ||
-    creator.deso_username ||
-    displayName;
-  const coinLabel = `$${coinSymbol.toUpperCase()}`;
-
   const { desoPublicKey } = useAppStore();
+  // Owner view: when the connected wallet matches this creator's
+  // deso_public_key, hide the "Claim this profile" / "Tweet at X to
+  // claim" prompts (the claim flow is for OTHER people to invite this
+  // creator to claim — pointless when the creator is already viewing
+  // their own page) and surface an "Edit on DeSo" link instead.
   const isOwner = Boolean(
     desoPublicKey && creator.deso_public_key === desoPublicKey
   );
-
-  const [livePrice, setLivePrice] = useState<number | null>(
-    creator.creator_coin_price ?? null
-  );
-  const [livePic, setLivePic] = useState<string | null>(
-    creator.profile_pic_url ?? null
-  );
-  const [desoUser, setDesoUser] = useState<string | null>(
-    creator.deso_username ?? null
-  );
-  const [isLive, setIsLive] = useState(false);
+  const desoEditUrl = creator.deso_username
+    ? `https://diamondapp.com/u/${creator.deso_username}/edit-profile`
+    : null;
 
   const [showStakeModal, setShowStakeModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
-  const [buybacks, setBuybacks] = useState<BuybackEvent[]>([]);
+
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<null | {
+    profileClaimed: boolean;
+    txHashHex: string | null;
+    amountNanos: string;
+    escrowUsd: string;
+  }>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [marketTitle, setMarketTitle] = useState('');
+  const [resolveDate, setResolveDate] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState(false);
+  const [livePrice, setLivePrice] = useState(creator.creator_coin_price);
+  const [livePic, setLivePic] = useState<string | null>(creator.profile_pic_url);
+  const [desoUser, setDesoUser] = useState<string | null>(creator.deso_username);
+  const [isLive, setIsLive] = useState(false);
+  const [buybacks, setBuybacks] = useState<{ events: BuybackEvent[]; totalBuyback: number }>({ events: [], totalBuyback: 0 });
+
+  async function handleClaim() {
+    setClaimError(null);
+    setClaimLoading(true);
+    try {
+      const identity = getDesoIdentity();
+      let desoJwt: string;
+      try {
+        desoJwt = await identity.jwt();
+      } catch (e) {
+        setClaimError(
+          e instanceof Error ? e.message : "Failed to get wallet signature"
+        );
+        setClaimLoading(false);
+        return;
+      }
+
+      const res = await fetch(`/api/creators/${creator.slug}/claim`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ desoJwt }),
+      });
+      const json = await res.json();
+
+      if (res.ok && json.ok) {
+        setClaimResult({
+          profileClaimed: !!json.profileClaimed,
+          txHashHex: json.txHashHex ?? null,
+          amountNanos: json.amountNanos ?? "0",
+          escrowUsd: json.escrowUsd ?? "0",
+        });
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
+      } else {
+        setClaimError(reasonToMessage(json.reason ?? json.error ?? "Claim failed"));
+      }
+    } catch (e) {
+      setClaimError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setClaimLoading(false);
+    }
+  }
+
+  const handleCreateMarket = async () => {
+    if (!marketTitle.trim() || !resolveDate) return;
+    setCreating(true);
+    setCreateError('');
+    try {
+      const res = await fetch('/api/markets/create-fan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: marketTitle.trim(),
+          creatorSlug: creator.slug,
+          creatorName: creator.name,
+          resolveAt: resolveDate,
+          category: 'Creators',
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setCreateSuccess(true);
+      setShowCreateModal(false);
+      window.location.reload();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create market');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/creators/${creator.slug}/buybacks`)
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data?.events)) setBuybacks(data.events.slice(0, 10));
+        if (data && !data.error) setBuybacks(data);
       })
       .catch(() => {});
   }, [creator.slug]);
@@ -117,246 +211,501 @@ export function CreatorProfileClient({
     fetch(`/api/creators/${creator.slug}/coin-data`)
       .then((r) => r.json())
       .then(({ data }) => {
-        if (!data) return;
-        if (typeof data.priceUSD === "number") setLivePrice(data.priceUSD);
-        if (data.profilePicUrl) setLivePic(data.profilePicUrl);
-        if (data.desoUsername) setDesoUser(data.desoUsername);
-        setIsLive(Boolean(data.live));
+        if (data) {
+          setLivePrice(data.priceUSD);
+          if (data.profilePicUrl) setLivePic(data.profilePicUrl);
+          if (data.desoUsername) setDesoUser(data.desoUsername);
+          setIsLive(data.live);
+        }
       })
       .catch(() => {});
   }, [creator.slug]);
 
+  useEffect(() => {
+    if (!createSuccess) return;
+    const t = setTimeout(() => setCreateSuccess(false), 3000);
+    return () => clearTimeout(t);
+  }, [createSuccess]);
+
   const openMarkets = markets.filter((m) => m.status === "open");
-  const visibleMarkets = [...openMarkets]
+  const resolvedMarkets = markets.filter((m) => m.status === "resolved");
+
+  // Display-side curation: render only the top 15 open markets by trending_score
+  // on the Active Markets list. Aggregates (EarningsPreview, Stats, total volume)
+  // continue to use the full `markets` / `openMarkets` arrays. The long tail
+  // remains accessible via direct URLs.
+  const visibleOpenMarkets = [...openMarkets]
     .sort((a, b) => (b.trending_score ?? 0) - (a.trending_score ?? 0))
-    .slice(0, 6);
-  const totalVolume = markets.reduce(
-    (s, m) => s + Number(m.total_volume ?? 0),
-    0
-  );
-
-  const openClaim = () => {
-    if (claimUrl) {
-      window.location.href = claimUrl;
-    } else {
-      setShowClaimModal(true);
-    }
-  };
-
-  const scrollToMarkets = () => {
-    document
-      .getElementById("active-markets")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const showStickyClaim = isUnclaimed && !isOwner;
-  const showHolders =
-    creator.claim_status === "claimed" ||
-    (creator.creator_coin_holders ?? 0) > 0;
+    .slice(0, 15);
+  const coinSymbol = desoUser || creator.creator_coin_symbol;
+  const isCryptoCreator = (creator.category ?? "").toLowerCase() === "crypto";
 
   return (
     <>
-      <div className="mx-auto max-w-4xl px-4 py-10 md:px-6 md:py-16">
-        {/* ── HERO STRIP ────────────────────────────────────────── */}
-        <section className="mb-10 flex flex-col items-center gap-5 text-center md:mb-12 md:flex-row md:items-center md:gap-6 md:text-left">
-          <CreatorAvatar
-            creator={creator}
-            size="lg"
-            className="h-24 w-24 shrink-0"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-center gap-2 md:justify-start">
-              <h1 className="truncate font-display text-3xl font-bold tracking-tight text-text-primary md:text-4xl">
-                {displayName}
-              </h1>
-              <VerificationBadge creator={creator} size="md" />
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
+        {/* ── Claim success banner ── */}
+        {claimResult && (
+          <div className="rounded-xl border border-yes/30 bg-yes/10 p-4 mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-yes">
+                ✓ {claimResult.profileClaimed ? "Profile claimed" : "Withdrawn"}
+                {Number(claimResult.escrowUsd) > 0 &&
+                  ` · $${Number(claimResult.escrowUsd).toFixed(4)} sent`}
+              </div>
+              {claimResult.txHashHex && (
+                <div className="text-xs text-text-muted mt-1">
+                  <a
+                    href={`https://explorer.deso.org/?transaction-id=${claimResult.txHashHex}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    view tx
+                  </a>
+                  {" · refreshing in 5s…"}
+                </div>
+              )}
             </div>
-            {desoUser && (
-              <p className="mt-1 text-sm text-text-muted">@{desoUser}</p>
-            )}
-            <p className="mt-3 text-[10px] uppercase tracking-widest text-text-muted">
-              {isUnclaimed ? "Reserved profile" : "Profile claimed"}
+            <button
+              onClick={() => setClaimResult(null)}
+              className="text-text-muted hover:text-text-primary text-lg leading-none"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* ── Owner view — visible only when the connected wallet IS this creator. ── */}
+        {isOwner && (
+          <div
+            className="mb-6 rounded-2xl p-5"
+            style={{ background: "rgba(124,92,252,0.06)", border: "1px solid rgba(124,92,252,0.20)" }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-text-primary mb-1">
+                  This is your profile
+                </p>
+                <p className="text-sm text-text-muted">
+                  Bio, avatar, and verification all sync from your DeSo
+                  profile on every login.
+                </p>
+              </div>
+              {desoEditUrl && (
+                <a
+                  href={desoEditUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Edit on DeSo →
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Unclaimed earnings claim banner (approved creators only, hidden for owner) ── */}
+        {!isOwner && creator.verification_status === "approved" && creator.claim_status !== "claimed" && (
+          <div
+            className="mb-6 rounded-2xl p-5"
+            style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.20)" }}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-xl mt-0.5">🔒</span>
+              <div className="flex-1">
+                <p className="font-semibold text-text-primary mb-1">This coin is unclaimed</p>
+                {unclaimedEarnings > 0 && (
+                  <p className="text-sm text-text-muted mb-3">
+                    <span className="text-amber-400 font-semibold">${unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    {" "}has accumulated, held until they claim their profile — these are creator coin buys held in the platform wallet, waiting for {creator.name} to claim.
+                  </p>
+                )}
+                <p className="text-sm text-text-muted mb-4">
+                  Are you <span className="text-text-primary font-medium">{creator.name}</span>? Claim your coin to start
+                  earning <span className="text-orange-400 font-medium">1%</span> of every future market trade —
+                  sent directly to your wallet.
+                </p>
+                {(() => {
+                  const isVerifiedClaimer =
+                    desoPublicKey &&
+                    (creator.claim_attempted_by === desoPublicKey ||
+                      creator.deso_public_key === desoPublicKey);
+
+                  if (!isVerifiedClaimer) return null;
+
+                  const escrowAmount = unclaimedEarnings ?? 0;
+                  const buttonLabel =
+                    escrowAmount > 0
+                      ? `Claim profile and $${escrowAmount.toFixed(4)}`
+                      : "Claim profile";
+
+                  return (
+                    <div>
+                      <button
+                        onClick={handleClaim}
+                        disabled={claimLoading || !!claimResult}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+                      >
+                        {claimLoading ? "Claiming…" : buttonLabel}
+                      </button>
+                      {claimError && (
+                        <div className="text-xs text-no mt-2">{claimError}</div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Token status banner — claim CTA + Tweet-at-X. Hidden for owner. */}
+        {!isOwner && (creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
+          <div className="mb-6 rounded-2xl border border-border-subtle/30 bg-surface p-5">
+            <p className="text-sm font-medium text-text-primary mb-2">📊 Prediction Market</p>
+            <p className="text-sm text-text-muted mb-3">
+              {openMarkets.length} active market{openMarkets.length !== 1 ? "s" : ""} ·{" "}
+              Coin earnings: <span className="text-amber-400">Not yet active</span>
+            </p>
+            <p className="text-xs text-text-muted mb-3">
+              Community fees are held until this profile is claimed.
+            </p>
+            <p className="text-xs text-text-muted mb-2">
+              Are you {creator.name}? Claim this profile to:
+            </p>
+            <ul className="text-xs text-text-muted space-y-1 mb-3">
+              <li>→ Receive a platform fee every time someone predicts about you — automatically</li>
+              <li>→ Let your fans buy your coin and hold alongside you</li>
+              <li>→ See everything people are predicting about you</li>
+            </ul>
+            <div className="flex flex-wrap items-center gap-3">
+              {claimUrl ? (
+                <Link
+                  href={claimUrl}
+                  className="text-sm font-semibold text-caldera hover:text-caldera/80 underline underline-offset-2"
+                >
+                  Claim this profile →
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setShowClaimModal(true)}
+                  className="text-sm font-medium text-caldera hover:text-caldera/80"
+                >
+                  Claim this profile →
+                </button>
+              )}
+            </div>
+            <div className="mt-3 pt-3 border-t border-orange-500/20">
+              <p className="text-xs text-muted-foreground mb-2">
+                Know {creator.name}? Tell them about their Caldera profile:
+              </p>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — fans are making predictions about you on @CalderaMarket and your coin is earning fees right now. Claim it free at caldera.market/claim/${creator.slug} 🔥`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-400/30 text-xs text-blue-400 hover:bg-blue-400/10 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                Tweet at {creator.name} to claim →
+              </a>
+            </div>
+          </div>
+        )}
+        {creator.token_status === "active_unverified" && isCryptoCreator && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              Every buy trade on {creator.name}&apos;s markets uses 1% of the trade to buy ${coinSymbol} on DeSo. When {creator.name} claims their account, those coins flow directly to their wallet on every trade.
             </p>
           </div>
-        </section>
+        )}
+        {creator.token_status === "needs_review" && (
+          <div className="mb-6 rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
+            <p className="text-sm text-text-muted">
+              ⚠️ This DeSo account has not been verified. Coin earnings are paused pending review.
+            </p>
+          </div>
+        )}
+        {creator.token_status === "active_verified" && isCryptoCreator && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              Every trade on ${coinSymbol} markets rewards ${coinSymbol} holders and buys ${coinSymbol} on DeSo.
+            </p>
+          </div>
+        )}
+        {creator.token_status === "claimed" && (
+          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
+            <p className="text-sm text-text-muted">
+              ✅ Caldera verified — every buy trade on {creator.name}&apos;s markets sends <span className="text-caldera font-medium">1%</span> directly to their wallet via on-chain ${coinSymbol} purchases.
+            </p>
+          </div>
+        )}
+        {creator.claim_status === "claimed" &&
+          desoPublicKey === creator.deso_public_key &&
+          (unclaimedEarnings ?? 0) > 0 && (
+            <div className="rounded-xl border border-border-subtle/30 bg-surface p-5 mb-6">
+              <h3 className="text-base font-semibold text-text-primary mb-1">
+                Earnings ready to withdraw
+              </h3>
+              <p className="text-xs text-text-muted mb-3">
+                ${(unclaimedEarnings ?? 0).toFixed(4)} as DESO to your wallet.
+              </p>
+              <button
+                onClick={handleClaim}
+                disabled={claimLoading || !!claimResult}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {claimLoading ? "Withdrawing…" : `Withdraw $${(unclaimedEarnings ?? 0).toFixed(4)}`}
+              </button>
+              {claimError && (
+                <div className="text-xs text-no mt-2">{claimError}</div>
+              )}
+            </div>
+          )}
 
-        {/* ── THE BIG NUMBER ────────────────────────────────────── */}
-        <section className="mb-12 rounded-2xl border border-border-subtle/40 bg-surface p-8 md:p-12">
-          {!earnings.isPreLaunch ? (
-            <>
-              <p className="text-center text-[10px] uppercase tracking-widest text-text-muted">
-                Accumulated for {displayName}
-              </p>
-              <p className="mt-4 text-center font-display text-6xl font-semibold tabular-nums text-caldera md:text-7xl">
-                ${earnings.accruedUsd.toFixed(2)}
-              </p>
-              <p className="mt-3 text-center text-sm text-text-muted">
-                From {earnings.accruedTradeCount}{" "}
-                {earnings.accruedTradeCount === 1 ? "trade" : "trades"}
-                {earnings.lastEventAt && (
-                  <> · Last activity {formatRelativeTime(earnings.lastEventAt)}</>
-                )}
-              </p>
-              <div className="mt-8 flex flex-col gap-3 md:mt-10 md:flex-row md:gap-4">
-                {isUnclaimed && (
-                  <button
-                    onClick={openClaim}
-                    className="flex-1 rounded-xl bg-caldera px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
-                  >
-                    Claim this profile →
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowStakeModal(true)}
-                  className="flex-1 rounded-xl border border-border-subtle px-5 py-3 text-sm font-medium text-text-primary transition-colors hover:border-white/20"
-                >
-                  Buy {coinLabel}
-                </button>
+        {/* Earnings Preview — prominent for shadow profiles (hide if pending_review) */}
+        {(creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
+          <div className="mb-6">
+            <EarningsPreview
+              creator={creator}
+              markets={markets}
+              onClaimClick={() => setShowClaimModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Profile Header */}
+        <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-start">
+          <div className="flex items-start gap-5">
+            <CreatorAvatar creator={creator} size="lg" className="h-20 w-20" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
+                  {creator.name}
+                </h1>
+                <VerificationBadge creator={creator} size="md" />
               </div>
+              <p className="mt-1 text-sm text-text-muted">{getTokenSymbolDisplay(creator)}</p>
+              {creator.bio && (
+                <p className="text-sm text-text-muted leading-relaxed mt-2 max-w-2xl whitespace-pre-line">
+                  {creator.bio}
+                </p>
+              )}
+              <div className="mt-3 flex items-center gap-4 flex-wrap">
+                <div>
+                  <span className="font-display text-2xl font-bold tracking-normal text-text-primary">
+                    {desoUser ? formatCurrency(livePrice ?? 0) : "—"}
+                  </span>
+                  {isLive && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-yes">
+                      <span className="h-1.5 w-1.5 rounded-full bg-yes animate-pulse" /> Live
+                    </span>
+                  )}
+                  {desoUser && (livePrice === 0 || livePrice === null) && (
+                    <span className="ml-2 text-xs text-text-muted">· No trades yet — be the first buyer</span>
+                  )}
+                </div>
+                {(creator.founder_reward_basis_points ?? 0) > 0 && (
+                  <span className="rounded-full bg-caldera/10 px-2 py-0.5 text-xs font-medium text-caldera">
+                    {((creator.founder_reward_basis_points ?? 0) / 100).toFixed(0)}% founder reward
+                  </span>
+                )}
+                <span className="text-sm text-text-muted">
+                  {(creator.creator_coin_holders ?? 0).toLocaleString()} holders
+                  {(creator.estimated_followers ?? 0) > 0 && (
+                    <> · {(creator.estimated_followers ?? 0).toLocaleString()} followers</>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:ml-auto">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-500/30 text-orange-400 text-sm font-medium hover:bg-orange-500/10 transition-colors"
+              >
+                + Create Market
+              </button>
+              <FollowButton creatorDesoPublicKey={creator.deso_public_key} />
+            </div>
+            {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
+              <button
+                onClick={() => setShowStakeModal(true)}
+                className="w-full rounded-xl bg-caldera px-5 py-2.5 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors sm:w-auto"
+              >
+                Buy ${coinSymbol}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Earnings Stats */}
+        <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {[
+            { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
+            { label: "Market Cap", value: formatCompactCurrency(creator.creator_coin_market_cap ?? 0), show: (creator.creator_coin_market_cap ?? 0) > 0, tip: "Total USD value of all this creator's coins in circulation on DeSo. Tracks live as the coin trades." },
+            { label: "💰 PLATFORM FEES", value: formatCurrency(holderEarnings), show: true, tip: "Total platform operations fees generated from trades on this creator's markets. 1% of each buy trade funds Caldera operations." },
+            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to coin holders." },
+            { label: "Markets", value: String(openMarkets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
+          ].filter((s) => s.show).map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
+              <p className="text-xs uppercase tracking-widest text-text-muted">
+                {stat.label}
+                {stat.tip && <InfoTooltip text={stat.tip} />}
+              </p>
+              <p className="mt-1 font-mono text-xl font-bold text-yes">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Token chart + calculator — only for active tokens, not shadow */}
+        {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
+          <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5 overflow-hidden">
+            <h2 className="section-header mb-4">Coin Price <InfoTooltip text="The current price to buy one coin. Prices rise as more people buy — early buyers get the lowest price." /></h2>
+            <div className="max-w-full overflow-hidden">
+              <MarketChart yesPrice={(livePrice ?? 0) / 200} />
+            </div>
+          </div>
+        )}
+
+        {/* Shadow token placeholder */}
+        {(creator.token_status === "shadow" || creator.token_status === "needs_review") && (
+          <div className="mb-8 rounded-2xl border border-border-subtle/30 bg-surface p-5">
+            <p className="text-sm text-text-muted">
+              🔒 <span className="font-medium text-text-primary">Coin not yet active</span>
+            </p>
+            <p className="mt-1 text-xs text-text-faint">
+              This profile hasn&apos;t been claimed. Claim to launch your coin and start earning.
+            </p>
+          </div>
+        )}
+
+        {/* Buyback Activity Feed */}
+        {(buybacks.totalBuyback > 0 || creator.token_status === "shadow" || !creator.token_status) && (
+          <div className="mb-8 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-orange-400">🔄 On-Chain Buys</span>
+              <span className="text-xs text-text-muted">Last 20 trades</span>
+            </div>
+            {buybacks.totalBuyback > 0 ? (
+              <p className="text-xs text-text-muted mb-3">
+                <span className="font-semibold text-orange-300">${buybacks.totalBuyback.toFixed(4)}</span>{" "}
+                auto-bought into ${coinSymbol} from prediction activity
+              </p>
+            ) : (
+              <p className="text-xs text-text-muted mb-3">
+                No on-chain buys recorded yet — every trade on this profile&apos;s markets triggers an auto-buy.
+              </p>
+            )}
+            {buybacks.events.length > 0 ? (
+              <div className="space-y-1.5">
+                {buybacks.events.map((e) => {
+                  const buybackAmt =
+                    e.creator_slug === creator.slug ? e.personal_buyback_usd :
+                    e.team_slug === creator.slug ? e.team_buyback_usd :
+                    e.league_buyback_usd;
+                  const role =
+                    e.creator_slug === creator.slug ? "personal" :
+                    e.team_slug === creator.slug ? "team" :
+                    "league";
+                  return (
+                    <div key={e.id} className="flex items-center justify-between text-xs text-text-muted">
+                      <span className="truncate max-w-[60%]">
+                        {e.market_title ?? e.market_id}
+                        <span className="ml-1 text-text-faint">({role})</span>
+                      </span>
+                      <span className="font-mono text-orange-300">
+                        +${buybackAmt.toFixed(4)}{" "}
+                        <span className="text-text-faint">{formatRelativeTime(e.created_at)}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-text-faint">Trades will appear here in real time.</p>
+            )}
+          </div>
+        )}
+
+        {/* Holder Leaderboard */}
+        <HolderLeaderboard creatorSlug={creator.slug} coinSymbol={coinSymbol || creator.name} creator={creator} />
+
+        {/* Active Markets */}
+        <div className="mb-8">
+          <h2 className="section-header mb-5">Active Markets</h2>
+          {openMarkets.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {visibleOpenMarkets.map((m) => <MarketCard key={m.id} market={m} />)}
+              </div>
+              {openMarkets.length > 15 && (
+                <p className="mt-4 text-xs text-text-muted">
+                  Showing top 15 of {openMarkets.length} active markets, ranked by activity.
+                </p>
+              )}
             </>
           ) : (
-            <>
-              <p className="text-center text-[10px] uppercase tracking-widest text-text-muted">
-                Ready to earn
-              </p>
-              <p className="mx-auto mt-4 max-w-2xl text-center font-display text-4xl font-semibold leading-tight text-text-primary md:text-5xl">
-                {displayName} earns 1% of every trade
-              </p>
-              <p className="mx-auto mt-4 max-w-xl text-center text-sm leading-relaxed text-text-muted md:text-base">
-                Every trade buys {coinLabel} coin and goes directly to {displayName} — automatically, on every market.
-                {isUnclaimed && (
-                  <> {displayName} inherits the full balance when they claim.</>
-                )}
-              </p>
-              <div className="mt-8 flex flex-col gap-3 md:mt-10 md:flex-row md:gap-4">
-                {openMarkets.length > 0 && (
-                  <button
-                    onClick={scrollToMarkets}
-                    className="flex-1 rounded-xl bg-caldera px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
-                  >
-                    Trade {displayName}&apos;s markets →
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowStakeModal(true)}
-                  className="flex-1 rounded-xl border border-border-subtle px-5 py-3 text-sm font-medium text-text-primary transition-colors hover:border-white/20"
-                >
-                  Buy {coinLabel}
-                </button>
+            creator.token_status === "claimed" || creator.token_status === "active_verified" ? (
+              <p className="text-sm text-text-muted">No active markets right now.</p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-text-muted">No active markets yet for {creator.name}.</p>
+                <p className="text-xs text-text-muted mt-1">
+                  Markets are generated automatically.
+                  {claimUrl && <span> <a href={claimUrl} className="text-caldera hover:underline">Claim this profile</a> to start earning fees.</span>}
+                </p>
               </div>
-            </>
+            )
           )}
-        </section>
+        </div>
 
-        {/* ── STATS STRIP ──────────────────────────────────────── */}
-        <section className="mb-12 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Tile
-            label="Coin Price"
-            value={livePrice ? formatCurrency(livePrice) : "—"}
-            live={isLive && !!livePrice}
-          />
-          <Tile
-            label="Holders"
-            value={(creator.creator_coin_holders ?? 0).toLocaleString()}
-          />
-          <Tile label="Markets Active" value={String(openMarkets.length)} />
-          <Tile
-            label="Total Volume"
-            value={formatCompactCurrency(totalVolume)}
-          />
-        </section>
+        {/* Resolved Markets */}
+        {resolvedMarkets.length > 0 && (
+          <div className="mb-8">
+            <h2 className="section-header mb-5">Resolved Markets</h2>
+            <div className="rounded-2xl border border-border-subtle/30 bg-surface divide-y divide-border-subtle/30">
+              {resolvedMarkets.map((m) => (
+                <Link key={m.id} href={`/markets/${m.slug}`} className="flex items-center justify-between px-5 py-3 hover:bg-surface-2 transition-colors">
+                  <span className="text-sm text-text-primary">{m.title}</span>
+                  <span className={`text-sm font-bold ${m.resolution_outcome === "yes" ? "text-yes" : "text-no"}`}>
+                    {m.resolution_outcome?.toUpperCase()}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* ── BUYBACK ACTIVITY ─────────────────────────────────── */}
-        {buybacks.length > 0 && (
-          <section className="mb-12">
-            <h2 className="mb-4 text-[10px] uppercase tracking-widest text-text-muted">
-              Earnings activity
-            </h2>
-            <div className="divide-y divide-border-subtle/40 overflow-hidden rounded-2xl border border-border-subtle/40 bg-surface">
-              {buybacks.map((e) => (
-                <div
-                  key={e.id}
-                  className="flex items-center justify-between px-5 py-3"
-                >
-                  <div className="min-w-0 pr-4">
-                    <p className="truncate text-sm text-text-primary">
-                      {e.market_title ?? "Trade"}
-                    </p>
-                    <p className="mt-0.5 text-xs text-text-muted">
-                      ${Number(e.trade_amount_usd).toFixed(2)} trade ·{" "}
-                      {formatRelativeTime(e.created_at)}
-                    </p>
-                  </div>
-                  <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-caldera">
-                    +${Number(e.personal_buyback_usd).toFixed(4)}
-                  </p>
+        {/* Recent Activity */}
+        {recentTrades.length > 0 && (
+          <div className="mb-8">
+            <h2 className="section-header mb-5">Recent Activity</h2>
+            <div className="space-y-2">
+              {recentTrades.map((t) => (
+                <div key={t.id} className="flex items-center gap-2 text-sm text-text-muted">
+                  <span className={`font-semibold ${t.side === "yes" ? "text-yes" : "text-no"}`}>
+                    {t.side.toUpperCase()}
+                  </span>
+                  <span>on</span>
+                  <Link href={`/markets/${t.market.slug}`} className="text-text-primary hover:text-caldera">
+                    {t.market.title}
+                  </Link>
+                  <span>· {formatRelativeTime(t.created_at)}</span>
                 </div>
               ))}
             </div>
-          </section>
+          </div>
         )}
 
-        {/* ── ACTIVE MARKETS ───────────────────────────────────── */}
-        {openMarkets.length > 0 && (
-          <section id="active-markets" className="mb-12 scroll-mt-24">
-            <h2 className="mb-5 text-[10px] uppercase tracking-widest text-text-muted">
-              Active markets · {openMarkets.length}
-            </h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {visibleMarkets.map((m) => (
-                <MarketCard key={m.id} market={m} />
-              ))}
-            </div>
-            {openMarkets.length > 6 && (
-              <p className="mt-5 text-center text-xs text-text-muted">
-                Showing top 6 of {openMarkets.length} active markets, ranked by activity.
-              </p>
-            )}
-          </section>
-        )}
-
-        {/* ── TOP HOLDERS ──────────────────────────────────────── */}
-        {showHolders && (
-          <section className="mb-12">
-            <h2 className="mb-5 text-[10px] uppercase tracking-widest text-text-muted">
-              Top {coinLabel} holders
-            </h2>
-            <HolderLeaderboard
-              creatorSlug={creator.slug}
-              coinSymbol={coinSymbol}
-              creator={creator}
-            />
-          </section>
-        )}
-
-        {/* Spacer so the mobile sticky claim bar doesn't cover content */}
-        {showStickyClaim && <div className="h-20 md:hidden" />}
       </div>
 
-      {/* ── MOBILE STICKY CLAIM BAR ────────────────────────────── */}
-      {showStickyClaim && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-border-subtle bg-surface px-4 py-3 md:hidden"
-          style={{
-            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
-          }}
-        >
-          <Link
-            href={`/creators/${creator.slug}`}
-            className="flex-1 truncate text-xs text-text-muted"
-          >
-            {displayName} hasn&apos;t claimed yet.
-          </Link>
-          <button
-            onClick={openClaim}
-            className="rounded-lg bg-caldera px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-caldera-hover"
-          >
-            Claim →
-          </button>
-        </div>
-      )}
-
-      {/* ── Modals ───────────────────────────────────────────── */}
       <StakeModal
         creator={creator}
         isOpen={showStakeModal}
@@ -365,39 +714,95 @@ export function CreatorProfileClient({
         desoUsername={desoUser}
         profilePicUrl={livePic}
       />
-      <ClaimProfileModal
-        creatorName={displayName}
-        creatorSlug={creator.slug}
-        isOpen={showClaimModal}
-        onClose={() => setShowClaimModal(false)}
-      />
-    </>
-  );
-}
 
-function Tile({
-  label,
-  value,
-  live,
-}: {
-  label: string;
-  value: string;
-  live?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-border-subtle/40 bg-surface p-4 md:p-5">
-      <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-muted">
-        {label}
-        {live && (
-          <span
-            aria-label="Live"
-            className="inline-block h-1 w-1 rounded-full bg-yes animate-pulse"
-          />
-        )}
-      </p>
-      <p className="mt-2 font-mono text-xl font-semibold tabular-nums text-text-primary md:text-2xl">
-        {value}
-      </p>
-    </div>
+      {creator.tier === "unclaimed" && (
+        <ClaimProfileModal
+          creatorName={creator.name}
+          creatorSlug={creator.slug}
+          isOpen={showClaimModal}
+          onClose={() => setShowClaimModal(false)}
+        />
+      )}
+
+      {/* Create Market Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-6">
+            <h2 className="text-lg font-bold mb-1">Create a Market</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">
+              Create a prediction market about {creator.name}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+                  Market Question
+                </label>
+                <input
+                  value={marketTitle}
+                  onChange={e => setMarketTitle(e.target.value)}
+                  placeholder={`Will ${creator.name} ...?`}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                  maxLength={120}
+                />
+                <div className="text-xs text-[var(--color-text-muted)] mt-1 text-right">
+                  {marketTitle.length}/120
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
+                  Resolve Date
+                </label>
+                <input
+                  type="date"
+                  value={resolveDate}
+                  onChange={e => setResolveDate(e.target.value)}
+                  min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                  max={new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0]}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+              {creator.claim_status === "claimed" ? (
+                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
+                  <div className="text-xs text-[var(--color-text-muted)]">
+                    Every trade: 1% platform fee + 1% buys ${coinSymbol}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
+                  <div className="text-xs text-[var(--color-text-muted)]">
+                    1% of every trade automatically buys ${coinSymbol} for the creator. They get it all as soon as they join.
+                  </div>
+                </div>
+              )}
+              {createError && (
+                <p className="text-xs text-red-400">{createError}</p>
+              )}
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => { setShowCreateModal(false); setCreateError(''); }}
+                className="flex-1 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateMarket}
+                disabled={creating || !marketTitle.trim() || !resolveDate}
+                className="flex-1 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {creating ? 'Creating...' : 'Create Market'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success toast */}
+      {createSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-green-500/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
+          Market created successfully! 🎉
+        </div>
+      )}
+    </>
   );
 }
