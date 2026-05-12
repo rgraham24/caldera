@@ -43,6 +43,25 @@ export type VerifiedCreatorFields = {
 };
 
 /**
+ * Display-side verification check — used by the VerificationBadge UI to
+ * decide whether to render the blue check next to a creator's name.
+ *
+ * Looser than isVerifiedForMarkets — does NOT require deso_public_key or
+ * gate on token_status. A creator on the BitClout-original list is still
+ * a verified person even before their DeSo identity gets imported into
+ * our row.
+ *
+ * Intentionally excludes claim_status: claiming is wallet ownership,
+ * not identity verification.
+ */
+export function isCreatorVerified(c: {
+  is_bitclout_original?: boolean | null;
+  verification_status?: string | null;
+}): boolean {
+  return Boolean(c.is_bitclout_original) || c.verification_status === "approved";
+}
+
+/**
  * Pure synchronous check — given a creator object already fetched from DB,
  * decide if it's verified for market association.
  */

@@ -240,10 +240,7 @@ export function StakeModal({
             <div>
               <div className="flex items-center gap-1">
                 <p className="text-sm font-semibold text-text-primary">{creator.name}</p>
-                <VerificationBadge
-                  isReserved={creator.deso_is_reserved ?? false}
-                  isCalderaVerified={creator.verification_status === "approved"}
-                />
+                <VerificationBadge creator={creator} />
               </div>
               <p className="text-xs text-text-muted">{coinSymbol} · {formatCurrency(coinPrice)}</p>
             </div>
