@@ -91,7 +91,6 @@ function buildTweetUrl({
 }): string {
   const SIDE = success.side.toUpperCase();
   const amountUsd = success.amountUsd.toFixed(2);
-  const buybackUsd = (success.amountUsd * CREATOR_COIN_BUY_RATE).toFixed(2);
   let text: string;
 
   if (success.mode === "sell") {
@@ -107,11 +106,13 @@ function buildTweetUrl({
   } else {
     const coinHandle = creator.deso_username
       ? `$${creator.deso_username.toUpperCase()}`
-      : `${creator.name}'s coin`;
+      : creator.name
+        ? `${creator.name}'s coin`
+        : "the creator's coin";
+    const claimSubject = creator.name ?? "the creator";
     text =
       `Just bought $${amountUsd} of ${SIDE} on "${market.title}"\n\n` +
-      `$${buybackUsd} of every dollar I trade buys ${coinHandle} — ` +
-      `${creator.name} inherits it when they claim.\n\n` +
+      `1% of every trade buys ${coinHandle} — ${claimSubject} inherits it when they claim.\n\n` +
       `caldera.market`;
   }
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
@@ -155,14 +156,14 @@ export function TradeSuccessModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center md:items-start md:overflow-y-auto md:px-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border-subtle bg-background shadow-2xl animate-slide-up md:max-w-[480px] md:rounded-2xl md:animate-none"
+        className="relative z-10 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl border border-border-subtle bg-background shadow-2xl animate-slide-up md:max-w-[480px] md:my-[5vh] md:rounded-2xl md:animate-none"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {/* Drag handle — mobile only */}
@@ -259,13 +260,23 @@ export function TradeSuccessModal({
                 </p>
 
                 <div className="flex flex-col items-center gap-3">
-                  {/* Line A — caldera-purple accent (buyback amount → creator) */}
-                  {success.amountUsd > 0 && coinHandle ? (
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-mono text-lg font-bold tabular-nums text-caldera">
-                        ${buybackUsd.toFixed(2)}
-                      </span>
-                      <span className="text-sm text-text-muted">→ {coinHandle}</span>
+                  {/* Line A — 1% lead in caldera-purple (the compelling
+                      story); dollar amount demoted to a smaller muted
+                      sub-line. '1%' holds across all trade sizes and
+                      reads psychologically larger than '\$0.01'. */}
+                  {coinHandle ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-lg font-bold tabular-nums text-caldera">
+                          1%
+                        </span>
+                        <span className="text-sm text-text-muted">→ {coinHandle}</span>
+                      </div>
+                      {success.amountUsd > 0 && (
+                        <p className="text-xs text-text-muted tabular-nums">
+                          (${buybackUsd.toFixed(2)} from your ${success.amountUsd.toFixed(2)})
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-xs text-text-muted text-center max-w-xs">
