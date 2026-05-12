@@ -8,6 +8,7 @@ import type { Creator } from "@/types";
 import { CATEGORIES } from "@/types";
 import { formatCurrency, formatCompactCurrency, cn } from "@/lib/utils";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { FollowButton } from "@/components/shared/FollowButton";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
@@ -247,9 +248,6 @@ export function CreatorsClient({
               const mktCap = creatorMarketCap(c);
               const holders = c.creator_coin_holders ?? 0;
               const weeklyVol = c.weekly_volume_usd ?? 0;
-              const isVerified =
-                c.is_bitclout_original === true ||
-                c.verification_status === "approved";
 
               return (
                 <div
@@ -265,15 +263,7 @@ export function CreatorsClient({
                           <p className="truncate text-base font-semibold text-[var(--text-primary)]">
                             {c.name}
                           </p>
-                          {isVerified && (
-                            <span
-                              className="text-[var(--accent)] text-xs"
-                              title="Verified"
-                              aria-label="Verified"
-                            >
-                              ✓
-                            </span>
-                          )}
+                          <VerificationBadge creator={c} />
                           {c.league && (
                             <span className="rounded-full bg-[var(--accent)]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[var(--accent)]">
                               {c.league}

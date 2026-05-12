@@ -8,6 +8,7 @@ import { useAppStore } from "@/store";
 import { Search, ChevronDown, TrendingUp, Clock } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { connectDeSoWallet, disconnectDeSoWallet } from "@/lib/deso/auth";
 import { useDesoBalance } from "@/hooks/useDesoBalance";
 
@@ -97,7 +98,16 @@ function CenterTabs() {
 
 type SearchResult = {
   markets: Array<{ id: string; slug: string; title: string; category: string; yes_price: number | null }>;
-  creators: Array<{ id: string; slug: string; name: string; image_url: string | null; creator_coin_symbol: string | null }>;
+  creators: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    image_url: string | null;
+    creator_coin_symbol: string | null;
+    deso_public_key?: string | null;
+    is_bitclout_original?: boolean | null;
+    verification_status?: string | null;
+  }>;
 };
 
 function SearchBox({
@@ -270,7 +280,10 @@ function SearchBox({
                       {(c.name ?? "?")[0].toUpperCase()}
                     </div>
                   )}
-                  <span className="flex-1 truncate text-sm">{c.name}</span>
+                  <span className="flex flex-1 items-center gap-1 truncate text-sm">
+                    <span className="truncate">{c.name}</span>
+                    <VerificationBadge creator={c} />
+                  </span>
                   {getTokenSymbolDisplay({ slug: c.slug, creator_coin_symbol: c.creator_coin_symbol }) && (
                     <span className="shrink-0 font-mono text-xs" style={{ color: "#8888a0" }}>{getTokenSymbolDisplay({ slug: c.slug, creator_coin_symbol: c.creator_coin_symbol })}</span>
                   )}

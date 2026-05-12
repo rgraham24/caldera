@@ -13,6 +13,7 @@ import { useState } from "react";
 import type { Creator } from "@/types";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
 import { FollowButton } from "@/components/shared/FollowButton";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { formatCurrency } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
@@ -35,9 +36,6 @@ export function MarketCreatorStrip({ creator }: Props) {
     creator.deso_username?.toUpperCase() ||
     creator.slug.toUpperCase();
   const price = creator.creator_coin_price ?? 0;
-  const isVerified =
-    creator.is_bitclout_original === true ||
-    creator.verification_status === "approved";
 
   const handleBuy = () => {
     if (!isConnected) {
@@ -62,11 +60,7 @@ export function MarketCreatorStrip({ creator }: Props) {
               <span className="truncate text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
                 {creator.name}
               </span>
-              {isVerified && (
-                <span className="text-[var(--accent)] text-xs" aria-label="Verified">
-                  ✓
-                </span>
-              )}
+              <VerificationBadge creator={creator} />
             </div>
             {creator.deso_username && (
               <p className="truncate font-mono text-[11px] text-[var(--text-tertiary)]">

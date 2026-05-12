@@ -9,6 +9,7 @@ import Link from "next/link";
 import { StakeModal } from "@/components/markets/StakeModal";
 import { AddCreatorModal } from "@/components/shared/AddCreatorModal";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { Plus } from "lucide-react";
 
 type LiveCoinData = {
@@ -69,8 +70,9 @@ export function TrendingCreatorCoins({ creators }: TrendingCreatorCoinsProps) {
               <div className="mb-4 flex items-center gap-3">
                 <CreatorAvatar creator={creator} size="md" />
                 <div className="min-w-0">
-                  <Link href={`/creators/${creator.slug}`} className="block truncate text-sm font-semibold text-text-primary hover:text-caldera transition-colors">
-                    {creator.name}
+                  <Link href={`/creators/${creator.slug}`} className="flex items-center gap-1 truncate text-sm font-semibold text-text-primary hover:text-caldera transition-colors">
+                    <span className="truncate">{creator.name}</span>
+                    <VerificationBadge creator={creator} />
                   </Link>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] tracking-widest text-text-muted">{getTokenSymbolDisplay(creator)}</span>

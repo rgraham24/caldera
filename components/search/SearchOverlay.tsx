@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X, Search } from "lucide-react";
 import { formatCompactCurrency } from "@/lib/utils";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 const RECENT_KEY = "caldera_recent_searches";
 const RECENT_MAX = 5;
@@ -42,6 +43,9 @@ type SearchResult = {
     image_url: string | null;
     creator_coin_symbol: string | null;
     creator_coin_market_cap?: number | null;
+    deso_public_key?: string | null;
+    is_bitclout_original?: boolean | null;
+    verification_status?: string | null;
   }>;
 };
 
@@ -269,7 +273,10 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-text-primary">{c.name}</p>
+                    <p className="flex items-center gap-1 truncate text-sm font-semibold text-text-primary">
+                      <span className="truncate">{c.name}</span>
+                      <VerificationBadge creator={c} />
+                    </p>
                     {c.creator_coin_market_cap != null && Number(c.creator_coin_market_cap) > 0 && (
                       <p className="text-[11px] font-mono uppercase tracking-wider text-text-muted">
                         {formatCompactCurrency(Number(c.creator_coin_market_cap))} MKT CAP

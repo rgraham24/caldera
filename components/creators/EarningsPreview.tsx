@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Creator, Market } from "@/types";
 import { formatCurrency, formatCompactCurrency } from "@/lib/utils";
 import { Copy, Check } from "lucide-react";
+import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 type EarningsPreviewProps = {
   creator: Creator;
@@ -35,8 +36,8 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
   if (totalVolume === 0) {
     return (
       <div className="rounded-2xl border border-border-subtle/30 bg-surface p-6">
-        <p className="text-sm font-medium text-text-primary mb-2">
-          💰 What {creator.name} could earn on Caldera
+        <p className="text-sm font-medium text-text-primary mb-2 inline-flex items-center gap-1">
+          💰 What {creator.name} <VerificationBadge creator={creator} /> could earn on Caldera
         </p>
         <p className="text-sm text-text-muted">
           No prediction markets yet. When markets are created, 1% of every trade will auto-buy {creator.name}&apos;s coin if claimed.
@@ -47,8 +48,8 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
 
   return (
     <div className="rounded-2xl border border-caldera/20 bg-gradient-to-b from-caldera/5 to-transparent p-6">
-      <p className="text-sm font-medium text-text-muted mb-4">
-        💰 What {creator.name} could be earning on Caldera
+      <p className="text-sm font-medium text-text-muted mb-4 inline-flex items-center gap-1">
+        💰 What {creator.name} <VerificationBadge creator={creator} /> could be earning on Caldera
       </p>
 
       {/* Big numbers */}
