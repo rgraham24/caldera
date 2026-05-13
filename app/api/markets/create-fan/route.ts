@@ -156,6 +156,10 @@ export async function POST(req: NextRequest) {
       total_volume: 0,
       is_fan_created: true,
       rules_text: ipHash,
+      // Attribution. desoPublicKey was already validated above.
+      // Foundation for the /u/[username] profile + follower mechanics
+      // landing in follow-up sessions.
+      created_by_deso_public_key: desoPublicKey,
     };
 
     // YouTube-milestone markets carry their settlement intent in the
