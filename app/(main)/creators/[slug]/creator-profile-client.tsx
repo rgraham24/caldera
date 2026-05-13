@@ -109,6 +109,12 @@ export function CreatorProfileClient({
 
   const [claimLoading, setClaimLoading] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  // start-claim is the "anyone can kick off the claim" entry point —
+  // separate from the verified-claimer finalize path that handleClaim
+  // drives below. Random visitors hit this to mint a claim_code on
+  // demand, then we route them to /claim/[code] for tweet verification.
+  const [startClaimLoading, setStartClaimLoading] = useState(false);
+  const [startClaimError, setStartClaimError] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<null | {
     profileClaimed: boolean;
     txHashHex: string | null;
@@ -170,6 +176,24 @@ export function CreatorProfileClient({
       setClaimLoading(false);
     }
   }
+
+  const handleStartClaim = async () => {
+    setStartClaimError(null);
+    setStartClaimLoading(true);
+    try {
+      const res = await fetch(`/api/creators/${creator.slug}/generate-claim-code`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.data?.code) {
+        throw new Error(json?.error ?? "Failed to start claim");
+      }
+      window.location.href = `/claim/${json.data.code}`;
+    } catch (err) {
+      setStartClaimError(err instanceof Error ? err.message : "Failed to start claim");
+      setStartClaimLoading(false);
+    }
+  };
 
   const handleCreateMarket = async () => {
     if (!marketTitle.trim() || !resolveDate) return;
@@ -305,59 +329,63 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* ── Unclaimed earnings claim banner (approved creators only, hidden for owner) ── */}
-        {!isOwner && creator.verification_status === "approved" && creator.claim_status !== "claimed" && (
-          <div
-            className="mb-6 rounded-2xl p-5"
-            style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.20)" }}
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-xl mt-0.5">🔒</span>
-              <div className="flex-1">
-                <p className="font-semibold text-text-primary mb-1">This profile is unclaimed</p>
-                {earnings.accruedUsd >= 1 && (
-                  <p className="text-sm text-text-muted mb-3">
-                    <span className="text-amber-400 font-semibold">${earnings.accruedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    {" "}has accumulated for {displayName} — waiting for them to claim.
+        {/* ── Unclaimed claim banner ──
+            Visible for any unclaimed creator that's either a DeSo
+            reserved profile, a BitClout original, or a manually
+            approved profile. The button is always rendered for
+            non-owners — identity verification happens at the
+            /claim/[code] step (tweet from the creator's Twitter +
+            DeSo wallet signature), so a random visitor clicking just
+            starts the public claim flow and cannot complete it
+            without controlling the creator's accounts. */}
+        {!isOwner &&
+          creator.claim_status !== "claimed" &&
+          (creator.is_bitclout_original === true ||
+            creator.deso_is_reserved === true ||
+            creator.verification_status === "approved") && (
+            <div
+              className="mb-6 rounded-2xl p-5"
+              style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.20)" }}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">🔒</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-text-primary mb-1">This profile is unclaimed</p>
+                  {earnings.accruedUsd >= 1 && (
+                    <p className="text-sm text-text-muted mb-3">
+                      <span className="text-amber-400 font-semibold">${earnings.accruedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      {" "}has accumulated for {displayName} — waiting for them to claim.
+                    </p>
+                  )}
+                  <p className="text-sm text-text-muted mb-4">
+                    Are you <span className="text-text-primary font-medium">{displayName}</span>? Claim your profile to start
+                    earning <span className="text-orange-400 font-medium">1%</span> of every future trade — automatically, on every market.
                   </p>
-                )}
-                <p className="text-sm text-text-muted mb-4">
-                  Are you <span className="text-text-primary font-medium">{displayName}</span>? Claim your profile to start
-                  earning <span className="text-orange-400 font-medium">1%</span> of every future trade — automatically, on every market.
-                </p>
-                {(() => {
-                  const isVerifiedClaimer =
-                    desoPublicKey &&
-                    (creator.claim_attempted_by === desoPublicKey ||
-                      creator.deso_public_key === desoPublicKey);
-
-                  if (!isVerifiedClaimer) return null;
-
-                  const escrowAmount = earnings.escrowUsd;
-                  const buttonLabel =
-                    escrowAmount > 0
-                      ? `Claim profile and $${escrowAmount.toFixed(4)}`
-                      : "Claim profile";
-
-                  return (
-                    <div>
+                  <div>
+                    {claimUrl ? (
+                      <Link
+                        href={claimUrl}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                      >
+                        Claim this profile →
+                      </Link>
+                    ) : (
                       <button
-                        onClick={handleClaim}
-                        disabled={claimLoading || !!claimResult}
+                        onClick={handleStartClaim}
+                        disabled={startClaimLoading}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
                       >
-                        {claimLoading ? "Claiming…" : buttonLabel}
+                        {startClaimLoading ? "Starting…" : "Claim this profile →"}
                       </button>
-                      {claimError && (
-                        <div className="text-xs text-no mt-2">{claimError}</div>
-                      )}
-                    </div>
-                  );
-                })()}
+                    )}
+                    {startClaimError && (
+                      <div className="text-xs text-no mt-2">{startClaimError}</div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {creator.claim_status === "claimed" &&
           desoPublicKey === creator.deso_public_key &&
@@ -634,11 +662,15 @@ export function CreatorProfileClient({
               </Link>
             ) : (
               <button
-                onClick={() => setShowClaimModal(true)}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
+                onClick={handleStartClaim}
+                disabled={startClaimLoading}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover disabled:opacity-50"
               >
-                Claim this profile →
+                {startClaimLoading ? "Starting…" : "Claim this profile →"}
               </button>
+            )}
+            {startClaimError && (
+              <div className="text-xs text-no mt-2">{startClaimError}</div>
             )}
           </section>
         )}
