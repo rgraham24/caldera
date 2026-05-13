@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import { CreatorProfileClient } from "./creator-profile-client";
+import { getCreatorEarnings } from "@/lib/creators/earnings";
 import type { Market, Creator } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,7 +39,7 @@ export default async function CreatorProfilePage({
     redirect(`/creators/${creator.name}`);
   }
 
-  const [{ data: markets }, { data: recentTrades }, { data: claimRow }, { data: volumeRows }] = await Promise.all([
+  const [{ data: markets }, { data: recentTrades }, { data: claimRow }, earnings] = await Promise.all([
     supabase
       .from("markets")
       .select("*")
@@ -60,12 +61,7 @@ export default async function CreatorProfilePage({
       .eq("status", "pending")
       .maybeSingle(),
 
-    // Sum total_volume across all markets tied to this creator
-    (supabase as DB)
-      .from("markets")
-      .select("total_volume")
-      .eq("creator_slug", creator.slug)
-      .limit(10000),
+    getCreatorEarnings(supabase, creator.slug),
   ]);
 
   // Re-fetch trades with actual market IDs
@@ -88,35 +84,22 @@ export default async function CreatorProfilePage({
     notFound();
   }
 
+  // recentTrades was a placeholder fetch (empty market_id list); the real
+  // list is in `trades` above. Reference unused variable so the linter is
+  // happy.
+  void recentTrades;
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
 
   // Prefer claim_code from creators table (new system), fall back to claim_codes table
   const claimCodeValue = creator.claim_code ?? claimRow?.code ?? null;
   const claimUrl = claimCodeValue ? `${appUrl}/claim/${claimCodeValue}` : null;
 
-  const totalVolume = (volumeRows ?? []).reduce(
-    (sum: number, m: { total_volume: number | null }) => sum + (m.total_volume ?? 0),
-    0
-  );
-  const holderEarnings = Math.round(totalVolume * 0.01 * 100) / 100;
-  // 1% of volume = what the creator would have earned if claimed (v2: on-chain coin auto-buy direct to wallet)
-  const unclaimedEarnings = Math.round(totalVolume * 0.01 * 100) / 100;
-
-  // Persist unclaimed_earnings_usd back to DB (fire-and-forget, non-blocking)
-  if (creator.claim_status !== "claimed") {
-    const supabaseWrite = createServiceClient();
-    void supabaseWrite
-      .from("creators")
-      .update({ unclaimed_earnings_usd: unclaimedEarnings })
-      .eq("id", creator.id);
-  }
-
   return (
     <CreatorProfileClient
       creator={creator as Creator}
       markets={(markets ?? []) as Market[]}
-      holderEarnings={holderEarnings}
-      unclaimedEarnings={unclaimedEarnings}
+      earnings={earnings}
       recentTrades={(trades as unknown as Array<{
         id: string;
         side: string;

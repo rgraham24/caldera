@@ -31,6 +31,8 @@ import { FollowButton } from "@/components/shared/FollowButton";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { useAppStore } from "@/store";
 import { getDesoIdentity } from "@/lib/deso/identity";
+import { getCreatorDisplayName } from "@/lib/creators/displayName";
+import type { CreatorEarnings } from "@/lib/creators/earnings";
 
 const REASON_MESSAGES: Record<string, string> = {
   "profile-not-verified": "Profile not yet verified for claim.",
@@ -42,7 +44,7 @@ const REASON_MESSAGES: Record<string, string> = {
     "Platform funds too low — admin notified. Try again later.",
   "price-fetch-failed": "Couldn't fetch current DESO price. Try again.",
   "ledger-update-failed":
-    "Sent on-chain but ledger update failed. Admin will reconcile.",
+    "Payment sent but the records didn't update — admin will reconcile.",
   "concurrent-claim-or-state-changed":
     "Profile state changed during claim. Refresh and try again.",
 };
@@ -69,8 +71,7 @@ type BuybackEvent = {
 type CreatorProfileClientProps = {
   creator: Creator;
   markets: Market[];
-  holderEarnings: number;
-  unclaimedEarnings?: number;
+  earnings: CreatorEarnings;
   recentTrades: Array<{
     id: string;
     side: string;
@@ -85,11 +86,11 @@ type CreatorProfileClientProps = {
 export function CreatorProfileClient({
   creator,
   markets,
-  holderEarnings,
-  unclaimedEarnings = 0,
+  earnings,
   recentTrades,
   claimUrl,
 }: CreatorProfileClientProps) {
+  const displayName = getCreatorDisplayName(creator);
   const { desoPublicKey } = useAppStore();
   // Owner view: when the connected wallet matches this creator's
   // deso_public_key, hide the "Claim this profile" / "Tweet at X to
@@ -238,7 +239,6 @@ export function CreatorProfileClient({
     .sort((a, b) => (b.trending_score ?? 0) - (a.trending_score ?? 0))
     .slice(0, 15);
   const coinSymbol = desoUser || creator.creator_coin_symbol;
-  const isCryptoCreator = (creator.category ?? "").toLowerCase() === "crypto";
 
   return (
     <>
@@ -288,8 +288,7 @@ export function CreatorProfileClient({
                   This is your profile
                 </p>
                 <p className="text-sm text-text-muted">
-                  Bio, avatar, and verification all sync from your DeSo
-                  profile on every login.
+                  Bio, avatar, and verification all sync from your profile on every login.
                 </p>
               </div>
               {desoEditUrl && (
@@ -315,17 +314,16 @@ export function CreatorProfileClient({
             <div className="flex items-start gap-3">
               <span className="text-xl mt-0.5">🔒</span>
               <div className="flex-1">
-                <p className="font-semibold text-text-primary mb-1">This coin is unclaimed</p>
-                {unclaimedEarnings > 0 && (
+                <p className="font-semibold text-text-primary mb-1">This profile is unclaimed</p>
+                {earnings.accruedUsd >= 1 && (
                   <p className="text-sm text-text-muted mb-3">
-                    <span className="text-amber-400 font-semibold">${unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    {" "}has accumulated, held until they claim their profile — these are creator coin buys held in the platform wallet, waiting for {creator.name} to claim.
+                    <span className="text-amber-400 font-semibold">${earnings.accruedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    {" "}has accumulated for {displayName} — waiting for them to claim.
                   </p>
                 )}
                 <p className="text-sm text-text-muted mb-4">
-                  Are you <span className="text-text-primary font-medium">{creator.name}</span>? Claim your coin to start
-                  earning <span className="text-orange-400 font-medium">1%</span> of every future market trade —
-                  sent directly to your wallet.
+                  Are you <span className="text-text-primary font-medium">{displayName}</span>? Claim your profile to start
+                  earning <span className="text-orange-400 font-medium">1%</span> of every future trade — automatically, on every market.
                 </p>
                 {(() => {
                   const isVerifiedClaimer =
@@ -335,7 +333,7 @@ export function CreatorProfileClient({
 
                   if (!isVerifiedClaimer) return null;
 
-                  const escrowAmount = unclaimedEarnings ?? 0;
+                  const escrowAmount = earnings.escrowUsd;
                   const buttonLabel =
                     escrowAmount > 0
                       ? `Claim profile and $${escrowAmount.toFixed(4)}`
@@ -361,106 +359,22 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* Token status banner — claim CTA + Tweet-at-X. Hidden for owner. */}
-        {!isOwner && (creator.token_status === "shadow" || !creator.token_status) && creator.verification_status !== "pending_review" && (
-          <div className="mb-6 rounded-2xl border border-border-subtle/30 bg-surface p-5">
-            <p className="text-sm font-medium text-text-primary mb-2">📊 Prediction Market</p>
-            <p className="text-sm text-text-muted mb-3">
-              {openMarkets.length} active market{openMarkets.length !== 1 ? "s" : ""} ·{" "}
-              Coin earnings: <span className="text-amber-400">Not yet active</span>
-            </p>
-            <p className="text-xs text-text-muted mb-3">
-              Community fees are held until this profile is claimed.
-            </p>
-            <p className="text-xs text-text-muted mb-2">
-              Are you {creator.name}? Claim this profile to:
-            </p>
-            <ul className="text-xs text-text-muted space-y-1 mb-3">
-              <li>→ Receive a platform fee every time someone predicts about you — automatically</li>
-              <li>→ Let your fans buy your coin and hold alongside you</li>
-              <li>→ See everything people are predicting about you</li>
-            </ul>
-            <div className="flex flex-wrap items-center gap-3">
-              {claimUrl ? (
-                <Link
-                  href={claimUrl}
-                  className="text-sm font-semibold text-caldera hover:text-caldera/80 underline underline-offset-2"
-                >
-                  Claim this profile →
-                </Link>
-              ) : (
-                <button
-                  onClick={() => setShowClaimModal(true)}
-                  className="text-sm font-medium text-caldera hover:text-caldera/80"
-                >
-                  Claim this profile →
-                </button>
-              )}
-            </div>
-            <div className="mt-3 pt-3 border-t border-orange-500/20">
-              <p className="text-xs text-muted-foreground mb-2">
-                Know {creator.name}? Tell them about their Caldera profile:
-              </p>
-              <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                  `Hey @${creator.deso_username ?? creator.name.replace(/\s+/g, '')} — fans are making predictions about you on @CalderaMarket and your coin is earning fees right now. Claim it free at caldera.market/claim/${creator.slug} 🔥`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-400/30 text-xs text-blue-400 hover:bg-blue-400/10 transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.259 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                </svg>
-                Tweet at {creator.name} to claim →
-              </a>
-            </div>
-          </div>
-        )}
-        {creator.token_status === "active_unverified" && isCryptoCreator && (
-          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-            <p className="text-sm text-text-muted">
-              Every buy trade on {creator.name}&apos;s markets uses 1% of the trade to buy ${coinSymbol} on DeSo. When {creator.name} claims their account, those coins flow directly to their wallet on every trade.
-            </p>
-          </div>
-        )}
-        {creator.token_status === "needs_review" && (
-          <div className="mb-6 rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
-            <p className="text-sm text-text-muted">
-              ⚠️ This DeSo account has not been verified. Coin earnings are paused pending review.
-            </p>
-          </div>
-        )}
-        {creator.token_status === "active_verified" && isCryptoCreator && (
-          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-            <p className="text-sm text-text-muted">
-              Every trade on ${coinSymbol} markets rewards ${coinSymbol} holders and buys ${coinSymbol} on DeSo.
-            </p>
-          </div>
-        )}
-        {creator.token_status === "claimed" && (
-          <div className="mb-6 rounded-xl bg-caldera/5 border border-caldera/20 p-3">
-            <p className="text-sm text-text-muted">
-              ✅ Caldera verified — every buy trade on {creator.name}&apos;s markets sends <span className="text-caldera font-medium">1%</span> directly to their wallet via on-chain ${coinSymbol} purchases.
-            </p>
-          </div>
-        )}
         {creator.claim_status === "claimed" &&
           desoPublicKey === creator.deso_public_key &&
-          (unclaimedEarnings ?? 0) > 0 && (
+          earnings.escrowUsd > 0 && (
             <div className="rounded-xl border border-border-subtle/30 bg-surface p-5 mb-6">
               <h3 className="text-base font-semibold text-text-primary mb-1">
                 Earnings ready to withdraw
               </h3>
               <p className="text-xs text-text-muted mb-3">
-                ${(unclaimedEarnings ?? 0).toFixed(4)} as DESO to your wallet.
+                ${earnings.escrowUsd.toFixed(4)} ready to send to your wallet.
               </p>
               <button
                 onClick={handleClaim}
                 disabled={claimLoading || !!claimResult}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
               >
-                {claimLoading ? "Withdrawing…" : `Withdraw $${(unclaimedEarnings ?? 0).toFixed(4)}`}
+                {claimLoading ? "Withdrawing…" : `Withdraw $${earnings.escrowUsd.toFixed(4)}`}
               </button>
               {claimError && (
                 <div className="text-xs text-no mt-2">{claimError}</div>
@@ -486,7 +400,7 @@ export function CreatorProfileClient({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-display text-3xl font-bold tracking-tight text-text-primary">
-                  {creator.name}
+                  {displayName}
                 </h1>
                 <VerificationBadge creator={creator} size="md" />
               </div>
@@ -549,9 +463,13 @@ export function CreatorProfileClient({
         <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {[
             { label: "Creator Earnings", value: formatCompactCurrency(creator.total_creator_earnings ?? 0), show: creator.tier === "verified_creator" },
-            { label: "Market Cap", value: formatCompactCurrency(creator.creator_coin_market_cap ?? 0), show: (creator.creator_coin_market_cap ?? 0) > 0, tip: "Total USD value of all this creator's coins in circulation on DeSo. Tracks live as the coin trades." },
-            { label: "💰 PLATFORM FEES", value: formatCurrency(holderEarnings), show: true, tip: "Total platform operations fees generated from trades on this creator's markets. 1% of each buy trade funds Caldera operations." },
-            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount of money predicted on this person across all their markets. Higher volume = more rewards distributed to coin holders." },
+            { label: "Market Cap", value: formatCompactCurrency(creator.creator_coin_market_cap ?? 0), show: (creator.creator_coin_market_cap ?? 0) > 0, tip: "Total value of this creator's coin in circulation. Tracks live as the coin trades." },
+            // Real earnings from buyback_events. When accrued is below $1
+            // we show trade count instead so the strip never reads $0.00.
+            earnings.accruedUsd >= 1
+              ? { label: "Earned", value: formatCurrency(earnings.accruedUsd), show: true, tip: "Earnings accrued for this creator from trades on their markets. Every trade buys their coin automatically." }
+              : { label: "Earnings activity", value: `${earnings.accruedTradeCount} trade${earnings.accruedTradeCount === 1 ? "" : "s"}`, show: true, tip: "Number of trades that have contributed earnings to this creator so far." },
+            { label: "Total Volume", value: formatCompactCurrency(markets.reduce((s, m) => s + (m.total_volume ?? 0), 0)), show: true, tip: "The total amount predicted on this person across all their markets." },
             { label: "Markets", value: String(openMarkets.length), show: true, tip: "The number of active prediction questions about this person on Caldera right now." },
           ].filter((s) => s.show).map((stat) => (
             <div key={stat.label} className="rounded-2xl border border-border-subtle/30 bg-surface p-4">
@@ -586,42 +504,33 @@ export function CreatorProfileClient({
           </div>
         )}
 
-        {/* Buyback Activity Feed */}
+        {/* Earnings activity feed */}
         {(buybacks.totalBuyback > 0 || creator.token_status === "shadow" || !creator.token_status) && (
-          <div className="mb-8 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-orange-400">🔄 On-Chain Buys</span>
-              <span className="text-xs text-text-muted">Last 20 trades</span>
+          <div className="mb-8 rounded-2xl border border-border-subtle/40 bg-surface p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] uppercase tracking-widest text-text-muted">
+                Earnings activity
+              </span>
+              {buybacks.totalBuyback > 0 && (
+                <span className="font-mono text-xs font-semibold tabular-nums text-caldera">
+                  ${buybacks.totalBuyback.toFixed(4)} total
+                </span>
+              )}
             </div>
-            {buybacks.totalBuyback > 0 ? (
-              <p className="text-xs text-text-muted mb-3">
-                <span className="font-semibold text-orange-300">${buybacks.totalBuyback.toFixed(4)}</span>{" "}
-                auto-bought into ${coinSymbol} from prediction activity
-              </p>
-            ) : (
-              <p className="text-xs text-text-muted mb-3">
-                No on-chain buys recorded yet — every trade on this profile&apos;s markets triggers an auto-buy.
-              </p>
-            )}
             {buybacks.events.length > 0 ? (
               <div className="space-y-1.5">
                 {buybacks.events.map((e) => {
-                  const buybackAmt =
+                  const amt =
                     e.creator_slug === creator.slug ? e.personal_buyback_usd :
                     e.team_slug === creator.slug ? e.team_buyback_usd :
                     e.league_buyback_usd;
-                  const role =
-                    e.creator_slug === creator.slug ? "personal" :
-                    e.team_slug === creator.slug ? "team" :
-                    "league";
                   return (
                     <div key={e.id} className="flex items-center justify-between text-xs text-text-muted">
                       <span className="truncate max-w-[60%]">
                         {e.market_title ?? e.market_id}
-                        <span className="ml-1 text-text-faint">({role})</span>
                       </span>
-                      <span className="font-mono text-orange-300">
-                        +${buybackAmt.toFixed(4)}{" "}
+                      <span className="font-mono">
+                        +${amt.toFixed(4)}{" "}
                         <span className="text-text-faint">{formatRelativeTime(e.created_at)}</span>
                       </span>
                     </div>
@@ -629,7 +538,9 @@ export function CreatorProfileClient({
                 })}
               </div>
             ) : (
-              <p className="text-xs text-text-faint">Trades will appear here in real time.</p>
+              <p className="text-xs text-text-faint">
+                Every trade buys {displayName}&apos;s coin — earnings will appear here as soon as activity starts.
+              </p>
             )}
           </div>
         )}
@@ -652,17 +563,16 @@ export function CreatorProfileClient({
               )}
             </>
           ) : (
-            creator.token_status === "claimed" || creator.token_status === "active_verified" ? (
-              <p className="text-sm text-text-muted">No active markets right now.</p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-text-muted">No active markets yet for {creator.name}.</p>
-                <p className="text-xs text-text-muted mt-1">
-                  Markets are generated automatically.
-                  {claimUrl && <span> <a href={claimUrl} className="text-caldera hover:underline">Claim this profile</a> to start earning fees.</span>}
-                </p>
-              </div>
-            )
+            <div className="rounded-2xl border border-border-subtle/40 bg-surface p-8 text-center">
+              <p className="text-sm text-text-primary">No markets yet for {displayName}</p>
+              <p className="mt-1 text-xs text-text-muted">Be the first to create one</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
+              >
+                Create a market about {displayName} →
+              </button>
+            </div>
           )}
         </div>
 
@@ -704,6 +614,35 @@ export function CreatorProfileClient({
           </div>
         )}
 
+        {/* Secondary claim CTA — compact, near the footer. Hidden for
+            owner and for already-claimed profiles. Secondary visual
+            weight so it doesn't compete with the hero. */}
+        {!isOwner && creator.claim_status !== "claimed" && (
+          <section className="my-12 max-w-2xl mx-auto rounded-2xl border border-border-subtle/40 bg-surface p-6 text-center">
+            <h3 className="text-base font-semibold text-text-primary">
+              {displayName} hasn&apos;t claimed yet
+            </h3>
+            <p className="mt-2 text-sm text-text-muted">
+              Every trade buys ${coinSymbol} coin — {displayName} inherits the full balance when they claim.
+            </p>
+            {claimUrl ? (
+              <Link
+                href={claimUrl}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
+              >
+                Claim this profile →
+              </Link>
+            ) : (
+              <button
+                onClick={() => setShowClaimModal(true)}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
+              >
+                Claim this profile →
+              </button>
+            )}
+          </section>
+        )}
+
       </div>
 
       <StakeModal
@@ -717,7 +656,7 @@ export function CreatorProfileClient({
 
       {creator.tier === "unclaimed" && (
         <ClaimProfileModal
-          creatorName={creator.name}
+          creatorName={displayName}
           creatorSlug={creator.slug}
           isOpen={showClaimModal}
           onClose={() => setShowClaimModal(false)}
@@ -730,7 +669,7 @@ export function CreatorProfileClient({
           <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-6">
             <h2 className="text-lg font-bold mb-1">Create a Market</h2>
             <p className="text-sm text-[var(--color-text-muted)] mb-4">
-              Create a prediction market about {creator.name}
+              Create a prediction market about {displayName}
             </p>
             <div className="space-y-4">
               <div>
@@ -740,7 +679,7 @@ export function CreatorProfileClient({
                 <input
                   value={marketTitle}
                   onChange={e => setMarketTitle(e.target.value)}
-                  placeholder={`Will ${creator.name} ...?`}
+                  placeholder={`Will ${displayName} ...?`}
                   className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
                   maxLength={120}
                 />
