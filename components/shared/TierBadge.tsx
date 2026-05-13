@@ -29,7 +29,7 @@ export function TierBadge({ tier, size = "sm" }: TierBadgeProps) {
       label: "Unclaimed",
       dot: "bg-amber-400",
       text: "text-amber-400",
-      tooltip: "Unclaimed — claim to start earning",
+      tooltip: "Unclaimed — earnings accumulating, claim to take possession",
     },
   }[tier] || { label: tier, dot: "bg-text-muted", text: "text-text-muted", tooltip: "" };
 

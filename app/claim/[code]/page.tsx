@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { getDesoIdentity } from "@/lib/deso/identity";
@@ -79,9 +80,30 @@ export default function ClaimPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
+  // Reads as a story to readers in the creator's feed — surfaces the
+  // surprising mechanic ("1% of every trade") without crypto vocab.
+  // Claim code stays exact for the tweet-verify matcher.
   const tweetText = info
-    ? `I'm claiming my $${info.symbol || info.name} coin on @CalderaMarket 🔥 ${info.claimCode}`
+    ? `There's a prediction market about me on @CalderaMarket and I get 1% of every trade. Claiming the profile. ${info.claimCode}`
     : "";
+
+  // Close button — visible across every step. Routes back to the
+  // creator's profile when we know which one it is; falls back to
+  // the home page during the early loading/invalid states. Fixed
+  // positioning so each branch can render it once at the top of its
+  // tree without affecting layout.
+  const closeButton = (
+    <button
+      onClick={() =>
+        router.push(info?.slug ? `/creators/${info.slug}` : "/")
+      }
+      aria-label="Close"
+      className="fixed top-4 right-4 z-50 p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface transition-colors"
+      style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}
+    >
+      <X size={20} />
+    </button>
+  );
 
   const startVerification = () => {
     setStep("verifying");
@@ -166,33 +188,42 @@ export default function ClaimPage() {
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (step === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <div className="h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        {closeButton}
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="h-6 w-6 border-2 border-caldera border-t-transparent rounded-full animate-spin" />
+        </div>
+      </>
     );
   }
 
   if (step === "invalid") {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <div className="text-center max-w-sm px-6">
-          <p className="text-2xl font-bold text-white mb-3">Invalid code</p>
-          <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>This claim code doesn&apos;t exist or has expired.</p>
-          <button onClick={() => router.push("/")} className="text-sm underline" style={{ color: "var(--text-secondary)" }}>Back to Caldera</button>
+      <>
+        {closeButton}
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="text-center max-w-sm px-6">
+            <p className="text-2xl font-bold text-white mb-3">Invalid code</p>
+            <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>This claim code doesn&apos;t exist or has expired.</p>
+            <button onClick={() => router.push("/")} className="text-sm underline" style={{ color: "var(--text-secondary)" }}>Back to Caldera</button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (step === "already_claimed") {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <div className="text-center max-w-sm px-6">
-          <p className="text-2xl font-bold text-white mb-3">Already claimed</p>
-          <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>This profile has already been claimed.</p>
-          <button onClick={() => router.push(`/creators/${info?.slug ?? ""}`)} className="text-sm underline" style={{ color: "var(--text-secondary)" }}>View profile</button>
+      <>
+        {closeButton}
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="text-center max-w-sm px-6">
+            <p className="text-2xl font-bold text-white mb-3">Already claimed</p>
+            <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>This profile has already been claimed.</p>
+            <button onClick={() => router.push(`/creators/${info?.slug ?? ""}`)} className="text-sm underline" style={{ color: "var(--text-secondary)" }}>View profile</button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -204,56 +235,61 @@ export default function ClaimPage() {
       : null;
 
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <div className="text-center max-w-md px-6">
-          <div className="text-5xl mb-4">🎉</div>
-          <p className="text-3xl font-bold text-white mb-3">{info?.symbol ?? info?.name} is yours!</p>
+      <>
+        {closeButton}
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-5xl mb-4">🎉</div>
+            <p className="text-3xl font-bold text-white mb-3">{info?.symbol ?? info?.name} is yours!</p>
 
-          {hasPayout ? (
-            <>
-              <div className="rounded-xl border p-4 mb-5" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
-                <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>Sent to your wallet</p>
-                <p className="text-3xl font-bold text-amber-400 mb-1">
-                  ${escrowUsdNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {hasPayout ? (
+              <>
+                <div className="rounded-xl border p-4 mb-5" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+                  <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>Sent to your wallet</p>
+                  <p className="text-3xl font-bold text-amber-400 mb-1">
+                    ${escrowUsdNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  {explorerUrl && (
+                    <a
+                      href={explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs underline"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      View transaction →
+                    </a>
+                  )}
+                </div>
+                <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
+                  Plus, <span className="text-caldera font-semibold">1%</span> of every future trade lands directly in your wallet.
                 </p>
-                {explorerUrl && (
-                  <a
-                    href={explorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs underline"
-                    style={{ color: "var(--text-tertiary)" }}
-                  >
-                    View transaction →
-                  </a>
-                )}
-              </div>
+              </>
+            ) : (
               <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-                Plus you&apos;ll earn <span className="text-orange-400 font-semibold">1%</span> of every future trade — sent directly to your DeSo wallet.
+                <span className="text-caldera font-semibold">1%</span> of every future trade about you lands directly in your DeSo wallet.
               </p>
-            </>
-          ) : (
-            <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-              You&apos;ll now earn <span className="text-orange-400 font-semibold">1%</span> of every future market trade about you — sent directly to your DeSo wallet.
-            </p>
-          )}
+            )}
 
-          <p className="text-xs mb-8" style={{ color: "var(--text-tertiary)" }}>Connected as @{desoUsername}</p>
-          <button
-            onClick={() => router.push(`/creators/${info?.slug}`)}
-            className="rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
-          >
-            View my profile →
-          </button>
+            <p className="text-xs mb-8" style={{ color: "var(--text-tertiary)" }}>Connected as @{desoUsername}</p>
+            <button
+              onClick={() => router.push(`/creators/${info?.slug}`)}
+              className="rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
+            >
+              View my profile →
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // ── Main flow ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: "var(--bg-base)" }}>
-      <div className="w-full max-w-md">
+    <>
+      {closeButton}
+      <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: "var(--bg-base)" }}>
+        <div className="w-full max-w-md">
 
         {/* Header */}
         <div className="text-center mb-8">
@@ -265,11 +301,11 @@ export default function ClaimPage() {
           </h1>
           {info?.unclaimedEarnings && info.unclaimedEarnings > 0 ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              💰 <span className="text-amber-400 font-semibold">${info.unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> in fees would have gone to coin holders so far.
+              💰 <span className="text-amber-400 font-semibold">${info.unclaimedEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> has accumulated for you from trades on your markets.
             </p>
           ) : (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Earn 1% of every trade on your markets — automatically.
+              <span className="text-caldera font-semibold">1%</span> of every trade on your markets already buys your coin — accumulating for you to claim.
             </p>
           )}
         </div>
@@ -290,7 +326,7 @@ export default function ClaimPage() {
             </div>
           </div>
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            After claiming, you earn <span className="text-white font-medium">1%</span> of every buy trade — sent directly to your DeSo wallet.
+            After claiming, <span className="text-white font-medium">1%</span> of every buy trade lands directly in your DeSo wallet.
           </p>
         </div>
 
@@ -324,7 +360,7 @@ export default function ClaimPage() {
               {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
               {step === "verifying" ? (
                 <div className="flex items-center gap-3">
-                  <div className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <div className="h-4 w-4 border-2 border-caldera border-t-transparent rounded-full animate-spin shrink-0" />
                   <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                     Searching for your tweet… checking every 10 seconds (up to 5 min)
                   </p>
@@ -332,7 +368,7 @@ export default function ClaimPage() {
               ) : (
                 <button
                   onClick={startVerification}
-                  className="w-full rounded-lg bg-white py-3 text-sm font-semibold text-black hover:bg-gray-100 transition-colors"
+                  className="w-full rounded-lg bg-caldera py-3 text-sm font-semibold text-white hover:bg-caldera-hover transition-colors"
                 >
                   I posted it — verify now →
                 </button>
@@ -355,7 +391,7 @@ export default function ClaimPage() {
               Step 2 — Connect your DeSo wallet
             </p>
             <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-              Connect your DeSo wallet to receive 1% of every future trade.
+              Connect your wallet to take possession of the accumulated balance and receive future trade earnings directly.
             </p>
             {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
             {!isConnected ? (
@@ -371,7 +407,7 @@ export default function ClaimPage() {
                 <button
                   onClick={completeClaim}
                   disabled={step === "connecting"}
-                  className="w-full rounded-lg bg-orange-500 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-40"
+                  className="w-full rounded-lg bg-caldera py-3 text-sm font-semibold text-white hover:bg-caldera-hover transition-colors disabled:opacity-40"
                 >
                   {step === "connecting" ? "Completing claim…" : "Complete claim →"}
                 </button>
@@ -383,7 +419,8 @@ export default function ClaimPage() {
         <p className="text-center text-xs mt-6" style={{ color: "var(--text-tertiary)" }}>
           Code: {code}
         </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

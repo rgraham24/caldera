@@ -102,7 +102,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
           onClick={onClaimClick}
           className="mb-4 w-full rounded-xl bg-caldera px-5 py-3 text-sm font-semibold text-background hover:bg-caldera/90 transition-colors"
         >
-          Claim this profile and start earning →
+          Claim this profile and inherit the balance →
         </button>
       )}
 

@@ -345,27 +345,37 @@ export function CreatorProfileClient({
             creator.verification_status === "approved") && (
             <div
               className="mb-6 rounded-2xl p-5"
-              style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.20)" }}
+              style={{ background: "rgba(124,92,252,0.06)", border: "1px solid rgba(124,92,252,0.20)" }}
             >
               <div className="flex items-start gap-3">
-                <span className="text-xl mt-0.5">🔒</span>
+                <span className="text-xl mt-0.5 opacity-60">🔒</span>
                 <div className="flex-1">
                   <p className="font-semibold text-text-primary mb-1">This profile is unclaimed</p>
-                  {earnings.accruedUsd >= 1 && (
-                    <p className="text-sm text-text-muted mb-3">
-                      <span className="text-amber-400 font-semibold">${earnings.accruedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      {" "}has accumulated for {displayName} — waiting for them to claim.
-                    </p>
+                  {earnings.accruedUsd >= 1 ? (
+                    <>
+                      <p className="text-sm text-text-muted mb-3">
+                        <span className="text-text-primary font-semibold">{formatCurrency(earnings.accruedUsd)}</span>
+                        {" "}has accumulated for {displayName} from trades on their markets.
+                      </p>
+                      <p className="text-sm text-text-muted mb-4">
+                        Are you <span className="text-text-primary font-medium">{displayName}</span>? Claim your profile to receive the balance — and every <span className="text-caldera font-medium">1%</span> from future trades, directly to you.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-text-muted mb-3">
+                        <span className="text-caldera font-medium">1%</span> of every trade on {displayName}&apos;s markets already buys ${coinSymbol} coin in their name — accumulating in a wallet waiting for them.
+                      </p>
+                      <p className="text-sm text-text-muted mb-4">
+                        Are you <span className="text-text-primary font-medium">{displayName}</span>? Claim your profile to take possession of the balance and receive every future <span className="text-caldera font-medium">1%</span>, directly to you.
+                      </p>
+                    </>
                   )}
-                  <p className="text-sm text-text-muted mb-4">
-                    Are you <span className="text-text-primary font-medium">{displayName}</span>? Claim your profile to start
-                    earning <span className="text-orange-400 font-medium">1%</span> of every future trade — automatically, on every market.
-                  </p>
                   <div>
                     {claimUrl ? (
                       <Link
                         href={claimUrl}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-caldera px-4 py-2 text-sm font-semibold text-white hover:bg-caldera-hover transition-colors"
                       >
                         Claim this profile →
                       </Link>
@@ -373,7 +383,7 @@ export function CreatorProfileClient({
                       <button
                         onClick={handleStartClaim}
                         disabled={startClaimLoading}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-caldera px-4 py-2 text-sm font-semibold text-white hover:bg-caldera-hover transition-colors disabled:opacity-50"
                       >
                         {startClaimLoading ? "Starting…" : "Claim this profile →"}
                       </button>
@@ -527,7 +537,7 @@ export function CreatorProfileClient({
               🔒 <span className="font-medium text-text-primary">Coin not yet active</span>
             </p>
             <p className="mt-1 text-xs text-text-faint">
-              This profile hasn&apos;t been claimed. Claim to launch your coin and start earning.
+              This profile hasn&apos;t been claimed. Claim to activate your coin and receive 1% of every future trade directly.
             </p>
           </div>
         )}
