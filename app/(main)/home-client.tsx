@@ -23,6 +23,14 @@ const StakeModal = dynamic(
   () => import("@/components/markets/StakeModal").then((m) => ({ default: m.StakeModal })),
   { ssr: false }
 );
+// Lazy — only mounts when the homepage Create-a-market CTA is clicked
+const CreateMarketModal = dynamic(
+  () =>
+    import("@/components/markets/CreateMarketModal").then((m) => ({
+      default: m.CreateMarketModal,
+    })),
+  { ssr: false }
+);
 import { useAppStore } from "@/store";
 import { connectDeSoWallet } from "@/lib/deso/auth";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
@@ -368,6 +376,7 @@ export function HomeClient({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [stakeCreator, setStakeCreator] = useState<Creator | null>(null);
+  const [showCreateMarketModal, setShowCreateMarketModal] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const marketsRef = useRef<HTMLDivElement>(null);
   const [endingSoonMarkets, setEndingSoonMarkets] = useState<Market[]>([]);
@@ -473,6 +482,25 @@ export function HomeClient({
             <div className="mb-6">{heroSlot}</div>
           </>
         )}
+
+        {/* CREATE A MARKET — fan wizard CTA. Sits between hero and the
+            trending strip so it's visible above the fold on most screens
+            without competing with the live markets. */}
+        <section className="my-8 mx-auto max-w-2xl rounded-2xl border border-border-subtle/40 bg-surface p-6 text-center">
+          <h3 className="text-base font-semibold text-text-primary">
+            Spin up a market about any creator
+          </h3>
+          <p className="mt-2 text-sm text-text-muted">
+            Pick a YouTube milestone — when it hits, the market auto-resolves. No judges, no waiting.
+          </p>
+          <button
+            onClick={() => setShowCreateMarketModal(true)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
+          >
+            Create a market →
+          </button>
+        </section>
+
         {/* TRENDING STRIP — right below hero (server-rendered, non-hero markets) */}
         <TrendingStrip markets={trendingStripMarkets} />
       </div>
@@ -626,6 +654,10 @@ export function HomeClient({
           profilePicUrl={stakeCreator.profile_pic_url ?? stakeCreator.image_url}
         />
       )}
+      <CreateMarketModal
+        isOpen={showCreateMarketModal}
+        onClose={() => setShowCreateMarketModal(false)}
+      />
       <HowItWorksChip />
     </div>
     </PullToRefresh>
