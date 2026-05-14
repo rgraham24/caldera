@@ -89,7 +89,7 @@ export function HowItWorksChip() {
   // Portaling makes it a direct <body> child so fixed is viewport-
   // relative again.
   const chip = (
-    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 md:hidden flex items-center justify-between border-t border-border-subtle/60 bg-surface/90 backdrop-blur-xl px-4 py-3">
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 md:hidden flex items-center justify-center border-t border-border-subtle/60 bg-surface/90 backdrop-blur-xl px-4 py-3">
       <button
         onClick={open}
         type="button"
@@ -102,7 +102,7 @@ export function HowItWorksChip() {
         onClick={dismiss}
         type="button"
         aria-label="Dismiss"
-        className="p-2.5 -m-2.5 text-text-muted hover:text-text-primary transition-colors"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 text-text-muted hover:text-text-primary transition-colors"
       >
         <X className="h-4 w-4" strokeWidth={2} />
       </button>
