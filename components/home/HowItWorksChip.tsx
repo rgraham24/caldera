@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useAppStore } from "@/store";
 
@@ -23,6 +24,14 @@ export function HowItWorksChip() {
   // for users who have already dismissed it. The localStorage read in
   // the effect below decides the final state.
   const [dismissed, setDismissed] = useState(true);
+  // SSR guard for createPortal — document.body doesnt exist on the
+  // server. Flip true once mounted on the client, then portal target
+  // is safe.
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // One-time migration: the dismiss flag used to live in
@@ -38,7 +47,7 @@ export function HowItWorksChip() {
     setDismissed(sessionStorage.getItem(STORAGE_KEY) === "1");
   }, []);
 
-  if (isConnected || dismissed) return null;
+  if (isConnected || dismissed || !mounted) return null;
 
   const dismiss = () => {
     try {
@@ -62,7 +71,15 @@ export function HowItWorksChip() {
   // bleed into each other. Both meet the 36px tap-target floor —
   // px-4 py-2.5 / px-3 py-2.5 both render at ~40px on the short
   // axis.
-  return (
+  //
+  // Portaled to <body> because the homepage wraps its tree in
+  // PullToRefresh, which applies `transform: translateY(...)` to its
+  // content. ANY transform on an ancestor (even translateY(0)) makes
+  // the chip's `position: fixed` scope to that ancestor instead of
+  // the viewport — the chip then scrolls off-screen with the page.
+  // Portaling makes it a direct <body> child so fixed is viewport-
+  // relative again.
+  const chip = (
     <div className="fixed bottom-[80px] left-1/2 z-40 -translate-x-1/2 md:hidden flex items-center rounded-full bg-caldera shadow-lg overflow-hidden">
       <button
         onClick={open}
@@ -82,4 +99,6 @@ export function HowItWorksChip() {
       </button>
     </div>
   );
+
+  return createPortal(chip, document.body);
 }

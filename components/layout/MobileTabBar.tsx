@@ -77,7 +77,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle bg-surface md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle/60 bg-surface/85 backdrop-blur-xl md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="flex h-16 items-stretch">
