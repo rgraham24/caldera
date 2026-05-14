@@ -30,6 +30,9 @@ type AppState = {
   isDepositModalOpen: boolean;
   openDepositModal: () => void;
   closeDepositModal: () => void;
+  isCreateMarketModalOpen: boolean;
+  openCreateMarketModal: () => void;
+  closeCreateMarketModal: () => void;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setDesoPublicKey: (key: string | null) => void;
@@ -65,6 +68,9 @@ export const useAppStore = create<AppState>()(
       isDepositModalOpen: false,
       openDepositModal: () => set({ isDepositModalOpen: true }),
       closeDepositModal: () => set({ isDepositModalOpen: false }),
+      isCreateMarketModalOpen: false,
+      openCreateMarketModal: () => set({ isCreateMarketModalOpen: true }),
+      closeCreateMarketModal: () => set({ isCreateMarketModalOpen: false }),
       setUser: (user) => set({ user, isConnected: !!user, isLoading: false }),
       setLoading: (isLoading) => set({ isLoading }),
       setDesoPublicKey: (desoPublicKey) => set({ desoPublicKey }),
