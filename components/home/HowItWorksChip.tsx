@@ -25,16 +25,29 @@ export function HowItWorksChip() {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    setDismissed(localStorage.getItem(STORAGE_KEY) === "1");
+    // One-time migration: the dismiss flag used to live in
+    // localStorage and persist forever. We're switching to
+    // sessionStorage so users get a fresh chance every visit;
+    // sweep any leftover localStorage flag so existing dismissers
+    // see the chip again next load.
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Private mode can throw — fine, no state to migrate.
+    }
+    setDismissed(sessionStorage.getItem(STORAGE_KEY) === "1");
   }, []);
 
   if (isConnected || dismissed) return null;
 
   const dismiss = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, "1");
+      // Session-scoped: chip returns on next visit. Permanent
+      // dismiss was too punishing for users who accidentally
+      // closed the chip and then lost the only onboarding prompt.
+      sessionStorage.setItem(STORAGE_KEY, "1");
     } catch {
-      // localStorage can throw in private modes — fall through and
+      // sessionStorage can throw in private modes — fall through and
       // just hide for this session.
     }
     setDismissed(true);
