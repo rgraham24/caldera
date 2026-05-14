@@ -192,7 +192,7 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
     !showEmpty && !loading && results.markets.length === 0 && dedupedCreators.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-bg">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background">
       {/* Header */}
       <div
         className="flex items-center gap-2 border-b border-border-subtle px-3 py-3"
