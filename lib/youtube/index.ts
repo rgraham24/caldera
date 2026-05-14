@@ -181,6 +181,15 @@ export async function getChannelStatsByChannelId(
  *   - "https://youtube.com/@mrbeast"
  *   - "https://youtube.com/channel/UC..."
  * Returns null if the input can't be parsed or no channel matches.
+ *
+ * Only the modern forHandle resolver is used. The legacy forUsername
+ * fallback was removed after it matched arbitrary unrelated channels
+ * via YouTube's legacy username system — most notably,
+ * forUsername=mrbeastyt returned a channel called @motionrecruting6156
+ * with 56 subscribers, which poisoned the wizard's cache for the
+ * MrBeast creator row. forHandle is exact; if it misses, the caller
+ * gets null and surfaces "no channel found" rather than a confident
+ * wrong answer.
  */
 export async function getChannelStatsByHandle(
   input: string
@@ -193,23 +202,10 @@ export async function getChannelStatsByHandle(
   }
 
   const key = getApiKey();
-
-  // Primary lookup — modern @handle resolver.
   const params = new URLSearchParams({
     part: "statistics,snippet",
     forHandle: `@${parsed.value}`,
     key,
   });
-  const byHandle = await fetchChannels(params);
-  if (byHandle) return byHandle;
-
-  // Fallback — legacy channels predating handles still resolve via
-  // forUsername (rare for creators large enough to be on Caldera, but
-  // cheap to try and saves a confusing null for early YT accounts).
-  const fallback = new URLSearchParams({
-    part: "statistics,snippet",
-    forUsername: parsed.value,
-    key,
-  });
-  return fetchChannels(fallback);
+  return fetchChannels(params);
 }
