@@ -42,3 +42,6 @@ next-env.d.ts
 import-deso.js
 .env.local
 .env*.local
+
+# Local Claude Code state — user-specific, never committed
+.claude/
