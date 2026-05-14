@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { useAppStore } from "@/store";
 
 const STORAGE_KEY = "hiw_chip_dismissed";
@@ -66,11 +66,20 @@ export function HowItWorksChip() {
     window.dispatchEvent(new CustomEvent("show-hiw-modal"));
   };
 
-  // Polymarket-style: solid caldera pill, two regions with a thin
-  // divider. Each region is its own button so the tap targets dont
-  // bleed into each other. Both meet the 36px tap-target floor —
-  // px-4 py-2.5 / px-3 py-2.5 both render at ~40px on the short
-  // axis.
+  // Polymarket-style full-width bar that sits flush above the
+  // MobileTabBar. Frosted treatment matches the tab bar's
+  // bg-surface/85 backdrop-blur-xl so the two read as a single
+  // bottom-sheet stack.
+  //
+  // bottom offset: calc(4rem + safe-area-inset-bottom). 4rem (64px)
+  // matches the tab bar's h-16 content height; adding the safe-area
+  // inset clears the iOS home-indicator padding the tab bar adds.
+  // Result: chip's bottom edge sits exactly at the tab bar's top
+  // border on every device.
+  //
+  // Tap targets: both buttons use py-/p- with matching negative
+  // margins so each hit area is >= 36px without inflating the
+  // visible bar height.
   //
   // Portaled to <body> because the homepage wraps its tree in
   // PullToRefresh, which applies `transform: translateY(...)` to its
@@ -80,22 +89,22 @@ export function HowItWorksChip() {
   // Portaling makes it a direct <body> child so fixed is viewport-
   // relative again.
   const chip = (
-    <div className="fixed bottom-[80px] left-1/2 z-40 -translate-x-1/2 md:hidden flex items-center rounded-full bg-caldera shadow-lg overflow-hidden">
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 md:hidden flex items-center justify-between border-t border-border-subtle/60 bg-surface/90 backdrop-blur-xl px-4 py-3">
       <button
         onClick={open}
         type="button"
-        className="px-4 py-2.5 text-sm font-semibold text-white hover:bg-caldera-hover transition-colors"
+        className="flex items-center gap-2 text-sm font-medium text-text-primary py-2 -my-2"
       >
+        <Info className="h-4 w-4 text-caldera" strokeWidth={2} />
         How it works
       </button>
-      <div className="h-5 w-px bg-white/20" aria-hidden="true" />
       <button
         onClick={dismiss}
         type="button"
         aria-label="Dismiss"
-        className="px-3 py-2.5 text-white hover:bg-caldera-hover transition-colors"
+        className="p-2.5 -m-2.5 text-text-muted hover:text-text-primary transition-colors"
       >
-        <X size={16} strokeWidth={2} />
+        <X className="h-4 w-4" strokeWidth={2} />
       </button>
     </div>
   );
