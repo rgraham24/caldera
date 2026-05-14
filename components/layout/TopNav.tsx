@@ -332,7 +332,7 @@ export function TopNav() {
   const isConnected = useAppStore((state) => state.isConnected);
   const desoUsername = useAppStore((state) => state.desoUsername);
   const desoProfilePicUrl = useAppStore((state) => state.desoProfilePicUrl);
-  const { desoPublicKey, desoBalanceDeso, desoBalanceUSD, setDisconnected, setDesoBalance, openDepositModal, openCreateMarketModal } = useAppStore();
+  const { desoPublicKey, desoBalanceDeso, desoBalanceUSD, setDisconnected, setDesoBalance, openDepositModal } = useAppStore();
 
   // Idle balance polling (30s) — keeps nav balance fresh without hammering the API
   useDesoBalance(
@@ -440,19 +440,6 @@ export function TopNav() {
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
-              </button>
-
-              {/* Create market — primary CTA, visible on every page.
-                  Collapses to a "+" icon under sm: so the nav doesn't
-                  wrap on narrow mobile. */}
-              <button
-                onClick={openCreateMarketModal}
-                title="Create a market"
-                aria-label="Create a market"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-caldera px-3 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover whitespace-nowrap"
-              >
-                <span className="text-base leading-none">+</span>
-                <span className="hidden sm:inline">Create</span>
               </button>
 
               {/* How it works */}

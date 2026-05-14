@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useAppStore } from "@/store";
 import { useDesoBalance } from "@/hooks/useDesoBalance";
 import type { Market, CommentWithUser, Creator, MarketOutcome } from "@/types";
@@ -48,14 +47,6 @@ type MarketDetailClientProps = {
   relatedMarkets: Market[];
   creator: Creator | null;
   trades: MarketActivityTrade[];
-  /** Attribution for fan-created markets. Null when the market was
-   *  created by admin or pre-dates the attribution column. */
-  createdByUser?: {
-    username: string | null;
-    display_name: string | null;
-    avatar_url: string | null;
-    deso_public_key: string;
-  } | null;
 };
 
 export function MarketDetailClient({
@@ -64,7 +55,6 @@ export function MarketDetailClient({
   relatedMarkets,
   creator,
   trades,
-  createdByUser,
 }: MarketDetailClientProps) {
   // Default open — the resolution criteria text is the most important
   // contextual content on the page; burying it behind a chevron made
@@ -121,50 +111,6 @@ export function MarketDetailClient({
                 {market.description}
               </p>
             )}
-            {createdByUser && (() => {
-              // Display preference: real DeSo handle > display name > truncated pubkey.
-              // A "real handle" is any username that doesn't start with the DeSo
-              // pubkey prefix (BC1Y...). Many users with no DeSo profile have their
-              // pubkey stored as username, which would render as gibberish.
-              const looksLikePubkey =
-                !createdByUser.username || createdByUser.username.startsWith("BC1Y");
-              const handle = !looksLikePubkey ? createdByUser.username : null;
-              const truncatedKey = `${createdByUser.deso_public_key.slice(0, 6)}…${createdByUser.deso_public_key.slice(-4)}`;
-              const labelText = handle
-                ? `@${handle}`
-                : createdByUser.display_name ?? truncatedKey;
-              // /u/[username] doesn't exist yet — link is written for the
-              // upcoming session that ships fan profile pages. When no
-              // handle is set we render as plain text instead of a
-              // soon-to-be-404 link.
-              const avatarSrc = `/api/avatar/${createdByUser.deso_public_key}`;
-              const content = (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={avatarSrc}
-                    alt=""
-                    className="h-4 w-4 rounded-full object-cover bg-surface-2"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                  <span>Created by {labelText}</span>
-                </>
-              );
-              return handle ? (
-                <Link
-                  href={`/u/${handle}`}
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors"
-                >
-                  {content}
-                </Link>
-              ) : (
-                <span className="mt-3 inline-flex items-center gap-1.5 text-xs text-text-muted">
-                  {content}
-                </span>
-              );
-            })()}
           </div>
 
           {/* Overdue resolution banner */}

@@ -167,45 +167,6 @@ export default async function MarketDetailPage({
     creator = creatorData;
   }
 
-  // Attribution lookup — fan markets store the creator's DeSo pubkey
-  // in created_by_deso_public_key. We resolve to the users row for
-  // username + avatar; falls back to a truncated pubkey display on the
-  // client when the user row doesn't exist or the username looks like
-  // a raw pubkey (no DeSo handle set).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const createdByPubKey = (market as any).created_by_deso_public_key as string | null;
-  let createdByUser: {
-    username: string | null;
-    display_name: string | null;
-    avatar_url: string | null;
-    deso_public_key: string;
-  } | null = null;
-  if (createdByPubKey) {
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("username, display_name, avatar_url, deso_public_key")
-      .eq("deso_public_key", createdByPubKey)
-      .maybeSingle();
-    if (userRow) {
-      createdByUser = {
-        username: userRow.username,
-        display_name: userRow.display_name,
-        avatar_url: userRow.avatar_url,
-        // deso_public_key fetched from users may be null in theory;
-        // we know the value came from the markets row so we substitute.
-        deso_public_key: userRow.deso_public_key ?? createdByPubKey,
-      };
-    } else {
-      // No users row yet — still render the pubkey-shaped attribution.
-      createdByUser = {
-        username: null,
-        display_name: null,
-        avatar_url: null,
-        deso_public_key: createdByPubKey,
-      };
-    }
-  }
-
   return (
     <MarketDetailClient
       market={market}
@@ -213,7 +174,6 @@ export default async function MarketDetailPage({
       relatedMarkets={relatedMarkets ?? []}
       creator={creator}
       trades={trades}
-      createdByUser={createdByUser}
     />
   );
 }

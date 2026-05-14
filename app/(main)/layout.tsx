@@ -2,7 +2,6 @@ import { TopNav } from "@/components/layout/TopNav";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { Footer } from "@/components/layout/Footer";
 import { DepositModalRoot } from "@/components/deposit/DepositModalRoot";
-import { CreateMarketModalRoot } from "@/components/markets/CreateMarketModalRoot";
 import { WelcomeBanner } from "@/components/layout/WelcomeBanner";
 import StarterBanner from "@/components/shared/StarterBanner";
 import { LiveTicker } from "./_components/ticker/LiveTicker";
@@ -37,7 +36,6 @@ export default function MainLayout({
       <Footer />
       <MobileTabBar />
       <DepositModalRoot />
-      <CreateMarketModalRoot />
       <HowItWorksModal />
       <FollowGraphHydrator />
       <SearchOverlayRoot />
