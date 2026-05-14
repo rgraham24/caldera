@@ -38,9 +38,13 @@ export function HowItWorksModal() {
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState(0);
 
+  // Defer the "ready" flip until after hydration so an SSR'd null
+  // render matches the client first paint (avoids hydration flash).
+  // The modal does NOT auto-open on first visit — it used to, but
+  // that surface duplicated the HowItWorksChip prompt and
+  // ambushed mobile users. Users now open it explicitly via the
+  // chip or the nav button (both dispatch show-hiw-modal).
   useEffect(() => {
-    const seen = localStorage.getItem("caldera_hiw_seen");
-    if (!seen) setShow(true);
     setReady(true);
   }, []);
 
