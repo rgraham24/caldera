@@ -17,7 +17,7 @@
  * Markets created here are admin-resolved until that lands.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Search } from "lucide-react";
 import { CreatorAvatar } from "@/components/shared/CreatorAvatar";
@@ -34,6 +34,18 @@ type CreatorPick = {
   deso_username: string | null;
   deso_public_key: string | null;
 };
+
+type YouTubeStats = {
+  channelId: string;
+  handle: string | null;
+  title: string;
+  subscriberCount: number;
+  thumbnailUrl: string | null;
+  cached: boolean;
+  fetchedAt: string;
+};
+
+type YoutubeLookupState = "idle" | "loading" | "found" | "not_found" | "error";
 
 type CreateMarketModalProps = {
   isOpen: boolean;
@@ -96,6 +108,17 @@ export function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
   const [results, setResults] = useState<CreatorPick[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // YouTube prefetch — populated when a creator is picked in Step 1
+  // and consumed by Step 2 (Phase 3 will use subscriberCount to size
+  // milestone chips; this phase just wires the data fetch).
+  const [youtubeStats, setYoutubeStats] = useState<YouTubeStats | null>(null);
+  const [youtubeLookupState, setYoutubeLookupState] =
+    useState<YoutubeLookupState>("idle");
+  // Tracks the latest lookup's AbortController. A user picking a
+  // different creator (or closing the modal) aborts the previous
+  // request so a slow A-lookup can't overwrite a fresh B-result.
+  const youtubeAbortRef = useRef<AbortController | null>(null);
+
   // Reset all state when the modal opens. Avoids stale step / creator
   // bleeding into the next open.
   useEffect(() => {
@@ -108,6 +131,8 @@ export function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
     setSubmitError(null);
     setQuery("");
     setResults([]);
+    setYoutubeStats(null);
+    setYoutubeLookupState("idle");
   }, [isOpen]);
 
   // Debounced creator search. Empty query returns the top 20 by
@@ -145,6 +170,51 @@ export function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
   const previewTitle = selectedCreator
     ? `Will ${displayName}'s YouTube channel cross ${targetSubscribers.toLocaleString()} subscribers by ${formatDate(resolveAt)}?`
     : "";
+
+  const handleSelectCreator = (c: CreatorPick) => {
+    setSelectedCreator(c);
+    setStep(2);
+
+    // Cancel any in-flight lookup from a previously selected creator.
+    youtubeAbortRef.current?.abort();
+    const controller = new AbortController();
+    youtubeAbortRef.current = controller;
+
+    setYoutubeStats(null);
+    setYoutubeLookupState("loading");
+
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/creators/${encodeURIComponent(c.slug)}/youtube`,
+          { signal: controller.signal }
+        );
+        if (controller.signal.aborted) return;
+        if (res.status === 404) {
+          setYoutubeLookupState("not_found");
+          return;
+        }
+        if (!res.ok) {
+          setYoutubeLookupState("error");
+          return;
+        }
+        const json = (await res.json()) as { youtube?: YouTubeStats };
+        if (controller.signal.aborted) return;
+        if (json.youtube) {
+          setYoutubeStats(json.youtube);
+          setYoutubeLookupState("found");
+        } else {
+          setYoutubeLookupState("not_found");
+        }
+      } catch (err) {
+        // AbortError is the expected path when the user picks a new
+        // creator before the previous lookup resolves — silent.
+        if ((err as { name?: string })?.name === "AbortError") return;
+        console.error("[create-market] youtube lookup failed:", err);
+        setYoutubeLookupState("error");
+      }
+    })();
+  };
 
   const handleSubmit = async () => {
     if (!selectedCreator) return;
@@ -259,10 +329,7 @@ export function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
                   results.map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => {
-                        setSelectedCreator(c);
-                        setStep(2);
-                      }}
+                      onClick={() => handleSelectCreator(c)}
                       className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-surface-2"
                     >
                       <CreatorAvatar creator={c} size="md" className="h-10 w-10 shrink-0" />
@@ -308,6 +375,39 @@ export function CreateMarketModal({ isOpen, onClose }: CreateMarketModalProps) {
                   Change
                 </button>
               </div>
+
+              {/* YouTube lookup status — informational only. Phase 3
+                  will size milestone chips around the live count. */}
+              {youtubeLookupState === "loading" && (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <div className="h-3 w-3 rounded-full border border-caldera border-t-transparent animate-spin" />
+                  <span>
+                    Looking up @{selectedCreator.deso_username ?? selectedCreator.slug} on YouTube…
+                  </span>
+                </div>
+              )}
+              {youtubeLookupState === "found" && youtubeStats && (
+                <p className="text-xs text-text-muted">
+                  Currently{" "}
+                  <span className="font-semibold text-text-primary tabular-nums">
+                    {youtubeStats.subscriberCount.toLocaleString()}
+                  </span>{" "}
+                  subscribers
+                  {youtubeStats.handle && (
+                    <> · {youtubeStats.handle}</>
+                  )}
+                </p>
+              )}
+              {(youtubeLookupState === "not_found" ||
+                youtubeLookupState === "error") && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                  <p className="text-xs text-amber-400">
+                    We couldn&apos;t find a YouTube channel for this creator yet.
+                    You can still set a milestone, but it&apos;ll need to be
+                    manually resolved when the date hits.
+                  </p>
+                </div>
+              )}
 
               {/* Milestone type — fixed to YouTube subscribers in v1.
                   Rendered as a non-interactive card so the surface

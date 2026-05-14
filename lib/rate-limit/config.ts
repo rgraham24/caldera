@@ -7,7 +7,7 @@
  * See docs/P2-3-rate-limit-design.md for rationale.
  */
 
-export type RateLimitConfigName = "trades" | "login" | "news";
+export type RateLimitConfigName = "trades" | "login" | "news" | "creator_youtube_lookup";
 
 export type RateLimitConfig = {
   limit: number;
@@ -28,4 +28,10 @@ export const RATE_LIMIT_CONFIGS: Record<RateLimitConfigName, RateLimitConfig> = 
   // 429'd during normal page browsing. 30/min absorbs multi-market
   // homepage fetches comfortably.
   news: { limit: 30, windowSeconds: 60 },
+
+  // Creator YouTube lookup — per-IP. Hit when the Create-market
+  // wizard prefetches stats on creator pick. Most legitimate users
+  // pick at most a few creators per minute; 30/min absorbs that
+  // comfortably and blocks scraping the endpoint to harvest stats.
+  creator_youtube_lookup: { limit: 30, windowSeconds: 60 },
 } as const;
