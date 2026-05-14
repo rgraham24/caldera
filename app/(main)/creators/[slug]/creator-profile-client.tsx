@@ -121,12 +121,6 @@ export function CreatorProfileClient({
     amountNanos: string;
     escrowUsd: string;
   }>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [marketTitle, setMarketTitle] = useState('');
-  const [resolveDate, setResolveDate] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState('');
-  const [createSuccess, setCreateSuccess] = useState(false);
   const [livePrice, setLivePrice] = useState(creator.creator_coin_price);
   const [livePic, setLivePic] = useState<string | null>(creator.profile_pic_url);
   const [desoUser, setDesoUser] = useState<string | null>(creator.deso_username);
@@ -195,34 +189,6 @@ export function CreatorProfileClient({
     }
   };
 
-  const handleCreateMarket = async () => {
-    if (!marketTitle.trim() || !resolveDate) return;
-    setCreating(true);
-    setCreateError('');
-    try {
-      const res = await fetch('/api/markets/create-fan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: marketTitle.trim(),
-          creatorSlug: creator.slug,
-          creatorName: creator.name,
-          resolveAt: resolveDate,
-          category: 'Creators',
-        }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setCreateSuccess(true);
-      setShowCreateModal(false);
-      window.location.reload();
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create market');
-    } finally {
-      setCreating(false);
-    }
-  };
-
   useEffect(() => {
     fetch(`/api/creators/${creator.slug}/buybacks`)
       .then((r) => r.json())
@@ -245,12 +211,6 @@ export function CreatorProfileClient({
       })
       .catch(() => {});
   }, [creator.slug]);
-
-  useEffect(() => {
-    if (!createSuccess) return;
-    const t = setTimeout(() => setCreateSuccess(false), 3000);
-    return () => clearTimeout(t);
-  }, [createSuccess]);
 
   const openMarkets = markets.filter((m) => m.status === "open");
   const resolvedMarkets = markets.filter((m) => m.status === "resolved");
@@ -477,15 +437,7 @@ export function CreatorProfileClient({
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:ml-auto">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-500/30 text-orange-400 text-sm font-medium hover:bg-orange-500/10 transition-colors"
-              >
-                + Create Market
-              </button>
-              <FollowButton creatorDesoPublicKey={creator.deso_public_key} />
-            </div>
+            <FollowButton creatorDesoPublicKey={creator.deso_public_key} />
             {desoUser && creator.token_status !== "shadow" && creator.token_status !== "needs_review" && (
               <button
                 onClick={() => setShowStakeModal(true)}
@@ -603,13 +555,7 @@ export function CreatorProfileClient({
           ) : (
             <div className="rounded-2xl border border-border-subtle/40 bg-surface p-8 text-center">
               <p className="text-sm text-text-primary">No markets yet for {displayName}</p>
-              <p className="mt-1 text-xs text-text-muted">Be the first to create one</p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-caldera px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-caldera-hover"
-              >
-                Create a market about {displayName} →
-              </button>
+              <p className="mt-1 text-xs text-text-muted">Check back soon.</p>
             </div>
           )}
         </div>
@@ -705,85 +651,6 @@ export function CreatorProfileClient({
         />
       )}
 
-      {/* Create Market Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-6">
-            <h2 className="text-lg font-bold mb-1">Create a Market</h2>
-            <p className="text-sm text-[var(--color-text-muted)] mb-4">
-              Create a prediction market about {displayName}
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                  Market Question
-                </label>
-                <input
-                  value={marketTitle}
-                  onChange={e => setMarketTitle(e.target.value)}
-                  placeholder={`Will ${displayName} ...?`}
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
-                  maxLength={120}
-                />
-                <div className="text-xs text-[var(--color-text-muted)] mt-1 text-right">
-                  {marketTitle.length}/120
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[var(--color-text-muted)] mb-1 block">
-                  Resolve Date
-                </label>
-                <input
-                  type="date"
-                  value={resolveDate}
-                  onChange={e => setResolveDate(e.target.value)}
-                  min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                  max={new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0]}
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
-                />
-              </div>
-              {creator.claim_status === "claimed" ? (
-                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    Every trade: 1% platform fee + 1% buys ${coinSymbol}
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 p-3">
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    1% of every trade automatically buys ${coinSymbol} for the creator. They get it all as soon as they join.
-                  </div>
-                </div>
-              )}
-              {createError && (
-                <p className="text-xs text-red-400">{createError}</p>
-              )}
-            </div>
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => { setShowCreateModal(false); setCreateError(''); }}
-                className="flex-1 py-2 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateMarket}
-                disabled={creating || !marketTitle.trim() || !resolveDate}
-                className="flex-1 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50"
-              >
-                {creating ? 'Creating...' : 'Create Market'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success toast */}
-      {createSuccess && (
-        <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-green-500/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
-          Market created successfully! 🎉
-        </div>
-      )}
     </>
   );
 }

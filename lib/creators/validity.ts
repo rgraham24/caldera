@@ -22,7 +22,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   - app/api/creators/search/route.ts (creator picker backend)
  *   - app/api/creators/list/route.ts (public /creators listing)
  *   - app/api/markets/admin-create/route.ts (admin form)
- *   - app/api/markets/create-fan/route.ts (user-created markets)
  *   - lib/admin/pipeline.ts (autonomous market generation)
  */
 

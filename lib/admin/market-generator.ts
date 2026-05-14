@@ -101,8 +101,8 @@ function parseMarkets(text: string): GeneratedMarket[] {
  * despite the prompt's full-name rule. Markets that fail this check are
  * dropped (caller can hit Generate again for a fresh batch).
  *
- * Exported so admin-create / create-fan / pipeline can apply the same check
- * as defense-in-depth before insertion.
+ * Exported so admin-create / pipeline can apply the same check as
+ * defense-in-depth before insertion.
  */
 export function validateMarketHasName(title: string, entityName: string): boolean {
   return title.toLowerCase().includes(entityName.toLowerCase());
