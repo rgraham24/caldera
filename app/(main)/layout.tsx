@@ -7,6 +7,10 @@ import StarterBanner from "@/components/shared/StarterBanner";
 import { LiveTicker } from "./_components/ticker/LiveTicker";
 import { FollowGraphHydrator } from "@/components/shared/FollowGraphHydrator";
 import { SearchOverlayRoot } from "@/components/search/SearchOverlayRoot";
+// TEMPORARY (2026-05-14): per-sibling boundaries to identify which
+// layout child throws React #310 on mobile Safari. Revert this import +
+// the wrappers below once the culprit is found.
+import { NamedErrorBoundary } from "@/components/diagnostic/NamedErrorBoundary";
 import dynamic from "next/dynamic";
 
 // Heavy modals — only needed when triggered, never on initial render
@@ -25,20 +29,42 @@ export default function MainLayout({
           Full-bleed, edge-to-edge, with a 1px bottom border separator
           from the nav. */}
       <div className="sticky top-0 z-50 w-full">
-        <LiveTicker />
+        <NamedErrorBoundary name="LiveTicker">
+          <LiveTicker />
+        </NamedErrorBoundary>
       </div>
-      <TopNav />
-      <WelcomeBanner />
-      <StarterBanner />
+      <NamedErrorBoundary name="TopNav">
+        <TopNav />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="WelcomeBanner">
+        <WelcomeBanner />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="StarterBanner">
+        <StarterBanner />
+      </NamedErrorBoundary>
       <main className="flex-1 overflow-x-hidden pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
-        {children}
+        <NamedErrorBoundary name="children">
+          {children}
+        </NamedErrorBoundary>
       </main>
-      <Footer />
-      <MobileTabBar />
-      <DepositModalRoot />
-      <HowItWorksModal />
-      <FollowGraphHydrator />
-      <SearchOverlayRoot />
+      <NamedErrorBoundary name="Footer">
+        <Footer />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="MobileTabBar">
+        <MobileTabBar />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="DepositModalRoot">
+        <DepositModalRoot />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="HowItWorksModal">
+        <HowItWorksModal />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="FollowGraphHydrator">
+        <FollowGraphHydrator />
+      </NamedErrorBoundary>
+      <NamedErrorBoundary name="SearchOverlayRoot">
+        <SearchOverlayRoot />
+      </NamedErrorBoundary>
     </>
   );
 }
