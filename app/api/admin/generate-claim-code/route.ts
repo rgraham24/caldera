@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.caldera.market";
 
   // Bulk mode: generate for top 20 unclaimed creators
   if (body.bulk) {
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
   if (pw !== ADMIN_PASSWORD) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createServiceClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.caldera.market";
 
   const { data, error } = await (supabase as DB)
     .from("claim_codes")

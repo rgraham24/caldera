@@ -89,7 +89,7 @@ export default async function CreatorProfilePage({
   // happy.
   void recentTrades;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.caldera.market";
 
   // Prefer claim_code from creators table (new system), fall back to claim_codes table
   const claimCodeValue = creator.claim_code ?? claimRow?.code ?? null;

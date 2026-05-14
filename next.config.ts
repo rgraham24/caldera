@@ -33,6 +33,27 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Apex -> www canonical redirect. Vercel's default apex handling
+  // emits a 308 with BOTH Location: AND Refresh: headers, which iOS
+  // Safari / mobile WebKit aborts with "Page couldn't load". A 301
+  // emits a single Location header and is what mobile expects.
+  // (Next's Redirect type treats `permanent` and `statusCode` as
+  // mutually exclusive — using statusCode alone here.)
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "caldera.market",
+          },
+        ],
+        destination: "https://www.caldera.market/:path*",
+        statusCode: 301,
+      },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

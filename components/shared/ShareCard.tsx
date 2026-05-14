@@ -53,7 +53,7 @@ export function ShareCard({ market, creatorName }: ShareCardProps) {
           >
             <div className="mb-3 flex items-center gap-2">
               <span className="wordmark-glow font-display text-sm font-bold text-caldera">Caldera</span>
-              <span className="text-[10px] text-text-muted">caldera.markets</span>
+              <span className="text-[10px] text-text-muted">www.caldera.market</span>
             </div>
             <p className="mb-3 font-display text-base font-bold leading-tight text-text-primary">
               {market.title}

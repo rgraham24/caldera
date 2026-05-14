@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       const { createDesoProfileForCreator } = await import("@/lib/deso/create-profile");
       const result = await createDesoProfileForCreator({
         username: handle,
-        description: `${creator.name} on Caldera — prediction markets. Claim at caldera.market/creators/${newSlug}`,
+        description: `${creator.name} on Caldera — prediction markets. Claim at www.caldera.market/creators/${newSlug}`,
         profilePicUrl: creator.image_url ?? undefined,
       });
 

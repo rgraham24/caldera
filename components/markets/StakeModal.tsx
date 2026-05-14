@@ -334,9 +334,9 @@ export function StakeModal({
               className="w-full mb-2 border-border-subtle text-text-primary hover:bg-surface"
               onClick={async () => {
                 const shareText = tab === "buy"
-                  ? `I just bought ${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\ncaldera.market/creators/${creator.slug}`
-                  : `I just sold ${coinSymbol} on Caldera.\n\nCheck prediction markets for ${creator.name}:\ncaldera.market/creators/${creator.slug}`;
-                const shareUrl = `https://caldera.market/creators/${creator.slug}`;
+                  ? `I just bought ${coinSymbol} on Caldera 🔥\n\nI earn fees from every prediction market about ${creator.name} — automatically.\n\nwww.caldera.market/creators/${creator.slug}`
+                  : `I just sold ${coinSymbol} on Caldera.\n\nCheck prediction markets for ${creator.name}:\nwww.caldera.market/creators/${creator.slug}`;
+                const shareUrl = `https://www.caldera.market/creators/${creator.slug}`;
                 try {
                   if (typeof navigator !== "undefined" && navigator.share) {
                     await navigator.share({ title: `${coinSymbol} on Caldera`, text: shareText, url: shareUrl });

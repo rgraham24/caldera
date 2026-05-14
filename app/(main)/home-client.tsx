@@ -334,7 +334,7 @@ function MarketCard({ market }: { market: Market }) {
               e.preventDefault();
               e.stopPropagation();
               const yesPrice = Math.round((market.yes_price || 0.5) * 100);
-              const text = market.title + '\n\n' + yesPrice + '% chance YES on @CalderaMarket\n\ncaldera.market/markets/' + market.id;
+              const text = market.title + '\n\n' + yesPrice + '% chance YES on @CalderaMarket\n\nwww.caldera.market/markets/' + market.id;
               window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank', 'width=550,height=420');
             }}
             className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-muted"

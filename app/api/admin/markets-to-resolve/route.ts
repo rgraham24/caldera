@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   // Redirect logic to GET
   const fakeReq = new NextRequest(
-    new URL(`/api/admin/markets-to-resolve?adminPassword=${adminPassword}`, "https://caldera.market"),
+    new URL(`/api/admin/markets-to-resolve?adminPassword=${adminPassword}`, "https://www.caldera.market"),
     { method: "GET" }
   );
   return GET(fakeReq);

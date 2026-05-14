@@ -287,7 +287,7 @@ export default async function Image({ params }: Props) {
             alignSelf: "flex-end",
           }}
         >
-          caldera.market/creators/{slug}
+          www.caldera.market/creators/{slug}
         </div>
       </div>
     ),

@@ -2127,7 +2127,7 @@ export async function processPendingDesoCreations(
   for (const creator of pending) {
     const result = await createDesoProfileForCreator({
       username: creator.slug,
-      description: `${creator.name} on Caldera — prediction markets and creator tokens. Claim at caldera.market/claim/${creator.slug}`,
+      description: `${creator.name} on Caldera — prediction markets and creator tokens. Claim at www.caldera.market/claim/${creator.slug}`,
       profilePicUrl: creator.image_url ?? undefined,
     });
 

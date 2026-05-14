@@ -101,11 +101,11 @@ function buildTweetUrl({
       typeof success.payout === "number" ? success.payout.toFixed(2) : amountUsd;
     text =
       `Just closed my ${SIDE} position on "${market.title}" for $${payoutStr}.\n\n` +
-      `caldera.market`;
+      `www.caldera.market`;
   } else if (!creator) {
     text =
       `Just bought $${amountUsd} of ${SIDE} on "${market.title}".\n\n` +
-      `caldera.market`;
+      `www.caldera.market`;
   } else {
     const displayName = getCreatorDisplayName(creator);
     const coinHandle = creator.deso_username
@@ -115,7 +115,7 @@ function buildTweetUrl({
     text =
       `Just bought $${amountUsd} of ${SIDE} on "${market.title}"\n\n` +
       `1% of every trade buys ${coinHandle} — ${claimSubject} inherits it when they claim.\n\n` +
-      `caldera.market`;
+      `www.caldera.market`;
   }
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 }

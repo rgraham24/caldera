@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   const adminPassword = process.env.ADMIN_PASSWORD ?? "caldera-admin-2026";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://caldera.market";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.caldera.market";
 
   let result: Record<string, unknown> = {};
   try {

@@ -59,7 +59,7 @@ export default function OGImage() {
             letterSpacing: "0.08em",
           }}
         >
-          caldera.market
+          www.caldera.market
         </div>
         <div
           style={{

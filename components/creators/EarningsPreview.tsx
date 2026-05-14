@@ -21,7 +21,7 @@ export function EarningsPreview({ creator, markets, onClaimClick }: EarningsPrev
   const topMarket = markets.sort((a, b) => (b.total_volume ?? 0) - (a.total_volume ?? 0))[0];
   const sym = creator.deso_username || creator.creator_coin_symbol || creator.name;
 
-  const shareText = `Hey @${sym}, you have ${formatCurrency(creatorShareIfClaimed)} in potential earnings on @CalderaMarkets from prediction markets about you. Claim your profile → caldera.markets/creators/${creator.slug}`;
+  const shareText = `Hey @${sym}, you have ${formatCurrency(creatorShareIfClaimed)} in potential earnings on @CalderaMarket from prediction markets about you. Claim your profile → www.caldera.market/creators/${creator.slug}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(shareText);
