@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { getTokenSymbolDisplay } from "@/lib/utils/tokenSymbol";
 import { useAppStore } from "@/store";
-import { Search, ChevronDown, TrendingUp, Clock } from "lucide-react";
+import { Search, ChevronDown, TrendingUp, Clock, CircleHelp } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { NotificationBell } from "./NotificationBell";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
@@ -442,7 +442,21 @@ export function TopNav() {
                 <Search className="h-5 w-5" />
               </button>
 
-              {/* How it works */}
+              {/* How it works — mobile icon-only variant. The desktop
+                  full-text button (below) is hidden on mobile, so
+                  connected mobile users were left with no path to
+                  the explainer; the HowItWorksChip only renders for
+                  logged-out users on the homepage. */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("show-hiw-modal"))}
+                title="How it works"
+                aria-label="How it works"
+                className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+              >
+                <CircleHelp className="h-5 w-5" strokeWidth={1.75} />
+              </button>
+
+              {/* How it works — desktop full-text */}
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent("show-hiw-modal"))}
                 className="hidden md:flex items-center gap-1.5 text-sm font-medium text-text-muted hover:text-caldera transition-colors whitespace-nowrap"
