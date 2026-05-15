@@ -146,23 +146,17 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
     };
   }, [query]);
 
-  if (!isOpen) return null;
-
-  const handleResultClick = () => {
-    saveRecent(query);
-    onClose();
-  };
-
-  const handleRecentClick = (q: string) => {
-    setQuery(q);
-    inputRef.current?.focus();
-  };
-
   // TODO: remove once full SQL dedup ships (deferred — see audit
   // 2026-05-11). Keeps search clean while dead stub rows exist.
   // 8 popular creators (LeBron, Logan Paul, Elon, Jake Paul, etc)
   // have 2-3 rows in creators; only one has is_bitclout_original +
   // deso_public_key, the others are archived empty stubs.
+  //
+  // NOTE: this useMemo MUST stay above the `if (!isOpen) return null`
+  // below. Calling it after the early return triggers React #310
+  // ("Rendered more hooks than during the previous render") the
+  // moment isOpen flips false -> true — the closed-render skipped
+  // this hook, the open-render calls it.
   const dedupedCreators = useMemo(() => {
     const groups = new Map<string, typeof results.creators>();
     for (const c of results.creators) {
@@ -186,6 +180,18 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
     }
     return out;
   }, [results.creators]);
+
+  if (!isOpen) return null;
+
+  const handleResultClick = () => {
+    saveRecent(query);
+    onClose();
+  };
+
+  const handleRecentClick = (q: string) => {
+    setQuery(q);
+    inputRef.current?.focus();
+  };
 
   const showEmpty = query.trim().length < 2;
   const showNoResults =
