@@ -165,8 +165,10 @@ export function MarketsClient({
         </span>
       </div>
 
-      {/* Top filter row: horizontal scrollable pills + sort dropdown right */}
-      <div className="mb-6 flex items-center justify-between gap-4">
+      {/* Top filter row: on mobile the sort control sits on its own row so
+          the category pills get a full-width, edge-to-edge scroll track with
+          nothing overlapping them. On md+ it stays inline to the right. */}
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
         <div
           className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 flex-1 min-w-0"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
@@ -185,7 +187,7 @@ export function MarketsClient({
           ))}
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 self-end md:self-auto">
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
