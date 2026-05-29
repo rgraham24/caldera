@@ -82,7 +82,7 @@ export function DepositModal({ onClose }: DepositModalProps) {
               <p className="font-medium text-green-300">🎉 You&apos;re already funded!</p>
               <p className="mt-1 text-sm text-green-400">
                 DeSo gave you starter DESO when you signed up. You can place your
-                first prediction now. Add more to bet bigger.
+                first prediction now. Add more to go bigger.
               </p>
             </div>
           )}

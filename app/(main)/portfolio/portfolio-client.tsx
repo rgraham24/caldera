@@ -499,7 +499,7 @@ export function PortfolioClient() {
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center">
                     <p className="text-sm text-text-muted mb-3">
-                      Your portfolio is a blank slate. Pick a market and place your first bet.
+                      Your portfolio is a blank slate. Pick a market and make your first prediction.
                     </p>
                     <Link
                       href="/markets"
