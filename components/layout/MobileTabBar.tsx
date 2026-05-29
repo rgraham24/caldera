@@ -16,6 +16,7 @@
  * destination page.
  */
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { House, Search, LayoutGrid, Menu } from "lucide-react";
@@ -84,6 +85,22 @@ const TABS: Tab[] = [
 export function MobileTabBar() {
   const pathname = usePathname() ?? "/";
 
+  // The Search tab opens an overlay, not a route, so pathname can't tell
+  // us when it's active. Track the overlay's open state off the same
+  // events SearchOverlayRoot broadcasts — this stays correct no matter
+  // HOW it closes (X button, tapping a result, or a nav tab).
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const onOpen = () => setSearchOpen(true);
+    const onClose = () => setSearchOpen(false);
+    window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
+    window.addEventListener(CLOSE_SEARCH_EVENT, onClose);
+    return () => {
+      window.removeEventListener(OPEN_SEARCH_EVENT, onOpen);
+      window.removeEventListener(CLOSE_SEARCH_EVENT, onClose);
+    };
+  }, []);
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-[70] border-t border-border-subtle/60 bg-surface/85 backdrop-blur-xl md:hidden"
@@ -91,7 +108,11 @@ export function MobileTabBar() {
     >
       <ul className="flex h-16 items-stretch">
         {TABS.map((tab) => {
-          const active = tab.match(pathname);
+          // Search (action tab) is active iff its overlay is open. Route
+          // tabs are active only when their path matches AND the overlay
+          // is closed — so search and a route tab never light at once.
+          const active =
+            tab.kind === "action" ? searchOpen : tab.match(pathname) && !searchOpen;
           const { Icon } = tab;
           const innerClassName = cn(
             "flex h-full w-full flex-col items-center justify-center gap-1 transition-colors",
