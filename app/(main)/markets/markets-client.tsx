@@ -20,7 +20,40 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 type MarketsClientProps = {
   markets: Market[];
   totalCount: number;
+  // Seeded from the URL (?category, ?sort) by the server page so topic
+  // tiles + browse pills land pre-filtered. Optional — direct visits to
+  // /markets get the defaults below.
+  initialCategory?: string | null;
+  initialSort?: string;
 };
+
+const KNOWN_CATEGORIES = new Set<string>(CATEGORIES.map((c) => c.value));
+
+// Map the URL ?sort token to an internal SortOption. The browse pills use
+// "ending" for the resolving-soon sort; everything unknown falls through
+// to the default "trending".
+function resolveSort(sort: string | undefined): SortOption {
+  switch (sort) {
+    case "volume":
+      return "volume";
+    case "ending":
+      return "resolving_soon";
+    case "newest":
+      return "newest";
+    case "trending":
+      return "trending";
+    default:
+      return "trending";
+  }
+}
+
+// Accept a URL category only if it's a known pill value (lowercased).
+// Anything unknown is ignored so we never seed an empty/stuck filter.
+function resolveCategory(category: string | null | undefined): string | null {
+  if (!category) return null;
+  const normalized = category.toLowerCase();
+  return KNOWN_CATEGORIES.has(normalized) ? normalized : null;
+}
 
 function Pill({
   active,
@@ -55,9 +88,16 @@ const CAT_GROUPS: Record<string, string[]> = {
   sports: ["sports", "athletes"],
 };
 
-export function MarketsClient({ markets, totalCount }: MarketsClientProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>("trending");
+export function MarketsClient({
+  markets,
+  totalCount,
+  initialCategory,
+  initialSort,
+}: MarketsClientProps) {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    resolveCategory(initialCategory)
+  );
+  const [sortBy, setSortBy] = useState<SortOption>(resolveSort(initialSort));
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
 
   // Reset to first page whenever the user changes filter or sort —
