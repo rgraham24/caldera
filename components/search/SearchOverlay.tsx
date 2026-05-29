@@ -23,6 +23,7 @@ import Link from "next/link";
 import { X, Search } from "lucide-react";
 import { formatCompactCurrency } from "@/lib/utils";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { SearchBrowseContent } from "@/components/search/SearchBrowseContent";
 
 const RECENT_KEY = "caldera_recent_searches";
 const RECENT_MAX = 5;
@@ -244,8 +245,8 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {showEmpty && (
           <div>
-            {recent.length > 0 ? (
-              <>
+            {recent.length > 0 && (
+              <div className="mb-8">
                 <p className="mb-3 text-[11px] uppercase tracking-widest font-semibold text-text-muted">
                   Recent searches
                 </p>
@@ -261,12 +262,11 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
                     </button>
                   ))}
                 </div>
-              </>
-            ) : (
-              <p className="mt-12 text-center text-sm text-text-muted">
-                Try searching for a creator or market.
-              </p>
+              </div>
             )}
+            {/* Same browse hub the /search page renders — shared component,
+                so the overlay's default state can't drift from the page. */}
+            <SearchBrowseContent onNavigate={onClose} />
           </div>
         )}
 
