@@ -89,8 +89,11 @@ export function HowItWorksModal() {
       >
         {/* Drag handle — mobile only */}
         <div className="sm:hidden mx-auto mt-2 mb-1 h-1 w-10 rounded-full bg-text-muted/30" />
-        {/* Visual area */}
-        <div className="bg-[var(--bg-elevated)] p-8 flex items-center justify-center min-h-[220px] relative">
+        {/* Visual area — FIXED height (not min-h) so the card is the same
+            size on every step and the modal doesn't jump. Sized to fit the
+            tallest card (the "market"/Trump step) at a 375px viewport
+            without clipping; the inner card stays centered. */}
+        <div className="bg-[var(--bg-elevated)] p-8 flex items-center justify-center h-[300px] relative">
 
           {current.visual === "market" && (
             <div className="bg-[var(--bg-surface)] rounded-2xl p-5 w-full max-w-[260px] border border-[var(--border-subtle)]">
@@ -228,10 +231,15 @@ export function HowItWorksModal() {
           <div className="text-xs text-[var(--text-tertiary)] font-medium tracking-widest uppercase mb-1">
             Step {current.number} of {STEPS.length}
           </div>
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{current.title}</h2>
-          <p className="text-sm text-[var(--text-tertiary)] leading-relaxed mb-6">
-            {current.description}
-          </p>
+          {/* Reserve a constant block for title + description so short
+              steps don't shrink the card. Sized for the worst case: a
+              2-line title (step 3) plus a 3-line description (step 2). */}
+          <div className="min-h-[150px] mb-6">
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{current.title}</h2>
+            <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">
+              {current.description}
+            </p>
+          </div>
 
           {/* Progress dots */}
           <div className="flex items-center gap-2 mb-4 justify-center">
