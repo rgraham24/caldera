@@ -241,8 +241,13 @@ export function SearchOverlay({ isOpen, onClose }: Props) {
         </button>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      {/* Body — bottom padding clears the fixed MobileTabBar (h-16 + safe
+          area), which now renders ON TOP of this overlay, so scrolled
+          content is never hidden behind the bar. */}
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4"
+        style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom) + 1rem)" }}
+      >
         {showEmpty && (
           <div>
             {recent.length > 0 && (

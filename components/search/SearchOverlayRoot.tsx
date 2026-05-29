@@ -21,14 +21,23 @@ const SearchOverlay = dynamic(
 );
 
 export const OPEN_SEARCH_EVENT = "open-search-overlay";
+// Fired by the bottom tab bar when a nav tab is tapped while the overlay
+// is open — closes the overlay before/at the route change so we never
+// navigate with search still mounted on top.
+export const CLOSE_SEARCH_EVENT = "close-search-overlay";
 
 export function SearchOverlayRoot() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setOpen(true);
-    window.addEventListener(OPEN_SEARCH_EVENT, handler);
-    return () => window.removeEventListener(OPEN_SEARCH_EVENT, handler);
+    const openHandler = () => setOpen(true);
+    const closeHandler = () => setOpen(false);
+    window.addEventListener(OPEN_SEARCH_EVENT, openHandler);
+    window.addEventListener(CLOSE_SEARCH_EVENT, closeHandler);
+    return () => {
+      window.removeEventListener(OPEN_SEARCH_EVENT, openHandler);
+      window.removeEventListener(CLOSE_SEARCH_EVENT, closeHandler);
+    };
   }, []);
 
   return <SearchOverlay isOpen={open} onClose={() => setOpen(false)} />;

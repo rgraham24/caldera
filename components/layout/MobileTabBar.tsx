@@ -8,13 +8,22 @@
  * Sits above the iOS home-indicator via env(safe-area-inset-bottom)
  * padding. Total height is 64px + safe-area, so the main content
  * wrapper above must reserve that much pb on mobile.
+ *
+ * z-[70] keeps the bar ABOVE the SearchOverlay (z-[60]) so it stays
+ * visible and tappable while search is open (Polymarket parity). The
+ * link tabs fire CLOSE_SEARCH_EVENT on tap so we close the overlay
+ * before navigating, never leaving search mounted on top of the
+ * destination page.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { House, Search, LayoutGrid, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { OPEN_SEARCH_EVENT } from "@/components/search/SearchOverlayRoot";
+import {
+  OPEN_SEARCH_EVENT,
+  CLOSE_SEARCH_EVENT,
+} from "@/components/search/SearchOverlayRoot";
 
 type LucideRef = typeof House;
 
@@ -77,7 +86,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle/60 bg-surface/85 backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-[70] border-t border-border-subtle/60 bg-surface/85 backdrop-blur-xl md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="flex h-16 items-stretch">
@@ -113,6 +122,11 @@ export function MobileTabBar() {
                   href={tab.href}
                   className={innerClassName}
                   aria-current={active ? "page" : undefined}
+                  // Close the search overlay (if open) before navigating so
+                  // it never sits mounted on top of the destination page.
+                  onClick={() =>
+                    window.dispatchEvent(new CustomEvent(CLOSE_SEARCH_EVENT))
+                  }
                 >
                   {inner}
                 </Link>
