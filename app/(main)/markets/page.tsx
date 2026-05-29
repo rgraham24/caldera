@@ -36,7 +36,14 @@ export default async function MarketsPage({
   const initialSort = firstParam(params.sort);
 
   return (
+    // key forces a clean remount whenever ?category / ?sort changes, so the
+    // useState seed re-applies. Topic tiles navigate /markets?category=A →
+    // ?category=B (same route segment) — without this, React reuses the
+    // mounted client and the seed never re-runs (the list would freeze on
+    // the first category). Local pill/sort taps don't change the URL, so
+    // they keep the same key and don't remount.
     <MarketsClient
+      key={`${initialCategory ?? "all"}:${initialSort ?? "trending"}`}
       markets={verifiedMarkets}
       totalCount={verifiedMarkets.length}
       initialCategory={initialCategory}
